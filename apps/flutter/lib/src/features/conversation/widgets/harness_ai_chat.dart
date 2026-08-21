@@ -2,19 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen_ai_chat_ui/flutter_gen_ai_chat_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/session/session_models.dart';
+import '../../../core/session/sessions_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../../tool/tool_models.dart';
-import '../composer_controller.dart';
-import '../message_provider.dart';
 import '../chat_ui_adapter.dart';
+import '../composer_controller.dart';
+import '../conversation_reducer.dart';
+import '../message_provider.dart';
 
 /// Conversation chat UI on top of `flutter_gen_ai_chat_ui`.
 ///
-/// Syncs harness `Message`/`ToolCall` streams into a `ChatMessagesController`
-/// so thinking collapses, tool calls render as rich cards, and retries
-/// disclose — fixing the screenshot bugs where thinking was a plain
-/// markdown paragraph and tool calls printed the literal
-/// `Tool: \${call.toolName}` template.
+/// Syncs the normalized [ReducedConversation] (reducer pipeline) into a
+/// `ChatMessagesController` so thinking collapses, tool calls render as rich
+/// cards with correct lifecycle, and provider/model failures surface as one
+/// concise error with Details — never orphaned `running` cards.
 class HarnessAiChat extends ConsumerStatefulWidget {
   const HarnessAiChat({super.key, required this.sessionId});
 
@@ -41,63 +43,125 @@ class _HarnessAiChatState extends ConsumerState<HarnessAiChat> {
     super.dispose();
   }
 
-  void _sync(List<Message> messages, List<ToolCall> toolCalls) {
-    syncMessagesToController(messages, toolCalls, _controller, aiUser: _aiUser, currentUser: _currentUser);
+  void _syncMessages(List<Message> messages, List<ToolCall> tools) {
+    syncMessagesToController(messages, tools, _controller, aiUser: _aiUser, currentUser: _currentUser);
+  }
+
+  void _syncWithError(List<Message> messages, List<ToolCall> tools, String friendly, String? raw) {
+    final List<ChatMessage> base = <ChatMessage>[];
+    for (final m in messages) {
+      base.addAll(harnessMessageToChatMessages(m, aiUser: _aiUser, currentUser: _currentUser));
+    }
+    for (final t in tools) {
+      base.add(toolCallToChatMessage(t, _aiUser));
+    }
+    base.add(ChatMessage.rich(
+      user: _aiUser,
+      resultKind: 'error',
+      data: {'text': friendly, 'rawError': raw ?? friendly},
+      id: 'turn-error',
+    ));
+    for (final chat in base) {
+      _controller.updateMessage(chat);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<Message> messages = ref.watch(liveMessageListProvider(widget.sessionId));
-    final List<ToolCall> toolCalls = ref.watch(liveToolCallsProvider(widget.sessionId));
+    final List<HistoryEntry> history = ref.watch(liveHistoryProvider(widget.sessionId));
     final String? agentError = ref.watch(agentErrorProvider(widget.sessionId));
     final AsyncValue<List<Message>> asyncMessages = ref.watch(messageListProvider(widget.sessionId));
+    final bool isRunning = ref.watch(sessionsProvider.select((s) => s.byId[SessionId(widget.sessionId)]?.running ?? false));
+    // Always watch fallback providers (Riverpod requires unconditional watches).
+    final List<Message> liveMessages = ref.watch(liveMessageListProvider(widget.sessionId));
+    final List<ToolCall> liveTools = ref.watch(liveToolCallsProvider(widget.sessionId));
 
-    // Surface fetch failures like the previous _LiveChatView error branch.
-    if (asyncMessages.hasError && messages.isEmpty && toolCalls.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.error_outline, size: 28, color: Theme.of(context).extension<DswThemeExtension>()?.aliases.stateErrorPrimary),
-            const SizedBox(height: 8),
-            Text('Failed to load messages', style: TextStyle(color: Theme.of(context).extension<DswThemeExtension>()?.aliases.labelPrimary)),
-            const SizedBox(height: 4),
-            SelectableText(asyncMessages.error.toString(), style: TextStyle(fontSize: 12, color: Theme.of(context).extension<DswThemeExtension>()?.aliases.labelSecondary)),
-          ]),
-        ),
-      );
+    final bool hasHistory = history.isNotEmpty;
+
+    if (hasHistory) {
+      final ReducedConversation r = reduceConversation(history, isRunning: isRunning, agentError: agentError);
+
+      if (asyncMessages.hasError && r.messages.isEmpty && r.tools.isEmpty && r.errorMessage == null) {
+        return _errorState(asyncMessages.error.toString());
+      }
+
+      ref.listen<List<HistoryEntry>>(liveHistoryProvider(widget.sessionId), (prev, next) {
+        final bool running = ref.read(sessionsProvider.select((s) => s.byId[SessionId(widget.sessionId)]?.running ?? false));
+        final String? err = ref.read(agentErrorProvider(widget.sessionId));
+        final ReducedConversation nr = reduceConversation(next, isRunning: running, agentError: err);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (nr.turnFailed && nr.errorMessage != null) {
+            _syncWithError(nr.messages, nr.tools, nr.errorMessage!, nr.rawError);
+          } else {
+            _syncMessages(nr.messages, nr.tools);
+          }
+        });
+      });
+
+      if (_controller.messages.isEmpty && (r.messages.isNotEmpty || r.tools.isNotEmpty || r.errorMessage != null)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (r.errorMessage != null) {
+            _syncWithError(r.messages, r.tools, r.errorMessage!, r.rawError);
+          } else {
+            _syncMessages(r.messages, r.tools);
+          }
+        });
+      }
+
+      return _buildChat(tools: r.tools, messages: r.messages, friendlyError: r.errorMessage, rawError: r.rawError);
     }
 
-    // Sync harness transcript → controller outside the build frame so
-    // `notifyListeners` doesn't trigger a consistency error, and guard
-    // so controllers that never change don't keep scheduling frames (which
-    // would leave pumpAndSettle hanging forever in tests).
-    ref.listen<List<Message>>(liveMessageListProvider(widget.sessionId), (previous, next) {
-      final String? err = ref.read(agentErrorProvider(widget.sessionId));
-      final List<Message> withError = err == null
-          ? next
-          : [
-              ...next,
-              Message(id: 'agent-error', role: MessageRole.system, content: err, time: DateTime.now().millisecondsSinceEpoch),
-            ];
-      final List<ToolCall> currentTools = ref.read(liveToolCallsProvider(widget.sessionId));
-      _sync(withError, currentTools);
-    });
-    ref.listen<List<ToolCall>>(liveToolCallsProvider(widget.sessionId), (previous, next) {
-      _sync(messages, next);
-    });
+    // Fallback: liveHistory empty (page refresh before live populated) — use
+    // the legacy message/tool providers which are already correct for
+    // non-failed turns. Agent errors still surface via friendly mapping.
+    final List<Message> asyncList = asyncMessages.valueOrNull ?? const <Message>[];
+    final List<Message> effectiveMessages = liveMessages.isNotEmpty ? liveMessages : asyncList;
+    final List<ToolCall> effectiveTools = liveTools;
 
-    // One-shot initial sync on first build.
-    if (_controller.messages.isEmpty && (messages.isNotEmpty || toolCalls.isNotEmpty || messages.isNotEmpty)) {
-      final List<Message> withError = agentError == null
-          ? messages
-          : [
-              ...messages,
-              Message(id: 'agent-error', role: MessageRole.system, content: agentError, time: DateTime.now().millisecondsSinceEpoch),
-            ];
-      WidgetsBinding.instance.addPostFrameCallback((_) => _sync(withError, toolCalls));
+    if (asyncMessages.hasError && effectiveMessages.isEmpty && effectiveTools.isEmpty) {
+      return _errorState(asyncMessages.error.toString());
     }
 
+    ref.listen<List<Message>>(liveMessageListProvider(widget.sessionId), (prev, next) {
+      final List<ToolCall> curTools = ref.read(liveToolCallsProvider(widget.sessionId));
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncMessages(next, curTools));
+    });
+    ref.listen<List<ToolCall>>(liveToolCallsProvider(widget.sessionId), (prev, next) {
+      final List<Message> curMsgs = ref.read(liveMessageListProvider(widget.sessionId));
+      final List<Message> base = curMsgs.isNotEmpty ? curMsgs : (ref.read(messageListProvider(widget.sessionId)).valueOrNull ?? const <Message>[]);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncMessages(base, next));
+    });
+
+    if (_controller.messages.isEmpty && (effectiveMessages.isNotEmpty || effectiveTools.isNotEmpty)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncMessages(effectiveMessages, effectiveTools));
+    }
+
+    return _buildChat(tools: effectiveTools, messages: effectiveMessages, friendlyError: null, rawError: null);
+  }
+
+  Widget _errorState(String error) {
+    final DswAliases aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.error_outline, size: 28, color: aliases.stateErrorPrimary),
+          const SizedBox(height: 8),
+          Text('Failed to load messages', style: TextStyle(color: aliases.labelPrimary)),
+          const SizedBox(height: 4),
+          SelectableText(error, style: TextStyle(fontSize: 12, color: aliases.labelSecondary)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildChat({
+    required List<ToolCall> tools,
+    required List<Message> messages,
+    required String? friendlyError,
+    required String? rawError,
+  }) {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases = theme.extension<DswThemeExtension>()?.aliases ??
         (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
@@ -107,7 +171,6 @@ class _HarnessAiChatState extends ConsumerState<HarnessAiChat> {
       aiUser: _aiUser,
       controller: _controller,
       onSendMessage: (ChatMessage chatMessage) {
-        // Bridge the package's send into the harness prompt surface.
         final String text = chatMessage.text.trim();
         if (text.isEmpty) return;
         final composer = ref.read(composerControllerProvider(widget.sessionId).notifier);
@@ -137,11 +200,27 @@ class _HarnessAiChatState extends ConsumerState<HarnessAiChat> {
         },
         'tool-call': (BuildContext context, Map<String, dynamic> data) {
           final String name = (data['toolName'] as String?) ?? (data['callId'] as String?) ?? 'tool';
-          final String status = (data['status'] as String?) ?? 'running';
+          final String status = (data['status'] as String?) ?? 'pending';
+          final String displayStatus = status == 'cancelled' ? 'Not executed' : status;
           final dynamic raw = data['argsRaw'] ?? data['args'];
-          final String args = raw is String ? raw : (raw is Map ? raw.toString() : '');
+          String args = '';
+          if (raw is String) {
+            final String t = raw.trim();
+            args = (t.isEmpty || t == '{}' || t == '[]') ? '' : t;
+          } else if (raw is Map) {
+            final Map<dynamic, dynamic> m = raw as Map<dynamic, dynamic>;
+            args = m.isEmpty ? '' : m.toString();
+            if (args == '{}') args = '';
+          }
           final dynamic result = data['result'];
-          return _ToolCallCard(toolName: name, status: status, argsRaw: args, result: result);
+          final bool isCancelled = status == 'cancelled';
+          return _ToolCallCard(
+            toolName: name,
+            status: displayStatus,
+            argsRaw: isCancelled ? '' : args,
+            result: isCancelled ? null : result,
+            isCancelled: isCancelled,
+          );
         },
         'retry': (BuildContext context, Map<String, dynamic> data) {
           final int retry = (data['retry'] as int?) ?? 0;
@@ -153,20 +232,9 @@ class _HarnessAiChatState extends ConsumerState<HarnessAiChat> {
         },
         'error': (BuildContext context, Map<String, dynamic> data) {
           final String text = (data['text'] as String?) ?? '';
-          return Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: aliases.bgOverlay,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: aliases.stateErrorPrimary.withValues(alpha: 0.3)),
-            ),
-            child: Row(children: [
-              Icon(Icons.error_outline, size: 14, color: aliases.stateErrorPrimary),
-              const SizedBox(width: 6),
-              Expanded(child: Text(text, style: TextStyle(fontSize: 12, color: aliases.stateErrorPrimary))),
-            ]),
-          );
+          final String? raw = data['rawError'] as String?;
+          final bool hasRaw = raw != null && raw.trim().isNotEmpty && raw.trim() != text.trim();
+          return _ErrorCard(text: text, rawError: hasRaw ? raw : null);
         },
       },
     );
@@ -220,15 +288,17 @@ class _ReasoningCardState extends State<_ReasoningCard> {
 }
 
 class _ToolCallCard extends StatelessWidget {
-  const _ToolCallCard({required this.toolName, required this.status, required this.argsRaw, this.result});
+  const _ToolCallCard({required this.toolName, required this.status, required this.argsRaw, this.result, this.isCancelled = false});
   final String toolName;
   final String status;
   final String argsRaw;
   final dynamic result;
+  final bool isCancelled;
   @override
   Widget build(BuildContext context) {
     final DswAliases aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
         (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final bool showArgs = !isCancelled && argsRaw.trim().isNotEmpty && argsRaw.trim() != '{}';
     return Container(
       decoration: BoxDecoration(
         color: aliases.markdownCodeBlock,
@@ -238,7 +308,7 @@ class _ToolCallCard extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(Icons.build_outlined, size: 14, color: aliases.labelTertiary),
+          Icon(isCancelled ? Icons.block_outlined : Icons.build_outlined, size: 14, color: aliases.labelTertiary),
           const SizedBox(width: 6),
           Text(toolName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: aliases.labelPrimary)),
           const SizedBox(width: 6),
@@ -248,15 +318,64 @@ class _ToolCallCard extends StatelessWidget {
             child: Text(status, style: TextStyle(fontSize: 10, color: aliases.labelCaption)),
           ),
         ]),
-        if (argsRaw.isNotEmpty) ...[
+        if (showArgs) ...[
           const SizedBox(height: 6),
           SelectableText(argsRaw, style: TextStyle(fontSize: 11, color: aliases.labelSecondary, fontFamily: 'SF Mono')),
         ],
-        if (result != null) ...[
+        if (result != null && !isCancelled) ...[
           const SizedBox(height: 6),
           Divider(height: 1, color: aliases.borderL2),
           const SizedBox(height: 6),
           SelectableText(result.toString(), style: TextStyle(fontSize: 11, color: aliases.labelSecondary, fontFamily: 'SF Mono')),
+        ],
+      ]),
+    );
+  }
+}
+
+class _ErrorCard extends StatefulWidget {
+  const _ErrorCard({required this.text, this.rawError});
+  final String text;
+  final String? rawError;
+  @override
+  State<_ErrorCard> createState() => _ErrorCardState();
+}
+
+class _ErrorCardState extends State<_ErrorCard> {
+  bool _showDetails = false;
+  @override
+  Widget build(BuildContext context) {
+    final DswAliases aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: aliases.bgOverlay,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: aliases.stateErrorPrimary.withValues(alpha: 0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.warning_amber_rounded, size: 14, color: aliases.stateErrorPrimary),
+          const SizedBox(width: 6),
+          Expanded(child: Text(widget.text, style: TextStyle(fontSize: 12, color: aliases.stateErrorPrimary, height: 1.4))),
+        ]),
+        if (widget.rawError != null) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => setState(() => _showDetails = !_showDetails),
+            child: Row(children: [
+              Icon(_showDetails ? Icons.expand_less : Icons.expand_more, size: 12, color: aliases.labelTertiary),
+              const SizedBox(width: 4),
+              Text(_showDetails ? 'Hide details' : 'Details', style: TextStyle(fontSize: 11, color: aliases.labelCaption)),
+            ]),
+          ),
+          if (_showDetails)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: SelectableText(widget.rawError!, style: TextStyle(fontSize: 10, color: aliases.labelSecondary, fontFamily: 'SF Mono')),
+            ),
         ],
       ]),
     );
