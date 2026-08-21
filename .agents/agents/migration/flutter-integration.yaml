@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flutter Integration Agent"
+  short_description: "Wires migrated widgets into Riverpod, routing, shell, and real Harness APIs."
+  default_prompt: "Take Migrated items and connect them to real Harness services/events/state/platform dependencies using $riverpod-runtime-integration: Riverpod providers over the runtime layer, go_router routes matching the slot composition graph, shell boot, and API consumers generated from extracted contracts. Integrated means working without production synthetic substitution; record integrationPoints on every row you advance."

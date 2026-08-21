@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tool Integration Agent"
+  short_description: "Splits tool lifecycle/topology from rendering; ports the presentation registry."
+  default_prompt: "Using $tool-topology-analysis, keep call/result pairing and recursive subCalls topology in the runtime layer and rendering behind a ToolPresentationRegistry (terminal, read, diff, search, web, todo, ask-question, approval, generic) so tools register renderers instead of editing a central switch. Test nested topologies with out-of-order, partial, failed, and retried events. Set Integrated when real runtime pairing feeds the registry."
