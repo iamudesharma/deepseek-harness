@@ -128,17 +128,21 @@ export function sourcePath(source: string): string {
   return colon > source.lastIndexOf('/') ? source.slice(0, colon) : source
 }
 
+const PACKAGE_BASES = ['packages/client', 'packages/extensions', 'packages/llm']
+
 function resolveReactPackage(reactPackage: string, exists: ExistsPredicate): string | null {
-  for (const base of ['packages/client', 'packages/extensions', 'packages/llm']) {
-    const candidate = `${base}/${reactPackage}`
-    if (exists(candidate)) return candidate
-  }
-  // compound reactPackage notation (e.g. ui-directory-picker-browse:ui-directory-picker-native)
-  if (reactPackage.includes(':')) {
-    for (const part of reactPackage.split(':')) {
-      for (const base of ['packages/client', 'packages/extensions', 'packages/llm']) {
-        if (exists(`${base}/${part}`)) return `${base}/${part}`
-      }
+  const bases = [
+    ...PACKAGE_BASES,
+    ...readdirSync(resolve(REPO_ROOT, 'packages'), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `packages/${entry.name}`),
+]
+  const candidates = reactPackage.includes(':')
+    ? reactPackage.split(':')
+    : [reactPackage]
+  for (const part of candidates) {
+    for (const base of bases) {
+      if (exists(`${base}/${part}`)) return `${base}/${part}`
     }
   }
   return null

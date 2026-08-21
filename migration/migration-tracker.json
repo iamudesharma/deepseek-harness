@@ -136,9 +136,9 @@
     ],
     "notes": "Typert llm/stream, provider-agnostic, host keeps adapter",
     "reactPackage": "llm",
-    "responsibility": "Typert llm/stream, provider-agnostic, host keeps adapter",
-    "replacementType": "direct",
-    "notApplicableReason": "",
+    "responsibility": "LLM capability seam (backend-owned); Flutter consumes session/event frames, never the provider abstraction directly.",
+    "replacementType": "not-applicable",
+    "notApplicableReason": "LLM is a backend service seam; the Flutter client consumes Harness session/event protocol, not LLM providers.",
     "owner": "react-codebase-auditor",
     "reviewer": "",
     "integrationLevel": [
@@ -795,7 +795,7 @@
   {
     "id": "component.ui-primitives.Markdown",
     "category": "component",
-    "source": "packages/client/ui-primitives/src/TerminalBlock.tsx",
+    "source": "packages/client/ui-primitives/src/markdown/MarkdownText.tsx",
     "flutterTarget": "apps/flutter/lib/src/widgets/primitives/markdown.dart",
     "status": "Audited",
     "dependsOn": [
@@ -815,7 +815,7 @@
     ],
     "notes": "Shiki + KaTeX, ANSI, gfm math",
     "reactPackage": "ui-primitives",
-    "responsibility": "Shiki + KaTeX, ANSI, gfm math",
+    "responsibility": "Renders GFM markdown with Shiki highlighting, KaTeX math, file/session mentions, and streaming-incremental parse.",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "react-codebase-auditor",
@@ -2175,7 +2175,7 @@
     ],
     "notes": "Copy code, path, clipboard bridge",
     "reactPackage": "ui-primitives",
-    "responsibility": "Copy code, path, clipboard bridge",
+    "responsibility": "Clipboard write with navigator.clipboard + execCommand fallback; plain text only.",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "react-codebase-auditor",
@@ -4594,5 +4594,1413 @@
       "demotedAt": "2026-08-21",
       "demotionReason": "New v1.1 evidence requirements"
     }
+  },
+  {
+    "id": "runtime.session-store",
+    "category": "runtime",
+    "source": "packages/client/runtime/src/client/sessions",
+    "reactPackage": "runtime",
+    "responsibility": "Resident per-session objects consuming live mux/host frames; history paging and shared event windows.",
+    "flutterTarget": "apps/flutter/lib/src/core/session/session_store.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.workspace-store",
+    "category": "runtime",
+    "source": "packages/client/runtime/src/client/workspaces",
+    "reactPackage": "runtime",
+    "responsibility": "Workspace list baseline, incremental upsert/remove, ordering, optimistic insertion, tombstones.",
+    "flutterTarget": "apps/flutter/lib/src/core/workspace/workspace_store.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.projection-store",
+    "category": "runtime",
+    "source": "packages/client/runtime/src/client/sessions",
+    "reactPackage": "runtime",
+    "responsibility": "ProjectionValueStore seeded from history and updated by session/projection frames; higher-seq-wins.",
+    "flutterTarget": "apps/flutter/lib/src/core/session/projection_store.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.pending-interactions",
+    "category": "runtime",
+    "source": "packages/interaction/user-approval/src/index.ts",
+    "reactPackage": "user-approval",
+    "responsibility": "Pending waits keyed by request id, prioritized question > approval > plan review, reconnect-preserving.",
+    "flutterTarget": "apps/flutter/lib/src/core/interaction/pending_interactions.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.remote-event-dispatch",
+    "category": "runtime",
+    "source": "packages/client/connection/src/client/connection.ts",
+    "reactPackage": "connection",
+    "responsibility": "Frame fanout from mux/host downlinks into session runtimes, generation-scoped.",
+    "flutterTarget": "apps/flutter/lib/src/core/connection/event_dispatcher.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.settings-scope",
+    "category": "runtime",
+    "source": "packages/client/runtime/src/client/contract/settings-scope.ts",
+    "reactPackage": "runtime",
+    "responsibility": "Per-scope settings mirrors (host/workspace/session) with schema validation and host transport.",
+    "flutterTarget": "apps/flutter/lib/src/core/settings/settings_scope.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.host-born-sessions",
+    "category": "runtime",
+    "source": "packages/client/runtime/src/client/contract/session.ts",
+    "reactPackage": "runtime",
+    "responsibility": "Sessions are host-born via session.create (Session+Agent+cwd together); no local fake pre-entity.",
+    "flutterTarget": "apps/flutter/lib/src/core/session/session_create.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "runtime.reconnect-generations",
+    "category": "protocol",
+    "source": "packages/client/connection/src/client/connection.ts",
+    "reactPackage": "connection",
+    "responsibility": "ConnectionGeneration increments on disconnect; generation-bound state clears; backoff/resync fills gaps.",
+    "flutterTarget": "apps/flutter/lib/src/core/connection/generation.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "protocol.session-eventmap",
+    "category": "protocol",
+    "source": "packages/core/session/src/types.ts",
+    "reactPackage": "session",
+    "responsibility": "Merge-extensible SessionEventMap: 48 known types, required-on-read default, ignorable envelope flag.",
+    "flutterTarget": "apps/flutter/lib/src/core/events/session_event.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "protocol"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "protocol.mux-host-frames",
+    "category": "protocol",
+    "source": "packages/client/connection/src/client/web-api-client.ts",
+    "reactPackage": "connection",
+    "responsibility": "Dual WS downlink frame vocabularies (mux + host) and their fanout contracts.",
+    "flutterTarget": "apps/flutter/lib/src/core/connection/frames.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "protocol"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "protocol.streaming-frames",
+    "category": "protocol",
+    "source": "packages/core/session/src/types.ts",
+    "reactPackage": "session",
+    "responsibility": "assistant/chunk streaming cadence with animation-frame publication coalescing.",
+    "flutterTarget": "apps/flutter/lib/src/core/events/streaming.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "protocol"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "protocol.rpc-contracts",
+    "category": "protocol",
+    "source": "packages/client/connection/src/client/rpc.ts",
+    "reactPackage": "connection",
+    "responsibility": "Typed RPC surfaces (host.describe, session.*, workspace.*, interaction responses) extracted from TS.",
+    "flutterTarget": "apps/flutter/lib/src/core/api/rpc_contracts.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "protocol"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "slot.registry",
+    "category": "slot",
+    "source": "packages/client/ui-slots/src/store.ts",
+    "reactPackage": "ui-slots",
+    "responsibility": "DshSlotRegistry: register/unregister/inject/resolve/render with dispose-safe teardown.",
+    "flutterTarget": "apps/flutter/lib/src/core/slots/slot_registry.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "slot.tool-renderer-registry",
+    "category": "slot",
+    "source": "packages/client/ui-tool/src/client/contract/slots.ts",
+    "reactPackage": "ui-tool",
+    "responsibility": "Keyed tool.call.toolview registry so tools contribute renderers without a central switch.",
+    "flutterTarget": "apps/flutter/lib/src/features/tool/tool_presentation_registry.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "modules.client-plugin-loading",
+    "category": "slot",
+    "source": "packages/client/modules/src/index.ts",
+    "reactPackage": "modules",
+    "responsibility": "Capability registry replacing __DSH_BOOT__/module loader: host capabilities -> feature registry -> lazy init.",
+    "flutterTarget": "apps/flutter/lib/src/core/capabilities/capability_registry.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "plugin.client-lifecycle",
+    "category": "slot",
+    "source": "packages/extensions/cordis-client-runner/README.md",
+    "reactPackage": "cordis-client-runner",
+    "responsibility": "Effect-based plugin registration/disposal semantics mirrored by the Flutter capability registry.",
+    "flutterTarget": "apps/flutter/lib/src/core/capabilities/plugin_lifecycle.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "component.brand-official",
+    "category": "component",
+    "source": "packages/client/ui-brand-official/src",
+    "reactPackage": "ui-brand-official",
+    "responsibility": "Fills generic brand slots with official name/marks via DshBrandProvider.",
+    "flutterTarget": "apps/flutter/lib/src/features/brand/brand_provider.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "conversation.node-assembler",
+    "category": "runtime",
+    "source": "packages/client/runtime/src/client/conversation/event-registry.ts",
+    "reactPackage": "runtime",
+    "responsibility": "ConversationNode assembly: definitions fold event windows into contexts/state -> view builders -> snapshot.",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/nodes/assembler.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "conversation.streaming-tail",
+    "category": "runtime",
+    "source": "packages/client/ui-conversation/src/client/conversation-nodes/assistant.ts",
+    "reactPackage": "ui-conversation",
+    "responsibility": "In-flight turn isolated from settled nodes; animation-frame coalescing for chunks.",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/nodes/streaming_tail.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "conversation.turn-grouping",
+    "category": "runtime",
+    "source": "packages/client/ui-conversation/src/client/conversation-nodes/turn-tail.ts",
+    "reactPackage": "ui-conversation",
+    "responsibility": "Turn/step grouping with stable location data and timeline snapshots.",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/nodes/turn_grouping.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "conversation.step-summary",
+    "category": "runtime",
+    "source": "packages/client/ui-conversation/src/client/contract/slots.ts",
+    "reactPackage": "ui-conversation",
+    "responsibility": "Grouped step-summary flow rendering multi-step turns.",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/nodes/step_summary.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "conversation.compaction",
+    "category": "runtime",
+    "source": "packages/client/ui-conversation/src/client/conversation-nodes/compaction.ts",
+    "reactPackage": "ui-conversation",
+    "responsibility": "Compaction checkpoint node: collapsed summary, expansion, token estimates, replaced counts.",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/nodes/compaction_node.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "conversation.retry-error-states",
+    "category": "runtime",
+    "source": "packages/client/ui-conversation/src/client/conversation-nodes/retry.ts",
+    "reactPackage": "ui-conversation",
+    "responsibility": "Retry/error tails: model-retry, turn-error, turn-max-tokens node kinds.",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/nodes/error_tails.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "state.streaming-assistant",
+    "category": "state",
+    "source": "packages/core/session/src/types.ts",
+    "reactPackage": "session",
+    "responsibility": "Assistant chunk stream state feeding the streaming tail.",
+    "flutterTarget": "apps/flutter/lib/src/core/events/assistant_stream.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "state.streaming-reasoning",
+    "category": "state",
+    "source": "packages/core/session/src/types.ts",
+    "reactPackage": "session",
+    "responsibility": "Reasoning stream state surfaced in the conversation tail.",
+    "flutterTarget": "apps/flutter/lib/src/core/events/reasoning_stream.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "state.streaming-tool",
+    "category": "state",
+    "source": "packages/core/session/src/types.ts",
+    "reactPackage": "session",
+    "responsibility": "Tool argument/result partial streaming state.",
+    "flutterTarget": "apps/flutter/lib/src/core/events/tool_stream.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "tool.lifecycle-pairing",
+    "category": "runtime",
+    "source": "packages/client/ui-tool/src/client/tool/ToolCallTree.tsx",
+    "reactPackage": "ui-tool",
+    "responsibility": "Runtime owns callId pairing and lifecycle; presentation never pairs or infers topology.",
+    "flutterTarget": "apps/flutter/lib/src/core/tools/tool_lifecycle.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "tool.subcall-topology",
+    "category": "runtime",
+    "source": "packages/client/ui-tool/src/client/tool/ToolCallTree.tsx",
+    "reactPackage": "ui-tool",
+    "responsibility": "Recursive subCalls projection rendered as nested trees; out-of-order/partial/failure tested.",
+    "flutterTarget": "apps/flutter/lib/src/core/tools/subcall_topology.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "runtime",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "interaction.plane",
+    "category": "runtime",
+    "source": "packages/interaction/user-approval/src/index.ts",
+    "reactPackage": "user-approval",
+    "responsibility": "Approval/question/plan-review collaboration plane routed through pending-interaction priority.",
+    "flutterTarget": "apps/flutter/lib/src/core/interaction/interaction_plane.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "settings.runtime-scope",
+    "category": "runtime",
+    "source": "packages/client/ui-settings/src/client",
+    "reactPackage": "ui-settings",
+    "responsibility": "Settings runtime: scope services, schema validation, plugin inventory sections.",
+    "flutterTarget": "apps/flutter/lib/src/features/settings/settings_runtime.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "locale.service-dictionaries",
+    "category": "runtime",
+    "source": "packages/client/locale/src/locale-settings.ts",
+    "reactPackage": "locale",
+    "responsibility": "zh/en dictionaries, namespace merge, host-backed preference, fallback language.",
+    "flutterTarget": "apps/flutter/lib/src/core/locale/locale_service.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "runtime"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "subagent.runtime-link",
+    "category": "runtime",
+    "source": "packages/client/ui-subagent/src/client",
+    "reactPackage": "ui-subagent",
+    "responsibility": "Child transcript, parent/child navigation, agent-scope lifecycle links.",
+    "flutterTarget": "apps/flutter/lib/src/features/subagent/subagent_link.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "reference.composer-integration",
+    "category": "runtime",
+    "source": "packages/client/ui-reference/src/client/index.ts",
+    "reactPackage": "ui-reference",
+    "responsibility": "@file/@session resolvers integrated with composer suggestions and message rendering.",
+    "flutterTarget": "apps/flutter/lib/src/features/reference/reference_engine.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "input-trigger.suggestion-engine",
+    "category": "runtime",
+    "source": "packages/client/ui-input-trigger/src/client/slots.ts",
+    "reactPackage": "ui-input-trigger",
+    "responsibility": "Common suggestion engine over command/skill/reference sources with precedence + keyboard nav.",
+    "flutterTarget": "apps/flutter/lib/src/features/input_trigger/suggestion_engine.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "state",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "not-applicable",
+      "behavior": "missing",
+      "runtime": "missing",
+      "streaming": "missing",
+      "reconnect": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "platform.keyboard-shortcuts",
+    "category": "platform",
+    "source": "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+    "reactPackage": "ui-conversation",
+    "responsibility": "Keyboard shortcut handling across composer and shell; macOS accelerators.",
+    "flutterTarget": "apps/flutter/lib/src/platform/keyboard_shortcuts.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "platform.drag-drop",
+    "category": "platform",
+    "source": "packages/client/ui-attachment/src/client/index.ts",
+    "reactPackage": "ui-attachment",
+    "responsibility": "Image drag-drop intake into composer attachments.",
+    "flutterTarget": "apps/flutter/lib/src/platform/drag_drop.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "platform",
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
+  },
+  {
+    "id": "platform.open-external",
+    "category": "platform",
+    "source": "packages/client/web/src/boot.ts",
+    "reactPackage": "web",
+    "responsibility": "External URL opening on web and macOS.",
+    "flutterTarget": "apps/flutter/lib/src/platform/open_external.dart",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "status": "Audited",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "dependsOn": [],
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "tests": [],
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": false,
+    "notes": ""
   }
 ]
