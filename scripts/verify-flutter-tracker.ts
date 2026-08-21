@@ -129,9 +129,17 @@ export function sourcePath(source: string): string {
 }
 
 function resolveReactPackage(reactPackage: string, exists: ExistsPredicate): string | null {
-  for (const base of ['packages/client', 'packages/extensions']) {
+  for (const base of ['packages/client', 'packages/extensions', 'packages/llm']) {
     const candidate = `${base}/${reactPackage}`
     if (exists(candidate)) return candidate
+  }
+  // compound reactPackage notation (e.g. ui-directory-picker-browse:ui-directory-picker-native)
+  if (reactPackage.includes(':')) {
+    for (const part of reactPackage.split(':')) {
+      for (const base of ['packages/client', 'packages/extensions', 'packages/llm']) {
+        if (exists(`${base}/${part}`)) return `${base}/${part}`
+      }
+    }
   }
   return null
 }

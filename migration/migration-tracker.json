@@ -1,0 +1,4598 @@
+[
+  {
+    "id": "animation.dragHandle",
+    "category": "animation",
+    "source": "packages/client/ui-layout/src/client/AppFrame.tsx:DragHandle",
+    "flutterTarget": "apps/flutter/lib/src/widgets/layout/drag_handle.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "state.layout",
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/app_frame_test.dart"
+    ],
+    "notes": "Pointer capture + rAF throttle + dx origin, gesture frozen",
+    "reactPackage": "ui-layout",
+    "responsibility": "Pointer capture + rAF throttle + dx origin, gesture frozen",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/app_frame_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "api.connection",
+    "category": "api",
+    "source": "packages/client/connection/src/client",
+    "flutterTarget": "apps/flutter/lib/src/core/connection/connection_client.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/unit/sessions_controller_test.dart"
+    ],
+    "notes": "ConnectionController, http-bridge, api-path, rpcId rule",
+    "reactPackage": "connection",
+    "responsibility": "ConnectionController, http-bridge, api-path, rpcId rule",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "protocol"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/unit/sessions_controller_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "api.llm",
+    "category": "api",
+    "source": "packages/llm/llm/src",
+    "flutterTarget": "apps/flutter/lib/src/core/llm/llm_client.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "api.connection"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/core/llm/llm_client.dart"
+    ],
+    "notes": "Typert llm/stream, provider-agnostic, host keeps adapter",
+    "reactPackage": "llm",
+    "responsibility": "Typert llm/stream, provider-agnostic, host keeps adapter",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "protocol"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/core/llm/llm_client.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.BrandWordmark",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/BrandWordmark.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/brandwordmark.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/brandwordmark.dart"
+    ],
+    "notes": "Primitive BrandWordmark from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive BrandWordmark from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/brandwordmark.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Button",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Button.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/ds_button.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/primitives_test.dart"
+    ],
+    "notes": "Variant/size, tokens --dsw-*",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Variant/size, tokens --dsw-*",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/primitives_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.CodeBlock",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/markdown/CodeBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/codeblock.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/codeblock.dart"
+    ],
+    "notes": "Primitive CodeBlock from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive CodeBlock from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/codeblock.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.ConnectionBanner",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/ConnectionBanner.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/connectionbanner.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/connectionbanner.dart"
+    ],
+    "notes": "Primitive ConnectionBanner from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive ConnectionBanner from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/connectionbanner.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.DiffBlock",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/DiffBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/diffblock.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/diffblock.dart"
+    ],
+    "notes": "Primitive DiffBlock from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive DiffBlock from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/diffblock.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.DisclosureRow",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/DisclosureRow.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/disclosure_row.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/primitives_test.dart"
+    ],
+    "notes": "Collapsible tool row",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Collapsible tool row",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/primitives_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.FishLogo",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/FishLogo.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/fishlogo.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/fishlogo.dart"
+    ],
+    "notes": "Primitive FishLogo from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive FishLogo from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/fishlogo.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.HoverCard",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/HoverCard.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/hovercard.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/hovercard.dart"
+    ],
+    "notes": "Primitive HoverCard from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive HoverCard from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/hovercard.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Input",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Input.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/input.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/ds_input.dart"
+    ],
+    "notes": "Primitive Input from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive Input from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/ds_input.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.JsonTree",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/JsonTree.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/jsontree.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/jsontree.dart"
+    ],
+    "notes": "Primitive JsonTree from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive JsonTree from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/jsontree.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Markdown",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/TerminalBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/markdown.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/markdown.dart",
+      "apps/flutter/test/widgets/conversation_test.dart"
+    ],
+    "notes": "Shiki + KaTeX, ANSI, gfm math",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Shiki + KaTeX, ANSI, gfm math",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/markdown.dart",
+            "apps/flutter/test/widgets/conversation_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Menu",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Menu.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/menu.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/menu.dart"
+    ],
+    "notes": "Primitive Menu from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive Menu from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/menu.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Modal",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Modal.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/ds_modal.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/primitives_test.dart"
+    ],
+    "notes": "Overlay, dismiss on outside click",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Overlay, dismiss on outside click",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/primitives_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.OnboardingSurface",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/OnboardingSurface.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/onboardingsurface.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/onboardingsurface.dart"
+    ],
+    "notes": "Primitive OnboardingSurface from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive OnboardingSurface from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/onboardingsurface.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Pill",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Pill.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/pill.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/pill.dart"
+    ],
+    "notes": "Primitive Pill from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive Pill from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/pill.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.ReadBlock",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/ReadBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/readblock.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/readblock.dart"
+    ],
+    "notes": "Primitive ReadBlock from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive ReadBlock from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/readblock.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.RiskConfirmation",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/RiskConfirmation.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/riskconfirmation.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/riskconfirmation.dart"
+    ],
+    "notes": "Primitive RiskConfirmation from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive RiskConfirmation from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/riskconfirmation.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.SearchBlock",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/SearchBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/searchblock.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/searchblock.dart"
+    ],
+    "notes": "Primitive SearchBlock from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive SearchBlock from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/searchblock.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.StateDot",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/StateDot.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/statedot.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/state_dot.dart"
+    ],
+    "notes": "Primitive StateDot from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive StateDot from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/state_dot.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.TerminalBlock",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/TerminalBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/terminalblock.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/terminalblock.dart"
+    ],
+    "notes": "Primitive TerminalBlock from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive TerminalBlock from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/terminalblock.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Toast",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Toast.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/toast.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/toast.dart"
+    ],
+    "notes": "Primitive Toast from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive Toast from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/toast.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.Tooltip",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/Tooltip.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/tooltip.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/ds_tooltip.dart"
+    ],
+    "notes": "Primitive Tooltip from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive Tooltip from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/ds_tooltip.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.WebBlock",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/WebBlock.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/webblock.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/webblock.dart"
+    ],
+    "notes": "Primitive WebBlock from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive WebBlock from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/webblock.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.ansi",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/ansi.ts",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/ansi.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/utils/ansi.dart"
+    ],
+    "notes": "Primitive ansi from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive ansi from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/utils/ansi.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.head-tail-cap",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/head-tail-cap.ts",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/head-tail-cap.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/utils/head_tail_cap.dart"
+    ],
+    "notes": "Primitive head-tail-cap from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive head-tail-cap from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/utils/head_tail_cap.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-primitives.icons",
+    "category": "component",
+    "source": "packages/client/ui-primitives/src/icons/index.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/icons.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/primitives/icons.dart"
+    ],
+    "notes": "Primitive icons from ui-primitives",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Primitive icons from ui-primitives",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/primitives/icons.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "component.ui-tool.ToolCallTree",
+    "category": "component",
+    "source": "packages/client/ui-tool/src/client/tool/ToolCallTree.tsx",
+    "flutterTarget": "apps/flutter/lib/src/features/tool/widgets/tool_call_tree.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "component.ui-primitives.DisclosureRow"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/conversation_test.dart"
+    ],
+    "notes": "Keyed toolview slot tool.call.toolview, Generic/Read/Diff/Search/Web/Terminal/Todo/AskQuestion cards",
+    "reactPackage": "ui-tool",
+    "responsibility": "Keyed toolview slot tool.call.toolview, Generic/Read/Diff/Search/Web/Terminal/Todo/AskQuestion cards",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/conversation_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-tool",
+    "category": "component",
+    "source": "packages/client/ui-tool/src/client",
+    "flutterTarget": "apps/flutter/lib/src/component/tool.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/tool/widgets/tool_call_tree.dart"
+    ],
+    "notes": "ToolCallTree + card views",
+    "reactPackage": "ui-tool",
+    "responsibility": "ToolCallTree + card views",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/tool/widgets/tool_call_tree.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "dialog.hoverCard",
+    "category": "dialog",
+    "source": "packages/client/ui-primitives/src/HoverCard.tsx",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/hover_card.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/primitives_test.dart"
+    ],
+    "notes": "HoverCard + Tooltip, overlay placement",
+    "reactPackage": "ui-primitives",
+    "responsibility": "HoverCard + Tooltip, overlay placement",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/primitives_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "form.language",
+    "category": "form",
+    "source": "packages/client/locale/src/client/LanguageRow.tsx",
+    "flutterTarget": "apps/flutter/lib/src/features/settings/widgets/language_row.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widget_test.dart"
+    ],
+    "notes": "Localization preference, dictionaries",
+    "reactPackage": "locale",
+    "responsibility": "Localization preference, dictionaries",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widget_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "form.locale",
+    "category": "form",
+    "source": "packages/client/locale/src/client",
+    "flutterTarget": "apps/flutter/lib/src/form/locale.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/locale/locale_screen.dart"
+    ],
+    "notes": "LanguageRow/ i18n",
+    "reactPackage": "locale",
+    "responsibility": "LanguageRow/ i18n",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/locale/locale_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "form.model-select",
+    "category": "form",
+    "source": "packages/client/ui-model-selection/src/client/ModelSelect.tsx",
+    "flutterTarget": "apps/flutter/lib/src/features/settings/widgets/model_select.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "api.llm",
+      "state.session"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widget_test.dart"
+    ],
+    "notes": "Model selection in conversation surfaces",
+    "reactPackage": "ui-model-selection",
+    "responsibility": "Model selection in conversation surfaces",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widget_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.clipboard",
+    "category": "platform",
+    "source": "packages/client/ui-primitives/src/clipboard.ts",
+    "flutterTarget": "apps/flutter/lib/src/platform/clipboard.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widget_test.dart"
+    ],
+    "notes": "Copy code, path, clipboard bridge",
+    "reactPackage": "ui-primitives",
+    "responsibility": "Copy code, path, clipboard bridge",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widget_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.directoryPicker",
+    "category": "platform",
+    "source": "packages/client/ui-directory-picker-native/src/client",
+    "flutterTarget": "apps/flutter/lib/src/platform/adaptive_directory_picker.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "api.connection"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widget_test.dart"
+    ],
+    "notes": "Browse (web) vs native (macOS) — kIsWeb branching",
+    "reactPackage": "ui-directory-picker-native",
+    "responsibility": "Browse (web) vs native (macOS) — kIsWeb branching",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widget_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.ui-attachment",
+    "category": "platform",
+    "source": "packages/client/ui-attachment/src/client",
+    "flutterTarget": "apps/flutter/lib/src/platform/attachment.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/platform/attachment.dart"
+    ],
+    "notes": "ComposerAttachments/MessageImages/Lightbox",
+    "reactPackage": "ui-attachment",
+    "responsibility": "ComposerAttachments/MessageImages/Lightbox",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/platform/attachment.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.ui-directory-picker-browse",
+    "category": "platform",
+    "source": "packages/client/ui-directory-picker-browse/src/client",
+    "flutterTarget": "apps/flutter/lib/src/platform/directory-picker-browse.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/platform/directory-picker-browse.dart"
+    ],
+    "notes": "DirectoryBrowser",
+    "reactPackage": "ui-directory-picker-browse",
+    "responsibility": "DirectoryBrowser",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/platform/directory-picker-browse.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.ui-directory-picker-native",
+    "category": "platform",
+    "source": "packages/client/ui-directory-picker-native/src/client",
+    "flutterTarget": "apps/flutter/lib/src/platform/directory-picker-native.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/platform/directory-picker-native.dart"
+    ],
+    "notes": "Native picker",
+    "reactPackage": "ui-directory-picker-native",
+    "responsibility": "Native picker",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/platform/directory-picker-native.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.ui-model-selection",
+    "category": "platform",
+    "source": "packages/client/ui-model-selection/src/client",
+    "flutterTarget": "apps/flutter/lib/src/platform/model-selection.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/agent_preset/agent_preset_screen.dart"
+    ],
+    "notes": "ModelSelect",
+    "reactPackage": "ui-model-selection",
+    "responsibility": "ModelSelect",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/agent_preset/agent_preset_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "platform.web",
+    "category": "platform",
+    "source": "packages/client/web/src/boot.ts",
+    "flutterTarget": "apps/flutter/lib/src/platform/web.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/platform/web_boot.dart"
+    ],
+    "notes": "Web boot/seed/platform",
+    "reactPackage": "web",
+    "responsibility": "Web boot/seed/platform",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "platform"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/platform/web_boot.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "route.conversation.chat.node",
+    "category": "route",
+    "source": "packages/client/ui-conversation/src/client/contract",
+    "flutterTarget": "apps/flutter/lib/src/routing/app_router.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "route.root",
+      "screen.conversation"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/conversation_test.dart"
+    ],
+    "notes": "ConversationNodeDefinition + keyed renderer",
+    "reactPackage": "ui-conversation",
+    "responsibility": "ConversationNodeDefinition + keyed renderer",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/conversation_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "route.root",
+    "category": "route",
+    "source": "packages/client/ui-layout/src/client/AppFrame.tsx",
+    "flutterTarget": "apps/flutter/lib/src/routing/app_shell.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/app_frame_test.dart"
+    ],
+    "notes": "Shell root → sidebar|conversation|details|shell.overlay, AppFrame columns",
+    "reactPackage": "ui-layout",
+    "responsibility": "Shell root → sidebar|conversation|details|shell.overlay, AppFrame columns",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/app_frame_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "route.ui-layout",
+    "category": "route",
+    "source": "packages/client/ui-layout/src/client",
+    "flutterTarget": "apps/flutter/lib/src/route/layout.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/widgets/layout/app_frame.dart"
+    ],
+    "notes": "AppFrame + columns + DragHandle",
+    "reactPackage": "ui-layout",
+    "responsibility": "AppFrame + columns + DragHandle",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/widgets/layout/app_frame.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "route.ui-renderer",
+    "category": "route",
+    "source": "packages/client/ui-renderer/src/client",
+    "flutterTarget": "apps/flutter/lib/src/route/renderer.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/routing/app_router.dart"
+    ],
+    "notes": "UiRenderer/App/DocumentTitle/SessionProvider",
+    "reactPackage": "ui-renderer",
+    "responsibility": "UiRenderer/App/DocumentTitle/SessionProvider",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/routing/app_router.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.conversation",
+    "category": "screen",
+    "source": "packages/client/ui-conversation/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/conversation/conversation_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "component.ui-primitives.Markdown",
+      "state.session"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/conversation_test.dart",
+      "apps/flutter/test/unit/composer_controller_test.dart"
+    ],
+    "notes": "Chat list + composer + virtualization, session-maybe scope",
+    "reactPackage": "ui-conversation",
+    "responsibility": "Chat list + composer + virtualization, session-maybe scope",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/conversation_test.dart",
+            "apps/flutter/test/unit/composer_controller_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.settings",
+    "category": "screen",
+    "source": "packages/client/ui-settings/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/settings/settings_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "form.model-select",
+      "form.language"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widget_test.dart"
+    ],
+    "notes": "Settings host + 4 tabs: general/models/plugins/inventory",
+    "reactPackage": "ui-settings",
+    "responsibility": "Settings host + 4 tabs: general/models/plugins/inventory",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widget_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.sidebar",
+    "category": "screen",
+    "source": "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+    "flutterTarget": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "route.root",
+      "state.sessions"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/app_frame_test.dart"
+    ],
+    "notes": "Workspace + session navigation, collapsed rail",
+    "reactPackage": "ui-sidebar",
+    "responsibility": "Workspace + session navigation, collapsed rail",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/app_frame_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.trajectory",
+    "category": "screen",
+    "source": "packages/client/ui-trajectory/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/trajectory/trajectory_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "screen.conversation"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/widgets/conversation_test.dart"
+    ],
+    "notes": "Timeline/Table/Cell/Turn, alternate view of agent activity",
+    "reactPackage": "ui-trajectory",
+    "responsibility": "Timeline/Table/Cell/Turn, alternate view of agent activity",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/widgets/conversation_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-agent-preset",
+    "category": "screen",
+    "source": "packages/client/ui-agent-preset/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/agent-preset/agent-preset_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/agent-preset/agent-preset_screen.dart"
+    ],
+    "notes": "AgentPresetSection/Row/Seat",
+    "reactPackage": "ui-agent-preset",
+    "responsibility": "AgentPresetSection/Row/Seat",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/agent-preset/agent-preset_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-commands",
+    "category": "screen",
+    "source": "packages/client/ui-commands/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/commands/commands_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/commands/commands_screen.dart"
+    ],
+    "notes": "Command discovery/PopupSelect",
+    "reactPackage": "ui-commands",
+    "responsibility": "Command discovery/PopupSelect",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/commands/commands_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-deliverables",
+    "category": "screen",
+    "source": "packages/client/ui-deliverables/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/deliverables/deliverables_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/deliverables/deliverables_screen.dart"
+    ],
+    "notes": "ProducedFiles",
+    "reactPackage": "ui-deliverables",
+    "responsibility": "ProducedFiles",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/deliverables/deliverables_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-goal",
+    "category": "screen",
+    "source": "packages/client/ui-goal/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/goal/goal_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/goal/goal_screen.dart"
+    ],
+    "notes": "GoalBar/GoalCommandInput",
+    "reactPackage": "ui-goal",
+    "responsibility": "GoalBar/GoalCommandInput",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/goal/goal_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-input-trigger",
+    "category": "screen",
+    "source": "packages/client/ui-input-trigger/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/input-trigger/input-trigger_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/input-trigger/input-trigger_screen.dart"
+    ],
+    "notes": "Inline @/ skill suggestions MenuView",
+    "reactPackage": "ui-input-trigger",
+    "responsibility": "Inline @/ skill suggestions MenuView",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/input-trigger/input-trigger_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-jobs",
+    "category": "screen",
+    "source": "packages/client/ui-jobs/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/jobs/jobs_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/jobs/jobs_screen.dart"
+    ],
+    "notes": "Background jobs list",
+    "reactPackage": "ui-jobs",
+    "responsibility": "Background jobs list",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/jobs/jobs_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-message-feedback",
+    "category": "screen",
+    "source": "packages/client/ui-message-feedback/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/message-feedback/message-feedback_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/message-feedback/message-feedback_screen.dart"
+    ],
+    "notes": "MessageFeedbackActions",
+    "reactPackage": "ui-message-feedback",
+    "responsibility": "MessageFeedbackActions",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/message-feedback/message-feedback_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-permission-presets",
+    "category": "screen",
+    "source": "packages/client/ui-permission-presets/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/permission-presets/permission-presets_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/permission-presets/permission-presets_screen.dart"
+    ],
+    "notes": "Permission presets",
+    "reactPackage": "ui-permission-presets",
+    "responsibility": "Permission presets",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/permission-presets/permission-presets_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-plan",
+    "category": "screen",
+    "source": "packages/client/ui-plan/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/plan/plan_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/plan/plan_screen.dart"
+    ],
+    "notes": "PlanModeControl",
+    "reactPackage": "ui-plan",
+    "responsibility": "PlanModeControl",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/plan/plan_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-reference",
+    "category": "screen",
+    "source": "packages/client/ui-reference/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/reference/reference_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/reference/reference_screen.dart"
+    ],
+    "notes": "@file/@session references",
+    "reactPackage": "ui-reference",
+    "responsibility": "@file/@session references",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/reference/reference_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-settings-general",
+    "category": "screen",
+    "source": "packages/client/ui-settings-general/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/settings-general/settings-general_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/settings_general/settings_general_screen.dart"
+    ],
+    "notes": "Settings General",
+    "reactPackage": "ui-settings-general",
+    "responsibility": "Settings General",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/settings_general/settings_general_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-settings-models",
+    "category": "screen",
+    "source": "packages/client/ui-settings-models/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/settings-models/settings-models_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/settings_models/settings_models_screen.dart"
+    ],
+    "notes": "Model provider onboarding",
+    "reactPackage": "ui-settings-models",
+    "responsibility": "Model provider onboarding",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/settings_models/settings_models_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-settings-plugin-inventory",
+    "category": "screen",
+    "source": "packages/client/ui-settings-plugin-inventory/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/settings-plugin-inventory/settings-plugin-inventory_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/settings_inventory/settings_inventory_screen.dart"
+    ],
+    "notes": "Host Loader inventory",
+    "reactPackage": "ui-settings-plugin-inventory",
+    "responsibility": "Host Loader inventory",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/settings_inventory/settings_inventory_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-settings-plugins",
+    "category": "screen",
+    "source": "packages/client/ui-settings-plugins/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/settings-plugins/settings-plugins_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/settings_plugins/settings_plugins_screen.dart"
+    ],
+    "notes": "Plugins tab",
+    "reactPackage": "ui-settings-plugins",
+    "responsibility": "Plugins tab",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/settings_plugins/settings_plugins_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-skill",
+    "category": "screen",
+    "source": "packages/client/ui-skill/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/skill/skill_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/skill/skill_screen.dart"
+    ],
+    "notes": "Skill references",
+    "reactPackage": "ui-skill",
+    "responsibility": "Skill references",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/skill/skill_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-subagent",
+    "category": "screen",
+    "source": "packages/client/ui-subagent/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/subagent/subagent_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/subagent/subagent_screen.dart"
+    ],
+    "notes": "Subagent nav/child transcript",
+    "reactPackage": "ui-subagent",
+    "responsibility": "Subagent nav/child transcript",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/subagent/subagent_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-user-questions",
+    "category": "screen",
+    "source": "packages/client/ui-user-questions/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/user-questions/user-questions_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/user-questions/user-questions_screen.dart"
+    ],
+    "notes": "QuestionComposer/PlanReviewPanel",
+    "reactPackage": "ui-user-questions",
+    "responsibility": "QuestionComposer/PlanReviewPanel",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/user-questions/user-questions_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-workflow-run",
+    "category": "screen",
+    "source": "packages/client/ui-workflow-run/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/workflow-run/workflow-run_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/workflow-run/workflow-run_screen.dart"
+    ],
+    "notes": "Workflow run disclosures",
+    "reactPackage": "ui-workflow-run",
+    "responsibility": "Workflow run disclosures",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/workflow-run/workflow-run_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "screen.ui-workspace",
+    "category": "screen",
+    "source": "packages/client/ui-workspace/src/client",
+    "flutterTarget": "apps/flutter/lib/src/features/workspace/workspace_screen.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/features/workspace/workspace_screen.dart"
+    ],
+    "notes": "Workspace selector/creation",
+    "reactPackage": "ui-workspace",
+    "responsibility": "Workspace selector/creation",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "platformParity": {
+      "web": "missing",
+      "macos": "missing"
+    },
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/features/workspace/workspace_screen.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "state.layout",
+    "category": "state",
+    "source": "packages/client/ui-layout/src/client/stores.ts",
+    "flutterTarget": "apps/flutter/lib/src/features/layout/layout_controller.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "theme.tokens"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/unit/layout_controller_test.dart",
+      "apps/flutter/test/widgets/app_frame_test.dart"
+    ],
+    "notes": "createLayoutStore: sidebar/details/narrowExpanded, concession",
+    "reactPackage": "ui-layout",
+    "responsibility": "createLayoutStore: sidebar/details/narrowExpanded, concession",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/unit/layout_controller_test.dart",
+            "apps/flutter/test/widgets/app_frame_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "state.runtime",
+    "category": "state",
+    "source": "packages/client/runtime/src/client",
+    "flutterTarget": "apps/flutter/lib/src/state/runtime.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/core/session/sessions_controller.dart"
+    ],
+    "notes": "SessionManager/Session/provide/notifier",
+    "reactPackage": "runtime",
+    "responsibility": "SessionManager/Session/provide/notifier",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/core/session/sessions_controller.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "state.session",
+    "category": "state",
+    "source": "packages/client/runtime/src/client/sessions",
+    "flutterTarget": "apps/flutter/lib/src/core/session/session_provider.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "api.connection"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/unit/sessions_controller_test.dart"
+    ],
+    "notes": "Session event window, SessionManager, markDirty/markFrameDirty",
+    "reactPackage": "runtime",
+    "responsibility": "Session event window, SessionManager, markDirty/markFrameDirty",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/unit/sessions_controller_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "state.sessions",
+    "category": "state",
+    "source": "packages/client/runtime/src/client/sessions",
+    "flutterTarget": "apps/flutter/lib/src/core/session/sessions_provider.dart",
+    "status": "Audited",
+    "dependsOn": [
+      "state.session"
+    ],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/unit/sessions_controller_test.dart"
+    ],
+    "notes": "useSessions/useSession, current, byId, blank guard",
+    "reactPackage": "runtime",
+    "responsibility": "useSessions/useSession, current, byId, blank guard",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "state"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/unit/sessions_controller_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "theme.tokens",
+    "category": "theme",
+    "source": "packages/client/ui-theme/src/styles",
+    "flutterTarget": "apps/flutter/lib/src/theme/dsw_tokens.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/test/unit/layout_controller_test.dart"
+    ],
+    "notes": "CSS --dsw-* → ThemeData/ColorScheme/TextTheme, no literal colors",
+    "reactPackage": "ui-theme",
+    "responsibility": "CSS --dsw-* → ThemeData/ColorScheme/TextTheme, no literal colors",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/test/unit/layout_controller_test.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  },
+  {
+    "id": "theme.ui-theme",
+    "category": "theme",
+    "source": "packages/client/ui-theme/src/client",
+    "flutterTarget": "apps/flutter/lib/src/theme/theme.dart",
+    "status": "Audited",
+    "dependsOn": [],
+    "blockedBy": null,
+    "parityCheck": {
+      "visual": "missing",
+      "behavior": "missing",
+      "runtime": "not-applicable",
+      "streaming": "not-applicable",
+      "reconnect": "not-applicable"
+    },
+    "tests": [
+      "apps/flutter/lib/src/theme/dsw_tokens.dart"
+    ],
+    "notes": "Global tokens + shiki/scrollbar",
+    "reactPackage": "ui-theme",
+    "responsibility": "Global tokens + shiki/scrollbar",
+    "replacementType": "direct",
+    "notApplicableReason": "",
+    "owner": "react-codebase-auditor",
+    "reviewer": "",
+    "integrationLevel": [
+      "ui"
+    ],
+    "integrationPoints": [],
+    "runtimeMode": "replay",
+    "e2eScenarios": [],
+    "evidence": {
+      "testsRun": "",
+      "parityReport": "",
+      "replayDiff": "",
+      "approvedBy": "",
+      "approvedAt": ""
+    },
+    "legacyVerified": true,
+    "legacyVerification": {
+      "previousStatus": "Verified",
+      "previousEvidence": [
+        {
+          "parityCheck": {
+            "visual": true,
+            "behavior": true
+          },
+          "tests": [
+            "apps/flutter/lib/src/theme/dsw_tokens.dart"
+          ]
+        }
+      ],
+      "demotedAt": "2026-08-21",
+      "demotionReason": "New v1.1 evidence requirements"
+    }
+  }
+]
