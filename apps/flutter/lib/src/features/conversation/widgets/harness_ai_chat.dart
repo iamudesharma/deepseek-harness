@@ -250,10 +250,20 @@ class _ReasoningCard extends StatefulWidget {
 
 class _ReasoningCardState extends State<_ReasoningCard> {
   bool _open = false;
+
+  String _summary(String text) {
+    final String trimmed = text.trimRight();
+    // Running tail follows the latest line; settled preview follows the first line (React parity).
+    // For a collapsed card we show the first line so the bubble is never blank.
+    final int nl = trimmed.indexOf('\n');
+    return nl == -1 ? trimmed : trimmed.substring(0, nl);
+  }
+
   @override
   Widget build(BuildContext context) {
     final DswAliases aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
         (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final String summary = _summary(widget.text);
     return Container(
       decoration: BoxDecoration(
         color: aliases.bgOverlay.withValues(alpha: 0.6),
@@ -272,6 +282,17 @@ class _ReasoningCardState extends State<_ReasoningCard> {
               Icon(Icons.lightbulb_outline, size: 14, color: aliases.labelTertiary),
               const SizedBox(width: 6),
               Text('Thinking', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: aliases.labelTertiary)),
+              if (summary.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    summary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: aliases.labelCaption, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              ],
               const Spacer(),
               Text(_open ? 'Hide' : 'Show', style: TextStyle(fontSize: 11, color: aliases.labelCaption)),
             ]),

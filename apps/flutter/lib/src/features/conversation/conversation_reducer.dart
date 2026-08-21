@@ -41,17 +41,46 @@ class ReducedConversation {
 /// message itself.
 ({String friendly, String raw}) _friendlyError(String raw) {
   String cleaned = raw.trim();
+  // Host/mux often serializes the provider error as JSON inside the message
+  // string, e.g. 401: {"type":"ModelError","message":"Free promotion..."}.
+  // Unwrap the inner message before friendly mapping so the model-name regex
+  // and the Details raw both operate on coherent text.
+  if (cleaned.contains('"message"') && cleaned.contains('ModelError')) {
+    final RegExpMatch? inner = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(cleaned);
+    if (inner != null && (inner.group(1)?.isNotEmpty ?? false)) {
+      // Prefer the inner message, but keep the full raw for Details.
+      cleaned = inner.group(1)!;
+    }
+  }
+  // Also handle the 401: {"type":...} envelope where the whole string is JSON-like.
+  if (cleaned.startsWith('401: {') || cleaned.startsWith('{"type"')) {
+    final RegExpMatch? inner = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(cleaned);
+    if (inner != null) cleaned = inner.group(1)!;
+  }
   // Strip leading "401 ModelError: " / "ModelError: " / status prefix
-  cleaned = cleaned.replaceAll(RegExp(r'^\d{3}\s+ModelError:\s*', caseSensitive: false), '');
+  cleaned = cleaned.replaceAll(RegExp(r'^\d{3}\s*:?\s*ModelError:\s*', caseSensitive: false), '');
   cleaned = cleaned.replaceAll(RegExp(r'^ModelError:\s*', caseSensitive: false), '');
-  cleaned = cleaned.trim();
+  cleaned = cleaned.replaceAll(RegExp(r'^\d{3}\s*:?\s*'), '');
+  cleaned = cleaned.replaceAll(RegExp(r'^["\s\{]+'), '').replaceAll(RegExp(r'["\}\s]+$'), '').trim();
   final lower = cleaned.toLowerCase();
 
   if (lower.contains('promotion has ended for')) {
-    // Extract model name between "for " and end/punctuation.
-    final m = RegExp(r'promotion has ended for\s+(.+?)(?:\s*\.?\s*$)', caseSensitive: false).firstMatch(cleaned);
-    final model = m != null ? m.group(1)!.trim().replaceAll(RegExp(r'\.$'), '') : 'this model';
-    return (friendly: 'Response failed\n\nThe $model promotion has ended.\nPlease select another model or upgrade your plan.', raw: raw);
+    // Model names contain no periods; the provider often appends a second
+    // sentence ("You can continue using the model...") and the raw envelope
+    // may include JSON quotes/braces. Capture only the model token, not the
+    // trailing sentence. Strip JSON artifacts first.
+    String afterFor = cleaned.split(RegExp(r'promotion has ended for\s*', caseSensitive: false)).last;
+    // Strip leading/trailing JSON punctuation and whitespace.
+    afterFor = afterFor.replaceAll(RegExp(r'^[\s\"\{]+'), '').replaceAll(RegExp(r'[\s\"\}\]]+$'), '').trim();
+    // Cut at the first sentence-terminating period (followed by space + capital
+    // or at end-of-string). A model name never contains a period.
+    final RegExp periodCut = RegExp(r'\.(?:\s+|$)');
+    final RegExpMatch? periodMatch = periodCut.firstMatch(afterFor);
+    final String model = periodMatch != null ? afterFor.substring(0, periodMatch.start).trim() : afterFor.trim();
+    final String safeModel = model.isEmpty || model.length > 60
+        ? 'this model'
+        : model.replaceAll(RegExp("^['\"]+|['\"]+\$"), '').trim();
+    return (friendly: 'Response failed\n\nThe $safeModel promotion has ended.\nPlease select another model or upgrade your plan.', raw: raw);
   }
   if (lower.contains('model not supported') || lower.contains('model_not_supported')) {
     return (friendly: 'Response failed\n\nThe selected model is not supported.\nPlease choose a different model.', raw: raw);
@@ -242,6 +271,44 @@ ReducedConversation reduceConversation(
       chunkSeq = null;
       chunkTime = null;
 
+      // Assistant messages with empty content (status-only, no visible blocks)
+      // are not rendered in React — AssistantMarkdown returns null when
+      // hasVisible is false (streaming=false, interrupted!=true, only tool-call
+      // blocks). Skip them the same way to prevent blank "Assistant" headers.
+      final dynamic rawContentProbe = event.data['content'];
+      final bool contentEmpty = rawContentProbe == null ||
+          (rawContentProbe is List && rawContentProbe.isEmpty) ||
+          (rawContentProbe is String && rawContentProbe.trim().isEmpty);
+      if (contentEmpty) {
+        // Keep tool-call ghosts for lifecycle (deduplicated via byId), but
+        // don't emit an empty assistant bubble. The tool rows render separately.
+        final bool hasVisibleBlock = rawContentProbe is List &&
+            rawContentProbe.any((blk) => blk is Map && blk['type'] != 'tool-call');
+        if (!hasVisibleBlock) {
+          // Still record pending tool ghosts for cancelled handling, then skip bubble.
+          if (rawContentProbe is List) {
+            for (final dynamic blk in rawContentProbe) {
+              if (blk is Map && blk['type'] == 'tool-call') {
+                final String callId = (blk['id'] as String?) ?? (blk['callId'] as String?) ?? 'call-${event.seq}';
+                final String name = (blk['name'] as String?) ?? 'tool';
+                if (!byId.containsKey(callId)) {
+                  byId[callId] = ToolCall(
+                    id: callId,
+                    toolName: name,
+                    kind: kindForTool(name),
+                    status: ToolCallStatus.pending,
+                    args: const <String, dynamic>{},
+                    time: event.time,
+                  );
+                  toolOrder.add(callId);
+                }
+              }
+            }
+          }
+          continue;
+        }
+      }
+
       final String text = _unescapeHtml(_extractText(event.data));
       final dynamic rawContent = event.data['content'];
       List<AssistantBlock>? blocks;
@@ -251,28 +318,30 @@ ReducedConversation reduceConversation(
           if (blk is Map) {
             final String? t = blk['type'] as String?;
             if (t == 'text' && blk['text'] is String) {
-              b.add(AssistantBlock.text(_unescapeHtml(blk['text'] as String)));
+              final String t2 = _unescapeHtml(blk['text'] as String).trim();
+              if (t2.isEmpty) continue;
+              b.add(AssistantBlock.text(t2));
             } else if (t == 'reasoning' && blk['text'] is String) {
-              b.add(AssistantBlock.reasoning(_unescapeHtml(blk['text'] as String)));
+              final String r2 = _unescapeHtml(blk['text'] as String).trim();
+              if (r2.isEmpty) continue;
+              b.add(AssistantBlock.reasoning(r2));
             } else if (t == 'tool-call') {
               final String callId = (blk['id'] as String?) ?? (blk['callId'] as String?) ?? 'call-${event.seq}-${b.length}';
               final String name = (blk['name'] as String?) ?? 'tool';
-              String argsRaw = '';
-              final dynamic args = blk['arguments'] ?? blk['args'];
-              if (args is String) {
-                argsRaw = args.trim() == '{}' ? '' : args;
-              } else if (args is Map) {
-                argsRaw = (args as Map).isEmpty ? '' : args.toString();
-                if (argsRaw == '{}') argsRaw = '';
-              }
-              b.add(AssistantBlock.toolCall(callId: callId, name: name, argsRaw: argsRaw));
+              // Tool-call blocks are not kept in the assistant Message — they
+              // are owned by the tool list (ghost pending → deduped via byId).
+              // Keeping them in both places renders each call twice (block bubble
+              // + tool-list bubble). The empty-assistant hasVisible check in
+              // React (hasVisible = streaming || interrupted || some != tool-call)
+              // returns null for tool-call-only nodes, so no empty bubble.
               // Ghost pending tool for this block (unless a real tool/call already exists).
               if (!byId.containsKey(callId)) {
+                final dynamic rawArgs = blk['arguments'] ?? blk['args'];
                 Map<String, dynamic> parsedArgs = const <String, dynamic>{};
-                if (args is Map) {
-                  parsedArgs = (args as Map).cast<String, dynamic>();
+                if (rawArgs is Map) {
+                  parsedArgs = (rawArgs as Map).cast<String, dynamic>();
                   if (parsedArgs.isEmpty) parsedArgs = const <String, dynamic>{};
-                } else if (args is String && args.trim().isNotEmpty && args.trim() != '{}') {
+                } else if (rawArgs is String && rawArgs.trim().isNotEmpty && rawArgs.trim() != '{}') {
                   // Keep raw string; don't try to JSON-decode here.
                   parsedArgs = const <String, dynamic>{};
                 }

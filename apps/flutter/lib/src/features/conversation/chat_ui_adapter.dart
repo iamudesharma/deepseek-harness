@@ -60,6 +60,19 @@ List<ChatMessage> harnessMessageToChatMessages(
     ];
   }
 
+  if (msg.content.trim().isEmpty && !msg.streaming && msg.citations.isEmpty) {
+    final List<AssistantBlock>? b = msg.blocks;
+    final bool onlyEmpty = b == null || b.every((block) => (block.text ?? '').trim().isEmpty && block.kind != 'tool-call');
+    if (onlyEmpty) {
+      final bool onlyToolCalls = b != null && b.isNotEmpty && b.every((block) => block.kind == 'tool-call');
+      if (!onlyToolCalls) return const <ChatMessage>[];
+      // Tool-call-only messages are not suppressed here — they may be the
+      // legacy fallback path's only rendering of that tool call. The reducer
+      // path deduplicates at the HarnessAiChat layer by skipping block
+      // tool-calls when the tool list already covers the same callId.
+    }
+  }
+
   // Assistant — look at blocks for rich rendering.
   final blocks = msg.blocks;
   if (blocks != null && blocks.isNotEmpty) {
@@ -83,10 +96,12 @@ List<ChatMessage> harnessMessageToChatMessages(
     for (final block in blocks) {
       switch (block.kind) {
         case 'reasoning':
+          final String reasonText = (block.text ?? '').trim();
+          if (reasonText.isEmpty) break;
           out.add(ChatMessage.rich(
             user: aiUser,
             resultKind: 'reasoning',
-            data: {'text': block.text ?? ''},
+            data: {'text': reasonText},
             id: '${msg.id}-reasoning',
           ));
           emittedRich = true;
@@ -157,6 +172,12 @@ List<ChatMessage> harnessMessageToChatMessages(
         : out;
   }
 
+  // Suppress empty assistant bubbles (mirrors React AssistantMarkdown hasVisible:
+  // nothing to paint when streaming is false and the only visible block kinds
+  // are missing/empty — prevents the blank "Assistant" headers in screenshot 2).
+  if (msg.content.trim().isEmpty && !msg.streaming && msg.citations.isEmpty) {
+    return const <ChatMessage>[];
+  }
   return [
     ChatMessage(
       text: msg.content,
