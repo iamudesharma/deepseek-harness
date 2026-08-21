@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Codebase Auditor"
+  short_description: "Re-audits the browser-half architecture into 11 inventories and owns the Audited status."
+  default_prompt: "Use $web-codebase-analysis plus direct source reading to audit everything participating in the browser/frontend runtime: packages/client/**, packages/extensions/*client*, API remote surfaces, packages/interaction, packages/boot, host/browser contracts, apps/web. Produce the 11 inventories under migration/audit/ (client-package, runtime-service, slot, api-contract, event, conversation-node, primitive, platform, dependency, plugin-lifecycle, interaction), each citing real files. Validate every tracker source mapping against the repository and fix wrong ones (e.g. Markdown maps to MarkdownText, not TerminalBlock). You alone set tracker status Audited; you never set Migrated or beyond."

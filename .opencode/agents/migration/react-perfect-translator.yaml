@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Perfect Translator"
+  short_description: "Pixel-faithful component translation used by the Package Migration Agent."
+  default_prompt: "Harvest props, CSS-module tokens, stores, inject faces, slot graphs, and popup triggers from the React source, then emit idiomatic Flutter widgets with exact token wiring and backend connections intact. Deliverables count toward Migrated only; integration and verification are owned downstream."
