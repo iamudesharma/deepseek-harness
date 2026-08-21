@@ -20,7 +20,9 @@ Audited 2026-08-21 from `packages/client/*/package.json` runtime dependencies. D
 
 Already in `apps/flutter/pubspec.yaml`: `flutter_riverpod`, `go_router`, `http`, `web_socket_channel`, `file_picker`, `window_manager` (desktop-only, conditional import).
 
-Expected additions during migration: `flutter_math_fork` (math), highlighting package (code blocks), `url_launcher` (external URLs), `shared_preferences` or host-backed settings storage, `image_picker` (attachments), `file_selector` (macOS pickers).
+Adopted 2026-08-21: `flutter_gen_ai_chat_ui: ^2.15.0` (MIT, verified publisher, 98 likes) — maintained pub. Covers the conversation-list need that the tracker records under `conversation.node-assembler` / `conversation.streaming-tail` / `tool.lifecycle-pairing`: markdown + LaTeX + streaming word-by-word, thinking→answer morph, `ChatMessage.rich` tool-call cards, citations. Transitives `flutter_markdown_plus`, `flutter_math_fork`, `flutter_streaming_text_markdown`, `google_fonts`, `shimmer`, `url_launcher` satisfy the expected math/highlighting rows (`katex`, `shiki`) via the package's built-in renderers.
+
+Expected further additions during migration: `shared_preferences` or host-backed settings storage, `image_picker` (attachments), `file_selector` (macOS pickers).
 
 ## Rules applied
 
