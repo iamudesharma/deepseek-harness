@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import '../../core/session/session_models.dart';
 import '../tool/tool_models.dart';
 import 'message_provider.dart';
+import '../../plugins/conversation/nodes/failure_display.dart';
 
 /// Normalized output of the conversation event stream.
 ///
@@ -21,6 +24,10 @@ class ReducedConversation {
   /// Raw provider error text for an optional Details disclosure.
   final String? rawError;
 
+  /// Error code from the failure envelope (e.g. 'AUTH') — rendered as a chip
+  /// next to the message, mirroring React's TurnErrorItem.
+  final String? errorCode;
+
   /// Whether the current turn ended in failure.
   final bool turnFailed;
 
@@ -29,78 +36,14 @@ class ReducedConversation {
     required this.tools,
     this.errorMessage,
     this.rawError,
+    this.errorCode,
     required this.turnFailed,
   });
 }
 
-/// Map a raw provider error string to a concise, user-facing message.
-///
-/// Keeps the original in `rawError` for Details. Strips leading
-/// `NNN ModelError:` prefixes and maps known patterns (promotion expiry,
-/// model not supported, 401/403/429 families). Falls back to the cleaned
-/// message itself.
-({String friendly, String raw}) _friendlyError(String raw) {
-  String cleaned = raw.trim();
-  // Host/mux often serializes the provider error as JSON inside the message
-  // string, e.g. 401: {"type":"ModelError","message":"Free promotion..."}.
-  // Unwrap the inner message before friendly mapping so the model-name regex
-  // and the Details raw both operate on coherent text.
-  if (cleaned.contains('"message"') && cleaned.contains('ModelError')) {
-    final RegExpMatch? inner = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(cleaned);
-    if (inner != null && (inner.group(1)?.isNotEmpty ?? false)) {
-      // Prefer the inner message, but keep the full raw for Details.
-      cleaned = inner.group(1)!;
-    }
-  }
-  // Also handle the 401: {"type":...} envelope where the whole string is JSON-like.
-  if (cleaned.startsWith('401: {') || cleaned.startsWith('{"type"')) {
-    final RegExpMatch? inner = RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(cleaned);
-    if (inner != null) cleaned = inner.group(1)!;
-  }
-  // Strip leading "401 ModelError: " / "ModelError: " / status prefix
-  cleaned = cleaned.replaceAll(RegExp(r'^\d{3}\s*:?\s*ModelError:\s*', caseSensitive: false), '');
-  cleaned = cleaned.replaceAll(RegExp(r'^ModelError:\s*', caseSensitive: false), '');
-  cleaned = cleaned.replaceAll(RegExp(r'^\d{3}\s*:?\s*'), '');
-  cleaned = cleaned.replaceAll(RegExp(r'^["\s\{]+'), '').replaceAll(RegExp(r'["\}\s]+$'), '').trim();
-  final lower = cleaned.toLowerCase();
 
-  if (lower.contains('promotion has ended for')) {
-    // Model names contain no periods; the provider often appends a second
-    // sentence ("You can continue using the model...") and the raw envelope
-    // may include JSON quotes/braces. Capture only the model token, not the
-    // trailing sentence. Strip JSON artifacts first.
-    String afterFor = cleaned.split(RegExp(r'promotion has ended for\s*', caseSensitive: false)).last;
-    // Strip leading/trailing JSON punctuation and whitespace.
-    afterFor = afterFor.replaceAll(RegExp(r'^[\s\"\{]+'), '').replaceAll(RegExp(r'[\s\"\}\]]+$'), '').trim();
-    // Cut at the first sentence-terminating period (followed by space + capital
-    // or at end-of-string). A model name never contains a period.
-    final RegExp periodCut = RegExp(r'\.(?:\s+|$)');
-    final RegExpMatch? periodMatch = periodCut.firstMatch(afterFor);
-    final String model = periodMatch != null ? afterFor.substring(0, periodMatch.start).trim() : afterFor.trim();
-    final String safeModel = model.isEmpty || model.length > 60
-        ? 'this model'
-        : model.replaceAll(RegExp("^['\"]+|['\"]+\$"), '').trim();
-    return (friendly: 'Response failed\n\nThe $safeModel promotion has ended.\nPlease select another model or upgrade your plan.', raw: raw);
-  }
-  if (lower.contains('model not supported') || lower.contains('model_not_supported')) {
-    return (friendly: 'Response failed\n\nThe selected model is not supported.\nPlease choose a different model.', raw: raw);
-  }
-  if (lower.contains('freeusagelimit') || lower.contains('free usage limit')) {
-    return (friendly: 'Response failed\n\nFree usage limit reached.\nPlease select another model or upgrade your plan.', raw: raw);
-  }
-  if (RegExp(r'\b401\b').hasMatch(raw)) {
-    return (friendly: 'Response failed\n\nAuthentication failed (401).\nPlease check your model configuration.', raw: raw);
-  }
-  if (RegExp(r'\b403\b').hasMatch(raw)) {
-    return (friendly: 'Response failed\n\nAccess denied (403).\nPlease check your permissions or model access.', raw: raw);
-  }
-  if (RegExp(r'\b429\b').hasMatch(raw)) {
-    return (friendly: 'Response failed\n\nRate limit exceeded (429).\nPlease wait a moment and try again.', raw: raw);
-  }
-  // Fallback: cleaned message itself (without raw JSON prefix).
-  if (cleaned.isEmpty) cleaned = raw.trim();
-  return (friendly: cleaned.isEmpty ? 'Response failed' : cleaned, raw: raw);
-}
+({String friendly, String raw}) _displayFailureMessage(dynamic failure) =>
+    displayFailureMessage(failure);
 
 String? _extractErrorMessage(dynamic error) {
   if (error is Map) {
@@ -185,6 +128,7 @@ ReducedConversation reduceConversation(
   int? chunkSeq;
   int? chunkTime;
   String? rawError;
+  String? errorCode;
   String? friendlyError;
   bool turnFailed = false;
 
@@ -280,31 +224,13 @@ ReducedConversation reduceConversation(
           (rawContentProbe is List && rawContentProbe.isEmpty) ||
           (rawContentProbe is String && rawContentProbe.trim().isEmpty);
       if (contentEmpty) {
-        // Keep tool-call ghosts for lifecycle (deduplicated via byId), but
-        // don't emit an empty assistant bubble. The tool rows render separately.
+        // hasVisible parity: an empty-content assistant with only tool-call
+        // blocks renders nothing in React (AssistantMarkdown returns null).
+        // Tool-call heads are NOT tool rows — only real tool/call events
+        // create those. Skip the bubble entirely; no ghosts.
         final bool hasVisibleBlock = rawContentProbe is List &&
             rawContentProbe.any((blk) => blk is Map && blk['type'] != 'tool-call');
         if (!hasVisibleBlock) {
-          // Still record pending tool ghosts for cancelled handling, then skip bubble.
-          if (rawContentProbe is List) {
-            for (final dynamic blk in rawContentProbe) {
-              if (blk is Map && blk['type'] == 'tool-call') {
-                final String callId = (blk['id'] as String?) ?? (blk['callId'] as String?) ?? 'call-${event.seq}';
-                final String name = (blk['name'] as String?) ?? 'tool';
-                if (!byId.containsKey(callId)) {
-                  byId[callId] = ToolCall(
-                    id: callId,
-                    toolName: name,
-                    kind: kindForTool(name),
-                    status: ToolCallStatus.pending,
-                    args: const <String, dynamic>{},
-                    time: event.time,
-                  );
-                  toolOrder.add(callId);
-                }
-              }
-            }
-          }
           continue;
         }
       }
@@ -326,35 +252,11 @@ ReducedConversation reduceConversation(
               if (r2.isEmpty) continue;
               b.add(AssistantBlock.reasoning(r2));
             } else if (t == 'tool-call') {
-              final String callId = (blk['id'] as String?) ?? (blk['callId'] as String?) ?? 'call-${event.seq}-${b.length}';
-              final String name = (blk['name'] as String?) ?? 'tool';
-              // Tool-call blocks are not kept in the assistant Message — they
-              // are owned by the tool list (ghost pending → deduped via byId).
-              // Keeping them in both places renders each call twice (block bubble
-              // + tool-list bubble). The empty-assistant hasVisible check in
-              // React (hasVisible = streaming || interrupted || some != tool-call)
-              // returns null for tool-call-only nodes, so no empty bubble.
-              // Ghost pending tool for this block (unless a real tool/call already exists).
-              if (!byId.containsKey(callId)) {
-                final dynamic rawArgs = blk['arguments'] ?? blk['args'];
-                Map<String, dynamic> parsedArgs = const <String, dynamic>{};
-                if (rawArgs is Map) {
-                  parsedArgs = (rawArgs as Map).cast<String, dynamic>();
-                  if (parsedArgs.isEmpty) parsedArgs = const <String, dynamic>{};
-                } else if (rawArgs is String && rawArgs.trim().isNotEmpty && rawArgs.trim() != '{}') {
-                  // Keep raw string; don't try to JSON-decode here.
-                  parsedArgs = const <String, dynamic>{};
-                }
-                byId[callId] = ToolCall(
-                  id: callId,
-                  toolName: name,
-                  kind: kindForTool(name),
-                  status: ToolCallStatus.pending,
-                  args: parsedArgs,
-                  time: event.time,
-                );
-                toolOrder.add(callId);
-              }
+              // React parity (AssistantMarkdown case 'tool-call': break):
+              // tool-call heads inside assistant messages are NEVER rendered
+              // as tool rows and never create tool state. Tool rows come only
+              // from real tool/call + tool/result events. Skip entirely.
+              continue;
             }
           }
         }
@@ -464,21 +366,14 @@ ReducedConversation reduceConversation(
     } else if (type == 'turn/end') {
       final dynamic reason = event.data['reason'];
       if (reason is Map && reason['kind'] == 'error') {
+        // React parity: TurnErrorNode carries displayFailureMessage(reason.error)
+        // plus the error code for the chip. AUTH collapses to a fixed line.
         final dynamic err = reason['error'];
-        final String? msg = _extractErrorMessage(err) ?? _extractErrorMessage(reason) ?? err.toString();
-        if (msg != null && msg.trim().isNotEmpty) {
-          rawError = msg;
-          final mapped = _friendlyError(msg);
-          friendlyError = mapped.friendly;
-          rawError = mapped.raw;
-        } else if (err != null) {
-          rawError = err.toString();
-          final mapped = _friendlyError(rawError!);
-          friendlyError = mapped.friendly;
-          rawError = mapped.raw;
-        } else {
-          friendlyError = 'Response failed';
-          rawError = 'turn/end error';
+        final mapped = _displayFailureMessage(err);
+        friendlyError = mapped.friendly;
+        rawError = mapped.raw;
+        if (err is Map) {
+          errorCode = (err as Map).cast<String, dynamic>()['code'] as String?;
         }
         turnFailed = true;
         cancelUnresolved();
@@ -492,9 +387,10 @@ ReducedConversation reduceConversation(
       }
     } else if (type == 'turn/error') {
       final String msg = _unescapeHtml(_asString(event.data['message']) ?? event.data.toString());
-      rawError = msg;
-      friendlyError = _friendlyError(msg).friendly;
-      rawError = _friendlyError(msg).raw;
+      final mapped = _displayFailureMessage(event.data);
+      friendlyError = mapped.friendly;
+      rawError = mapped.raw;
+      errorCode = event.data['code'] as String?;
       turnFailed = true;
       cancelUnresolved();
       chunkTextBuffer.clear();
@@ -515,7 +411,7 @@ ReducedConversation reduceConversation(
   // Agent-level error (host/agent-error frame) — treated like a turn failure
   // that cancels unresolved tools and surfaces a concise message.
   if (agentError != null && agentError.trim().isNotEmpty) {
-    final mapped = _friendlyError(agentError);
+    final mapped = _displayFailureMessage(agentError);
     // Prefer the more specific turn error if already present; otherwise use agent error.
     friendlyError ??= mapped.friendly;
     rawError ??= mapped.raw;
@@ -559,6 +455,7 @@ ReducedConversation reduceConversation(
     tools: List<ToolCall>.unmodifiable(tools),
     errorMessage: friendlyError,
     rawError: rawError,
+    errorCode: errorCode,
     turnFailed: turnFailed,
   );
 }

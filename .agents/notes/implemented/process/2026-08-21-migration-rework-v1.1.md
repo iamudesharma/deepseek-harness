@@ -21,7 +21,7 @@ Rework the migration program on an enforceable contract (spec: `docs/superpowers
 7. **All 75 legacy rows demoted to `Audited`** with `legacyVerification` blocks preserving prior evidence and demotion reason, so genuinely complete items can be re-promoted quickly under the new gates without pretending unproven claims were proven.
 8. **M0 re-audit** produced 11 inventories under `migration/audit/` covering packages, runtime services, slots, API contracts, events, conversation nodes, primitives, platform, dependencies, plugin lifecycle, and interactions — scope explicitly beyond `packages/client` (extensions client runners, interaction, boot, web). The audit added 37 rows (112 total) and corrected the Markdown mapping.
 
-## Rejected alternatives
+## Alternatives considered
 
 - **Fresh v2 tracker file**: rejected — two ledgers to reconcile invites drift; the existing file extended in place keeps one source of truth.
 - **Fresh 13-agent build per the original directive letter**: rejected — ~60% overlap with existing agents/skills would recreate the duplicate-framework problem the directive itself prohibited; existing roles evolved instead.

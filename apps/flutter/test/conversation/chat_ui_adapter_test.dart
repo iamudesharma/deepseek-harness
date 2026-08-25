@@ -1,7 +1,6 @@
 import 'package:dsh_flutter/src/features/conversation/chat_ui_adapter.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 import 'package:dsh_flutter/src/features/tool/tool_models.dart';
-import 'package:flutter_gen_ai_chat_ui/flutter_gen_ai_chat_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ChatUser _aiUser = const ChatUser(id: 'ai', firstName: 'Assistant');
@@ -61,7 +60,9 @@ void main() {
       expect(list.first.text, contains('Thinking'));
     });
 
-    test('tool-call blocks become rich tool-call bubbles', () {
+    test('tool-call blocks in assistant message are not rendered as bubbles (React parity)', () {
+      // React AssistantMarkdown skips tool-call heads (case 'tool-call': break).
+      // Tool rows are rendered only from the ToolCall list (tool/call events).
       final msg = Message(
         id: 'assistant-4',
         role: MessageRole.assistant,
@@ -72,10 +73,7 @@ void main() {
         ],
       );
       final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
-      expect(list, hasLength(1));
-      expect(list.first.customProperties!['resultKind'], 'tool-call');
-      expect(list.first.customProperties!['resultData']['toolName'], 'read');
-      expect(list.first.customProperties!['resultData']['status'], isNotNull);
+      expect(list, isEmpty);
     });
 
     test('retry message becomes rich retry bubble', () {

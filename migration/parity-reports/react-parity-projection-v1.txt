@@ -1,0 +1,13 @@
+session s-200 blank=false running=false
+node 2 user text="hello parity"
+node 7 assistant turn=1 step=1 blocks=reasoning:1,text:1 interrupted=false
+node 11 tool-result callId=c-1 name=bash error=none subcalls=0/0
+node 13 tool-result callId=c-2 name=write error=PermissionError subcalls=0/0
+node 18 assistant turn=1 step=3 blocks=text:1 interrupted=false
+node 29 tool-result callId=c-3 name=run-code error=none subcalls=2/1
+node 31 model-retry retry=1 maxRetries=2 state=started
+turn-end 1 seq=21
+turn-end 2 seq=35
+running-calls 0
+queue 0
+pending none

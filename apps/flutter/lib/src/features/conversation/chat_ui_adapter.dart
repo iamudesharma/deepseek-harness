@@ -1,7 +1,69 @@
-import 'package:flutter_gen_ai_chat_ui/flutter_gen_ai_chat_ui.dart';
-
 import 'message_provider.dart';
 import '../tool/tool_models.dart';
+
+class ChatUser {
+  const ChatUser({required this.id, this.firstName});
+  final String id;
+  final String? firstName;
+}
+
+class ChatMessage {
+  const ChatMessage({
+    required this.text,
+    required this.user,
+    this.createdAt,
+    this.customProperties,
+    this.isMarkdown = false,
+  });
+
+  ChatMessage.rich({
+    required this.user,
+    required String resultKind,
+    required Map<String, dynamic> data,
+    required String id,
+  })  : text = '',
+        createdAt = null,
+        isMarkdown = false,
+        customProperties = {
+          'id': id,
+          'resultKind': resultKind,
+          'resultData': data,
+        };
+
+  ChatMessage.loading({
+    required this.user,
+    required String id,
+    required String text,
+  })  : createdAt = null,
+        isMarkdown = false,
+        customProperties = {
+          'id': id,
+          'isLoading': true,
+        },
+        text = text;
+
+  final String text;
+  final ChatUser user;
+  final DateTime? createdAt;
+  final Map<String, dynamic>? customProperties;
+  final bool isMarkdown;
+}
+
+class ChatMessagesController {
+  final List<ChatMessage> _messages = [];
+  List<ChatMessage> get messages => List.unmodifiable(_messages);
+  void updateMessage(ChatMessage msg) {
+    final String? id = msg.customProperties?['id'] as String? ?? msg.text;
+    final int idx = _messages.indexWhere((m) => (m.customProperties?['id'] as String?) == id || m.text == msg.text && m.user.id == msg.user.id);
+    if (idx != -1) {
+      _messages[idx] = msg;
+    } else {
+      _messages.add(msg);
+    }
+  }
+
+  void dispose() {}
+}
 
 /// Convert one harness [Message] into one or more package [ChatMessage]s.
 ///
@@ -62,14 +124,13 @@ List<ChatMessage> harnessMessageToChatMessages(
 
   if (msg.content.trim().isEmpty && !msg.streaming && msg.citations.isEmpty) {
     final List<AssistantBlock>? b = msg.blocks;
-    final bool onlyEmpty = b == null || b.every((block) => (block.text ?? '').trim().isEmpty && block.kind != 'tool-call');
-    if (onlyEmpty) {
-      final bool onlyToolCalls = b != null && b.isNotEmpty && b.every((block) => block.kind == 'tool-call');
-      if (!onlyToolCalls) return const <ChatMessage>[];
-      // Tool-call-only messages are not suppressed here — they may be the
-      // legacy fallback path's only rendering of that tool call. The reducer
-      // path deduplicates at the HarnessAiChat layer by skipping block
-      // tool-calls when the tool list already covers the same callId.
+    // React AssistantMarkdown parity: an assistant message whose blocks carry
+    // no renderable text (tool-call-only or fully empty) emits nothing — tool
+    // rows come only from real tool/call events.
+    final bool hasRenderable =
+        b != null && b.any((block) => (block.text ?? '').trim().isNotEmpty || block.kind != 'tool-call');
+    if (!hasRenderable) {
+      return const <ChatMessage>[];
     }
   }
 
@@ -107,18 +168,9 @@ List<ChatMessage> harnessMessageToChatMessages(
           emittedRich = true;
           break;
         case 'tool-call':
-          out.add(ChatMessage.rich(
-            user: aiUser,
-            resultKind: 'tool-call',
-            data: {
-              'toolName': block.toolName ?? 'tool',
-              'callId': block.toolCallId ?? '',
-              'argsRaw': block.argsRaw ?? '',
-              'status': 'running',
-            },
-            id: '${msg.id}-tool-${block.toolCallId ?? msg.id}',
-          ));
-          emittedRich = true;
+          // React parity: assistant-message tool-call heads are skipped in
+          // AssistantMarkdown; tool cards render only from the tool list
+          // (real tool/call + tool/result events). Emit nothing here.
           break;
         case 'text':
           out.add(ChatMessage(

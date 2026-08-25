@@ -6,7 +6,7 @@ import type {} from '@deepseek-ai/dsh-attachment'
 import type { WebRoute, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import { toFetchHandler } from '@deepseek-ai/dsh-host-apiproxy'
 import { API_PATH, HOST_EVENTS_PATH, MUX_EVENTS_PATH } from './api-path.ts'
-import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
+import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES, type FetchHandler } from './http-bridge.ts'
 import { assertTrustedAuthority, isTrustedApiRequest } from './api-request-trust.ts'
 import { HostConnectionService } from './rpc-host.ts'
 import { rejectWebSocketUpgrade, WebSocketDownlinks } from './websocket-downlink.ts'
@@ -162,12 +162,49 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
     kind: 'prefix',
     path: API_PATH,
     handler: async (req, res) => {
+      const origin = req.headers.origin as string | undefined
+      // CORS preflight: browser sends OPTIONS with Access-Control-Request-* before
+      // the real POST that carries x-rpc-id (non-simple header). Reply 204 with
+      // the same trust gate as the real request, echoing the Origin.
+      if (req.method === 'OPTIONS') {
+        if (!isTrustedApiRequest(req, trustedHosts)) {
+          res.writeHead(403)
+          res.end('forbidden')
+          return
+        }
+        const headers: Record<string, string> = {
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'content-type, x-rpc-id',
+          'Access-Control-Max-Age': '86400',
+          'Vary': 'Origin',
+        }
+        if (typeof origin === 'string') headers['Access-Control-Allow-Origin'] = origin
+        res.writeHead(204, headers)
+        res.end()
+        return
+      }
       if (!isTrustedApiRequest(req, trustedHosts)) {
         res.writeHead(403)
         res.end('forbidden')
         return
       }
-      await bridge(req, res, fetchHandler, maxRequestBodyBytes)
+      // Same-origin loopback cross-port (Flutter at 8321 → 8787) needs CORS
+      // headers on the real response so the browser exposes it.
+      const corsHandler: FetchHandler = {
+        async fetch(request) {
+          const resp = await fetchHandler.fetch(request)
+          if (typeof origin === 'string') {
+            const headers = new Headers(resp.headers)
+            headers.set('Access-Control-Allow-Origin', origin)
+            headers.set('Vary', 'Origin')
+            headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            headers.set('Access-Control-Allow-Headers', 'content-type, x-rpc-id')
+            return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers })
+          }
+          return resp
+        },
+      }
+      await bridge(req, res, corsHandler, maxRequestBodyBytes)
     },
   }
   ctx.effect(() => ctx.webServer.register(route), 'client-connection: /api route')

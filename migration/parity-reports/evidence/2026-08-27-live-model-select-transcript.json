@@ -1,0 +1,5881 @@
+{
+  "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+  "steps": [
+    {
+      "step": "session.create",
+      "request": {},
+      "ok": true,
+      "value": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "agentPreset": "standard"
+      }
+    },
+    {
+      "step": "session.models",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421"
+      },
+      "ok": true,
+      "value": {
+        "current": {
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-flash",
+          "reasoningEffort": "high"
+        },
+        "routable": true,
+        "groups": [
+          {
+            "id": "deepseek-official",
+            "name": "DeepSeek",
+            "models": [
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek-V4-Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ],
+                  "defaultEffort": "high"
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek-V4-Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ],
+                  "defaultEffort": "high"
+                }
+              }
+            ]
+          },
+          {
+            "id": "opencode-go",
+            "name": "opencode-go",
+            "models": [
+              {
+                "id": "minimax-m3",
+                "name": "MiniMax-M3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.7-max",
+                "name": "Qwen3.7 Max",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.7-plus",
+                "name": "Qwen3.7 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek V4 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.1",
+                "name": "GLM-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.2",
+                "name": "GLM-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "hy3",
+                "name": "Hy3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.6",
+                "name": "Kimi K2.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.7-code",
+                "name": "Kimi K2.7 Code",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k3",
+                "name": "Kimi K3 (2x usage)",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5",
+                "name": "MiMo V2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5-pro",
+                "name": "MiMo V2.5 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.7",
+                "name": "MiniMax-M2.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.6-plus",
+                "name": "Qwen3.6 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-4.5",
+                "name": "Grok 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "opencode",
+            "name": "opencode",
+            "models": [
+              {
+                "id": "claude-fable-5",
+                "name": "Claude Fable 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-haiku-4-5",
+                "name": "Claude Haiku 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-1",
+                "name": "Claude Opus 4.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-5",
+                "name": "Claude Opus 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-6",
+                "name": "Claude Opus 4.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-7",
+                "name": "Claude Opus 4.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-8",
+                "name": "Claude Opus 4.8",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-5",
+                "name": "Claude Opus 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4",
+                "name": "Claude Sonnet 4",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4-5",
+                "name": "Claude Sonnet 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4-6",
+                "name": "Claude Sonnet 4.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-5",
+                "name": "Claude Sonnet 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.5-plus",
+                "name": "Qwen3.5 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.6-plus",
+                "name": "Qwen3.6 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3-flash",
+                "name": "Gemini 3 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.1-pro",
+                "name": "Gemini 3.1 Pro Preview",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.5-flash",
+                "name": "Gemini 3.5 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.5-flash-lite",
+                "name": "Gemini 3.5 Flash Lite",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.6-flash",
+                "name": "Gemini 3.6 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "big-pickle",
+                "name": "Big Pickle",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek V4 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash-free",
+                "name": "DeepSeek V4 Flash Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5",
+                "name": "GLM-5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.1",
+                "name": "GLM-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.2",
+                "name": "GLM-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-build-0.1",
+                "name": "Grok Build 0.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.5",
+                "name": "Kimi K2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.6",
+                "name": "Kimi K2.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.7-code",
+                "name": "Kimi K2.7 Code",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "laguna-s-2.1-free",
+                "name": "Laguna S 2.1 Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "ling-3.0-flash-free",
+                "name": "Ling-3.0-flash Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5-free",
+                "name": "MiMo V2.5 Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.5",
+                "name": "MiniMax-M2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.7",
+                "name": "MiniMax-M2.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m3",
+                "name": "MiniMax-M3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "nemotron-3-ultra-free",
+                "name": "Nemotron 3 Ultra Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "north-mini-code-free",
+                "name": "North Mini Code Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5",
+                "name": "GPT-5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5-codex",
+                "name": "GPT-5 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5-nano",
+                "name": "GPT-5 Nano",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1",
+                "name": "GPT-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex",
+                "name": "GPT-5.1 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex-max",
+                "name": "GPT-5.1 Codex Max",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex-mini",
+                "name": "GPT-5.1 Codex Mini",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.2",
+                "name": "GPT-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.2-codex",
+                "name": "GPT-5.2 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.3-codex",
+                "name": "GPT-5.3 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4",
+                "name": "GPT-5.4",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-mini",
+                "name": "GPT-5.4 Mini",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-nano",
+                "name": "GPT-5.4 Nano",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-pro",
+                "name": "GPT-5.4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.5",
+                "name": "GPT-5.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.5-pro",
+                "name": "GPT-5.5 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-luna",
+                "name": "GPT-5.6 Luna",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-sol",
+                "name": "GPT-5.6 Sol",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-terra",
+                "name": "GPT-5.6 Terra",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-4.5",
+                "name": "Grok 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "local",
+            "name": "local",
+            "models": [
+              {
+                "id": "deepseek-v4-flash",
+                "name": "Deepseek v4 flash"
+              }
+            ]
+          }
+        ],
+        "failures": []
+      }
+    },
+    {
+      "step": "session.selectModel",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-flash"
+      },
+      "ok": true,
+      "value": {
+        "selected": {
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-flash",
+          "reasoningEffort": "high"
+        }
+      }
+    },
+    {
+      "step": "session.selectModel",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "provider": "opencode",
+        "model": "gpt-5.1"
+      },
+      "ok": true,
+      "value": {
+        "selected": {
+          "provider": "opencode",
+          "model": "gpt-5.1"
+        }
+      }
+    },
+    {
+      "step": "session.selectModel",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-flash"
+      },
+      "ok": true,
+      "value": {
+        "selected": {
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-flash",
+          "reasoningEffort": "high"
+        }
+      }
+    },
+    {
+      "step": "session.selectModel",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-flash",
+        "reasoningEffort": "low"
+      },
+      "ok": true,
+      "value": {
+        "selected": {
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-flash",
+          "reasoningEffort": "low"
+        }
+      }
+    },
+    {
+      "step": "session.models",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421"
+      },
+      "ok": true,
+      "value": {
+        "current": {
+          "provider": "deepseek-official",
+          "model": "deepseek-v4-flash",
+          "reasoningEffort": "low"
+        },
+        "routable": true,
+        "groups": [
+          {
+            "id": "deepseek-official",
+            "name": "DeepSeek",
+            "models": [
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek-V4-Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ],
+                  "defaultEffort": "high"
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek-V4-Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ],
+                  "defaultEffort": "high"
+                }
+              }
+            ]
+          },
+          {
+            "id": "opencode-go",
+            "name": "opencode-go",
+            "models": [
+              {
+                "id": "minimax-m3",
+                "name": "MiniMax-M3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.7-max",
+                "name": "Qwen3.7 Max",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.7-plus",
+                "name": "Qwen3.7 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek V4 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.1",
+                "name": "GLM-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.2",
+                "name": "GLM-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "hy3",
+                "name": "Hy3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.6",
+                "name": "Kimi K2.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.7-code",
+                "name": "Kimi K2.7 Code",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k3",
+                "name": "Kimi K3 (2x usage)",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5",
+                "name": "MiMo V2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5-pro",
+                "name": "MiMo V2.5 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.7",
+                "name": "MiniMax-M2.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.6-plus",
+                "name": "Qwen3.6 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-4.5",
+                "name": "Grok 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "opencode",
+            "name": "opencode",
+            "models": [
+              {
+                "id": "claude-fable-5",
+                "name": "Claude Fable 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-haiku-4-5",
+                "name": "Claude Haiku 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-1",
+                "name": "Claude Opus 4.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-5",
+                "name": "Claude Opus 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-6",
+                "name": "Claude Opus 4.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-7",
+                "name": "Claude Opus 4.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-8",
+                "name": "Claude Opus 4.8",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-5",
+                "name": "Claude Opus 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4",
+                "name": "Claude Sonnet 4",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4-5",
+                "name": "Claude Sonnet 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4-6",
+                "name": "Claude Sonnet 4.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-5",
+                "name": "Claude Sonnet 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.5-plus",
+                "name": "Qwen3.5 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.6-plus",
+                "name": "Qwen3.6 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3-flash",
+                "name": "Gemini 3 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.1-pro",
+                "name": "Gemini 3.1 Pro Preview",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.5-flash",
+                "name": "Gemini 3.5 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.5-flash-lite",
+                "name": "Gemini 3.5 Flash Lite",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.6-flash",
+                "name": "Gemini 3.6 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "big-pickle",
+                "name": "Big Pickle",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek V4 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash-free",
+                "name": "DeepSeek V4 Flash Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5",
+                "name": "GLM-5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.1",
+                "name": "GLM-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.2",
+                "name": "GLM-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-build-0.1",
+                "name": "Grok Build 0.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.5",
+                "name": "Kimi K2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.6",
+                "name": "Kimi K2.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.7-code",
+                "name": "Kimi K2.7 Code",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "laguna-s-2.1-free",
+                "name": "Laguna S 2.1 Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "ling-3.0-flash-free",
+                "name": "Ling-3.0-flash Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5-free",
+                "name": "MiMo V2.5 Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.5",
+                "name": "MiniMax-M2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.7",
+                "name": "MiniMax-M2.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m3",
+                "name": "MiniMax-M3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "nemotron-3-ultra-free",
+                "name": "Nemotron 3 Ultra Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "north-mini-code-free",
+                "name": "North Mini Code Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5",
+                "name": "GPT-5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5-codex",
+                "name": "GPT-5 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5-nano",
+                "name": "GPT-5 Nano",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1",
+                "name": "GPT-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex",
+                "name": "GPT-5.1 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex-max",
+                "name": "GPT-5.1 Codex Max",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex-mini",
+                "name": "GPT-5.1 Codex Mini",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.2",
+                "name": "GPT-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.2-codex",
+                "name": "GPT-5.2 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.3-codex",
+                "name": "GPT-5.3 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4",
+                "name": "GPT-5.4",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-mini",
+                "name": "GPT-5.4 Mini",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-nano",
+                "name": "GPT-5.4 Nano",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-pro",
+                "name": "GPT-5.4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.5",
+                "name": "GPT-5.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.5-pro",
+                "name": "GPT-5.5 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-luna",
+                "name": "GPT-5.6 Luna",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-sol",
+                "name": "GPT-5.6 Sol",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-terra",
+                "name": "GPT-5.6 Terra",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-4.5",
+                "name": "Grok 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "local",
+            "name": "local",
+            "models": [
+              {
+                "id": "deepseek-v4-flash",
+                "name": "Deepseek v4 flash"
+              }
+            ]
+          }
+        ],
+        "failures": []
+      }
+    },
+    {
+      "step": "session.selectModel",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "provider": "local",
+        "model": "deepseek-v4-flash"
+      },
+      "ok": true,
+      "value": {
+        "selected": {
+          "provider": "local",
+          "model": "deepseek-v4-flash"
+        }
+      }
+    },
+    {
+      "step": "session.models",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421"
+      },
+      "ok": true,
+      "value": {
+        "current": {
+          "provider": "local",
+          "model": "deepseek-v4-flash"
+        },
+        "routable": true,
+        "groups": [
+          {
+            "id": "deepseek-official",
+            "name": "DeepSeek",
+            "models": [
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek-V4-Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ],
+                  "defaultEffort": "high"
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek-V4-Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ],
+                  "defaultEffort": "high"
+                }
+              }
+            ]
+          },
+          {
+            "id": "opencode-go",
+            "name": "opencode-go",
+            "models": [
+              {
+                "id": "minimax-m3",
+                "name": "MiniMax-M3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.7-max",
+                "name": "Qwen3.7 Max",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.7-plus",
+                "name": "Qwen3.7 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek V4 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.1",
+                "name": "GLM-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.2",
+                "name": "GLM-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "hy3",
+                "name": "Hy3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.6",
+                "name": "Kimi K2.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.7-code",
+                "name": "Kimi K2.7 Code",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k3",
+                "name": "Kimi K3 (2x usage)",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5",
+                "name": "MiMo V2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5-pro",
+                "name": "MiMo V2.5 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.7",
+                "name": "MiniMax-M2.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.6-plus",
+                "name": "Qwen3.6 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-4.5",
+                "name": "Grok 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "opencode",
+            "name": "opencode",
+            "models": [
+              {
+                "id": "claude-fable-5",
+                "name": "Claude Fable 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-haiku-4-5",
+                "name": "Claude Haiku 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-1",
+                "name": "Claude Opus 4.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-5",
+                "name": "Claude Opus 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-6",
+                "name": "Claude Opus 4.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-7",
+                "name": "Claude Opus 4.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-4-8",
+                "name": "Claude Opus 4.8",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-opus-5",
+                "name": "Claude Opus 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4",
+                "name": "Claude Sonnet 4",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4-5",
+                "name": "Claude Sonnet 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-4-6",
+                "name": "Claude Sonnet 4.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "claude-sonnet-5",
+                "name": "Claude Sonnet 5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.5-plus",
+                "name": "Qwen3.5 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "qwen3.6-plus",
+                "name": "Qwen3.6 Plus",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3-flash",
+                "name": "Gemini 3 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.1-pro",
+                "name": "Gemini 3.1 Pro Preview",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.5-flash",
+                "name": "Gemini 3.5 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.5-flash-lite",
+                "name": "Gemini 3.5 Flash Lite",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gemini-3.6-flash",
+                "name": "Gemini 3.6 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "big-pickle",
+                "name": "Big Pickle",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash",
+                "name": "DeepSeek V4 Flash",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-flash-free",
+                "name": "DeepSeek V4 Flash Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "deepseek-v4-pro",
+                "name": "DeepSeek V4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5",
+                "name": "GLM-5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.1",
+                "name": "GLM-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "glm-5.2",
+                "name": "GLM-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-build-0.1",
+                "name": "Grok Build 0.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.5",
+                "name": "Kimi K2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.6",
+                "name": "Kimi K2.6",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "kimi-k2.7-code",
+                "name": "Kimi K2.7 Code",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "laguna-s-2.1-free",
+                "name": "Laguna S 2.1 Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "ling-3.0-flash-free",
+                "name": "Ling-3.0-flash Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "mimo-v2.5-free",
+                "name": "MiMo V2.5 Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.5",
+                "name": "MiniMax-M2.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m2.7",
+                "name": "MiniMax-M2.7",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "minimax-m3",
+                "name": "MiniMax-M3",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "nemotron-3-ultra-free",
+                "name": "Nemotron 3 Ultra Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "north-mini-code-free",
+                "name": "North Mini Code Free",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "off",
+                      "name": "Off"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5",
+                "name": "GPT-5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5-codex",
+                "name": "GPT-5 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5-nano",
+                "name": "GPT-5 Nano",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "minimal",
+                      "name": "Minimal"
+                    },
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1",
+                "name": "GPT-5.1",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex",
+                "name": "GPT-5.1 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex-max",
+                "name": "GPT-5.1 Codex Max",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.1-codex-mini",
+                "name": "GPT-5.1 Codex Mini",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.2",
+                "name": "GPT-5.2",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.2-codex",
+                "name": "GPT-5.2 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.3-codex",
+                "name": "GPT-5.3 Codex",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4",
+                "name": "GPT-5.4",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-mini",
+                "name": "GPT-5.4 Mini",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-nano",
+                "name": "GPT-5.4 Nano",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.4-pro",
+                "name": "GPT-5.4 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.5",
+                "name": "GPT-5.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.5-pro",
+                "name": "GPT-5.5 Pro",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-luna",
+                "name": "GPT-5.6 Luna",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-sol",
+                "name": "GPT-5.6 Sol",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "gpt-5.6-terra",
+                "name": "GPT-5.6 Terra",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    },
+                    {
+                      "id": "xhigh",
+                      "name": "Xhigh"
+                    },
+                    {
+                      "id": "max",
+                      "name": "Max"
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "grok-4.5",
+                "name": "Grok 4.5",
+                "reasoning": {
+                  "efforts": [
+                    {
+                      "id": "low",
+                      "name": "Low"
+                    },
+                    {
+                      "id": "medium",
+                      "name": "Medium"
+                    },
+                    {
+                      "id": "high",
+                      "name": "High"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "local",
+            "name": "local",
+            "models": [
+              {
+                "id": "deepseek-v4-flash",
+                "name": "Deepseek v4 flash"
+              }
+            ]
+          }
+        ],
+        "failures": []
+      }
+    },
+    {
+      "step": "session.selectModel",
+      "request": {
+        "sessionId": "session-5a0ae92f-f3bc-4331-8e3b-770bbb573421",
+        "provider": "no-such-provider",
+        "model": "no-such-model-xyz"
+      },
+      "ok": false,
+      "error": {
+        "code": "model-unavailable",
+        "message": "no adapter registered for provider \"no-such-provider\"",
+        "details": {
+          "provider": "no-such-provider",
+          "model": "no-such-model-xyz"
+        }
+      }
+    }
+  ]
+}

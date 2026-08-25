@@ -1,0 +1,23 @@
+{"stream":"mux","rpcId":"m1","frame":{"type":"session/subscribed","sessionId":"s-100","lastSeq":6}}
+{"stream":"host","rpcId":"h1","frame":{"type":"host/session-added","sessionId":"s-100","blank":true,"cwd":"/tmp/proj"}}
+{"stream":"mux","rpcId":"m2","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"turn/start","seq":1,"time":0,"data":{"turn":1}}}}
+{"stream":"mux","rpcId":"m3","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"user/message","seq":2,"time":0,"data":{"role":"user"},"surfaceOp":"append"}}}
+{"stream":"mux","rpcId":"m4","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"tool/call","seq":3,"time":0,"data":{"turn":1,"step":1,"callId":"c-1","name":"bash","arguments":"{}"}}}}
+{"stream":"mux","rpcId":"m5","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"tool/result","seq":4,"time":0,"data":{"turn":1,"step":1,"message":{"callId":"c-1"}}}}}
+{"stream":"mux","rpcId":"m6","frame":{"type":"session/queue","sessionId":"s-100","items":[{"id":"mq-1","placement":"steering","message":{"role":"user"}}]}}
+{"stream":"mux","rpcId":"m7","frame":{"type":"approval/requested","sessionId":"s-100","approvalId":"ap-1","toolName":"write","reason":"needs write access"}}
+{"stream":"mux","rpcId":"m8","frame":{"type":"approval/resolved","sessionId":"s-100","approvalId":"ap-1","outcome":"approved-once"}}
+{"stream":"mux","rpcId":"m9","frame":{"type":"session/projection","sessionId":"s-100","key":"todos","value":[],"seq":2}}
+{"stream":"mux","rpcId":"m10","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"assistant/chunk","seq":5,"time":0,"data":{"turn":1,"step":1,"chunk":{"text":"Hel"}}}}}
+{"stream":"mux","rpcId":"m11","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"assistant/chunk","seq":6,"time":0,"data":{"turn":1,"step":1,"chunk":{"text":"lo w"}}}}}
+{"stream":"mux","rpcId":"m12","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"assistant/chunk","seq":7,"time":0,"data":{"turn":1,"step":1,"chunk":{"text":"orld"}}}}}
+{"stream":"mux","rpcId":"m13","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"assistant/message","seq":8,"time":0,"data":{"turn":1,"step":1,"message":{"role":"assistant"}},"sourceEventSeqs":[5,6,7]}}}
+{"stream":"mux","rpcId":"m14","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"turn/end","seq":9,"time":0,"data":{"turn":1,"reason":"completed"}}}}
+{"stream":"mux","rpcId":"m15","frame":{"type":"session/event","sessionId":"s-100","event":{"type":"plugin/heartbeat","seq":10,"time":0,"data":{"beat":1},"ignorable":true}}}
+{"stream":"mux","rpcId":"m16","frame":{"type":"session/jobs","sessionId":"s-100","jobs":[]}}
+{"stream":"host","rpcId":"h2","frame":{"type":"host/session-status","sessionId":"s-100","running":true}}
+{"stream":"host","rpcId":"h3","frame":{"type":"host/workspace-changed","workspace":{"workspaceId":"w-9","name":"proj"}}}
+{"stream":"host","rpcId":"h4","frame":{"type":"host/workspace-order-changed","workspaceIds":["w-9"]}}
+{"stream":"host","rpcId":"h5","frame":{"type":"host/archived-sessions-changed","archivedSessionIds":[]}}
+{"stream":"host","rpcId":"h6","frame":{"type":"host/remote-event","event":"some/host/event","args":[]}}
+{"stream":"host","rpcId":"h7","frame":{"type":"host/session-status","sessionId":"s-100","running":false}}

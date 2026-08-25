@@ -1,0 +1,15 @@
+{
+  "pkg": "ui-settings-general",
+  "reactSource": "packages/client/ui-settings-general",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [
+    "packages/client/ui-settings-general/src/client/settings-document-store.ts:import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-settings-general/src/client/settings-document-store.ts:  readonly store: SnapshotStore<SettingsDocumentState> = createSnapshotStore({"
+  ],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 6
+}

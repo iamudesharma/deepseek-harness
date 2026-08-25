@@ -1,0 +1,23 @@
+{
+  "pkg": "ui-settings-plugins",
+  "reactSource": "packages/client/ui-settings-plugins",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [
+    "packages/client/ui-settings-plugins/tests/section.client.spec.tsx:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-settings-plugins/tests/section.client.spec.tsx:  const store = createSnapshotStore<ConfigurablePluginsTabState>({ loaded, namespaces })",
+    "packages/client/ui-settings-plugins/tests/section.client.spec.tsx:  const store = createSnapshotStore<BashCardState>({",
+    "packages/client/ui-settings-plugins/tests/section.client.spec.tsx:    const store = createSnapshotStore<AgentLoopCardState>({",
+    "packages/client/ui-settings-plugins/tests/section.client.spec.tsx:    const store = createSnapshotStore<AgentLoopCardState>({",
+    "packages/client/ui-settings-plugins/tests/section.client.spec.tsx:    const store = createSnapshotStore<WebSearchCardState>({",
+    "packages/client/ui-settings-plugins/src/client/tab-store.ts:import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-settings-plugins/src/client/tab-store.ts:  private readonly store = createSnapshotStore<ConfigurablePluginsTabState>({ loaded: false, namespaces: [] })",
+    "packages/client/ui-settings-plugins/src/client/card-form.ts:import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-settings-plugins/src/client/card-form.ts:    const store = createSnapshotStore(project())"
+  ],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 9
+}

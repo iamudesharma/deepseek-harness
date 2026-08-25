@@ -1,0 +1,17 @@
+{
+  "pkg": "ui-settings-models",
+  "reactSource": "packages/client/ui-settings-models",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [
+    "packages/client/ui-settings-models/src/client/welcome-store.ts:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-settings-models/src/client/welcome-store.ts:  readonly store: SnapshotStore<WelcomeNoticeState> = createSnapshotStore<WelcomeNoticeState>({",
+    "packages/client/ui-settings-models/src/client/store.ts:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-settings-models/src/client/store.ts:  readonly store: SnapshotStore<ModelsSettingsState> = createSnapshotStore<ModelsSettingsState>({"
+  ],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 13
+}

@@ -116,7 +116,14 @@ export function isTrustedApiRequest(request: ApiTrustRequest, trustedHosts: read
   const origin = header(request.headers, 'origin')
   if (origin === undefined) return true
   try {
-    return new URL(origin).host === hostUrl.host
+    const originUrl = new URL(origin)
+    // Cross-port loopback is same-machine dev (Flutter at :8321 → backend at :8787,
+    // macOS app, etc.). Require exact host otherwise, but for loopback-only
+    // pairs compare hostname only so different loopback ports still pass.
+    if (isLoopbackHostname(originUrl.hostname) && isLoopbackHostname(hostUrl.hostname)) {
+      return originUrl.hostname.toLowerCase() === hostUrl.hostname.toLowerCase()
+    }
+    return originUrl.host === hostUrl.host
   } catch {
     return false
   }

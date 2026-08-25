@@ -1,0 +1,12 @@
+{
+  "pkg": "ui-primitives",
+  "reactSource": "packages/client/ui-primitives",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 47
+}

@@ -73,36 +73,31 @@ void main() {
     test('6. model failure before tool execution: no orphaned running tools', () {
       final r = reduceConversation([
         _h('user/message', {'content': 'go'}, seq: 0),
-        _h('assistant/message', {
-          'content': [
-            {'type': 'tool-call', 'callId': 'c1', 'name': 'skill', 'arguments': '{}'},
-            {'type': 'tool-call', 'callId': 'c2', 'name': 'bash', 'arguments': '{}'},
-            {'type': 'tool-call', 'callId': 'c3', 'name': 'read', 'arguments': '{}'},
-          ]
-        }, seq: 1),
-        _h('turn/end', {'reason': {'kind': 'error', 'error': {'type': 'ModelError', 'message': '401 ModelError: Free promotion has ended for DeepSeek V4 Flash Free'}}}, seq: 2),
+        _h('tool/call', {'callId': 'c1', 'name': 'skill', 'args': {}}, seq: 1),
+        _h('tool/call', {'callId': 'c2', 'name': 'bash', 'args': {}}, seq: 2),
+        _h('tool/call', {'callId': 'c3', 'name': 'read', 'args': {}}, seq: 3),
+        _h('turn/end', {'reason': {'kind': 'error', 'error': {'type': 'ModelError', 'message': '401 ModelError: Free promotion has ended for DeepSeek V4 Flash Free'}}}, seq: 4),
       ]);
       expect(r.tools.where((t) => t.status.toString() == 'ToolCallStatus.running'), isEmpty);
       expect(r.tools, hasLength(3));
       // unresolved tools become cancelled / not-executed
       expect(r.tools.every((t) => t.status.toString().contains('cancel')), isTrue);
-      // One concise error, not per-tool running cards
+      // One concise error, not per-tool running cards.
       expect(r.errorMessage, isNotNull);
-      expect(r.errorMessage, isNot(contains('ModelError')));
+      // React displayFailureMessage: non-AUTH failures project the provider
+      // message verbatim ('This turn failed\n' + message) — no legacy mapping.
+      expect(r.errorMessage, contains('This turn failed'));
       expect(r.errorMessage, contains('promotion has ended'));
+      expect(r.errorMessage, contains('ModelError'));
     });
 
     test('7. model failure after some tools complete: completed stay, unresolved cancelled', () {
       final r = reduceConversation([
         _h('tool/call', {'callId': 'c1', 'name': 'read', 'args': {'path': 'a'}}, seq: 0),
         _h('tool/result', {'callId': 'c1', 'result': 'ok'}, seq: 1),
-        _h('assistant/message', {
-          'content': [
-            {'type': 'tool-call', 'callId': 'c2', 'name': 'bash', 'arguments': '{}'},
-            {'type': 'tool-call', 'callId': 'c3', 'name': 'skill', 'arguments': '{}'},
-          ]
-        }, seq: 2),
-        _h('turn/end', {'reason': {'kind': 'error', 'error': {'message': '401 ModelError: Free promotion has ended for DeepSeek V4 Flash Free'}}}, seq: 3),
+        _h('tool/call', {'callId': 'c2', 'name': 'bash', 'args': {}}, seq: 2),
+        _h('tool/call', {'callId': 'c3', 'name': 'skill', 'args': {}}, seq: 3),
+        _h('turn/end', {'reason': {'kind': 'error', 'error': {'message': '401 ModelError: Free promotion has ended for DeepSeek V4 Flash Free'}}}, seq: 4),
       ]);
       final c1 = r.tools.firstWhere((t) => t.id == 'c1');
       expect(c1.status.toString(), contains('success'));
@@ -111,11 +106,7 @@ void main() {
 
     test('8. no empty {} tool cards in final UI', () {
       final r = reduceConversation([
-        _h('assistant/message', {
-          'content': [
-            {'type': 'tool-call', 'callId': 'c1', 'name': 'skill', 'arguments': '{}'},
-          ]
-        }, seq: 0),
+        _h('tool/call', {'callId': 'c1', 'name': 'skill', 'args': {}}, seq: 0),
         _h('turn/end', {'reason': {'kind': 'error', 'error': {'message': '401 error'}}}, seq: 1),
       ]);
       // Cancelled tools must not carry empty payloads as visible content

@@ -2,26 +2,31 @@ import 'package:dsh_flutter/src/core/connection/connection_client.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
 import 'package:dsh_flutter/src/features/conversation/composer_controller.dart';
-import 'package:dsh_flutter/src/features/conversation/conversation_screen.dart';
+import 'package:dsh_flutter/src/plugins/conversation/ui/conversation_screen.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
+import 'package:dsh_flutter/src/core/settings/settings_scope.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen_ai_chat_ui/flutter_gen_ai_chat_ui.dart';
+import 'package:dsh_flutter/src/core/session/session_event_map.dart';
+import 'package:dsh_flutter/src/plugins/conversation/nodes/failure_display.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeComposerSuccessClient extends ConnectionClient {
   _FakeComposerSuccessClient() : super(baseUrl: 'http://fake');
+  final List<({String sessionId, String content, String mode})> sent = [];
   @override
   Future<void> sendMessage({
     required SessionId sessionId,
     required String content,
     String mode = 'queue',
     String? clientTimeZone,
+    List<Map<String, dynamic>> images = const [],
   }) async {
-    // No artificial delay — keeps widget-test timers deterministic (no fake-async deadlock).
+    sent.add((sessionId: sessionId.value, content: content, mode: mode));
   }
 }
+
 
 SessionSummary _fakeSummary(String id, {bool blank = false, String? title}) {
   return SessionSummary(
@@ -100,11 +105,14 @@ void main() {
         child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
       ));
       await tester.pumpAndSettle();
-      // Blank hero now shows Into the Unknown headline + blank info, not guard state.
+      // Blank is a hero PHASE of the same ConversationColumn shell (React
+      // ConversationRoot hero): header chrome HIDES while blank
+      // (ConversationSession.tsx:72-77 `hideChrome && css.headerHidden`),
+      // fish headline + workspace row show, and the resident composer rides
+      // inside the centered hero stack.
+      expect(find.text('New session'), findsNothing);
       expect(find.text('Into the Unknown'), findsOneWidget);
       expect(find.text('Preview'), findsOneWidget);
-      expect(find.textContaining('Blank session'), findsOneWidget);
-      // Composer should still be present for blank session.
       expect(find.text('Ask anything…'), findsOneWidget);
     });
 
@@ -136,24 +144,19 @@ void main() {
       expect(find.text('Ask anything…'), findsOneWidget);
     });
 
-    testWidgets('shows messages when messageListProvider returns data', (tester) async {
+    testWidgets('folds live history into node bubbles', (tester) async {
       final sid = 's-with-msgs';
       final summary = _fakeSummary(sid, blank: false);
-      final messages = [
-        const Message(id: '1', role: MessageRole.user, content: 'Hello there', time: 1000),
-        const Message(id: '2', role: MessageRole.assistant, content: 'Hi! How can I help?', time: 1001),
-      ];
       final container = ProviderContainer(
         overrides: [
-          messageListProvider.overrideWith((ref, arg) async => messages),
-          // HarnessAiChat reads liveMessageListProvider (which normally falls
-          // back to messageListProvider async). Override it directly so the
-          // test does not need to wait for the FutureProvider to resolve and
-          // avoids pumpAndSettle hangs from AiChatWidget's ticker.
-          liveMessageListProvider.overrideWith((ref, arg) => messages),
         ],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
+      container.read(liveHistoryProvider(sid).notifier).replaceAll([
+        HistoryEntry(event: SessionEvent.fromJson({'type':'user/message','seq':1,'time':0,'data':{'content':'Hello there'}}), view: null),
+        HistoryEntry(event: SessionEvent.fromJson({'type':'assistant/chunk','seq':2,'time':0,'data':{'turn':1,'step':1,'chunk':{'text':'Hi! How can I help?'}}}), view: null),
+        HistoryEntry(event: SessionEvent.fromJson({'type':'assistant/message','seq':3,'time':0,'data':{'turn':1,'step':1,'message':{}},'sourceEventSeqs':[2]}), view: null),
+      ]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(UncontrolledProviderScope(
@@ -162,48 +165,12 @@ void main() {
       ));
       await tester.pump();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Hello there'), findsOneWidget);
-      // Assistant bubble is markdown via the package — verify the chat
-      // surface itself is present and holds the expected message count.
-      expect(find.byType(AiChatWidget), findsOneWidget);
-      // Composer still present
-      expect(find.text('Ask anything…'), findsOneWidget);
+      expect(find.text('Hi! How can I help?'), findsOneWidget);
+      expect(find.text('Session $sid'), findsOneWidget);
     });
 
-    testWidgets('composer submit sends via AiChatWidget', (tester) async {
-      final sid = 's-composer';
-      final summary = _fakeSummary(sid, blank: false);
-      final container = ProviderContainer(
-        overrides: [
-          messageListProvider.overrideWith((ref, arg) async => <Message>[]),
-          connectionClientProvider.overrideWithValue(_FakeComposerSuccessClient()),
-        ],
-      );
-      container.read(sessionsProvider.notifier).addSession(summary);
-      addTearDown(container.dispose);
-
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-
-      // AiChatWidget is present; text field hint from the package.
-      expect(find.text('Ask anything…'), findsOneWidget);
-
-      // Sending via composer controller still works (optimistic path).
-      final ctrl = container.read(composerControllerProvider(sid).notifier);
-      ctrl.setText('hello composer');
-      await ctrl.submit();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('hello composer'), findsOneWidget);
-      expect(container.read(composerControllerProvider(sid)).text, isEmpty);
-    });
 
     testWidgets('composer empty input does not submit', (tester) async {
       final sid = 's-disabled';
@@ -254,12 +221,38 @@ void main() {
       expect(container.read(composerControllerProvider(sid)).attachments.length, 1);
     });
 
-    testWidgets('error state from messageListProvider shows error UI', (tester) async {
+    testWidgets('shows turn-error banner from folded history', (tester) async {
       final sid = 's-error';
       final summary = _fakeSummary(sid, blank: false);
       final container = ProviderContainer(
+        overrides: [],
+      );
+      container.read(sessionsProvider.notifier).addSession(summary);
+      container.read(liveHistoryProvider(sid).notifier).replaceAll([
+        HistoryEntry(event: SessionEvent.fromJson({'type':'user/message','seq':1,'time':0,'data':{'content':'go'}}), view: null),
+        HistoryEntry(event: SessionEvent.fromJson({'type':'turn/end','seq':2,'time':0,'data':{'reason':{'kind':'error','error':{'type':'ModelError','message':'provider exploded'}}}}), view: null),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      // TurnErrorNode projects the verbatim provider message (React parity).
+      expect(find.textContaining('provider exploded'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
+
+    testWidgets('composer submit records via carrier client', (tester) async {
+      final sid = 's-composer';
+      final summary = _fakeSummary(sid, blank: false);
+      final client = _FakeComposerSuccessClient();
+      final container = ProviderContainer(
         overrides: [
-          messageListProvider.overrideWith((ref, arg) async => throw Exception('network failure')),
+          connectionClientProvider.overrideWithValue(client),
         ],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
@@ -269,10 +262,17 @@ void main() {
         container: container,
         child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
       ));
-      await tester.pumpAndSettle();
 
-      expect(find.text('Failed to load messages'), findsOneWidget);
-      expect(find.textContaining('network failure'), findsOneWidget);
+      final ctrl = container.read(composerControllerProvider(sid).notifier);
+      ctrl.setText('hello composer');
+      await ctrl.submit();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(client.sent, hasLength(1));
+      expect(client.sent.single.content, 'hello composer');
+      expect(client.sent.single.mode, 'queue');
+      expect(container.read(composerControllerProvider(sid)).text, isEmpty);
     });
   });
 }

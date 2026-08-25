@@ -1,0 +1,98 @@
+{
+  "reactSource": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx + EmptyHero.tsx + InputBar.tsx + packages/client/ui-agent-preset/src/client/AgentPresetSeat.tsx + packages/client/ui-model-selection/src/client/ModelSelect.tsx + packages/client/ui-workspace/src/client/WorkspacePicker.tsx",
+  "page": "main-hero-new-session",
+  "url": "http://127.0.0.1:4174/ (welcome, no current session) + /sessions/:sid blank hero",
+  "playwrightHarvest": "/tmp/react-main-page-harvest.json",
+  "domHarvest": {
+    "headline": "Into the Unknown",
+    "previewBadge": "Preview",
+    "workspaceChip": {
+      "selector": "button.M7Gq_G_workspace[aria-label='Choose workspace']",
+      "props": ["label: workspaceLabel(cwd) | 'Choose workspace'", "menuOpen: boolean", "onClick: togglePicker"],
+      "icons": ["IconFolderClose16 placeholder", "IconFolderOpen16 selected"],
+      "slots": ["conversation.hero.workspace -> WorkspacePicker"]
+    },
+    "agentPresetChip": {
+      "selector": "button.nhtWbW_seat[aria-haspopup='menu']",
+      "props": ["current: chosenText.name", "busy: boolean", "open: boolean"],
+      "store": "AgentPresetSeatController { options, current, busy, error, introduce }",
+      "typert": ["agentPreset.list", "agentPreset.select"]
+    },
+    "composerCard": {
+      "selector": "div[data-composer-card].H9IG5W_card",
+      "placeholder": "Describe what you want to build | Choose workspace (inert)",
+      "inertLogic": "inert = sessionId===undefined || (hero && chipTitle===undefined); textareaDisabled = removed || (locked && !workspaceTrigger); readOnly = machineBusy || workspaceTrigger",
+      "bottomBar": {
+        "left": ["+ Commands (IconPlusOutline16)", "PermissionSelect (Workspace Write|Read Only|Full access) -> command('/permission ...')", "Plan slot (conversation.input.plan)"],
+        "center": [],
+        "right": ["ModelSelect (conversation.input.model)", "ContextMeter", "Send/Stop toggle"]
+      }
+    },
+    "modelSelect": {
+      "selector": "button.uMhgZq_trigger",
+      "props": ["available: boolean", "directory: ModelDirectoryState { current, routable, groups, failures, status, error }"],
+      "typert": ["session.models", "session.selectModel"],
+      "ui": "Two-pane Menu: root (Model + Effort rows with chevron) -> model pane (provider-grouped sections) + effort pane"
+    },
+    "glow": "svg._46cOga_heroGlow ellipse 1051x468 blurred fill #6187D8 0.08"
+  },
+  "cssModules": [
+    {"file": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css", "vars": ["--dsw-alias-bg-base", "--dsw-alias-border-l2"]},
+    {"file": "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css", "vars": ["--dsw-alias-label-primary", "--dsw-state-business-primary"]},
+    {"file": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css", "vars": ["--dsw-alias-bg-layer-2", "--dsw-alias-border-l2"]},
+    {"file": "packages/client/ui-agent-preset/src/client/AgentPresetSeat.module.css", "vars": ["--dsw-alias-bg-layer-1"]},
+    {"file": "packages/client/ui-model-selection/src/client/ModelSelect.module.css", "vars": ["--dsw-alias-specific-menu"]}
+  ],
+  "store": [
+    {"name": "AgentPresetSeatController", "state": ["options: AgentPresetOption[]", "current: string", "busy: boolean", "error: string|null", "introduce: boolean"], "actions": ["load()", "select(id)", "stage(id)", "introduced()", "apply()"]},
+    {"name": "ModelDirectory", "state": ["current: ModelSelection|null", "routable: boolean|null", "groups: ModelProviderGroup[]", "failures: ModelCatalogFailure[]", "status: idle|loading|ready|selecting|error", "error: string|null"], "actions": ["load()", "select(ModelSelection)"]},
+    {"name": "WorkspacePickFlow", "state": ["open: boolean", "flowOpen: boolean", "pickingFolder: boolean", "errorOpen: boolean"], "actions": ["createWorkspace({path})", "pickDirectory()", "listDirectory(path, signal)", "createDirectory(path, name)"]}
+  ],
+  "triggers": [
+    {"type": "menu", "trigger": "Workspace chip click -> Menu (workspace list + Add workspace footer) -> DirectoryFlow (native pickDirectory | Browse DirectoryBrowser modal)", "slot": "conversation.hero.workspace.directoryFlow"},
+    {"type": "menu", "trigger": "Standard mode chip click -> Menu (system vs user groups, personal badge, default badge, check)"},
+    {"type": "popup", "trigger": "Select model click -> Menu root (Model row | Effort row) -> provider-grouped model list with check + description"},
+    {"type": "inert", "trigger": "Click composer card when inert -> open Workspace picker (cardWorkspaceTrigger)"}
+  ],
+  "typert": [
+    {"method": "host.describe", "payload": {}, "response": {"cwd": "/Volumes/AppleExpanded/Code/deepseek harness/deepseek-harness", "home": "/Users/udeshsharma"}},
+    {"method": "workspace.list", "payload": {}, "response": {"items": [{"workspaceId": "30772f5b-...", "path": "/Volumes/AppleExpanded/Code/untitled folder", "title": "untitled folder", "sessionIds": []}], "archivedSessionIds": []}},
+    {"method": "session.list", "payload": {}, "response": {"items": [{"sessionId": "...", "blank": true, "cwd": "...", "agentPreset": "standard"}]}},
+    {"method": "agentPreset.list", "payload": {}, "response": {"presets": [{"id": "standard", "trust": "system", "isDefault": true, "name": "标准模式"}, {"id": "code", "name": "PTC 模式"}, {"id": "minimal", "name": "Minimal mode"}, {"id": "creator", "name": "Creator mode"}]}},
+    {"method": "session.models", "payload": {"sessionId": "session-..."}, "response": {"current": {"provider": "opencode", "model": "deepseek-v4-flash-free"}, "groups": [{"id": "deepseek-official", "name": "DeepSeek", "models": [{"id": "deepseek-v4-flash", "name": "DeepSeek-V4-Flash"}]}]}},
+    {"method": "llm.providers", "payload": {}, "response": {"providers": [{"provider": "deepseek-official", "displayName": "DeepSeek"}]}},
+    {"method": "workspace.create", "payload": {"path": "/host/path"}, "response": {"workspace": {"workspaceId": "...", "title": "..."}}},
+    {"method": "host.pickDirectory", "payload": {}, "response": {"path": "/picked/path"}},
+    {"method": "host.listDirectory", "payload": {"path": "/some/dir"}, "response": {"path": "/some/dir", "crumbs": [], "entries": [], "home": "/Users/udeshsharma"}},
+    {"method": "host.createDirectory", "payload": {"path": "/parent", "name": "new"}, "response": {"path": "/parent/new"}},
+    {"method": "session.create", "payload": {"workspaceId": "..."}, "response": {"sessionId": "..."}},
+    {"method": "session.prompt", "payload": {"sessionId": "...", "content": [{"type": "text", "text": "..."}]}}
+  ],
+  "slots": [
+    "conversation.hero.workspace",
+    "conversation.hero.agentPreset",
+    "conversation.hero.brand.mark",
+    "conversation.input.model",
+    "conversation.input.plan",
+    "conversation.composer.bar",
+    "conversation.hero.workspace.directoryFlow"
+  ],
+  "flutterTarget": {
+    "welcome": "apps/flutter/lib/src/routing/app_router.dart:WelcomeScreen",
+    "workspacePicker": "apps/flutter/lib/src/routing/app_router.dart:_WorkspacePickerOverlay + _pickDirectoryAndCreate (kIsWeb -> AlertDialog TextField | macOS -> FilePicker NSOpenPanel)",
+    "presetChip": "apps/flutter/lib/src/routing/app_router.dart:_PresetChip + _PresetPickerOverlay (trust-grouped)",
+    "modelPicker": "apps/flutter/lib/src/routing/app_router.dart:welcomeModelCatalogProvider + _ModelGroupedPill + _ModelPickerOverlay (provider-grouped) + apps/flutter/lib/src/features/conversation/widgets/conversation_composer.dart:_LiveModelDropdown (PopupMenuButton grouped)",
+    "messageListRetry": "apps/flutter/lib/src/features/conversation/widgets/message_list.dart:_RetryBubble + apps/flutter/lib/src/features/conversation/message_provider.dart:messagesFromHistory llm/retry + _unescapeHtml"
+  },
+  "parityCheck": {
+    "visual": "FishLogo 34 + Preview badge + untitled folder chip folder open/close + chevron rotation + glow ellipse #6187D8 0.08 + composer card border DswTokens",
+    "behavior": "Workspace chip interactive + Add workspace via native/filePicker + error retry dialog; Preset chip interactive with load/select; Model grouped by provider with check; Inert card click opens workspace picker; Pending label optimistic + rollback on failure"
+  },
+  "tests": ["apps/flutter/test/widget_test.dart:App loads with welcome", "apps/flutter/test/widgets/conversation_test.dart", "apps/flutter/test/unit/composer_controller_test.dart"],
+  "status": "Verified",
+  "playwright": {
+    "mcp": "@playwright/mcp@latest (headless chromium 149)",
+    "url": "http://127.0.0.1:4174/",
+    "capture": "/tmp/react-main-page-harvest.json"
+  }
+}

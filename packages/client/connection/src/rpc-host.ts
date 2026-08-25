@@ -100,12 +100,44 @@ export class HostConnectionService extends Service implements HostConnectionHand
       kind: 'prefix',
       path: channel,
       handler: async (req, res) => {
+        const origin = req.headers.origin as string | undefined
+        if (req.method === 'OPTIONS') {
+          if (!isTrustedApiRequest(req, trustedHosts)) {
+            res.writeHead(403)
+            res.end('forbidden')
+            return
+          }
+          const headers: Record<string, string> = {
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'content-type, x-rpc-id',
+            'Access-Control-Max-Age': '86400',
+            'Vary': 'Origin',
+          }
+          if (typeof origin === 'string') headers['Access-Control-Allow-Origin'] = origin
+          res.writeHead(204, headers)
+          res.end()
+          return
+        }
         if (!isTrustedApiRequest(req, trustedHosts)) {
           res.writeHead(403)
           res.end('forbidden')
           return
         }
-        await bridge(req, res, fetchHandler)
+        const corsHandler = {
+          async fetch(request: Request): Promise<Response> {
+            const resp = await fetchHandler.fetch(request)
+            if (typeof origin === 'string') {
+              const headers = new Headers(resp.headers)
+              headers.set('Access-Control-Allow-Origin', origin)
+              headers.set('Vary', 'Origin')
+              headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+              headers.set('Access-Control-Allow-Headers', 'content-type, x-rpc-id')
+              return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers })
+            }
+            return resp
+          },
+        } satisfies import('./http-bridge.ts').FetchHandler
+        await bridge(req, res, corsHandler)
       },
     }
     return owner.effect(
