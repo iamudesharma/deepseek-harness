@@ -4978,7 +4978,7 @@
   {
     "id": "state.runtime",
     "category": "state",
-    "source": "packages/client/runtime/src/client",
+    "source": "packages/api/session-controller/src/client",
     "flutterTarget": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
     "status": "Integrated",
     "dependsOn": [],
@@ -5045,7 +5045,7 @@
   {
     "id": "state.session",
     "category": "state",
-    "source": "packages/client/runtime/src/client/sessions",
+    "source": "packages/api/session-controller/src/client/sessions",
     "flutterTarget": "apps/flutter/lib/src/core/session/session_provider.dart",
     "status": "Verified",
     "dependsOn": [
@@ -5111,7 +5111,7 @@
   {
     "id": "state.sessions",
     "category": "state",
-    "source": "packages/client/runtime/src/client/sessions",
+    "source": "packages/api/session-controller/src/client/sessions",
     "flutterTarget": "apps/flutter/lib/src/core/session/sessions_controller.dart",
     "status": "Verified",
     "dependsOn": [
@@ -5314,7 +5314,7 @@
   {
     "id": "runtime.session-store",
     "category": "runtime",
-    "source": "packages/client/runtime/src/client/sessions",
+    "source": "packages/api/session-controller/src/client/sessions",
     "reactPackage": "runtime",
     "responsibility": "Resident per-session objects consuming live mux/host frames; history paging and shared event windows.",
     "flutterTarget": "apps/flutter/lib/src/core/session/live_sync.dart",
@@ -5370,7 +5370,7 @@
   {
     "id": "runtime.workspace-store",
     "category": "runtime",
-    "source": "packages/client/runtime/src/client/workspaces",
+    "source": "packages/api/workspace-controller/src/client",
     "reactPackage": "runtime",
     "responsibility": "Workspace list baseline, incremental upsert/remove, ordering, optimistic insertion, tombstones.",
     "flutterTarget": "apps/flutter/lib/src/features/workspace/workspace_provider.dart",
@@ -5426,7 +5426,7 @@
   {
     "id": "runtime.projection-store",
     "category": "runtime",
-    "source": "packages/client/runtime/src/client/sessions",
+    "source": "packages/api/session-controller/src/client/sessions",
     "reactPackage": "runtime",
     "responsibility": "ProjectionValueStore seeded from history and updated by session/projection frames; higher-seq-wins.",
     "flutterTarget": "apps/flutter/lib/src/core/session/projection_store.dart",
@@ -5577,7 +5577,7 @@
   {
     "id": "runtime.settings-scope",
     "category": "runtime",
-    "source": "packages/client/runtime/src/client/contract/settings-scope.ts",
+    "source": "packages/client/ui-settings/src/client/settings-scope.ts",
     "reactPackage": "runtime",
     "responsibility": "Per-scope settings mirrors (host/workspace/session) with schema validation and host transport.",
     "flutterTarget": "apps/flutter/lib/src/core/settings/settings_scope.dart",
@@ -5626,7 +5626,7 @@
   {
     "id": "runtime.host-born-sessions",
     "category": "runtime",
-    "source": "packages/client/runtime/src/client/contract/session.ts",
+    "source": "packages/api/session-controller/src/client/contract/session.ts",
     "reactPackage": "runtime",
     "responsibility": "Sessions are host-born via session.create (Session+Agent+cwd together); no local fake pre-entity.",
     "flutterTarget": "apps/flutter/lib/src/core/session/host_session_policy.dart",
@@ -5769,7 +5769,7 @@
   {
     "id": "protocol.mux-host-frames",
     "category": "protocol",
-    "source": "packages/client/connection/src/client/web-api-client.ts",
+    "source": "packages/client/connection/src/client/index.ts",
     "reactPackage": "connection",
     "responsibility": "Dual WS downlink frame vocabularies (mux + host) and their fanout contracts.",
     "flutterTarget": "apps/flutter/lib/src/core/api/frames.dart",
@@ -6151,7 +6151,7 @@
   {
     "id": "conversation.node-assembler",
     "category": "runtime",
-    "source": "packages/client/runtime/src/client/conversation/event-registry.ts",
+    "source": "packages/client/ui-conversation/src/client/conversation/event-registry.ts",
     "reactPackage": "runtime",
     "responsibility": "ConversationNode assembly: definitions fold event windows into contexts/state -> view builders -> snapshot.",
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/nodes/assembler.dart",
@@ -6199,7 +6199,7 @@
   {
     "id": "conversation.streaming-tail",
     "category": "runtime",
-    "source": "packages/client/ui-conversation/src/client/conversation-nodes/assistant.ts",
+    "source": "packages/client/ui-chat/src/client/conversation-nodes/assistant.ts",
     "reactPackage": "ui-conversation",
     "responsibility": "In-flight turn isolated from settled nodes; animation-frame coalescing for chunks.",
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/nodes/streaming_tail.dart",
@@ -6246,7 +6246,7 @@
   {
     "id": "conversation.turn-grouping",
     "category": "runtime",
-    "source": "packages/client/ui-conversation/src/client/conversation-nodes/turn-tail.ts",
+    "source": "packages/client/ui-chat/src/client/conversation-nodes/turn-tail.ts",
     "reactPackage": "ui-conversation",
     "responsibility": "Turn/step grouping with stable location data and timeline snapshots.",
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/nodes/turn_grouping.dart",
@@ -6339,7 +6339,7 @@
   {
     "id": "conversation.compaction",
     "category": "runtime",
-    "source": "packages/client/ui-conversation/src/client/conversation-nodes/compaction.ts",
+    "source": "packages/client/ui-chat/src/client/conversation-nodes/compaction.ts",
     "reactPackage": "ui-conversation",
     "responsibility": "Compaction checkpoint node: collapsed summary, expansion, token estimates, replaced counts.",
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/ui/chat_view.dart",
@@ -6402,7 +6402,7 @@
   {
     "id": "conversation.retry-error-states",
     "category": "runtime",
-    "source": "packages/client/ui-conversation/src/client/conversation-nodes/retry.ts",
+    "source": "packages/client/ui-chat/src/client/conversation-nodes/retry.ts",
     "reactPackage": "ui-conversation",
     "responsibility": "Retry/error tails: model-retry, turn-error, turn-max-tokens node kinds.",
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/nodes/error_tails.dart",
