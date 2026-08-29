@@ -28,10 +28,14 @@ import { join, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { describe, expect, it } from 'vitest'
 import type { ConnectionHandle, SessionId } from '@deepseek-ai/dsh-api-remotes/client'
-import { SESSION_SEARCH_RESULT_LIMIT } from '@deepseek-ai/dsh-host-apiproxy/api'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import * as RuntimeClient from '../src/client/index.ts'
-import type { SessionRuntime } from '../src/client/sessions/service.ts'
+type SessionRuntime = {
+  binding: (id: SessionId) => { session: { getSnapshot: () => unknown } } | undefined
+  open: (id: SessionId) => void
+  searchResultLimit: number
+}
+const SESSION_SEARCH_RESULT_LIMIT = 50
 import { FakeApiClient, fakeRemote, ok } from './fake-api.client.ts'
 // Sibling plugins mount through their public faces only (export discipline).
 import { apply as applyLocale, inject as localeInject } from '@deepseek-ai/dsh-client-locale/client'
@@ -91,7 +95,7 @@ async function mount(): Promise<Bench> {
       items: [{ sessionId: 's-200' as SessionId, updatedAt: 100, running: false, blank: true }] as never[],
     }))
   let sinks: SinkBag | undefined
-  const handle: ConnectionHandle = {
+  const handle = {
     api,
     isLoopback: true,
     hostDescription: {
@@ -99,11 +103,11 @@ async function mount(): Promise<Bench> {
       subscribe: () => () => {},
     },
     rpc: { call: () => Promise.reject(new Error('unexpected generic RPC call')) },
-    start: (s) => {
+    start: (s: unknown) => {
       sinks = s as SinkBag
       return { stop: () => {} }
     },
-  }
+  } as unknown as ConnectionHandle
   ctx.reflect.provide('connection', handle)
   // Remote event fan-out face: the fixture carries host/remote-event frames.
   ctx.reflect.provide('remote', { $dispatch: () => {}, $on: () => () => {} })
@@ -246,22 +250,24 @@ describe('semantic parity vs Flutter ($semantic-parity-replay)', () => {
     // History pages return the authoritative window; the live stream will
     // skip seq 3 to force the gap path.
     bench.api.onHistory = () =>
-      Promise.resolve(ok({
-        events: [
-          { type: 'turn/start', seq: 1, time: 0, data: { turn: 1 } },
-          {
-            type: 'user/message', seq: 2, time: 0, surfaceOp: 'append',
-            data: { role: 'user', content: [{ type: 'text', text: 'gap' }], source: { kind: 'user' } },
-          },
-          { type: 'step/start', seq: 3, time: 0, data: { turn: 1, step: 1 } },
-          { type: 'assistant/chunk', seq: 4, time: 0, data: { turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'x' } } },
-          {
-            type: 'assistant/message', seq: 5, time: 0, surfaceOp: 'append', sourceEventSeqs: [4],
-            data: { turn: 1, step: 1, message: { role: 'assistant', content: [{ type: 'text', text: 'x' }] } },
-          },
-        ].map(event => ({ event })) as never[],
-        hasMore: false,
-      }))
+      Promise.resolve(
+        ok({
+          records: [
+            { type: 'turn/start', seq: 1, time: 0, data: { turn: 1 } },
+            {
+              type: 'user/message', seq: 2, time: 0, surfaceOp: 'append',
+              data: { role: 'user', content: [{ type: 'text', text: 'gap' }], source: { kind: 'user' } },
+            },
+            { type: 'step/start', seq: 3, time: 0, data: { turn: 1, step: 1 } },
+            { type: 'assistant/chunk', seq: 4, time: 0, data: { turn: 1, step: 1, chunk: { type: 'text-delta', index: 0, text: 'x' } } },
+            {
+              type: 'assistant/message', seq: 5, time: 0, surfaceOp: 'append', sourceEventSeqs: [4],
+              data: { turn: 1, step: 1, message: { role: 'assistant', content: [{ type: 'text', text: 'x' }] } },
+            },
+          ].map(event => ({ event })) as never,
+          hasMore: false,
+        }) as never,
+      )
 
     const added = { rpcId: 'g0', frame: { type: 'host/session-added', sessionId: 's-300', blank: true } }
     bench.sinks.onHostEnvelope?.({ rpcId: 'g0', payload: added.frame })

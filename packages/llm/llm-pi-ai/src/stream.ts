@@ -123,6 +123,10 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
       const text = message.errorMessage ?? 'pi-ai stream error'
       return { kind: 'error', failure: { message: text, code: classifyPiAiError(text) } }
     }
+    default: {
+      const exhaustive: never = message.stopReason as never
+      throw new Error(`unhandled pi-ai stopReason: ${String(exhaustive)}`)
+    }
   }
 }
 
