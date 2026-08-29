@@ -11,7 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// ```sh
 /// flutter test test/integration/m8_gates_test.dart
 /// ```
-const String kHostUrl = String.fromEnvironment('DSH_HOST_URL', defaultValue: 'http://127.0.0.1:8787');
+const String kHostUrl = String.fromEnvironment(
+  'DSH_HOST_URL',
+  defaultValue: 'http://127.0.0.1:8787',
+);
 
 Future<bool> _hostReachable(ConnectionClient client) async {
   try {
@@ -44,22 +47,30 @@ void main() {
     expect(events, isA<List>());
   });
 
-  test('M9 gate: mux stream opens and yields session/subscribed baseline', () async {
-    if (!await _hostReachable(client)) return;
-    var opened = false;
-    final frame = await client
-        .eventsMux(onOpen: () => opened = true)
-        .timeout(const Duration(seconds: 5), onTimeout: (sink) => sink.close())
-        .first;
-    expect(opened, isTrue);
-    // Transport yields narrow frames (ServerRequest payload unwrapped).
-    expect(frame['type'], anyOf('session/subscribed', 'session/event'));
-  });
+  test(
+    'M9 gate: mux stream opens and yields session/subscribed baseline',
+    () async {
+      if (!await _hostReachable(client)) return;
+      var opened = false;
+      final frame = await client
+          .eventsMux(onOpen: () => opened = true)
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: (sink) => sink.close(),
+          )
+          .first;
+      expect(opened, isTrue);
+      // Transport yields narrow frames (ServerRequest payload unwrapped).
+      expect(frame['type'], anyOf('session/subscribed', 'session/event'));
+    },
+  );
 
   test('M9 gate: host stream opens', () async {
     if (!await _hostReachable(client)) return;
     var opened = false;
-    final sub = client.eventsHost(onOpen: () => opened = true).listen((_) {}, onError: (_) {});
+    final sub = client
+        .eventsHost(onOpen: () => opened = true)
+        .listen((_) {}, onError: (_) {});
     await Future<void>.delayed(const Duration(milliseconds: 500));
     // Don't await cancel — the WebSocket teardown may hang under full-suite
     // load and the test timeout (30s) would then mask the product result.

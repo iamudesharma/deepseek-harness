@@ -29,8 +29,7 @@ class _FakeClient extends ConnectionClient {
     required String ns,
     required List<Map<String, dynamic>> ops,
     int? expectedRevision,
-  }) async =>
-      const <String, dynamic>{};
+  }) async => const <String, dynamic>{};
 }
 
 Map<String, Object?> _describeAnswer({String? preference, int revision = 2}) =>
@@ -49,9 +48,9 @@ void main() {
       'activated locale service', (tester) async {
     final client = _FakeClient()
       ..describeAnswer = _describeAnswer(preference: 'en', revision: 2);
-    final container = ProviderContainer(overrides: [
-      connectionClientProvider.overrideWithValue(client),
-    ]);
+    final container = ProviderContainer(
+      overrides: [connectionClientProvider.overrideWithValue(client)],
+    );
     addTearDown(container.dispose);
     final service = container.read(localeServiceProvider);
     service.register('probe', {
@@ -62,13 +61,17 @@ void main() {
     // Capture a WidgetRef so CoreServicesPlugin boots exactly as it does
     // inside DshApp, minus the unrelated plugins.
     WidgetRef? widgetRef;
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: Consumer(builder: (_, ref, _) {
-        widgetRef = ref;
-        return const SizedBox.shrink();
-      }),
-    ));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (_, ref, _) {
+            widgetRef = ref;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
 
     final host = PluginHost();
     // Same service seeding as buildAppHost, minus the unrelated plugins.

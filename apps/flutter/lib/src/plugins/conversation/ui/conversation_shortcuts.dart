@@ -42,8 +42,12 @@ bool get useMetaAccelerator =>
 /// variant carries an accelerator: bare Shift+Z (typing a capital Z) never
 /// matches.
 List<SingleActivator> get undoActivators => useMetaAccelerator
-    ? <SingleActivator>[const SingleActivator(LogicalKeyboardKey.keyZ, meta: true)]
-    : <SingleActivator>[const SingleActivator(LogicalKeyboardKey.keyZ, control: true)];
+    ? <SingleActivator>[
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true),
+      ]
+    : <SingleActivator>[
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true),
+      ];
 
 /// Redo activators: Cmd+Shift+Z (Apple) / Ctrl+Shift+Z or Ctrl+Y (elsewhere),
 /// same accelerator rule as [undoActivators].
@@ -52,7 +56,11 @@ List<SingleActivator> get redoActivators => useMetaAccelerator
         const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true),
       ]
     : <SingleActivator>[
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true),
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ),
         const SingleActivator(LogicalKeyboardKey.keyY, control: true),
       ];
 
@@ -83,9 +91,13 @@ class ConversationShortcuts extends StatelessWidget {
       bindings: {
         // includeRepeats: false is the e.repeat guard (InputBar.tsx): a
         // held-down Enter must not machine-gun sends.
-        const SingleActivator(LogicalKeyboardKey.enter, includeRepeats: false):
-            () => onSubmit?.call(),
-        const SingleActivator(LogicalKeyboardKey.escape): () => onCancel?.call(),
+        const SingleActivator(
+          LogicalKeyboardKey.enter,
+          includeRepeats: false,
+        ): () =>
+            onSubmit?.call(),
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            onCancel?.call(),
         // Undo/redo accept the platform accelerator on every host: Cmd on
         // Apple, Ctrl elsewhere (React InputBar accepts meta||ctrl). The
         // bindings stay installed even with null handlers so the native text

@@ -15,12 +15,14 @@ import '../core/session/host_session_policy.dart'
 import '../features/layout/layout_controller.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/trajectory/trajectory_screen.dart' as trajectory_feature;
-import '../plugins/conversation/ui/conversation_screen.dart' as conversation_feature;
+import '../plugins/conversation/ui/conversation_screen.dart'
+    as conversation_feature;
 import '../plugins/conversation/ui/slots/hole_outlet.dart';
 import '../features/goal/goal_screen.dart' as goal_feature;
 import '../features/jobs/jobs_screen.dart' as jobs_feature;
 import '../features/commands/commands_screen.dart' as commands_feature;
-import '../features/input_trigger/input_trigger_screen.dart' as input_trigger_feature;
+import '../features/input_trigger/input_trigger_screen.dart'
+    as input_trigger_feature;
 import '../features/reference/reference_screen.dart' as reference_feature;
 import '../plugins/subagent/ui/subagent_screen.dart' as subagent_feature;
 import '../features/workspace/workspace_provider.dart'
@@ -69,8 +71,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     // shared selection state; this screen completes it host-side.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.listenManual<WorkspaceId?>(selectedWorkspaceProvider,
-          (WorkspaceId? prev, WorkspaceId? next) {
+      ref.listenManual<WorkspaceId?>(selectedWorkspaceProvider, (
+        WorkspaceId? prev,
+        WorkspaceId? next,
+      ) {
         if (next != null && next != prev) _createSessionIn(next);
       });
     });
@@ -94,7 +98,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       // Project the host-born session before the confirming list pull lands
       // (host_session_policy.dart); setAll immediately confirms it.
       final List<SessionSummary> sessions = await client.getSessions();
-      ref.read(sessionsProvider.notifier).addSession(adoptHostBornSession(newId));
+      ref
+          .read(sessionsProvider.notifier)
+          .addSession(adoptHostBornSession(newId));
       ref.read(sessionsProvider.notifier).setAll(sessions);
       ref.read(sessionsProvider.notifier).setCurrent(newId);
       if (mounted && context.mounted) context.go('/sessions/${newId.value}');
@@ -112,11 +118,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   Widget build(BuildContext context) {
     final DswAliases aliases =
         Theme.of(context).extension<DswThemeExtension>()?.aliases ??
-            (Theme.of(context).brightness == Brightness.dark
-                ? DswTokens.darkAliases
-                : DswTokens.lightAliases);
-    final SlotRegistry slots =
-        ref.watch(activeSlotsProvider) ?? SlotRegistry();
+        (Theme.of(context).brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final SlotRegistry slots = ref.watch(activeSlotsProvider) ?? SlotRegistry();
 
     return Scaffold(
       backgroundColor: aliases.bgBase,
@@ -131,7 +136,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                   height: 320,
                   decoration: BoxDecoration(
                     gradient: RadialGradient(
-                      colors: [const Color(0x146187D8), const Color(0x006187D8)],
+                      colors: [
+                        const Color(0x146187D8),
+                        const Color(0x006187D8),
+                      ],
                       center: Alignment.center,
                       radius: 0.8,
                     ),
@@ -160,17 +168,38 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           slotKey: 'conversation.hero.brand.mark',
                           fallback: const DsFishLogo(size: 34),
                         ),
-                        Text('Into the Unknown',
-                            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: aliases.labelPrimary, letterSpacing: -0.3)),
+                        Text(
+                          'Into the Unknown',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                            color: aliases.labelPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: aliases.stateBusinessTertiary,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: aliases.stateBusinessPrimary.withValues(alpha: 0.18)),
+                            border: Border.all(
+                              color: aliases.stateBusinessPrimary.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
                           ),
-                          child: Text('Preview',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: aliases.stateBusinessPrimary, letterSpacing: 0.2)),
+                          child: Text(
+                            'Preview',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: aliases.stateBusinessPrimary,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -178,10 +207,18 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                     // Workspace row: the REAL picker seat. Its portal owns the
                     // list + add-directory flow; picking lands in
                     // selectedWorkspaceProvider and starts the session above.
-                    HoleOutlet(registry: slots, slotKey: 'conversation.hero.workspace'),
+                    HoleOutlet(
+                      registry: slots,
+                      slotKey: 'conversation.hero.workspace',
+                    ),
                     const SizedBox(height: 20),
-                    Text('Choose a workspace to start',
-                        style: TextStyle(fontSize: 12, color: aliases.labelTertiary)),
+                    Text(
+                      'Choose a workspace to start',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: aliases.labelTertiary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -192,7 +229,6 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     );
   }
 }
-
 
 /// Global router provider.
 ///
@@ -216,43 +252,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: false,
     routes: [
       StatefulShellRoute.indexedStack(
-        builder: (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) {
-          // Native mobile (Android/iOS) renders the bare navigation shell
-          // ONLY when width < 768 — a tablet/desktop-sized native window keeps
-          // the three-column AppFrame. macOS/Web never use the mobile shell.
-          // The check is width-aware via [isMobileShell] and respects
-          // debugDefaultTargetPlatformOverride through defaultTargetPlatform.
-          if (isMobileShell(context)) return navigationShell;
-          return AppFrame(
-            navigationShell: navigationShell,
-            // Conversation hub renders through its own composition slot on
-            // top of the shell's center occupant.
-            conversationLayer: SlotOutlet(
-              registry: ref.watch(activeSlotsProvider) ?? _nullRegistry,
-              slotKey: 'layout.center',
-            ),
-            // Sidebar arrives through the composition slot (ui-sidebar plugin
-            // registers `layout.sidebar`); the router holds no feature import.
-            sidebar: SlotOutlet(
-              registry: ref.watch(activeSlotsProvider) ?? _nullRegistry,
-              slotKey: 'layout.sidebar',
-              fallback: (_) => const SizedBox.shrink(),
-            ),
-            // Details track: no occupant exists in the Dart runtime yet, and
-            // React renders the strict details entry EMPTY when there is
-            // nothing to show (AppFrame.tsx:188-191) while the store boots
-            // closed (`details: 0`, stores.ts:50). The frame therefore keeps
-            // a zero-width collapsed track — no placeholder panel.
-            details: null,
-          );
-        },
+        builder:
+            (
+              BuildContext context,
+              GoRouterState state,
+              StatefulNavigationShell navigationShell,
+            ) {
+              // Native mobile (Android/iOS) renders the bare navigation shell
+              // ONLY when width < 768 — a tablet/desktop-sized native window keeps
+              // the three-column AppFrame. macOS/Web never use the mobile shell.
+              // The check is width-aware via [isMobileShell] and respects
+              // debugDefaultTargetPlatformOverride through defaultTargetPlatform.
+              if (isMobileShell(context)) return navigationShell;
+              return AppFrame(
+                navigationShell: navigationShell,
+                // Conversation hub renders through its own composition slot on
+                // top of the shell's center occupant.
+                conversationLayer: SlotOutlet(
+                  registry: ref.watch(activeSlotsProvider) ?? _nullRegistry,
+                  slotKey: 'layout.center',
+                ),
+                // Sidebar arrives through the composition slot (ui-sidebar plugin
+                // registers `layout.sidebar`); the router holds no feature import.
+                sidebar: SlotOutlet(
+                  registry: ref.watch(activeSlotsProvider) ?? _nullRegistry,
+                  slotKey: 'layout.sidebar',
+                  fallback: (_) => const SizedBox.shrink(),
+                ),
+                // Details track: no occupant exists in the Dart runtime yet, and
+                // React renders the strict details entry EMPTY when there is
+                // nothing to show (AppFrame.tsx:188-191) while the store boots
+                // closed (`details: 0`, stores.ts:50). The frame therefore keeps
+                // a zero-width collapsed track — no placeholder panel.
+                details: null,
+              );
+            },
         branches: [
           // Branch 0: welcome + sessions (center occupant).
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/',
-                builder: (BuildContext context, GoRouterState state) => const WelcomeScreen(),
+                builder: (BuildContext context, GoRouterState state) =>
+                    const WelcomeScreen(),
                 redirect: (BuildContext context, GoRouterState state) {
                   // Redirect to current session if one exists.
                   final sessions = ref.read(sessionsProvider);
@@ -267,14 +309,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/sessions/:sid',
                 builder: (BuildContext context, GoRouterState state) {
                   final sid = state.pathParameters['sid']!;
-                  return conversation_feature.ConversationScreen(sessionId: sid);
+                  return conversation_feature.ConversationScreen(
+                    sessionId: sid,
+                  );
                 },
                 routes: [
                   GoRoute(
                     path: 'trajectory',
                     builder: (BuildContext context, GoRouterState state) {
                       final sid = state.pathParameters['sid']!;
-                      return trajectory_feature.TrajectoryScreen(sessionId: sid);
+                      return trajectory_feature.TrajectoryScreen(
+                        sessionId: sid,
+                      );
                     },
                   ),
                   GoRoute(
@@ -293,15 +339,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   ),
                   GoRoute(
                     path: 'commands',
-                    builder: (BuildContext context, GoRouterState state) => const commands_feature.CommandsScreen(),
+                    builder: (BuildContext context, GoRouterState state) =>
+                        const commands_feature.CommandsScreen(),
                   ),
                   GoRoute(
                     path: 'input-trigger',
-                    builder: (BuildContext context, GoRouterState state) => const input_trigger_feature.InputTriggerScreen(),
+                    builder: (BuildContext context, GoRouterState state) =>
+                        const input_trigger_feature.InputTriggerScreen(),
                   ),
                   GoRoute(
                     path: 'references',
-                    builder: (BuildContext context, GoRouterState state) => const reference_feature.ReferenceScreen(),
+                    builder: (BuildContext context, GoRouterState state) =>
+                        const reference_feature.ReferenceScreen(),
                   ),
                   GoRoute(
                     path: 'subagents',
@@ -326,7 +375,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/settings',
-                builder: (BuildContext context, GoRouterState state) => const SettingsScreen(),
+                builder: (BuildContext context, GoRouterState state) =>
+                    const SettingsScreen(),
               ),
             ],
           ),
@@ -335,11 +385,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/devices',
-                builder: (BuildContext context, GoRouterState state) => const DevicesScreen(),
+                builder: (BuildContext context, GoRouterState state) =>
+                    const DevicesScreen(),
               ),
               GoRoute(
                 path: '/workspaces',
-                builder: (BuildContext context, GoRouterState state) => const WorkspacesMobileScreen(),
+                builder: (BuildContext context, GoRouterState state) =>
+                    const WorkspacesMobileScreen(),
               ),
               GoRoute(
                 path: '/sessions',
@@ -355,11 +407,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Top-level (outside shell) device pairing flow — full-screen, no sidebar.
       GoRoute(
         path: '/devices/add',
-        builder: (BuildContext context, GoRouterState state) => const AddComputerScreen(),
+        builder: (BuildContext context, GoRouterState state) =>
+            const AddComputerScreen(),
         routes: [
           GoRoute(
             path: 'manual',
-            builder: (BuildContext context, GoRouterState state) => const ManualEntryScreen(),
+            builder: (BuildContext context, GoRouterState state) =>
+                const ManualEntryScreen(),
           ),
           GoRoute(
             path: 'confirm',
@@ -394,4 +448,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-

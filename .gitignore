@@ -39,3 +39,28 @@ apps/web/dist/
 worktrees/
 .agents/worktrees/
 .typert-*/
+
+# Flutter migration local/generated — do not commit
+__pycache__/
+flutter-*.png
+flutter-live-*.png
+web-*.png
+apps/flutter/test/goldens/failures/
+apps/web/dist.react_backup/
+apps/flutter/android/build/
+packages/host/webserver/src/*.js
+packages/host/webserver/src/*.js.map
+packages/host/webserver/src/*.d.ts
+packages/host/webserver/src/*.d.ts.map
+
+# Local IDE / MCP configs (keep agent notes)
+.agents/mcp.json
+.agents/opencode.json
+.agents/skills/monid/
+.mcp.json
+.cursor/
+.commandcode/
+.opencode/
+proxy.py
+python_proxy.py
+start.sh

@@ -41,7 +41,6 @@ class ReducedConversation {
   });
 }
 
-
 ({String friendly, String raw}) _displayFailureMessage(dynamic failure) =>
     displayFailureMessage(failure);
 
@@ -94,7 +93,8 @@ String _extractText(Map<String, dynamic> data) {
     final StringBuffer buf = StringBuffer();
     for (final dynamic block in content) {
       if (block is Map) {
-        final String? t = _asString(block['text']) ?? _asString(block['content']);
+        final String? t =
+            _asString(block['text']) ?? _asString(block['content']);
         if (t != null) buf.writeln(t);
       } else if (block is String) {
         buf.writeln(block);
@@ -103,7 +103,10 @@ String _extractText(Map<String, dynamic> data) {
     final String s = buf.toString().trim();
     if (s.isNotEmpty) return s;
   }
-  return _asString(data['text']) ?? _asString(data['message']) ?? _asString(data['delta']) ?? '';
+  return _asString(data['text']) ??
+      _asString(data['message']) ??
+      _asString(data['delta']) ??
+      '';
 }
 
 /// Single-pass reduction of the DeepSeek Harness / OpenCode event log
@@ -145,7 +148,8 @@ ReducedConversation reduceConversation(
   void cancelUnresolved() {
     for (final String id in byId.keys.toList()) {
       final ToolCall c = byId[id]!;
-      if (c.status == ToolCallStatus.pending || c.status == ToolCallStatus.running) {
+      if (c.status == ToolCallStatus.pending ||
+          c.status == ToolCallStatus.running) {
         byId[id] = ToolCall(
           id: c.id,
           toolName: c.toolName,
@@ -174,27 +178,35 @@ ReducedConversation reduceConversation(
         chunkTime = null;
       }
       final String text = _unescapeHtml(_extractText(event.data));
-      messages.add(Message(
-        id: 'user-${event.seq}',
-        role: MessageRole.user,
-        content: text.isEmpty ? '(empty message)' : text,
-        time: event.time,
-      ));
+      messages.add(
+        Message(
+          id: 'user-${event.seq}',
+          role: MessageRole.user,
+          content: text.isEmpty ? '(empty message)' : text,
+          time: event.time,
+        ),
+      );
     } else if (type == 'assistant/chunk') {
-      final dynamic rawDelta = event.data['delta'] ?? event.data['chunk'] ?? event.data['text'];
+      final dynamic rawDelta =
+          event.data['delta'] ?? event.data['chunk'] ?? event.data['text'];
       String delta = '';
       String? deltaType;
       if (rawDelta is String) {
         delta = rawDelta;
       } else if (rawDelta is Map) {
-        final Map<String, dynamic> m = (rawDelta as Map).cast<String, dynamic>();
+        final Map<String, dynamic> m = (rawDelta as Map)
+            .cast<String, dynamic>();
         deltaType = m['type'] as String?;
         if (m['type'] == 'reasoning' && m['text'] is String) {
           delta = _asString(m['text']) ?? '';
         } else if (m['type'] == 'text' && m['text'] is String) {
           delta = _asString(m['text']) ?? '';
         } else {
-          delta = _asString(m['text']) ?? _asString(m['delta']) ?? _asString(m['content']) ?? '';
+          delta =
+              _asString(m['text']) ??
+              _asString(m['delta']) ??
+              _asString(m['content']) ??
+              '';
         }
       } else {
         delta = _asString(rawDelta) ?? '';
@@ -220,7 +232,8 @@ ReducedConversation reduceConversation(
       // hasVisible is false (streaming=false, interrupted!=true, only tool-call
       // blocks). Skip them the same way to prevent blank "Assistant" headers.
       final dynamic rawContentProbe = event.data['content'];
-      final bool contentEmpty = rawContentProbe == null ||
+      final bool contentEmpty =
+          rawContentProbe == null ||
           (rawContentProbe is List && rawContentProbe.isEmpty) ||
           (rawContentProbe is String && rawContentProbe.trim().isEmpty);
       if (contentEmpty) {
@@ -228,8 +241,11 @@ ReducedConversation reduceConversation(
         // blocks renders nothing in React (AssistantMarkdown returns null).
         // Tool-call heads are NOT tool rows — only real tool/call events
         // create those. Skip the bubble entirely; no ghosts.
-        final bool hasVisibleBlock = rawContentProbe is List &&
-            rawContentProbe.any((blk) => blk is Map && blk['type'] != 'tool-call');
+        final bool hasVisibleBlock =
+            rawContentProbe is List &&
+            rawContentProbe.any(
+              (blk) => blk is Map && blk['type'] != 'tool-call',
+            );
         if (!hasVisibleBlock) {
           continue;
         }
@@ -262,24 +278,31 @@ ReducedConversation reduceConversation(
         }
         if (b.isNotEmpty) blocks = List<AssistantBlock>.unmodifiable(b);
       }
-      messages.add(Message(
-        id: 'assistant-${event.seq}',
-        role: MessageRole.assistant,
-        content: text,
-        time: event.time,
-        blocks: blocks,
-      ));
+      messages.add(
+        Message(
+          id: 'assistant-${event.seq}',
+          role: MessageRole.assistant,
+          content: text,
+          time: event.time,
+          blocks: blocks,
+        ),
+      );
     } else if (type == 'tool/call' || type == 'tools/call') {
-      final String callId = (event.data['callId'] as String?) ??
+      final String callId =
+          (event.data['callId'] as String?) ??
           (event.data['toolCallId'] as String?) ??
           'call-${event.seq}';
-      final String toolName = (event.data['name'] as String?) ??
+      final String toolName =
+          (event.data['name'] as String?) ??
           (event.data['tool'] as String?) ??
           'tool';
-      final Map<String, dynamic> args = (event.data['args'] as Map?)?.cast<String, dynamic>() ??
+      final Map<String, dynamic> args =
+          (event.data['args'] as Map?)?.cast<String, dynamic>() ??
           (event.data['input'] as Map?)?.cast<String, dynamic>() ??
           const <String, dynamic>{};
-      final String friendly = _toolFriendlyArgs(event.data['args'] ?? event.data['input']);
+      final String friendly = _toolFriendlyArgs(
+        event.data['args'] ?? event.data['input'],
+      );
       // Upgrade pending ghost or create running.
       final ToolCall? existing = byId[callId];
       if (existing != null && existing.status == ToolCallStatus.pending) {
@@ -306,14 +329,20 @@ ReducedConversation reduceConversation(
       } else {
         // Already running/succeeded — keep.
       }
-      _toolFriendlyArgs(friendly); // touch to avoid unused warning in some analyzers
-    } else if (type == 'tool/result' || type == 'tools/result' || type == 'tool/result/batch') {
-      final String callId = (event.data['callId'] as String?) ??
+      _toolFriendlyArgs(
+        friendly,
+      ); // touch to avoid unused warning in some analyzers
+    } else if (type == 'tool/result' ||
+        type == 'tools/result' ||
+        type == 'tool/result/batch') {
+      final String callId =
+          (event.data['callId'] as String?) ??
           (event.data['toolCallId'] as String?) ??
           '';
       if (callId.isEmpty) continue;
       final bool isError = (event.data['isError'] as bool?) ?? false;
-      final dynamic result = event.data['result'] ?? event.data['output'] ?? event.data['content'];
+      final dynamic result =
+          event.data['result'] ?? event.data['output'] ?? event.data['content'];
       final ToolCall? existing = byId[callId];
       if (existing != null) {
         byId[callId] = ToolCall(
@@ -347,22 +376,26 @@ ReducedConversation reduceConversation(
       final dynamic failure = data['failure'];
       String failureMsg = '';
       if (failure is Map) {
-        failureMsg = _asString((failure as Map).cast<String, dynamic>()['message']) ?? failure.toString();
+        failureMsg =
+            _asString((failure as Map).cast<String, dynamic>()['message']) ??
+            failure.toString();
       } else if (failure != null) {
         failureMsg = failure.toString();
       }
       final String mode = _asString(data['mode']) ?? 'normal';
-      messages.add(Message(
-        id: 'retry-${event.seq}',
-        role: MessageRole.system,
-        content: '',
-        time: event.time,
-        retry: retry,
-        maxRetries: maxRetries,
-        delayMs: delayMs,
-        failureMessage: _unescapeHtml(failureMsg),
-        retryMode: mode,
-      ));
+      messages.add(
+        Message(
+          id: 'retry-${event.seq}',
+          role: MessageRole.system,
+          content: '',
+          time: event.time,
+          retry: retry,
+          maxRetries: maxRetries,
+          delayMs: delayMs,
+          failureMessage: _unescapeHtml(failureMsg),
+          retryMode: mode,
+        ),
+      );
     } else if (type == 'turn/end') {
       final dynamic reason = event.data['reason'];
       if (reason is Map && reason['kind'] == 'error') {
@@ -386,7 +419,9 @@ ReducedConversation reduceConversation(
         // No-op for streaming buffers that were already flushed via assistant/message.
       }
     } else if (type == 'turn/error') {
-      final String msg = _unescapeHtml(_asString(event.data['message']) ?? event.data.toString());
+      final String msg = _unescapeHtml(
+        _asString(event.data['message']) ?? event.data.toString(),
+      );
       final mapped = _displayFailureMessage(event.data);
       friendlyError = mapped.friendly;
       rawError = mapped.raw;
@@ -403,7 +438,14 @@ ReducedConversation reduceConversation(
       // (mirrors messagesFromHistory fallback).
       final String text = _unescapeHtml(_extractText(event.data));
       if (text.isNotEmpty) {
-        messages.add(Message(id: 'system-${event.seq}', role: MessageRole.system, content: text, time: event.time));
+        messages.add(
+          Message(
+            id: 'system-${event.seq}',
+            role: MessageRole.system,
+            content: text,
+            time: event.time,
+          ),
+        );
       }
     }
   }
@@ -423,7 +465,9 @@ ReducedConversation reduceConversation(
 
   // Streaming tail: emit buffered chunks as a single streaming message
   // when the turn is still in-flight (isRunning) and turn hasn't failed.
-  if (isRunning && !turnFailed && (chunkTextBuffer.isNotEmpty || chunkReasoningBuffer.isNotEmpty)) {
+  if (isRunning &&
+      !turnFailed &&
+      (chunkTextBuffer.isNotEmpty || chunkReasoningBuffer.isNotEmpty)) {
     final String text = chunkTextBuffer.toString();
     final String reasoning = chunkReasoningBuffer.toString();
     List<AssistantBlock>? blocks;
@@ -433,14 +477,16 @@ ReducedConversation reduceConversation(
         if (text.isNotEmpty) AssistantBlock.text(text),
       ];
     }
-    messages.add(Message(
-      id: 'assistant-${chunkSeq ?? DateTime.now().millisecondsSinceEpoch}',
-      role: MessageRole.assistant,
-      content: text.isNotEmpty ? text : reasoning,
-      time: chunkTime ?? DateTime.now().millisecondsSinceEpoch,
-      streaming: true,
-      blocks: blocks,
-    ));
+    messages.add(
+      Message(
+        id: 'assistant-${chunkSeq ?? DateTime.now().millisecondsSinceEpoch}',
+        role: MessageRole.assistant,
+        content: text.isNotEmpty ? text : reasoning,
+        time: chunkTime ?? DateTime.now().millisecondsSinceEpoch,
+        streaming: true,
+        blocks: blocks,
+      ),
+    );
   }
 
   // Build ordered tool list (first-appearance order; cancelled tools last

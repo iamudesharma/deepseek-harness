@@ -4,17 +4,22 @@ import 'package:dsh_flutter/src/plugins/conversation/nodes/conversation_nodes.da
 import 'package:dsh_flutter/src/plugins/conversation/nodes/failure_display.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-SessionEventEnvelope e(String type, int seq, Map<String, Object?> data,
-        {List<int>? sources, bool ignorable = false, Object? surfaceOp}) =>
-    SessionEventEnvelope.fromJson({
-      'type': type,
-      'seq': seq,
-      'time': 0,
-      'data': data,
-      if (sources != null) 'sourceEventSeqs': sources,
-      if (surfaceOp != null) 'surfaceOp': surfaceOp,
-      if (ignorable) 'ignorable': true,
-    });
+SessionEventEnvelope e(
+  String type,
+  int seq,
+  Map<String, Object?> data, {
+  List<int>? sources,
+  bool ignorable = false,
+  Object? surfaceOp,
+}) => SessionEventEnvelope.fromJson({
+  'type': type,
+  'seq': seq,
+  'time': 0,
+  'data': data,
+  if (sources != null) 'sourceEventSeqs': sources,
+  if (surfaceOp != null) 'surfaceOp': surfaceOp,
+  if (ignorable) 'ignorable': true,
+});
 
 void main() {
   group('Session title contract (projection)', () {
@@ -26,8 +31,8 @@ void main() {
         'blank': false,
         'projections': {
           'asOfSeq': 10,
-          'values': {'title': 'My Plan Session'}
-        }
+          'values': {'title': 'My Plan Session'},
+        },
       });
       expect(s.title, 'My Plan Session');
       expect(s.displayTitle, 'My Plan Session');
@@ -39,7 +44,7 @@ void main() {
         'updatedAt': 0,
         'running': false,
         'blank': true,
-        'projections': {'asOfSeq': -1, 'values': {}}
+        'projections': {'asOfSeq': -1, 'values': {}},
       });
       expect(s.title, isNull);
       expect(s.blank, isTrue);
@@ -53,7 +58,7 @@ void main() {
         'running': false,
         'blank': false,
         'cwd': '/home/user/my-project',
-        'projections': {'asOfSeq': 0, 'values': {}}
+        'projections': {'asOfSeq': 0, 'values': {}},
       });
       expect(s1.displayTitle, 'my-project');
 
@@ -62,13 +67,19 @@ void main() {
         'updatedAt': 0,
         'running': false,
         'blank': false,
-        'projections': {'asOfSeq': 0, 'values': {}}
+        'projections': {'asOfSeq': 0, 'values': {}},
       });
       expect(s2.displayTitle, 's-3');
     });
 
     test('withTitle allows null clearing', () {
-      const s = SessionSummary(sessionId: SessionId('s-1'), updatedAt: 0, running: false, blank: false, title: 'Old');
+      const s = SessionSummary(
+        sessionId: SessionId('s-1'),
+        updatedAt: 0,
+        running: false,
+        blank: false,
+        title: 'Old',
+      );
       expect(s.withTitle(null).title, isNull);
       expect(s.withTitle('New').title, 'New');
     });
@@ -78,43 +89,61 @@ void main() {
     test('Hello → Hi renders both in order', () {
       final f = ConversationNodeFolder()
         ..add(e('turn/start', 1, {'turn': 1}))
-        ..add(e('user/message', 2, {
-          'content': [
-            {'type': 'text', 'text': 'Hello'}
-          ],
-          'id': 'm1',
-          'source': {'kind': 'user'}
-        }))
+        ..add(
+          e('user/message', 2, {
+            'content': [
+              {'type': 'text', 'text': 'Hello'},
+            ],
+            'id': 'm1',
+            'source': {'kind': 'user'},
+          }),
+        )
         ..add(e('assistant/message', 3, {'turn': 1, 'step': 1}, sources: []));
       final nodes = f.snapshot().nodes;
       // Should have UserMessageNode and AssistantNode, in order, no markers
       expect(nodes.whereType<UserMessageNode>().single.text, 'Hello');
       expect(nodes.whereType<AssistantNode>(), hasLength(1));
       final lines = f.snapshot().toTranscriptLines();
-      expect(lines.any((l) => l.contains('user') && l.contains('Hello')), isTrue);
+      expect(
+        lines.any((l) => l.contains('user') && l.contains('Hello')),
+        isTrue,
+      );
       // No leaked marker labels
-      expect(lines.any((l) => l.contains('turn/start') || l.contains('end-seed')), isFalse);
+      expect(
+        lines.any((l) => l.contains('turn/start') || l.contains('end-seed')),
+        isFalse,
+      );
     });
 
     test('failed turn still renders user message + error', () {
       final f = ConversationNodeFolder()
         ..add(e('turn/start', 1, {'turn': 1}))
-        ..add(e('user/message', 2, {
-          'content': [
-            {'type': 'text', 'text': 'do thing'}
-          ]
-        }))
+        ..add(
+          e('user/message', 2, {
+            'content': [
+              {'type': 'text', 'text': 'do thing'},
+            ],
+          }),
+        )
         ..add(e('step/start', 3, {'turn': 1, 'step': 1}))
         ..add(e('step/end', 4, {'turn': 1, 'step': 1}))
-        ..add(e('turn/end', 5, {
-          'reason': {
-            'kind': 'error',
-            'error': {'type': 'server_error', 'message': 'Model is unavailable.'}
-          }
-        }));
+        ..add(
+          e('turn/end', 5, {
+            'reason': {
+              'kind': 'error',
+              'error': {
+                'type': 'server_error',
+                'message': 'Model is unavailable.',
+              },
+            },
+          }),
+        );
       final nodes = f.snapshot().nodes;
       expect(nodes.whereType<UserMessageNode>().single.text, 'do thing');
-      expect(nodes.whereType<TurnErrorNode>().single.friendly, contains('Model is unavailable'));
+      expect(
+        nodes.whereType<TurnErrorNode>().single.friendly,
+        contains('Model is unavailable'),
+      );
       // No extra assistant fake message
       expect(nodes.whereType<AssistantNode>(), isEmpty);
     });
@@ -166,7 +195,12 @@ void main() {
       final f = ConversationNodeFolder()
         ..add(e('step/start', 1, {'turn': 1, 'step': 1}))
         ..add(e('tool/call', 2, {'callId': 'c1', 'name': 'bash'}))
-        ..add(e('tool/result', 3, {'message': {'callId': 'c1'}, 'result': 'ok'}))
+        ..add(
+          e('tool/result', 3, {
+            'message': {'callId': 'c1'},
+            'result': 'ok',
+          }),
+        )
         ..add(e('step/end', 4, {'turn': 1, 'step': 1}));
       final g = f.snapshot().nodes.whereType<StepGroupNode>().single;
       expect(g.settled, isTrue);
@@ -180,11 +214,19 @@ void main() {
         ..add(e('turn/start', 1, {'turn': 1}))
         ..add(e('step/start', 2, {'turn': 1, 'step': 1}))
         ..add(e('tool/call', 3, {'callId': 'c1', 'name': 'bash'}))
-        ..add(e('tool/result', 4, {'message': {'callId': 'c1'}}))
+        ..add(
+          e('tool/result', 4, {
+            'message': {'callId': 'c1'},
+          }),
+        )
         ..add(e('step/end', 5, {'turn': 1, 'step': 1}))
         ..add(e('step/start', 6, {'turn': 1, 'step': 2}))
         ..add(e('tool/call', 7, {'callId': 'c2', 'name': 'grep'}))
-        ..add(e('tool/result', 8, {'message': {'callId': 'c2'}}))
+        ..add(
+          e('tool/result', 8, {
+            'message': {'callId': 'c2'},
+          }),
+        )
         ..add(e('step/end', 9, {'turn': 1, 'step': 2}));
       final groups = f.snapshot().nodes.whereType<StepGroupNode>().toList();
       expect(groups, hasLength(2));
@@ -193,28 +235,52 @@ void main() {
       expect(groups[1].step, 2);
     });
 
-    test('streaming assistant via chunk produces streaming node inside step', () {
-      final f = ConversationNodeFolder()
-        ..add(e('step/start', 1, {'turn': 1, 'step': 1}))
-        ..add(e('assistant/chunk', 2, {'turn': 1, 'step': 1, 'chunk': {'text': 'Hel'}}))
-        ..add(e('assistant/chunk', 3, {'turn': 1, 'step': 1, 'chunk': {'text': 'lo'}}));
-      // In-flight assistant is inside open group children
-      final group = f.snapshot().nodes.whereType<StepGroupNode>().single;
-      expect(group.children.whereType<AssistantNode>().single.text, 'Hello');
-      expect(group.children.whereType<AssistantNode>().single.streaming, isTrue);
-    });
+    test(
+      'streaming assistant via chunk produces streaming node inside step',
+      () {
+        final f = ConversationNodeFolder()
+          ..add(e('step/start', 1, {'turn': 1, 'step': 1}))
+          ..add(
+            e('assistant/chunk', 2, {
+              'turn': 1,
+              'step': 1,
+              'chunk': {'text': 'Hel'},
+            }),
+          )
+          ..add(
+            e('assistant/chunk', 3, {
+              'turn': 1,
+              'step': 1,
+              'chunk': {'text': 'lo'},
+            }),
+          );
+        // In-flight assistant is inside open group children
+        final group = f.snapshot().nodes.whereType<StepGroupNode>().single;
+        expect(group.children.whereType<AssistantNode>().single.text, 'Hello');
+        expect(
+          group.children.whereType<AssistantNode>().single.streaming,
+          isTrue,
+        );
+      },
+    );
   });
 
   group('Turn error presentation', () {
     test('maps error code and preserves message under correct turn', () {
       final f = ConversationNodeFolder()
         ..add(e('user/message', 1, {'content': 'hi'}))
-        ..add(e('turn/end', 2, {
-          'reason': {
-            'kind': 'error',
-            'error': {'code': 'RATE_LIMIT', 'type': 'FreeUsageLimitError', 'message': 'Rate limit exceeded. Please try again later.'}
-          }
-        }));
+        ..add(
+          e('turn/end', 2, {
+            'reason': {
+              'kind': 'error',
+              'error': {
+                'code': 'RATE_LIMIT',
+                'type': 'FreeUsageLimitError',
+                'message': 'Rate limit exceeded. Please try again later.',
+              },
+            },
+          }),
+        );
       final err = f.snapshot().nodes.whereType<TurnErrorNode>().single;
       expect(err.errorCode, 'RATE_LIMIT');
       expect(err.friendly, contains('Rate limit exceeded'));
@@ -223,7 +289,10 @@ void main() {
     });
 
     test('400 server_error still shows friendly not raw JSON', () {
-      final mapped = displayFailureMessage({'type': 'server_error', 'message': 'Error from provider (Console): Upstream request failed: Model is unavailable.'});
+      final mapped = displayFailureMessage({
+        'type': 'server_error',
+        'message': 'Error from provider (Console): Upstream request failed: Model is unavailable.',
+      });
       expect(mapped.friendly, contains('Model is unavailable'));
       expect(mapped.friendly, isNot(contains('"type"')));
     });
@@ -244,13 +313,23 @@ void main() {
       final f = ConversationNodeFolder()
         ..add(e('user/message', 1, {'content': 'hello'}))
         ..add(e('assistant/message', 2, {'turn': 1, 'step': 1}, sources: []));
-      expect(f.snapshot().nodes.map((n) => n.runtimeType).toList(), [UserMessageNode, AssistantNode]);
+      expect(f.snapshot().nodes.map((n) => n.runtimeType).toList(), [
+        UserMessageNode,
+        AssistantNode,
+      ]);
     });
 
     test('B: failed: user -> error', () {
       final f = ConversationNodeFolder()
         ..add(e('user/message', 1, {'content': 'fail'}))
-        ..add(e('turn/end', 2, {'reason': {'kind': 'error', 'error': {'message': 'boom'}}}));
+        ..add(
+          e('turn/end', 2, {
+            'reason': {
+              'kind': 'error',
+              'error': {'message': 'boom'},
+            },
+          }),
+        );
       expect(f.snapshot().nodes.whereType<UserMessageNode>(), hasLength(1));
       expect(f.snapshot().nodes.whereType<TurnErrorNode>(), hasLength(1));
     });
@@ -258,7 +337,13 @@ void main() {
     test('C: streaming: user -> partial -> settled', () {
       final f = ConversationNodeFolder()
         ..add(e('user/message', 1, {'content': 'stream'}))
-        ..add(e('assistant/chunk', 2, {'turn': 1, 'step': 1, 'chunk': {'text': 'part'}}))
+        ..add(
+          e('assistant/chunk', 2, {
+            'turn': 1,
+            'step': 1,
+            'chunk': {'text': 'part'},
+          }),
+        )
         ..add(e('assistant/message', 3, {'turn': 1, 'step': 1}, sources: [2]));
       final a = f.snapshot().nodes.whereType<AssistantNode>().single;
       expect(a.streaming, isFalse);
@@ -269,9 +354,17 @@ void main() {
       final f = ConversationNodeFolder()
         ..add(e('user/message', 1, {'content': 'tool'}))
         ..add(e('tool/call', 2, {'callId': 'c1', 'name': 'bash'}))
-        ..add(e('tool/result', 3, {'message': {'callId': 'c1'}, 'result': 'out'}))
+        ..add(
+          e('tool/result', 3, {
+            'message': {'callId': 'c1'},
+            'result': 'out',
+          }),
+        )
         ..add(e('assistant/message', 4, {'turn': 1, 'step': 1}, sources: []));
-      expect(f.snapshot().nodes.whereType<ToolNode>().single.status.name, 'success');
+      expect(
+        f.snapshot().nodes.whereType<ToolNode>().single.status.name,
+        'success',
+      );
     });
 
     test('F: plan/mode does not create visible row', () {

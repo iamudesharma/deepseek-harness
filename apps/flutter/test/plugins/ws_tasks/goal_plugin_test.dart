@@ -30,60 +30,75 @@ const _activeGoal = GoalSnapshot(
 );
 
 void main() {
-  test('activation provides the goal mutation service and leaves cleanly', () async {
-    final client = RecordingClient();
-    final host = wsTasksHost(client: client);
-    addTearDown(host.deactivateAll);
+  test(
+    'activation provides the goal mutation service and leaves cleanly',
+    () async {
+      final client = RecordingClient();
+      final host = wsTasksHost(client: client);
+      addTearDown(host.deactivateAll);
 
-    final source = _Source({'s1': _activeGoal});
-    host.register(GoalPlugin(projectionSource: source));
-    await host.activateAll();
+      final source = _Source({'s1': _activeGoal});
+      host.register(GoalPlugin(projectionSource: source));
+      await host.activateAll();
 
-    final control = host.service<GoalControl>('goal');
-    expect(control, isNotNull);
-    expect(control!.refOf('s1'), const GoalRef(id: 'goal-1', revision: 3));
-    expect(boundGoalControl, same(control));
-    expect(boundGoalProjectionSource, same(source));
-    expect(host.service<ConversationController>('conversation')!.dockIds,
-        contains(kGoalDockId));
+      final control = host.service<GoalControl>('goal');
+      expect(control, isNotNull);
+      expect(control!.refOf('s1'), const GoalRef(id: 'goal-1', revision: 3));
+      expect(boundGoalControl, same(control));
+      expect(boundGoalProjectionSource, same(source));
+      expect(
+        host.service<ConversationController>('conversation')!.dockIds,
+        contains(kGoalDockId),
+      );
 
-    host.deactivate(kGoalPluginId);
-    expect(host.hasService('goal'), isFalse);
-    expect(boundGoalControl, isNull);
-    expect(boundGoalProjectionSource, isNull);
-    expect(host.service<ConversationController>('conversation')!.dockIds,
-        isNot(contains(kGoalDockId)));
-  });
+      host.deactivate(kGoalPluginId);
+      expect(host.hasService('goal'), isFalse);
+      expect(boundGoalControl, isNull);
+      expect(boundGoalProjectionSource, isNull);
+      expect(
+        host.service<ConversationController>('conversation')!.dockIds,
+        isNot(contains(kGoalDockId)),
+      );
+    },
+  );
 
-  test('mutation verbs carry exact wire methods and CAS refs from the projection',
-      () async {
-    final client = RecordingClient();
-    final control = GoalControl(client: client, projectionSource: _Source({
-      's1': _activeGoal,
-      'paused': const GoalSnapshot(
-          id: 'goal-2', objective: 'x', phase: GoalPhase.paused, revision: 7),
-    }));
+  test(
+    'mutation verbs carry exact wire methods and CAS refs from the projection',
+    () async {
+      final client = RecordingClient();
+      final control = GoalControl(
+        client: client,
+        projectionSource: _Source({
+          's1': _activeGoal,
+          'paused': const GoalSnapshot(
+            id: 'goal-2',
+            objective: 'x',
+            phase: GoalPhase.paused,
+            revision: 7,
+          ),
+        }),
+      );
 
-    await control.edit('s1', 'rewritten');
-    await control.pause('s1');
-    await control.resume('paused');
-    await control.clear('s1');
+      await control.edit('s1', 'rewritten');
+      await control.pause('s1');
+      await control.resume('paused');
+      await control.clear('s1');
 
-    expect(
-      [for (final c in client.calls) c.method],
-      ['goal.edit', 'goal.pause', 'goal.resume', 'goal.clear'],
-    );
-    expect(client.calls[0].payload['sessionId'], 's1');
-    expect(client.calls[0].payload['objective'], 'rewritten');
-    expect(client.calls[0].payload['ref'], {'id': 'goal-1', 'revision': 3});
-    expect(client.calls[2].payload['sessionId'], 'paused');
-    expect(client.calls[2].payload.containsKey('objective'), isFalse);
-    expect(client.calls[2].payload['ref'], {'id': 'goal-2', 'revision': 7});
-    expect(client.calls[3].payload['ref'], {'id': 'goal-1', 'revision': 3});
-  });
+      expect(
+        [for (final c in client.calls) c.method],
+        ['goal.edit', 'goal.pause', 'goal.resume', 'goal.clear'],
+      );
+      expect(client.calls[0].payload['sessionId'], 's1');
+      expect(client.calls[0].payload['objective'], 'rewritten');
+      expect(client.calls[0].payload['ref'], {'id': 'goal-1', 'revision': 3});
+      expect(client.calls[2].payload['sessionId'], 'paused');
+      expect(client.calls[2].payload.containsKey('objective'), isFalse);
+      expect(client.calls[2].payload['ref'], {'id': 'goal-2', 'revision': 7});
+      expect(client.calls[3].payload['ref'], {'id': 'goal-1', 'revision': 3});
+    },
+  );
 
-  test('without a projection the verbs fail no-current-goal and never hit the wire',
-      () async {
+  test('without a projection the verbs fail no-current-goal and never hit the wire', () async {
     final client = RecordingClient();
     final control = GoalControl(client: client);
 
@@ -100,86 +115,109 @@ void main() {
     expect(client.calls, isEmpty);
   });
 
-  test('an RPC failure settles as an ok:false result carrying the message', () async {
-    final client = RecordingClient()..failNextWith = Exception('goal.edit: agent-busy');
-    final control = GoalControl(
+  test(
+    'an RPC failure settles as an ok:false result carrying the message',
+    () async {
+      final client = RecordingClient()
+        ..failNextWith = Exception('goal.edit: agent-busy');
+      final control = GoalControl(
         client: client,
-        projectionSource: _Source({'s1': _activeGoal}));
+        projectionSource: _Source({'s1': _activeGoal}),
+      );
 
-    final result = await control.edit('s1', 'nope');
+      final result = await control.edit('s1', 'nope');
 
-    expect(result.ok, isFalse);
-    expect(result.message, contains('agent-busy'));
-  });
+      expect(result.ok, isFalse);
+      expect(result.message, contains('agent-busy'));
+    },
+  );
 
-  test('dictionaries register under the goal namespace and leave with the plugin',
-      () async {
-    final host = wsTasksHost();
-    addTearDown(host.deactivateAll);
+  test(
+    'dictionaries register under the goal namespace and leave with the plugin',
+    () async {
+      final host = wsTasksHost();
+      addTearDown(host.deactivateAll);
 
-    final locale = host.service<LocaleService>('locale')!;
-    host.register(const GoalPlugin());
-    await host.activateAll();
+      final locale = host.service<LocaleService>('locale')!;
+      host.register(const GoalPlugin());
+      await host.activateAll();
 
-    expect(locale.bind(kGoalNamespace)('phase.active'), '进行中的目标');
-    locale.setLocale('en');
-    expect(locale.bind(kGoalNamespace)('phase.active'), 'Ongoing Goal');
-    // zh is the key-set source of truth; en mirrors every key.
-    expect(kGoalEn.keys.toSet(), kGoalZh.keys.toSet());
+      expect(locale.bind(kGoalNamespace)('phase.active'), '进行中的目标');
+      locale.setLocale('en');
+      expect(locale.bind(kGoalNamespace)('phase.active'), 'Ongoing Goal');
+      // zh is the key-set source of truth; en mirrors every key.
+      expect(kGoalEn.keys.toSet(), kGoalZh.keys.toSet());
 
-    host.deactivate(kGoalPluginId);
-    expect(locale.bind(kGoalNamespace)('phase.active'), 'phase.active');
-  });
+      host.deactivate(kGoalPluginId);
+      expect(locale.bind(kGoalNamespace)('phase.active'), 'phase.active');
+    },
+  );
 
-  testWidgets('the command-input renderer renders the /goal line right-aligned',
-      (tester) async {
-    final host = wsTasksHost();
-    addTearDown(host.deactivateAll);
-    host.register(const GoalPlugin());
-    await host.activateAll();
-    final controller = host.service<ConversationController>('conversation')!;
+  testWidgets(
+    'the command-input renderer renders the /goal line right-aligned',
+    (tester) async {
+      final host = wsTasksHost();
+      addTearDown(host.deactivateAll);
+      host.register(const GoalPlugin());
+      await host.activateAll();
+      final controller = host.service<ConversationController>('conversation')!;
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(builder: (context) {
-          final renderer = controller.renderers.resolve(kGoalCommandInputNodeKey)!;
-          return renderer(
-            context,
-            const ChatNodeData(key: 'n1', lines: ['/goal ship it']),
-          );
-        }),
-      ),
-    ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                final renderer = controller.renderers.resolve(
+                  kGoalCommandInputNodeKey,
+                )!;
+                return renderer(
+                  context,
+                  const ChatNodeData(key: 'n1', lines: ['/goal ship it']),
+                );
+              },
+            ),
+          ),
+        ),
+      );
 
-    expect(find.text('/goal ship it'), findsOneWidget);
-    // Right-aligned bubble: the Align sits at the row's right edge.
-    final align = tester.widget<Align>(
-        find.ancestor(of: find.text('/goal ship it'), matching: find.byType(Align)).first);
-    expect(align.alignment, Alignment.centerRight);
-  });
+      expect(find.text('/goal ship it'), findsOneWidget);
+      // Right-aligned bubble: the Align sits at the row's right edge.
+      final align = tester.widget<Align>(
+        find
+            .ancestor(
+              of: find.text('/goal ship it'),
+              matching: find.byType(Align),
+            )
+            .first,
+      );
+      expect(align.alignment, Alignment.centerRight);
+    },
+  );
 
-  testWidgets('the dock renders the projected goal and mutates through taps',
-      (tester) async {
+  testWidgets('the dock renders the projected goal and mutates through taps', (
+    tester,
+  ) async {
     final client = RecordingClient();
     final host = wsTasksHost(client: client);
     addTearDown(host.deactivateAll);
 
-    host.register(GoalPlugin(
-        projectionSource: _Source({'s1': _activeGoal})));
+    host.register(GoalPlugin(projectionSource: _Source({'s1': _activeGoal})));
     await host.activateAll();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        currentSessionIdProvider.overrideWithValue(const SessionId('s1')),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Column(children: [
-            Builder(builder: (context) => buildGoalDock(context)),
-          ]),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentSessionIdProvider.overrideWithValue(const SessionId('s1')),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [Builder(builder: (context) => buildGoalDock(context))],
+            ),
+          ),
         ),
       ),
-    ));
+    );
 
     // The strip shows the projected objective; pause routes to the wire.
     expect(find.text('Ship the migration'), findsOneWidget);
@@ -202,22 +240,31 @@ void main() {
   testWidgets('complete goals render no strip at all', (tester) async {
     final host = wsTasksHost();
     addTearDown(host.deactivateAll);
-    host.register(GoalPlugin(projectionSource: _Source({
-      's1': const GoalSnapshot(
-          id: 'goal-9', objective: 'done deal', phase: GoalPhase.complete),
-    })));
+    host.register(
+      GoalPlugin(
+        projectionSource: _Source({
+          's1': const GoalSnapshot(
+            id: 'goal-9',
+            objective: 'done deal',
+            phase: GoalPhase.complete,
+          ),
+        }),
+      ),
+    );
     await host.activateAll();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        currentSessionIdProvider.overrideWithValue(const SessionId('s1')),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(builder: (context) => buildGoalDock(context)),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          currentSessionIdProvider.overrideWithValue(const SessionId('s1')),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(builder: (context) => buildGoalDock(context)),
+          ),
         ),
       ),
-    ));
+    );
 
     expect(find.text('done deal'), findsNothing);
   });

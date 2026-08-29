@@ -9,7 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('ANSI spans', () {
     test('green code colors the segment; reset returns to fallback', () {
-      final span = ansiToSpan('\x1B[32mOK\x1B[0m plain', fallbackColor: const Color(0xFFCCCCCC));
+      final span = ansiToSpan(
+        '\x1B[32mOK\x1B[0m plain',
+        fallbackColor: const Color(0xFFCCCCCC),
+      );
       final children = span.children!;
       expect(children, hasLength(2));
       expect((children[0].style!.color), const Color(0xFF16A34A));
@@ -27,15 +30,17 @@ void main() {
     testWidgets('Enter fires submit; Escape fires cancel', (tester) async {
       var submitted = 0;
       var cancelled = 0;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ConversationShortcuts(
-            onSubmit: () => submitted++,
-            onCancel: () => cancelled++,
-            child: const TextField(),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ConversationShortcuts(
+              onSubmit: () => submitted++,
+              onCancel: () => cancelled++,
+              child: const TextField(),
+            ),
           ),
         ),
-      ));
+      );
       await tester.enterText(find.byType(TextField), 'x');
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -47,18 +52,21 @@ void main() {
       expect(cancelled, 1);
     });
 
-    testWidgets('Shift+Enter never matches the plain submit activator',
-        (tester) async {
+    testWidgets('Shift+Enter never matches the plain submit activator', (
+      tester,
+    ) async {
       var submitted = 0;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ConversationShortcuts(
-            onSubmit: () => submitted++,
-            // A bare Focus consumes nothing, so every key reaches the seam.
-            child: const Focus(autofocus: true, child: SizedBox.shrink()),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ConversationShortcuts(
+              onSubmit: () => submitted++,
+              // A bare Focus consumes nothing, so every key reaches the seam.
+              child: const Focus(autofocus: true, child: SizedBox.shrink()),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -71,15 +79,17 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       var undos = 0;
       var redos = 0;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ConversationShortcuts(
-            onUndo: () => undos++,
-            onRedo: () => redos++,
-            child: const Focus(autofocus: true, child: SizedBox.shrink()),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ConversationShortcuts(
+              onUndo: () => undos++,
+              onRedo: () => redos++,
+              child: const Focus(autofocus: true, child: SizedBox.shrink()),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       // Cmd+Z undo
@@ -119,15 +129,17 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       var undos = 0;
       var redos = 0;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ConversationShortcuts(
-            onUndo: () => undos++,
-            onRedo: () => redos++,
-            child: const Focus(autofocus: true, child: SizedBox.shrink()),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ConversationShortcuts(
+              onUndo: () => undos++,
+              onRedo: () => redos++,
+              child: const Focus(autofocus: true, child: SizedBox.shrink()),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       // Ctrl+Z undo; Ctrl+Shift+Z and Ctrl+Y both redo.

@@ -23,16 +23,19 @@ void main() {
       expect(RpcError.fromJson(error.toJson()).code, RpcErrorCode.internal);
     });
 
-    test('rejects a code outside the closed union (mirrors rpcErrorSchema)', () {
-      expect(
-        () => RpcError.fromJson({
-          'code': 'totally-unknown',
-          'message': 'x',
-          'details': <String, Object?>{},
-        }),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'rejects a code outside the closed union (mirrors rpcErrorSchema)',
+      () {
+        expect(
+          () => RpcError.fromJson({
+            'code': 'totally-unknown',
+            'message': 'x',
+            'details': <String, Object?>{},
+          }),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test('rejects a missing details object', () {
       expect(
@@ -58,17 +61,43 @@ void main() {
   group('parseRpcMessage', () {
     test('decodes every wire member and preserves fields', () {
       final messages = [
-        ClientRequest(rpcId: const RpcId('r1'), method: 'session.list', payload: {}),
-        ServerResponse(rpcId: const RpcId('r1'), result: RpcSuccess<Object?>(42)),
-        ServerRequest(rpcId: const RpcId('h1'), method: 'approval.request', payload: {'toolName': 'bash'}),
-        ClientResponse(rpcId: const RpcId('h1'), result: RpcFailure<Object?>(const RpcError(code: RpcErrorCode.cancelled, message: 'gone', details: {}))),
+        ClientRequest(
+          rpcId: const RpcId('r1'),
+          method: 'session.list',
+          payload: {},
+        ),
+        ServerResponse(
+          rpcId: const RpcId('r1'),
+          result: RpcSuccess<Object?>(42),
+        ),
+        ServerRequest(
+          rpcId: const RpcId('h1'),
+          method: 'approval.request',
+          payload: {'toolName': 'bash'},
+        ),
+        ClientResponse(
+          rpcId: const RpcId('h1'),
+          result: RpcFailure<Object?>(
+            const RpcError(
+              code: RpcErrorCode.cancelled,
+              message: 'gone',
+              details: {},
+            ),
+          ),
+        ),
       ];
       for (final message in messages) {
         final wire = <String, Object?>{
           'type': message.typeWire,
           'rpcId': message.rpcId.value,
-          if (message is ClientRequest) ...{'method': message.method, 'payload': message.payload},
-          if (message is ServerRequest) ...{'method': message.method, 'payload': message.payload},
+          if (message is ClientRequest) ...{
+            'method': message.method,
+            'payload': message.payload,
+          },
+          if (message is ServerRequest) ...{
+            'method': message.method,
+            'payload': message.payload,
+          },
           if (message is ServerResponse) 'result': _wireResult(message.result),
           if (message is ClientResponse) 'result': _wireResult(message.result),
         };
@@ -108,6 +137,6 @@ void main() {
 }
 
 Map<String, Object?> _wireResult(RpcResult<Object?> result) => result.fold(
-      ok: (value) => {'ok': true, 'value': value},
-      failure: (error) => {'ok': false, 'error': error.toJson()},
-    );
+  ok: (value) => {'ok': true, 'value': value},
+  failure: (error) => {'ok': false, 'error': error.toJson()},
+);

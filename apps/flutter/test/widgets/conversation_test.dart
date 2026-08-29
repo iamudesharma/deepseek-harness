@@ -28,7 +28,6 @@ class _FakeComposerSuccessClient extends ConnectionClient {
   }
 }
 
-
 SessionSummary _fakeSummary(String id, {bool blank = false, String? title}) {
   return SessionSummary(
     sessionId: SessionId(id),
@@ -39,7 +38,10 @@ SessionSummary _fakeSummary(String id, {bool blank = false, String? title}) {
   );
 }
 
-Widget _wrapConversation(String sessionId, {List<Override> overrides = const []}) {
+Widget _wrapConversation(
+  String sessionId, {
+  List<Override> overrides = const [],
+}) {
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
@@ -51,7 +53,9 @@ Widget _wrapConversation(String sessionId, {List<Override> overrides = const []}
 
 void main() {
   group('ConversationScreen', () {
-    testWidgets('shows session not found guard when session id unknown', (tester) async {
+    testWidgets('shows session not found guard when session id unknown', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrapConversation('unknown-id'));
       await tester.pumpAndSettle();
       expect(find.text('Session not found'), findsOneWidget);
@@ -81,34 +85,43 @@ void main() {
       // Simpler: use ProviderScope override that returns prepared SessionsState via overriding sessionsProvider with a fixed value? SessionsProvider is NotifierProvider, so we need to override with a provider that supplies state.
       // Easiest: use ProviderScope with sessionsProvider overridden via overrideWithValue is for Provider, not Notifier. For NotifierProvider we can override via overrideWith(() => controller) but we need to pre-seed.
       // We'll create a custom provider override that returns a controller pre-seeded.
-      await tester.pumpWidget(ProviderScope(
-        overrides: [
-          sessionsProvider.overrideWith(() {
-            final ctrl = SessionsController();
-            // Defer seeding until build? Actually controller build runs before we can add.
-            // So we schedule seeding via microtask and pump. Instead we can use a ProviderContainer to seed then override sessionsProvider with a fixed value provider via a custom implementation:
-            // Workaround: override currentSessionProvider etc is not needed; we override sessionsProvider via a Notifier that seeds in build.
-            return ctrl;
-          }),
-        ],
-        child: MaterialApp(
-          theme: buildLightTheme(),
-          home: Builder(builder: (context) {
-            // Seed inside builder via ref? Instead we use UncontrolledProviderScope with container.
-            return const SizedBox.shrink();
-          }),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sessionsProvider.overrideWith(() {
+              final ctrl = SessionsController();
+              // Defer seeding until build? Actually controller build runs before we can add.
+              // So we schedule seeding via microtask and pump. Instead we can use a ProviderContainer to seed then override sessionsProvider with a fixed value provider via a custom implementation:
+              // Workaround: override currentSessionProvider etc is not needed; we override sessionsProvider via a Notifier that seeds in build.
+              return ctrl;
+            }),
+          ],
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: Builder(
+              builder: (context) {
+                // Seed inside builder via ref? Instead we use UncontrolledProviderScope with container.
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
         ),
-      ));
+      );
       container.dispose();
 
       // Alternative approach: pump with UncontrolledProviderScope and a container we pre-seeded.
       final seeded = ProviderContainer();
       addTearDown(seeded.dispose);
       seeded.read(sessionsProvider.notifier).addSession(summary);
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: seeded,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: seeded,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       // Blank is a hero PHASE of the same ConversationColumn shell (React
       // ConversationRoot hero): header chrome HIDES while blank
@@ -122,7 +135,9 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('renders message list empty state when no messages', (tester) async {
+    testWidgets('renders message list empty state when no messages', (
+      tester,
+    ) async {
       final sid = 's-empty';
       final summary = _fakeSummary(sid, blank: false);
       final container = ProviderContainer(
@@ -134,10 +149,15 @@ void main() {
       container.read(sessionsProvider.notifier).addSession(summary);
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
       // Allow one build frame plus the post-frame sync into the controller.
       // pumpAndSettle hangs on AiChatWidget's internal ticker — use bounded pumps.
       await tester.pump();
@@ -153,22 +173,53 @@ void main() {
     testWidgets('folds live history into node bubbles', (tester) async {
       final sid = 's-with-msgs';
       final summary = _fakeSummary(sid, blank: false);
-      final container = ProviderContainer(
-        overrides: [
-        ],
-      );
+      final container = ProviderContainer(overrides: []);
       container.read(sessionsProvider.notifier).addSession(summary);
       container.read(liveHistoryProvider(sid).notifier).replaceAll([
-        HistoryEntry(event: SessionEvent.fromJson({'type':'user/message','seq':1,'time':0,'data':{'content':'Hello there'}}), view: null),
-        HistoryEntry(event: SessionEvent.fromJson({'type':'assistant/chunk','seq':2,'time':0,'data':{'turn':1,'step':1,'chunk':{'text':'Hi! How can I help?'}}}), view: null),
-        HistoryEntry(event: SessionEvent.fromJson({'type':'assistant/message','seq':3,'time':0,'data':{'turn':1,'step':1,'message':{}},'sourceEventSeqs':[2]}), view: null),
+        HistoryEntry(
+          event: SessionEvent.fromJson({
+            'type': 'user/message',
+            'seq': 1,
+            'time': 0,
+            'data': {'content': 'Hello there'},
+          }),
+          view: null,
+        ),
+        HistoryEntry(
+          event: SessionEvent.fromJson({
+            'type': 'assistant/chunk',
+            'seq': 2,
+            'time': 0,
+            'data': {
+              'turn': 1,
+              'step': 1,
+              'chunk': {'text': 'Hi! How can I help?'},
+            },
+          }),
+          view: null,
+        ),
+        HistoryEntry(
+          event: SessionEvent.fromJson({
+            'type': 'assistant/message',
+            'seq': 3,
+            'time': 0,
+            'data': {'turn': 1, 'step': 1, 'message': {}},
+            'sourceEventSeqs': [2],
+          }),
+          view: null,
+        ),
       ]);
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
       await tester.pump();
       await tester.pump();
 
@@ -176,7 +227,6 @@ void main() {
       expect(find.text('Hi! How can I help?'), findsOneWidget);
       expect(find.text('Session $sid'), findsOneWidget);
     });
-
 
     testWidgets('composer empty input does not submit', (tester) async {
       final sid = 's-disabled';
@@ -189,19 +239,32 @@ void main() {
       container.read(sessionsProvider.notifier).addSession(summary);
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Ask anything…'), findsOneWidget);
-      expect(container.read(composerControllerProvider(sid)).canSubmit, isFalse);
-      expect(container.read(composerControllerProvider(sid)).isSending, isFalse);
+      expect(
+        container.read(composerControllerProvider(sid)).canSubmit,
+        isFalse,
+      );
+      expect(
+        container.read(composerControllerProvider(sid)).isSending,
+        isFalse,
+      );
     });
 
-    testWidgets('composer attachments controller stores staged files', (tester) async {
+    testWidgets('composer attachments controller stores staged files', (
+      tester,
+    ) async {
       final sid = 's-attach';
       final summary = _fakeSummary(sid, blank: false);
       final container = ProviderContainer(
@@ -212,38 +275,73 @@ void main() {
       container.read(sessionsProvider.notifier).addSession(summary);
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
       // No attachments initially; stage one via controller (picker UI is package-owned and tested upstream).
-      expect(container.read(composerControllerProvider(sid)).attachments, isEmpty);
+      expect(
+        container.read(composerControllerProvider(sid)).attachments,
+        isEmpty,
+      );
       container.read(composerControllerProvider(sid).notifier).addAttachments([
         const ComposerAttachment(name: 'attachment-doc.pdf'),
       ]);
-      expect(container.read(composerControllerProvider(sid)).attachments.length, 1);
+      expect(
+        container.read(composerControllerProvider(sid)).attachments.length,
+        1,
+      );
     });
 
     testWidgets('shows turn-error banner from folded history', (tester) async {
       final sid = 's-error';
       final summary = _fakeSummary(sid, blank: false);
-      final container = ProviderContainer(
-        overrides: [],
-      );
+      final container = ProviderContainer(overrides: []);
       container.read(sessionsProvider.notifier).addSession(summary);
       container.read(liveHistoryProvider(sid).notifier).replaceAll([
-        HistoryEntry(event: SessionEvent.fromJson({'type':'user/message','seq':1,'time':0,'data':{'content':'go'}}), view: null),
-        HistoryEntry(event: SessionEvent.fromJson({'type':'turn/end','seq':2,'time':0,'data':{'reason':{'kind':'error','error':{'type':'ModelError','message':'provider exploded'}}}}), view: null),
+        HistoryEntry(
+          event: SessionEvent.fromJson({
+            'type': 'user/message',
+            'seq': 1,
+            'time': 0,
+            'data': {'content': 'go'},
+          }),
+          view: null,
+        ),
+        HistoryEntry(
+          event: SessionEvent.fromJson({
+            'type': 'turn/end',
+            'seq': 2,
+            'time': 0,
+            'data': {
+              'reason': {
+                'kind': 'error',
+                'error': {'type': 'ModelError', 'message': 'provider exploded'},
+              },
+            },
+          }),
+          view: null,
+        ),
       ]);
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
       await tester.pump();
       await tester.pump();
 
@@ -257,17 +355,20 @@ void main() {
       final summary = _fakeSummary(sid, blank: false);
       final client = _FakeComposerSuccessClient();
       final container = ProviderContainer(
-        overrides: [
-          connectionClientProvider.overrideWithValue(client),
-        ],
+        overrides: [connectionClientProvider.overrideWithValue(client)],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: buildLightTheme(), home: ConversationScreen(sessionId: sid)),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: ConversationScreen(sessionId: sid),
+          ),
+        ),
+      );
 
       final ctrl = container.read(composerControllerProvider(sid).notifier);
       ctrl.setText('hello composer');

@@ -24,18 +24,20 @@ class _FakePresetClient extends ConnectionClient {
   String? lastSelected;
   @override
   Future<Map<String, dynamic>> agentPresetList() async => {
-        'presets': [
-          {'id': 'standard', 'trust': 'system', 'isDefault': true},
-          {'id': 'code', 'trust': 'system'},
-          {'id': 'minimal', 'trust': 'system'},
-          {'id': 'cordis', 'trust': 'system'},
-        ],
-        'authorable': false,
-        'hasDocument': false,
-      };
+    'presets': [
+      {'id': 'standard', 'trust': 'system', 'isDefault': true},
+      {'id': 'code', 'trust': 'system'},
+      {'id': 'minimal', 'trust': 'system'},
+      {'id': 'cordis', 'trust': 'system'},
+    ],
+    'authorable': false,
+    'hasDocument': false,
+  };
   @override
-  Future<Map<String, dynamic>> agentPresetSelect(
-          {required String sessionId, required String agentPreset}) async {
+  Future<Map<String, dynamic>> agentPresetSelect({
+    required String sessionId,
+    required String agentPreset,
+  }) async {
     lastSelected = agentPreset;
     return {};
   }
@@ -52,18 +54,36 @@ Widget _heroApp(ProviderContainer container) {
 
 ProviderContainer _containerWithSession(SessionSummary summary) {
   final byId = <SessionId, SessionSummary>{summary.sessionId: summary};
-  const roster = AgentPresetRoster(presets: [
-    AgentPresetOption(id: 'standard', name: 'standard', trust: PresetTrust.system, isDefault: true),
-    AgentPresetOption(id: 'code', name: 'code', trust: PresetTrust.system),
-    AgentPresetOption(id: 'minimal', name: 'minimal', trust: PresetTrust.system),
-    AgentPresetOption(id: 'cordis', name: 'cordis', trust: PresetTrust.system),
-  ], authorable: false, hasDocument: false);
+  const roster = AgentPresetRoster(
+    presets: [
+      AgentPresetOption(
+        id: 'standard',
+        name: 'standard',
+        trust: PresetTrust.system,
+        isDefault: true,
+      ),
+      AgentPresetOption(id: 'code', name: 'code', trust: PresetTrust.system),
+      AgentPresetOption(
+        id: 'minimal',
+        name: 'minimal',
+        trust: PresetTrust.system,
+      ),
+      AgentPresetOption(
+        id: 'cordis',
+        name: 'cordis',
+        trust: PresetTrust.system,
+      ),
+    ],
+    authorable: false,
+    hasDocument: false,
+  );
   final fakeClient = _FakePresetClient();
   final container = ProviderContainer(
     overrides: [
       sessionsProvider.overrideWith(
         () => _SeededSessions(
-            SessionsState(byId: byId, current: summary.sessionId)),
+          SessionsState(byId: byId, current: summary.sessionId),
+        ),
       ),
       connectionClientProvider.overrideWithValue(fakeClient),
       agentPresetListProvider.overrideWith((ref) async => roster),
@@ -71,7 +91,10 @@ ProviderContainer _containerWithSession(SessionSummary summary) {
   );
   addTearDown(container.dispose);
   final locale = container.read(localeServiceProvider);
-  locale.register(kAgentPresetNamespace, {'zh': kAgentPresetZh, 'en': kAgentPresetEn});
+  locale.register(kAgentPresetNamespace, {
+    'zh': kAgentPresetZh,
+    'en': kAgentPresetEn,
+  });
   // Start in English for predictable first assertions; individual tests switch.
   locale.setLocale('en');
   return container;
@@ -80,7 +103,9 @@ ProviderContainer _containerWithSession(SessionSummary summary) {
 Future<void> _tapChip(WidgetTester tester) async {
   // Tap the visible chip text rather than the outer widget bounds to avoid
   // hit-test warnings from OverlayPortal's zero-size target box.
-  final chipText = find.textContaining(RegExp(r'Standard|PTC|Minimal|Creator|标准|极简|创造'));
+  final chipText = find.textContaining(
+    RegExp(r'Standard|PTC|Minimal|Creator|标准|极简|创造'),
+  );
   if (chipText.evaluate().isNotEmpty) {
     await tester.tap(chipText.first);
   } else {
@@ -181,7 +206,9 @@ void main() {
       expect(find.text('极简模式'), findsNothing);
     });
 
-    testWidgets('selected mode remains stable while label changes', (tester) async {
+    testWidgets('selected mode remains stable while label changes', (
+      tester,
+    ) async {
       const summary = SessionSummary(
         sessionId: SessionId('sess-1'),
         updatedAt: 1,
@@ -205,11 +232,16 @@ void main() {
       expect(find.byIcon(Icons.check), findsOneWidget);
       // The check should be in the PTC row, not elsewhere.
       final checkFinder = find.byIcon(Icons.check);
-      final codeRow = find.ancestor(of: checkFinder, matching: find.byType(InkWell));
+      final codeRow = find.ancestor(
+        of: checkFinder,
+        matching: find.byType(InkWell),
+      );
       expect(codeRow, findsOneWidget);
     });
 
-    testWidgets('reopen menu after locale change shows new language', (tester) async {
+    testWidgets('reopen menu after locale change shows new language', (
+      tester,
+    ) async {
       const summary = SessionSummary(
         sessionId: SessionId('sess-1'),
         updatedAt: 1,
@@ -235,7 +267,9 @@ void main() {
       expect(find.text('标准模式'), findsWidgets);
     });
 
-    testWidgets('already-open menu updates when locale changes', (tester) async {
+    testWidgets('already-open menu updates when locale changes', (
+      tester,
+    ) async {
       const summary = SessionSummary(
         sessionId: SessionId('sess-1'),
         updatedAt: 1,
@@ -286,15 +320,23 @@ void main() {
       // vertically below trigger with 4px gap (or above if flipped). Check
       // that menu left is within trigger left ± 8 and top is within trigger
       // bottom + gap ± 20 (allowing for follower positioning).
-      expect((menuRect.left - triggerRect.left).abs(), lessThan(20),
-          reason: 'menu left ${menuRect.left} should align to trigger left ${triggerRect.left}');
+      expect(
+        (menuRect.left - triggerRect.left).abs(),
+        lessThan(20),
+        reason:
+            'menu left ${menuRect.left} should align to trigger left ${triggerRect.left}',
+      );
       // Vertically, menu top should be near trigger bottom + gap (4) or flipped above.
       final gapBelow = menuRect.top - triggerRect.bottom;
       final gapAbove = triggerRect.top - menuRect.bottom;
       final isBelow = gapBelow >= 0 && gapBelow < 20;
       final isAbove = gapAbove >= 0 && gapAbove < 20;
-      expect(isBelow || isAbove, isTrue,
-          reason: 'menu should be 4px below trigger (gapBelow=$gapBelow) or flipped above (gapAbove=$gapAbove)');
+      expect(
+        isBelow || isAbove,
+        isTrue,
+        reason:
+            'menu should be 4px below trigger (gapBelow=$gapBelow) or flipped above (gapAbove=$gapAbove)',
+      );
       // Menu should be inside viewport with 12px margin.
       final size = tester.view.physicalSize / tester.view.devicePixelRatio;
       expect(menuRect.left, greaterThanOrEqualTo(12 - 1));
@@ -303,7 +345,9 @@ void main() {
       expect(menuRect.bottom, lessThanOrEqualTo(size.height - 12 + 1));
     });
 
-    testWidgets('bottom-edge flip: trigger near bottom shows menu above', (tester) async {
+    testWidgets('bottom-edge flip: trigger near bottom shows menu above', (
+      tester,
+    ) async {
       const summary = SessionSummary(
         sessionId: SessionId('sess-1'),
         updatedAt: 1,
@@ -311,19 +355,41 @@ void main() {
         blank: true,
         agentPreset: 'standard',
       );
-      const roster = AgentPresetRoster(presets: [
-        AgentPresetOption(id: 'standard', name: 'standard', trust: PresetTrust.system, isDefault: true),
-        AgentPresetOption(id: 'code', name: 'code', trust: PresetTrust.system),
-        AgentPresetOption(id: 'minimal', name: 'minimal', trust: PresetTrust.system),
-        AgentPresetOption(id: 'cordis', name: 'cordis', trust: PresetTrust.system),
-      ], authorable: false, hasDocument: false);
+      const roster = AgentPresetRoster(
+        presets: [
+          AgentPresetOption(
+            id: 'standard',
+            name: 'standard',
+            trust: PresetTrust.system,
+            isDefault: true,
+          ),
+          AgentPresetOption(
+            id: 'code',
+            name: 'code',
+            trust: PresetTrust.system,
+          ),
+          AgentPresetOption(
+            id: 'minimal',
+            name: 'minimal',
+            trust: PresetTrust.system,
+          ),
+          AgentPresetOption(
+            id: 'cordis',
+            name: 'cordis',
+            trust: PresetTrust.system,
+          ),
+        ],
+        authorable: false,
+        hasDocument: false,
+      );
       final fakeClient = _FakePresetClient();
       final byId = <SessionId, SessionSummary>{summary.sessionId: summary};
       final container = ProviderContainer(
         overrides: [
           sessionsProvider.overrideWith(
             () => _SeededSessions(
-                SessionsState(byId: byId, current: summary.sessionId)),
+              SessionsState(byId: byId, current: summary.sessionId),
+            ),
           ),
           connectionClientProvider.overrideWithValue(fakeClient),
           agentPresetListProvider.overrideWith((ref) async => roster),
@@ -331,7 +397,10 @@ void main() {
       );
       addTearDown(container.dispose);
       final locale = container.read(localeServiceProvider);
-      locale.register(kAgentPresetNamespace, {'zh': kAgentPresetZh, 'en': kAgentPresetEn});
+      locale.register(kAgentPresetNamespace, {
+        'zh': kAgentPresetZh,
+        'en': kAgentPresetEn,
+      });
       locale.setLocale('en');
       // Place hero seat near bottom of viewport to force flip.
       await tester.pumpWidget(

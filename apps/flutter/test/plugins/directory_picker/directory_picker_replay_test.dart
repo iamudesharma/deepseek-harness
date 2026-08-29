@@ -30,7 +30,10 @@ class _ReplayClient extends ConnectionClient {
   final List<String> calls = [];
 
   @override
-  Future<Map<String, dynamic>> callMethod(String method, Map<String, dynamic> payload) async {
+  Future<Map<String, dynamic>> callMethod(
+    String method,
+    Map<String, dynamic> payload,
+  ) async {
     calls.add('$method:${jsonEncode(payload)}');
     final key = '$method:${jsonEncode(payload)}';
     final hit = _table[key] ?? _table[method];
@@ -42,9 +45,9 @@ class _ReplayClient extends ConnectionClient {
 }
 
 Map<String, Map<String, dynamic>> _loadFixture() {
-  final lines = File('test/plugins/directory_picker/fixtures/host_directory_wire.jsonl')
-      .readAsLinesSync()
-      .where((l) => l.trim().isNotEmpty);
+  final lines = File(
+    'test/plugins/directory_picker/fixtures/host_directory_wire.jsonl',
+  ).readAsLinesSync().where((l) => l.trim().isNotEmpty);
   final table = <String, Map<String, dynamic>>{};
   for (final line in lines) {
     final wire = jsonDecode(line) as Map<String, dynamic>;
@@ -64,8 +67,14 @@ Map<String, Map<String, dynamic>> _loadFixture() {
 void main() {
   test('fixture loads the expected wire count', () {
     final table = _loadFixture();
-    expect(table.keys.where((k) => k.startsWith('host.listDirectory')).length, greaterThanOrEqualTo(3));
-    expect(table.keys.where((k) => k.startsWith('host.createDirectory')).length, greaterThanOrEqualTo(1));
+    expect(
+      table.keys.where((k) => k.startsWith('host.listDirectory')).length,
+      greaterThanOrEqualTo(3),
+    );
+    expect(
+      table.keys.where((k) => k.startsWith('host.createDirectory')).length,
+      greaterThanOrEqualTo(1),
+    );
   });
 
   test('WorkspacesService replays host.listDirectory fixture via host_directory_wire.jsonl', () async {
@@ -80,7 +89,10 @@ void main() {
     expect(docs['path'], '/home/u/Documents');
     expect((docs['entries'] as List).first['name'], 'harness');
 
-    final created = await svc.createDirectory(path: '/home/u/Documents', name: 'fresh');
+    final created = await svc.createDirectory(
+      path: '/home/u/Documents',
+      name: 'fresh',
+    );
     expect(created, '/home/u/Documents/fresh');
   });
 
@@ -90,15 +102,25 @@ void main() {
     final signal = DirectoryListSignal();
     final future = svc.listDirectory(path: '/home/u', signal: signal);
     signal.abort();
-    await expectLater(future, throwsA(isA<Exception>().having((e) => '$e', 'message', contains('aborted'))));
+    await expectLater(
+      future,
+      throwsA(
+        isA<Exception>().having((e) => '$e', 'message', contains('aborted')),
+      ),
+    );
     expect(signal.aborted, isTrue);
   });
 
-  testWidgets('DirectoryBrowser replays fixture: open -> two-pane -> create', (tester) async {
+  testWidgets('DirectoryBrowser replays fixture: open -> two-pane -> create', (
+    tester,
+  ) async {
     final client = _ReplayClient(_loadFixture());
     final svc = WorkspacesService(client);
 
-    Future<DirectoryListing> list({String? path, DirectoryListSignal? signal}) async {
+    Future<DirectoryListing> list({
+      String? path,
+      DirectoryListSignal? signal,
+    }) async {
       final map = await svc.listDirectory(path: path, signal: signal);
       return DirectoryListing.fromJson(map.cast<String, dynamic>());
     }
@@ -160,15 +182,23 @@ void main() {
       crumbs: const [],
       entries: const [
         DirectoryEntry(name: '.config', path: '/home/u/.config', hidden: true),
-        DirectoryEntry(name: 'Documents', path: '/home/u/Documents', hidden: false),
+        DirectoryEntry(
+          name: 'Documents',
+          path: '/home/u/Documents',
+          hidden: false,
+        ),
       ],
       truncated: true,
     );
     // Truncated flag preserved
     expect(home.truncated, isTrue);
     // Hidden filtered without dot
-    expect(visibleEntries(home.entries, null, false, null).map((e) => e.name), ['Documents']);
+    expect(visibleEntries(home.entries, null, false, null).map((e) => e.name), [
+      'Documents',
+    ]);
     // Dot reveals
-    expect(visibleEntries(home.entries, null, false, '.c').map((e) => e.name), ['.config']);
+    expect(visibleEntries(home.entries, null, false, '.c').map((e) => e.name), [
+      '.config',
+    ]);
   });
 }

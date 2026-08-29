@@ -14,8 +14,8 @@ import 'host_fixture.dart';
 /// Fake typed client: records skill.list calls, optionally failing per key.
 class _FakeSkillClient extends ConnectionClient {
   _FakeSkillClient({Set<String>? failFor})
-      : _failFor = Set.of(failFor ?? const <String>{}),
-        super(baseUrl: '');
+    : _failFor = Set.of(failFor ?? const <String>{}),
+      super(baseUrl: '');
 
   final Set<String> _failFor;
   final List<String> calls = <String>[];
@@ -28,50 +28,67 @@ class _FakeSkillClient extends ConnectionClient {
     }
     return {
       'skills': [
-        {'name': 'review', 'description': 'Review code', 'modelInvocable': true},
-        {'name': 'refactor', 'description': 'Refactor code', 'modelInvocable': false},
+        {
+          'name': 'review',
+          'description': 'Review code',
+          'modelInvocable': true,
+        },
+        {
+          'name': 'refactor',
+          'description': 'Refactor code',
+          'modelInvocable': false,
+        },
       ],
     };
   }
 }
 
 void main() {
-  test('activation provides the skills service, dictionaries, and keyed tool row', () async {
-    final host = wsAgentHost();
-    addTearDown(host.deactivateAll);
-    final controller = host.service<ConversationController>('conversation')!;
+  test(
+    'activation provides the skills service, dictionaries, and keyed tool row',
+    () async {
+      final host = wsAgentHost();
+      addTearDown(host.deactivateAll);
+      final controller = host.service<ConversationController>('conversation')!;
 
-    host.register(const SkillPlugin());
-    await host.activateAll();
+      host.register(const SkillPlugin());
+      await host.activateAll();
 
-    final locale = host.service<LocaleService>('locale')!;
-    expect(locale.bind(kSkillNamespace)('row.instructions'), '说明');
-    locale.setLocale('en');
-    expect(locale.bind(kSkillNamespace)('row.instructions'), 'Instructions');
+      final locale = host.service<LocaleService>('locale')!;
+      expect(locale.bind(kSkillNamespace)('row.instructions'), '说明');
+      locale.setLocale('en');
+      expect(locale.bind(kSkillNamespace)('row.instructions'), 'Instructions');
 
-    expect(host.service<SkillCatalog>(kSkillsServiceName), isNotNull);
-    expect(controller.renderers.resolve(kSkillNodeKey), isNotNull);
-  });
+      expect(host.service<SkillCatalog>(kSkillsServiceName), isNotNull);
+      expect(controller.renderers.resolve(kSkillNodeKey), isNotNull);
+    },
+  );
 
-  test('catalog: one session costs one RPC across concurrent candidate reads', () async {
-    final client = _FakeSkillClient();
-    final catalog = SkillCatalog(connection: client);
-    const key = SessionId('s-1');
+  test(
+    'catalog: one session costs one RPC across concurrent candidate reads',
+    () async {
+      final client = _FakeSkillClient();
+      final catalog = SkillCatalog(connection: client);
+      const key = SessionId('s-1');
 
-    final results = await Future.wait([
-      catalog.candidates(key, query: 're'),
-      catalog.candidates(key, query: ''),
-    ]);
+      final results = await Future.wait([
+        catalog.candidates(key, query: 're'),
+        catalog.candidates(key, query: ''),
+      ]);
 
-    expect(client.calls, ['s-1']);
-    expect(results.first.map((e) => e.name).toList(), ['review', 'refactor']);
-    expect(results.last, hasLength(2));
-  });
+      expect(client.calls, ['s-1']);
+      expect(results.first.map((e) => e.name).toList(), ['review', 'refactor']);
+      expect(results.last, hasLength(2));
+    },
+  );
 
   test('catalog: candidates filter by query prefix', () async {
     final catalog = SkillCatalog(connection: _FakeSkillClient());
 
-    final matches = await catalog.candidates(const SessionId('s'), query: 'ref');
+    final matches = await catalog.candidates(
+      const SessionId('s'),
+      query: 'ref',
+    );
 
     expect(matches.map((e) => e.name), ['refactor']);
   });
@@ -86,20 +103,23 @@ void main() {
     expect(client.calls, ['a', 'b']);
   });
 
-  test('catalog: a failed fetch does not poison the key — next read retries', () async {
-    final client = _FakeSkillClient(failFor: {'bad'});
-    final catalog = SkillCatalog(connection: client);
-    const key = SessionId('bad');
+  test(
+    'catalog: a failed fetch does not poison the key — next read retries',
+    () async {
+      final client = _FakeSkillClient(failFor: {'bad'});
+      final catalog = SkillCatalog(connection: client);
+      const key = SessionId('bad');
 
-    await expectLater(catalog.candidates(key), throwsA(isA<Exception>()));
-    expect(catalog.lexicon(key), isNull);
+      await expectLater(catalog.candidates(key), throwsA(isA<Exception>()));
+      expect(catalog.lexicon(key), isNull);
 
-    client._failFor.remove(key);
-    await catalog.candidates(key);
+      client._failFor.remove(key);
+      await catalog.candidates(key);
 
-    expect(client.calls.where((c) => c == 'bad'), hasLength(2));
-    expect(catalog.lexicon(key), ['review', 'refactor']);
-  });
+      expect(client.calls.where((c) => c == 'bad'), hasLength(2));
+      expect(catalog.lexicon(key), ['review', 'refactor']);
+    },
+  );
 
   test('lexicon listeners fire on settlement and invalidation', () async {
     final catalog = SkillCatalog(connection: _FakeSkillClient());
@@ -122,7 +142,10 @@ void main() {
 
   test("pick lands the plain '/name ' literal", () {
     const entry = SkillEntry(name: 'review');
-    expect(SkillCatalog(connection: _FakeSkillClient()).pickText(entry), '/review ');
+    expect(
+      SkillCatalog(connection: _FakeSkillClient()).pickText(entry),
+      '/review ',
+    );
   });
 
   test("'/' source: candidates filter the catalog and mark user-only rows", () async {
@@ -132,64 +155,85 @@ void main() {
     await host.activateAll();
 
     final inputTriggers = host.service<TriggerSourceRegistry>('inputTriggers')!;
-    final source =
-        inputTriggers.sources('/').singleWhere((s) => s.name == kSkillSourceName);
+    final source = inputTriggers
+        .sources('/')
+        .singleWhere((s) => s.name == kSkillSourceName);
 
-    final candidates = await source.candidates('sess-1', const CandidateRequest(query: 'ref', position: TriggerPosition.leading));
+    final candidates = await source.candidates(
+      'sess-1',
+      const CandidateRequest(query: 'ref', position: TriggerPosition.leading),
+    );
     expect(candidates.map((c) => c.name), ['refactor']);
     // The user-only marker rides the menu description (React `menu.userOnly`).
     expect(candidates.single.description, 'user-only · Refactor code');
 
     // The pick lands the plain-text reference literal.
-    final outcome = source.onPick(InputTriggerPick(
-      candidate: candidates.single,
-      sessionId: 'sess-1',
-      position: TriggerPosition.leading,
-      via: 'menu',
-      span: const TokenSpan(start: 0, end: 1, draftRev: 0),
-    ));
+    final outcome = source.onPick(
+      InputTriggerPick(
+        candidate: candidates.single,
+        sessionId: 'sess-1',
+        position: TriggerPosition.leading,
+        via: 'menu',
+        span: const TokenSpan(start: 0, end: 1, draftRev: 0),
+      ),
+    );
     expect(outcome, isA<TextOutcome>());
     expect((outcome as TextOutcome).text, '/refactor ');
   });
 
-  test("'/' source: lexicon reads and subscriptions ride the catalog", () async {
-    final client = _FakeSkillClient();
-    final host = wsAgentHost(client: client);
-    addTearDown(host.deactivateAll);
-    host.register(const SkillPlugin());
-    await host.activateAll();
+  test(
+    "'/' source: lexicon reads and subscriptions ride the catalog",
+    () async {
+      final client = _FakeSkillClient();
+      final host = wsAgentHost(client: client);
+      addTearDown(host.deactivateAll);
+      host.register(const SkillPlugin());
+      await host.activateAll();
 
-    final inputTriggers = host.service<TriggerSourceRegistry>('inputTriggers')!;
-    final source =
-        inputTriggers.sources('/').singleWhere((s) => s.name == kSkillSourceName);
+      final inputTriggers = host.service<TriggerSourceRegistry>(
+        'inputTriggers',
+      )!;
+      final source = inputTriggers
+          .sources('/')
+          .singleWhere((s) => s.name == kSkillSourceName);
 
-    // Not warm yet — the synchronous roll reports null rather than a stale list.
-    expect(source.lexicon('sess-lex'), isNull);
+      // Not warm yet — the synchronous roll reports null rather than a stale list.
+      expect(source.lexicon('sess-lex'), isNull);
 
-    var notifications = 0;
-    final stop = source.subscribeLexicon('sess-lex', () => notifications++);
-    source.warm('sess-lex');
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
-    expect(notifications, 1);
-    expect(source.lexicon('sess-lex'), ['review', 'refactor']);
-    stop?.call();
+      var notifications = 0;
+      final stop = source.subscribeLexicon('sess-lex', () => notifications++);
+      source.warm('sess-lex');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(notifications, 1);
+      expect(source.lexicon('sess-lex'), ['review', 'refactor']);
+      stop?.call();
 
-    // Deactivation removes the source from the registry.
-    host.deactivate('ui-skill');
-    expect(inputTriggers.sources('/').where((s) => s.name == kSkillSourceName), isEmpty);
-  });
+      // Deactivation removes the source from the registry.
+      host.deactivate('ui-skill');
+      expect(
+        inputTriggers.sources('/').where((s) => s.name == kSkillSourceName),
+        isEmpty,
+      );
+    },
+  );
 
   test('user-only marker rides the menu description', () {
-    const userOnly =
-        SkillEntry(name: 'refactor', description: 'Refactor code', modelInvocable: false);
-    const modelFacing = SkillEntry(name: 'review', description: 'Review code', modelInvocable: true);
+    const userOnly = SkillEntry(
+      name: 'refactor',
+      description: 'Refactor code',
+      modelInvocable: false,
+    );
+    const modelFacing = SkillEntry(
+      name: 'review',
+      description: 'Review code',
+      modelInvocable: true,
+    );
     expect(userOnly.menuDescription, 'user-only · Refactor code');
     expect(modelFacing.menuDescription, 'Review code');
   });
 
-  test("agent-preset/selected remote event invalidates that session's cached catalog",
-      () async {
+  test("agent-preset/selected remote event invalidates that session's cached catalog", () async {
     final client = _FakeSkillClient();
     final host = wsAgentHost(client: client);
     addTearDown(host.deactivateAll);
@@ -205,8 +249,10 @@ void main() {
     expect(client.calls, ['sess-1']);
 
     // …until the preset switch for that session drops exactly it.
-    host.service<RemoteEventBus>('remote')!
-        .dispatch('agent-preset/selected', ['sess-1', 'preset-x']);
+    host.service<RemoteEventBus>('remote')!.dispatch('agent-preset/selected', [
+      'sess-1',
+      'preset-x',
+    ]);
     await catalog.candidates(const SessionId('sess-1'));
     expect(client.calls, ['sess-1', 'sess-1']);
 
@@ -215,28 +261,31 @@ void main() {
     expect(client.calls, ['sess-1', 'sess-1', 'other']);
   });
 
-  test('deactivation clears the cache and detaches the remote listener', () async {
-    final client = _FakeSkillClient();
-    final host = wsAgentHost(client: client);
-    host.register(const SkillPlugin());
-    await host.activateAll();
-    final catalog = host.service<SkillCatalog>(kSkillsServiceName)!;
+  test(
+    'deactivation clears the cache and detaches the remote listener',
+    () async {
+      final client = _FakeSkillClient();
+      final host = wsAgentHost(client: client);
+      host.register(const SkillPlugin());
+      await host.activateAll();
+      final catalog = host.service<SkillCatalog>(kSkillsServiceName)!;
 
-    await catalog.candidates(const SessionId('sess-2'));
-    host.deactivateAll();
+      await catalog.candidates(const SessionId('sess-2'));
+      host.deactivateAll();
 
-    // The plugin-owned unsubscriber ran clearAll: a fresh activation (new
-    // catalog instance) proves nothing stale leaked through the bus either.
-    expect(catalog.lexicon(const SessionId('sess-2')), isNull);
-    final clientCallsBefore = client.calls.length;
+      // The plugin-owned unsubscriber ran clearAll: a fresh activation (new
+      // catalog instance) proves nothing stale leaked through the bus either.
+      expect(catalog.lexicon(const SessionId('sess-2')), isNull);
+      final clientCallsBefore = client.calls.length;
 
-    final host2 = wsAgentHost(client: client);
-    addTearDown(host2.deactivateAll);
-    host2.register(const SkillPlugin());
-    await host2.activateAll();
-    final fresh = host2.service<SkillCatalog>(kSkillsServiceName)!;
-    await fresh.candidates(const SessionId('sess-3'));
+      final host2 = wsAgentHost(client: client);
+      addTearDown(host2.deactivateAll);
+      host2.register(const SkillPlugin());
+      await host2.activateAll();
+      final fresh = host2.service<SkillCatalog>(kSkillsServiceName)!;
+      await fresh.candidates(const SessionId('sess-3'));
 
-    expect(client.calls.length, clientCallsBefore + 1);
-  });
+      expect(client.calls.length, clientCallsBefore + 1);
+    },
+  );
 }

@@ -14,17 +14,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _wrap(Widget child, {ThemeMode mode = ThemeMode.light}) => ProviderScope(
-      child: MaterialApp(
-        theme: buildLightTheme(),
-        darkTheme: buildDarkTheme(),
-        themeMode: mode,
-        home: Scaffold(body: Center(child: child)),
-      ),
-    );
+  child: MaterialApp(
+    theme: buildLightTheme(),
+    darkTheme: buildDarkTheme(),
+    themeMode: mode,
+    home: Scaffold(body: Center(child: child)),
+  ),
+);
 
 void main() {
   group('DsFishLogo', () {
-    testWidgets('renders at the native 23.16:17.04 ratio (default width 24)', (tester) async {
+    testWidgets('renders at the native 23.16:17.04 ratio (default width 24)', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(const DsFishLogo()));
       final Size box = tester.getSize(find.byType(DsFishLogo));
       expect(box.width, 24);
@@ -38,7 +40,9 @@ void main() {
       expect(box.height, closeTo(34 * 17.04 / 23.16, 0.001));
     });
 
-    testWidgets('stays decorative unless labeled (React aria-hidden)', (tester) async {
+    testWidgets('stays decorative unless labeled (React aria-hidden)', (
+      tester,
+    ) async {
       final SemanticsHandle handle = tester.ensureSemantics();
 
       // Bare: excluded from the semantics tree entirely.
@@ -47,7 +51,8 @@ void main() {
 
       // Labeled: carries an image semantics node.
       await tester.pumpWidget(
-          _wrap(const DsFishLogo(semanticLabel: 'DeepSeek fish')));
+        _wrap(const DsFishLogo(semanticLabel: 'DeepSeek fish')),
+      );
       expect(find.bySemanticsLabel('DeepSeek fish'), findsOneWidget);
 
       handle.dispose();
@@ -66,18 +71,32 @@ void main() {
   });
 
   group('DsBrandWordmark', () {
-    testWidgets('width follows the selected artwork (182 or 156 at size 24)',
-        (tester) async {
-      await tester.pumpWidget(_wrap(const Column(children: [
-        DsBrandWordmark(key: Key('full')),
-        DsBrandWordmark(key: Key('name'), includeMark: false),
-      ])));
-      expect(tester.getSize(find.byKey(const Key('full'))).width,
-          closeTo(24 * 182 / 24, 0.001));
-      expect(tester.getSize(find.byKey(const Key('full'))).height, closeTo(24, 0.001));
+    testWidgets('width follows the selected artwork (182 or 156 at size 24)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const Column(
+            children: [
+              DsBrandWordmark(key: Key('full')),
+              DsBrandWordmark(key: Key('name'), includeMark: false),
+            ],
+          ),
+        ),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('full'))).width,
+        closeTo(24 * 182 / 24, 0.001),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('full'))).height,
+        closeTo(24, 0.001),
+      );
       // Without the mark React renders viewBox `26 0 156 24` → 156/24 scale.
-      expect(tester.getSize(find.byKey(const Key('name'))).width,
-          closeTo(24 * 156 / 24, 0.001));
+      expect(
+        tester.getSize(find.byKey(const Key('name'))).width,
+        closeTo(24 * 156 / 24, 0.001),
+      );
     });
 
     test('artwork composition matches the React svg groups', () {

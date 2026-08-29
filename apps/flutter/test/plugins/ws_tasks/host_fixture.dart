@@ -15,8 +15,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 /// ConnectionClient double that records every generic carrier call — the
@@ -33,7 +32,9 @@ class RecordingClient extends ConnectionClient {
 
   @override
   Future<Map<String, dynamic>> callMethod(
-      String method, Map<String, dynamic> payload) async {
+    String method,
+    Map<String, dynamic> payload,
+  ) async {
     calls.add(RecordedCall(method: method, payload: payload));
     final failure = failNextWith;
     if (failure != null) throw failure;
@@ -59,7 +60,10 @@ class RecordedCall {
 /// `connection`, `sessions`, `locale`, plus `conversation` unless a test
 /// boots the real [ConversationPlugin] to provide it), so activation runs
 /// against the real DI fixpoint without booting the app shell.
-PluginHost wsTasksHost({ConnectionClient? client, bool withConversation = true}) {
+PluginHost wsTasksHost({
+  ConnectionClient? client,
+  bool withConversation = true,
+}) {
   final c = client ?? RecordingClient();
   final host = PluginHost();
   host.provide('slots', host.slots);
@@ -67,8 +71,14 @@ PluginHost wsTasksHost({ConnectionClient? client, bool withConversation = true})
   host.provide('sessions', SessionsService(c));
   host.provide('locale', LocaleService());
   if (withConversation) {
-    final scope = SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-conversation');
-    host.provide('conversation', ConversationController(client: c, settingsScope: scope));
+    final scope = SettingsScope<Object?>(
+      face: _NoopFace(),
+      namespace: 'ui-conversation',
+    );
+    host.provide(
+      'conversation',
+      ConversationController(client: c, settingsScope: scope),
+    );
   }
   return host;
 }
@@ -81,8 +91,10 @@ void declareHeaderActionsHole(PluginHost host) {
     const RegistrationOptions(
       name: 'root',
       children: {
-        'conversation.session.header.actions':
-            SlotSpec(kind: SlotKind.list, scope: SlotScope.session),
+        'conversation.session.header.actions': SlotSpec(
+          kind: SlotKind.list,
+          scope: SlotScope.session,
+        ),
       },
     ),
     (context, props) => const SizedBox.shrink(),

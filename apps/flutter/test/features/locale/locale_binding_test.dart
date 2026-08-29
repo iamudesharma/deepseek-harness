@@ -86,24 +86,22 @@ class _AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
-        locale: ref.watch(materialLocaleProvider),
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [Locale('zh'), Locale('en')],
-        home: Scaffold(body: const _BoundProbe()),
-      );
+    locale: ref.watch(materialLocaleProvider),
+    localizationsDelegates: const [
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    supportedLocales: const [Locale('zh'), Locale('en')],
+    home: Scaffold(body: const _BoundProbe()),
+  );
 }
 
-String _boundText(WidgetTester tester) => tester
-    .widget<Text>(find.byKey(const Key('bound')))
-    .data!;
+String _boundText(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('bound'))).data!;
 
-String _localeOfText(WidgetTester tester) => tester
-    .widget<Text>(find.byKey(const Key('localeOf')))
-    .data!;
+String _localeOfText(WidgetTester tester) =>
+    tester.widget<Text>(find.byKey(const Key('localeOf'))).data!;
 
 void main() {
   group('materialLocaleProvider', () {
@@ -121,14 +119,17 @@ void main() {
     testWidgets('one setLocale flips BOTH the bound string and '
         'Localizations.localeOf consumers without a restart', (tester) async {
       final client = _FakeClient();
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
+      final container = ProviderContainer(
+        overrides: [connectionClientProvider.overrideWithValue(client)],
+      );
       addTearDown(container.dispose);
       container.read(localeServiceProvider).register('probe', _probeDicts);
 
       await tester.pumpWidget(
-        UncontrolledProviderScope(container: container, child: const _AppShell()),
+        UncontrolledProviderScope(
+          container: container,
+          child: const _AppShell(),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -136,8 +137,9 @@ void main() {
       expect(_boundText(tester), '你好');
       expect(_localeOfText(tester), 'zh');
 
-      final err =
-          await container.read(languageRowProvider.notifier).setLocale('en');
+      final err = await container
+          .read(languageRowProvider.notifier)
+          .setLocale('en');
       await tester.pumpAndSettle();
 
       expect(err, isNull);
@@ -146,22 +148,27 @@ void main() {
       expect(container.read(materialLocaleProvider), const Locale('en'));
     });
 
-    testWidgets('a failed durable write republishes the previous language',
-        (tester) async {
+    testWidgets('a failed durable write republishes the previous language', (
+      tester,
+    ) async {
       final client = _FakeClient()..mutateError = StateError('conflict');
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
+      final container = ProviderContainer(
+        overrides: [connectionClientProvider.overrideWithValue(client)],
+      );
       addTearDown(container.dispose);
       container.read(localeServiceProvider).register('probe', _probeDicts);
 
       await tester.pumpWidget(
-        UncontrolledProviderScope(container: container, child: const _AppShell()),
+        UncontrolledProviderScope(
+          container: container,
+          child: const _AppShell(),
+        ),
       );
       await tester.pumpAndSettle();
 
-      final err =
-          await container.read(languageRowProvider.notifier).setLocale('en');
+      final err = await container
+          .read(languageRowProvider.notifier)
+          .setLocale('en');
       await tester.pumpAndSettle();
 
       expect(err, isNotNull);
@@ -172,23 +179,25 @@ void main() {
   });
 
   group('restart simulation', () {
-    test('boot adoption applies the persisted preference to a fresh service',
-        () async {
-      final client = _FakeClient()
-        ..describeAnswer = _describeAnswer(preference: 'en', revision: 3);
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
-      addTearDown(container.dispose);
+    test(
+      'boot adoption applies the persisted preference to a fresh service',
+      () async {
+        final client = _FakeClient()
+          ..describeAnswer = _describeAnswer(preference: 'en', revision: 3);
+        final container = ProviderContainer(
+          overrides: [connectionClientProvider.overrideWithValue(client)],
+        );
+        addTearDown(container.dispose);
 
-      final service = container.read(localeServiceProvider);
-      service.register('probe', _probeDicts);
-      expect(service.locale, 'zh');
+        final service = container.read(localeServiceProvider);
+        service.register('probe', _probeDicts);
+        expect(service.locale, 'zh');
 
-      await adoptPersistedLocale(client, service);
+        await adoptPersistedLocale(client, service);
 
-      expect(service.locale, 'en');
-      expect(service.bind('probe')('greeting'), 'Hello');
-    });
+        expect(service.locale, 'en');
+        expect(service.bind('probe')('greeting'), 'Hello');
+      },
+    );
   });
 }

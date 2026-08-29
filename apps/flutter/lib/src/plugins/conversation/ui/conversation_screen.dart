@@ -42,8 +42,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     super.initState();
     _dropController = DragDropController(
       onAddImages: (files) => intakeComposerImages(
-        staged:
-            ref.read(composerControllerProvider(widget.sessionId)).attachments,
+        staged: ref
+            .read(composerControllerProvider(widget.sessionId))
+            .attachments,
         limits: ref.read(imageLimitsProvider),
         add: (items) => ref
             .read(composerControllerProvider(widget.sessionId).notifier)
@@ -65,7 +66,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       _dropController.dispose();
       _dropController = DragDropController(
         onAddImages: (files) => intakeComposerImages(
-          staged: ref.read(composerControllerProvider(widget.sessionId)).attachments,
+          staged: ref
+              .read(composerControllerProvider(widget.sessionId))
+              .attachments,
           limits: ref.read(imageLimitsProvider),
           add: (items) => ref
               .read(composerControllerProvider(widget.sessionId).notifier)
@@ -74,7 +77,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         ),
         onRejected: (message) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
         },
       );
     }
@@ -96,9 +100,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         canAcceptDrop: enabled && !machineBusy,
         limits: ref.read(imageLimitsProvider),
       );
-      final staged = ref.read(composerControllerProvider(widget.sessionId)).attachments;
+      final staged = ref
+          .read(composerControllerProvider(widget.sessionId))
+          .attachments;
       _dropController.stagedCount = staged.length;
-      _dropController.stagedTotalBytes = staged.fold<int>(0, (sum, a) => sum + (a.size ?? 0));
+      _dropController.stagedTotalBytes = staged.fold<int>(
+        0,
+        (sum, a) => sum + (a.size ?? 0),
+      );
     });
   }
 
@@ -113,7 +122,9 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
-            (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
 
     // Empty / missing session guard — mirrors detailsSession blank guard
     // (AppFrame.tsx:94 blank check + details close on switch).
@@ -123,7 +134,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         body: _GuardState(
           icon: Icons.search_off,
           title: 'Session not found',
-          subtitle: 'No session matches "$sessionId". It may have been removed.',
+          subtitle:
+              'No session matches "$sessionId". It may have been removed.',
           aliases: aliases,
         ),
       );
@@ -191,7 +203,10 @@ class _GuardState extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: DswTokens.fontSizeS14, color: aliases.labelSecondary),
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeS14,
+                color: aliases.labelSecondary,
+              ),
             ),
             if (actionLabel != null && onAction != null) ...<Widget>[
               const SizedBox(height: DswTokens.spaceLg),

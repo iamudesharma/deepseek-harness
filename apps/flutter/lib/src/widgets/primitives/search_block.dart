@@ -35,10 +35,7 @@ class SearchResult {
 /// `复制` control anchored top-right — the same `DsBlockFrame` + head-tail +
 /// copy affordance every primitive shares.
 class DsSearchBlock extends ConsumerStatefulWidget {
-  const DsSearchBlock({
-    super.key,
-    required this.results,
-  });
+  const DsSearchBlock({super.key, required this.results});
 
   /// Flat list of hits; internally grouped by [SearchResult.file].
   final List<SearchResult> results;
@@ -55,7 +52,9 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
-            (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
 
     final List<SearchResult> results = widget.results;
     if (results.isEmpty) {
@@ -63,13 +62,20 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
         aliases: aliases,
         child: Padding(
           padding: const EdgeInsets.all(DswTokens.spaceLg),
-          child: Text('No results', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelCaption)),
+          child: Text(
+            'No results',
+            style: TextStyle(
+              fontSize: DswTokens.fontSizeXxs12,
+              color: aliases.labelCaption,
+            ),
+          ),
         ),
       );
     }
 
     // Group by file preserving first-seen order.
-    final Map<String, List<SearchResult>> groups = <String, List<SearchResult>>{};
+    final Map<String, List<SearchResult>> groups =
+        <String, List<SearchResult>>{};
     final List<String> order = <String>[];
     for (final SearchResult r in results) {
       if (!groups.containsKey(r.file)) {
@@ -80,8 +86,15 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
     }
 
     // Flatten rows for cap — one file header + N matches per file, like React's toRows.
-    final int totalRows = order.fold<int>(0, (sum, f) => sum + 1 + groups[f]!.length);
-    final BlockHeadTailCap cap = BlockHeadTailCap.compute(totalRows, kBlockCap, _expanded);
+    final int totalRows = order.fold<int>(
+      0,
+      (sum, f) => sum + 1 + groups[f]!.length,
+    );
+    final BlockHeadTailCap cap = BlockHeadTailCap.compute(
+      totalRows,
+      kBlockCap,
+      _expanded,
+    );
     // For simplicity cap at file-group granularity: if capped, show headFiles/tailFiles slice.
     // Full row-level head-tail parity requires restoring file headers in tail; simplified here.
     final List<String> visibleFiles;
@@ -89,12 +102,16 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
       // Estimate files from row counts; approximate by slicing ordered files.
       final int headFiles = (cap.headLines / 2).ceil().clamp(1, order.length);
       final int tailFiles = order.length - headFiles;
-      visibleFiles = tailFiles > 0 ? [...order.take(headFiles), ...order.skip(order.length - tailFiles)] : order.take(headFiles).toList();
+      visibleFiles = tailFiles > 0
+          ? [...order.take(headFiles), ...order.skip(order.length - tailFiles)]
+          : order.take(headFiles).toList();
     } else {
       visibleFiles = order;
     }
 
-    final String copyText = results.map((r) => '${r.file}:${r.line}: ${r.preview}').join('\n');
+    final String copyText = results
+        .map((r) => '${r.file}:${r.line}: ${r.preview}')
+        .join('\n');
 
     return DsBlockFrame(
       aliases: aliases,
@@ -103,8 +120,14 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
         children: <Widget>[
           // Summary header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceMd, vertical: DswTokens.spaceSm),
-            decoration: BoxDecoration(color: aliases.markdownCodeBlockBanner, border: Border(bottom: BorderSide(color: aliases.borderL2))),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DswTokens.spaceMd,
+              vertical: DswTokens.spaceSm,
+            ),
+            decoration: BoxDecoration(
+              color: aliases.markdownCodeBlockBanner,
+              border: Border(bottom: BorderSide(color: aliases.borderL2)),
+            ),
             child: Row(
               children: <Widget>[
                 Icon(Icons.search, size: 14, color: aliases.labelTertiary),
@@ -112,7 +135,10 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
                 Expanded(
                   child: Text(
                     '${results.length} result${results.length == 1 ? '' : 's'} in ${order.length} file${order.length == 1 ? '' : 's'}',
-                    style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary),
+                    style: TextStyle(
+                      fontSize: DswTokens.fontSizeXxs12,
+                      color: aliases.labelSecondary,
+                    ),
                   ),
                 ),
                 BlockCopyButton(copyText: copyText, aliases: aliases),
@@ -121,12 +147,18 @@ class _DsSearchBlockState extends ConsumerState<DsSearchBlock> {
           ),
           for (final String file in visibleFiles) ...<Widget>[
             _FileGroup(file: file, hits: groups[file]!, aliases: aliases),
-            if (file != visibleFiles.last) Divider(height: 1, color: aliases.borderL2),
+            if (file != visibleFiles.last)
+              Divider(height: 1, color: aliases.borderL2),
           ],
           if (cap.hidden > 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
-              child: BlockExpandButton(hidden: cap.hidden, expanded: _expanded, onToggle: () => setState(() => _expanded = !_expanded), aliases: aliases),
+              child: BlockExpandButton(
+                hidden: cap.hidden,
+                expanded: _expanded,
+                onToggle: () => setState(() => _expanded = !_expanded),
+                aliases: aliases,
+              ),
             ),
         ],
       ),
@@ -159,8 +191,11 @@ class _FileGroup extends StatelessWidget {
           ),
           child: Row(
             children: <Widget>[
-              Icon(Icons.insert_drive_file_outlined,
-                  size: 12, color: aliases.labelCaption),
+              Icon(
+                Icons.insert_drive_file_outlined,
+                size: 12,
+                color: aliases.labelCaption,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -236,7 +271,8 @@ class _FileGroup extends StatelessWidget {
         preview,
         style: TextStyle(
           fontSize: DswTokens.markdownCodeBlockSmallSize,
-          height: DswTokens.markdownCodeBlockSmallLineHeight /
+          height:
+              DswTokens.markdownCodeBlockSmallLineHeight /
               DswTokens.markdownCodeBlockSmallSize,
           fontFamily: DswTokens.fontFamilyCode,
           fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
@@ -257,7 +293,8 @@ class _FileGroup extends StatelessWidget {
       text: TextSpan(
         style: TextStyle(
           fontSize: DswTokens.markdownCodeBlockSmallSize,
-          height: DswTokens.markdownCodeBlockSmallLineHeight /
+          height:
+              DswTokens.markdownCodeBlockSmallLineHeight /
               DswTokens.markdownCodeBlockSmallSize,
           fontFamily: DswTokens.fontFamilyCode,
           fontFamilyFallback: DswTokens.fontFamilyCodeFallback,

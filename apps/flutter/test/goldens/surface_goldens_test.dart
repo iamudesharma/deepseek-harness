@@ -38,7 +38,8 @@ List<HistoryEntry> loadParityHistory() {
     final wire = jsonDecode(line) as Map<String, dynamic>;
     if (wire['stream'] != 'mux') continue;
     final frame = MuxFrame.fromJson(
-        (wire['frame'] as Map).cast<String, Object?>());
+      (wire['frame'] as Map).cast<String, Object?>(),
+    );
     if (frame is SessionEventFrame) {
       entries.add(HistoryEntry(event: SessionEvent.fromJson(frame.event)));
     }
@@ -47,12 +48,12 @@ List<HistoryEntry> loadParityHistory() {
 }
 
 Widget _app(Widget child, {bool dark = false}) => ProviderScope(
-      child: MaterialApp(
-        theme: dark ? buildDarkTheme() : buildLightTheme(),
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(body: child),
-      ),
-    );
+  child: MaterialApp(
+    theme: dark ? buildDarkTheme() : buildLightTheme(),
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(body: child),
+  ),
+);
 
 void _setViewport(WidgetTester tester, Size size) {
   tester.view.physicalSize = size;
@@ -70,13 +71,12 @@ void main() {
 
   testWidgets('chat fixture light', (tester) async {
     _setViewport(tester, const Size(900, 1400));
-    await tester.pumpWidget(_app(
-      SizedBox(
-        width: 760,
-        child: ChatView(sessionId: 's-200'),
+    await tester.pumpWidget(
+      _app(
+        SizedBox(width: 760, child: ChatView(sessionId: 's-200')),
+        dark: false,
       ),
-      dark: false,
-    ));
+    );
     // Seed after first frame: ChatView watches liveHistoryProvider.
     containerOf(tester)
         .read(liveHistoryProvider('s-200').notifier)
@@ -90,13 +90,12 @@ void main() {
 
   testWidgets('chat fixture dark', (tester) async {
     _setViewport(tester, const Size(900, 1400));
-    await tester.pumpWidget(_app(
-      SizedBox(
-        width: 760,
-        child: ChatView(sessionId: 's-200'),
+    await tester.pumpWidget(
+      _app(
+        SizedBox(width: 760, child: ChatView(sessionId: 's-200')),
+        dark: true,
       ),
-      dark: true,
-    ));
+    );
     containerOf(tester)
         .read(liveHistoryProvider('s-200').notifier)
         .replaceAll(history);
@@ -109,13 +108,15 @@ void main() {
 
   testWidgets('app frame expanded light', (tester) async {
     _setViewport(tester, const Size(1680, 1000));
-    await tester.pumpWidget(_app(
-      const MediaQuery(
-        data: MediaQueryData(size: Size(1680, 1000)),
-        child: Scaffold(body: AppFrame()),
+    await tester.pumpWidget(
+      _app(
+        const MediaQuery(
+          data: MediaQueryData(size: Size(1680, 1000)),
+          child: Scaffold(body: AppFrame()),
+        ),
+        dark: false,
       ),
-      dark: false,
-    ));
+    );
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(AppFrame),
@@ -125,13 +126,15 @@ void main() {
 
   testWidgets('app frame collapsed dark', (tester) async {
     _setViewport(tester, const Size(400, 800));
-    await tester.pumpWidget(_app(
-      const MediaQuery(
-        data: MediaQueryData(size: Size(400, 800)),
-        child: Scaffold(body: AppFrame()),
+    await tester.pumpWidget(
+      _app(
+        const MediaQuery(
+          data: MediaQueryData(size: Size(400, 800)),
+          child: Scaffold(body: AppFrame()),
+        ),
+        dark: true,
       ),
-      dark: true,
-    ));
+    );
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(AppFrame),
@@ -145,15 +148,17 @@ void main() {
         '\u001b[32m✓ 12 passing\u001b[0m\n\u001b[31m✗ 1 failing\u001b[0m\n'
         '\u001b[90m  at Context.<anonymous> (test/a.spec.js:12:9)\u001b[0m\n'
         'npm ERR! Test failed.  See above for more details.\n';
-    await tester.pumpWidget(_app(
-      const DsTerminalBlock(
-        command: 'pnpm -s vitest run',
-        cwd: '/repo/packages/llm',
-        output: ansiOutput,
-        exitCode: 1,
+    await tester.pumpWidget(
+      _app(
+        const DsTerminalBlock(
+          command: 'pnpm -s vitest run',
+          cwd: '/repo/packages/llm',
+          output: ansiOutput,
+          exitCode: 1,
+        ),
+        dark: false,
       ),
-      dark: false,
-    ));
+    );
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(DsTerminalBlock),
@@ -163,30 +168,34 @@ void main() {
 
   testWidgets('primitives row light', (tester) async {
     _setViewport(tester, const Size(700, 220));
-    await tester.pumpWidget(_app(
-      Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: const [
-              Pill(label: 'Active plan', active: true),
-              SizedBox(width: 8),
-              Pill(label: 'Idle'),
-              SizedBox(width: 16),
-              StateDot(state: StateDotState.done),
-              SizedBox(width: 6),
-              StateDot(state: StateDotState.error),
-            ]),
-            const SizedBox(height: 12),
-            const DsToast(
-              data: DsToastData(id: 't-1', message: 'Workspace attached'),
-            ),
-          ],
+    await tester.pumpWidget(
+      _app(
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Pill(label: 'Active plan', active: true),
+                  SizedBox(width: 8),
+                  Pill(label: 'Idle'),
+                  SizedBox(width: 16),
+                  StateDot(state: StateDotState.done),
+                  SizedBox(width: 6),
+                  StateDot(state: StateDotState.error),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const DsToast(
+                data: DsToastData(id: 't-1', message: 'Workspace attached'),
+              ),
+            ],
+          ),
         ),
+        dark: false,
       ),
-      dark: false,
-    ));
+    );
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(Column).first,
@@ -196,6 +205,4 @@ void main() {
 }
 
 ProviderContainer containerOf(WidgetTester tester) =>
-    ProviderScope.containerOf(
-      tester.element(find.byType(ChatView)),
-    );
+    ProviderScope.containerOf(tester.element(find.byType(ChatView)));

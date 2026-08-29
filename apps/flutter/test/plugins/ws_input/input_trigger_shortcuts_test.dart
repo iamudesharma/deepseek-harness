@@ -25,20 +25,22 @@ class _InsertSource extends InputTriggerSource {
   String get name => 'cmd';
   @override
   Future<List<InputTriggerCandidate>> candidates(
-      String sessionId, CandidateRequest request) async {
+    String sessionId,
+    CandidateRequest request,
+  ) async {
     return [const InputTriggerCandidate(name: 'Foo', description: 'first')];
   }
 
   @override
   PickOutcome? onPick(InputTriggerPick pick) => const InsertOutcome(
-        ReferenceInsert(
-          source: 'cmd',
-          ref: 'foo',
-          label: 'Foo',
-          appearance: 'file',
-          clipboardText: '@Foo',
-        ),
-      );
+    ReferenceInsert(
+      source: 'cmd',
+      ref: 'foo',
+      label: 'Foo',
+      appearance: 'file',
+      clipboardText: '@Foo',
+    ),
+  );
   @override
   PickOutcome? matchSpace(String sessionId, String token) => null;
   @override
@@ -57,18 +59,20 @@ Future<void> _pumpShortcutField(
   required TextEditingController field,
   bool Function()? invocable,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: InputTriggerShortcuts(
-        registry: registry,
-        sessionId: 's1',
-        invocable: invocable,
-        undo: () => binding.undo(),
-        redo: () => binding.redo(),
-        child: TextField(controller: field, autofocus: true),
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: InputTriggerShortcuts(
+          registry: registry,
+          sessionId: 's1',
+          invocable: invocable,
+          undo: () => binding.undo(),
+          redo: () => binding.redo(),
+          child: TextField(controller: field, autofocus: true),
+        ),
       ),
     ),
-  ));
+  );
   await tester.pump();
 }
 
@@ -78,8 +82,9 @@ void main() {
   });
 
   group('mounted InputTriggerShortcuts (undo/redo round-trip)', () {
-    testWidgets('Cmd+Z / Cmd+Shift+Z restore the field on Apple hosts',
-        (tester) async {
+    testWidgets('Cmd+Z / Cmd+Shift+Z restore the field on Apple hosts', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       final registry = _registryWithSource();
       addTearDown(() => registry.disposeController('s1'));
@@ -88,8 +93,12 @@ void main() {
       final committed = <String>[];
       final binding = ComposerTriggerBinding(field, controller, committed.add);
 
-      await _pumpShortcutField(tester,
-          registry: registry, binding: binding, field: field);
+      await _pumpShortcutField(
+        tester,
+        registry: registry,
+        binding: binding,
+        field: field,
+      );
 
       // Typing rides the field listener into controller.track — the typing
       // run coalesces into ONE chip transaction with an empty before-state.
@@ -98,7 +107,10 @@ void main() {
       await tester.enterText(find.byType(TextField), 'hi');
       await tester.pump();
       expect(controller.transactions.canUndo, isTrue);
-      expect(committed, isEmpty); // user typing commits via onChanged, not binding
+      expect(
+        committed,
+        isEmpty,
+      ); // user typing commits via onChanged, not binding
 
       // Cmd+Z restores the pre-typing draft IN THE FIELD.
       await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
@@ -120,8 +132,9 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('Ctrl+Z / Ctrl+Y drive undo/redo off Apple hosts',
-        (tester) async {
+    testWidgets('Ctrl+Z / Ctrl+Y drive undo/redo off Apple hosts', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       final registry = _registryWithSource();
       addTearDown(() => registry.disposeController('s1'));
@@ -129,8 +142,12 @@ void main() {
       final field = TextEditingController();
       final binding = ComposerTriggerBinding(field, controller, (_) {});
 
-      await _pumpShortcutField(tester,
-          registry: registry, binding: binding, field: field);
+      await _pumpShortcutField(
+        tester,
+        registry: registry,
+        binding: binding,
+        field: field,
+      );
 
       await tester.enterText(find.byType(TextField), 'abc');
       await tester.pump();
@@ -149,8 +166,9 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('invocable gate blocks the mutation but keeps the key',
-        (tester) async {
+    testWidgets('invocable gate blocks the mutation but keeps the key', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       final registry = _registryWithSource();
       addTearDown(() => registry.disposeController('s1'));
@@ -160,9 +178,13 @@ void main() {
       var allowed = false;
       final binding = ComposerTriggerBinding(field, controller, (_) {});
 
-      await _pumpShortcutField(tester,
-          registry: registry, binding: binding, field: field,
-          invocable: () => allowed);
+      await _pumpShortcutField(
+        tester,
+        registry: registry,
+        binding: binding,
+        field: field,
+        invocable: () => allowed,
+      );
 
       // The machine-busy/locked port: keystroke consumed, draft untouched.
       await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
@@ -190,8 +212,9 @@ void main() {
       clipboardText: '@Foo',
     );
 
-    testWidgets('insert mints one occurrence; Delete/Backspace remove it',
-        (tester) async {
+    testWidgets('insert mints one occurrence; Delete/Backspace remove it', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       final registry = _registryWithSource();
       addTearDown(() => registry.disposeController('s1'));
@@ -203,8 +226,10 @@ void main() {
       // Seed one chip across the '@Foo' range — the same sink path a real
       // menu pick takes (unstamped spans pass the CAS by design).
       expect(
-        binding.apply(const InsertOutcome(chip),
-            const TokenSpan(start: 4, end: 4, draftRev: 0)),
+        binding.apply(
+          const InsertOutcome(chip),
+          const TokenSpan(start: 4, end: 4, draftRev: 0),
+        ),
         isTrue,
       );
       expect(field.text, 'see @Foonow');
@@ -219,8 +244,10 @@ void main() {
       // Re-seed, then append text beyond the chip: reconciliation keeps the
       // entry anchored while plain text grows after it.
       expect(
-        binding.apply(const InsertOutcome(chip),
-            const TokenSpan(start: 4, end: 4, draftRev: 0)),
+        binding.apply(
+          const InsertOutcome(chip),
+          const TokenSpan(start: 4, end: 4, draftRev: 0),
+        ),
         isTrue,
       );
       field.value = const TextEditingValue(
@@ -243,14 +270,16 @@ void main() {
   group('Enter repeat guard', () {
     testWidgets('held-down Enter does not machine-gun submits', (tester) async {
       var submits = 0;
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: ConversationShortcuts(
-            onSubmit: () => submits++,
-            child: const Focus(autofocus: true, child: SizedBox.shrink()),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ConversationShortcuts(
+              onSubmit: () => submits++,
+              child: const Focus(autofocus: true, child: SizedBox.shrink()),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
@@ -266,34 +295,45 @@ void main() {
 
   group('empty-draft accelerated-Enter queue steer', () {
     const queuedItem = QueuedInboxItem(
-        id: 'q1', placement: 'queued', message: <String, Object?>{});
+      id: 'q1',
+      placement: 'queued',
+      message: <String, Object?>{},
+    );
 
     SessionSummary summary({bool running = true}) => SessionSummary(
-          sessionId: const SessionId('s1'),
-          updatedAt: 0,
-          running: running,
-          blank: false,
-        );
+      sessionId: const SessionId('s1'),
+      updatedAt: 0,
+      running: running,
+      blank: false,
+    );
 
     Future<ProviderContainer> pumpComposer(
       WidgetTester tester, {
       required SessionSummary summary,
       required List<QueuedInboxItem> queue,
     }) async {
-      final container = ProviderContainer(overrides: [
-        sessionByIdProvider.overrideWith((ref, id) => summary),
-        queueProvider.overrideWith(
-            (ref) => QueueController()..replace('s1', queue)),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          sessionByIdProvider.overrideWith((ref, id) => summary),
+          queueProvider.overrideWith(
+            (ref) => QueueController()..replace('s1', queue),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(
-          home: Scaffold(
-            body: SizedBox(width: 600, child: ConversationComposer(sessionId: 's1')),
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 600,
+                child: ConversationComposer(sessionId: 's1'),
+              ),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
       // Focus the field so dispatched keys route through the shortcut layers.
       await tester.tap(find.byType(TextField));
@@ -308,50 +348,72 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('accelerated Enter over an empty draft steers the whole queue',
-        (tester) async {
-      final container =
-          await pumpComposer(tester, summary: summary(), queue: [queuedItem]);
+    testWidgets(
+      'accelerated Enter over an empty draft steers the whole queue',
+      (tester) async {
+        final container = await pumpComposer(
+          tester,
+          summary: summary(),
+          queue: [queuedItem],
+        );
 
-      var steers = 0;
-      container.read(composerQueueSteerHookProvider('s1').notifier).state =
-          () => steers++;
+        var steers = 0;
+        container
+            .read(composerQueueSteerHookProvider('s1').notifier)
+            .state = () =>
+            steers++;
 
-      await fireAcceleratedEnter(tester);
-      expect(steers, 1);
-    });
+        await fireAcceleratedEnter(tester);
+        expect(steers, 1);
+      },
+    );
 
-    testWidgets('the steer gesture needs a running turn AND pending rows',
-        (tester) async {
+    testWidgets('the steer gesture needs a running turn AND pending rows', (
+      tester,
+    ) async {
       // Not running: the gesture falls through to submit gating — no hook.
       var idleSteers = 0;
-      final idleContainer = await pumpComposer(tester,
-          summary: summary(running: false), queue: [queuedItem]);
+      final idleContainer = await pumpComposer(
+        tester,
+        summary: summary(running: false),
+        queue: [queuedItem],
+      );
       idleContainer
           .read(composerQueueSteerHookProvider('s1').notifier)
-          .state = () => idleSteers++;
+          .state = () =>
+          idleSteers++;
       await fireAcceleratedEnter(tester);
       expect(idleSteers, 0);
 
       // Running but nothing queued: still no steer dispatch.
       var emptySteers = 0;
-      final quietContainer =
-          await pumpComposer(tester, summary: summary(), queue: const []);
+      final quietContainer = await pumpComposer(
+        tester,
+        summary: summary(),
+        queue: const [],
+      );
       quietContainer
           .read(composerQueueSteerHookProvider('s1').notifier)
-          .state = () => emptySteers++;
+          .state = () =>
+          emptySteers++;
       await fireAcceleratedEnter(tester);
       expect(emptySteers, 0);
     });
 
-    testWidgets('a non-empty draft never steers (submit keeps its path)',
-        (tester) async {
-      final container =
-          await pumpComposer(tester, summary: summary(), queue: [queuedItem]);
+    testWidgets('a non-empty draft never steers (submit keeps its path)', (
+      tester,
+    ) async {
+      final container = await pumpComposer(
+        tester,
+        summary: summary(),
+        queue: [queuedItem],
+      );
 
       var steers = 0;
-      container.read(composerQueueSteerHookProvider('s1').notifier).state =
-          () => steers++;
+      container
+          .read(composerQueueSteerHookProvider('s1').notifier)
+          .state = () =>
+          steers++;
 
       await tester.enterText(find.byType(TextField), 'hello');
       await tester.pump();
@@ -365,8 +427,9 @@ void main() {
   });
 
   group('mounted composer end-to-end', () {
-    testWidgets('Backspace deletes the last picked chip occurrence',
-        (tester) async {
+    testWidgets('Backspace deletes the last picked chip occurrence', (
+      tester,
+    ) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       final registry = _registryWithSource();
       bindActivatedRegistry(registry);
@@ -375,13 +438,18 @@ void main() {
         registry.disposeAllControllers();
       });
 
-      await tester.pumpWidget(const ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: SizedBox(width: 600, child: ConversationComposer(sessionId: 's1')),
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 600,
+                child: ConversationComposer(sessionId: 's1'),
+              ),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump();
 
       // Type a prefix then the slash token; the mounted field listener feeds

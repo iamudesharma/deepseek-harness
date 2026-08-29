@@ -14,13 +14,12 @@ import 'host_fixture.dart';
 /// Records `/plan off` executions and answers with a scripted outcome.
 class _ScriptedCommands {
   final executed = <({String sessionId, String line})>[];
-  CommandOutcome next =
-      const CommandOutcome(ok: true, hasValue: true);
+  CommandOutcome next = const CommandOutcome(ok: true, hasValue: true);
 
   CommandExecutor get executor => (sessionId, line) async {
-        executed.add((sessionId: sessionId, line: line));
-        return next;
-      };
+    executed.add((sessionId: sessionId, line: line));
+    return next;
+  };
 }
 
 void main() {
@@ -35,24 +34,36 @@ void main() {
     expect(commands.executed.single.sessionId, 's-1');
   });
 
-  test('exitPlanMode maps an undefined value to the unknown-command line', () async {
-    final commands = _ScriptedCommands()..next = const CommandOutcome(ok: true);
-    final control = PlanControl(execute: commands.executor);
+  test(
+    'exitPlanMode maps an undefined value to the unknown-command line',
+    () async {
+      final commands = _ScriptedCommands()
+        ..next = const CommandOutcome(ok: true);
+      final control = PlanControl(execute: commands.executor);
 
-    expect(await control.exitPlanMode(const SessionId('s-1')), 'unknown command: /plan off');
-  });
+      expect(
+        await control.exitPlanMode(const SessionId('s-1')),
+        'unknown command: /plan off',
+      );
+    },
+  );
 
   test('exitPlanMode surfaces RPC failures as message (code)', () async {
     final commands = _ScriptedCommands()
       ..next = const CommandOutcome(
-          ok: false, errorCode: 'E-GATE', errorMessage: 'gate refused');
+        ok: false,
+        errorCode: 'E-GATE',
+        errorMessage: 'gate refused',
+      );
     final control = PlanControl(execute: commands.executor);
 
-    expect(await control.exitPlanMode(const SessionId('s-1')), 'gate refused (E-GATE)');
+    expect(
+      await control.exitPlanMode(const SessionId('s-1')),
+      'gate refused (E-GATE)',
+    );
   });
 
-  test('activation provides the plan service, occupies the composer seat, and binds the control',
-      () async {
+  test('activation provides the plan service, occupies the composer seat, and binds the control', () async {
     final host = wsAgentHost();
     addTearDown(host.deactivateAll);
     // The conversation anchor's children table (fixture stand-in) declares
@@ -67,10 +78,9 @@ void main() {
     // The chip occupies the conversation.input.plan seat once the
     // conversation hub's declaration lands.
     expect(host.slots.isDeclared(kPlanSeatSlot), isTrue);
-    expect(
-      [for (final w in host.slots.winnersOfSlot(kPlanSeatSlot)) w.options.id],
-      contains(kPlanSeatId),
-    );
+    expect([
+      for (final w in host.slots.winnersOfSlot(kPlanSeatSlot)) w.options.id,
+    ], contains(kPlanSeatId));
     expect(boundPlanControl, same(control));
 
     // Leave a clean bridge for the next test (module-level global).
@@ -82,31 +92,36 @@ void main() {
     final host = wsAgentHost();
     addTearDown(host.deactivateAll);
     declareHeaderActionsHole(host);
-    host.register(PlanPlugin(
-      planControl: PlanControl(
-        execute: (_, _) async => const CommandOutcome(ok: true),
+    host.register(
+      PlanPlugin(
+        planControl: PlanControl(
+          execute: (_, _) async => const CommandOutcome(ok: true),
+        ),
       ),
-    ));
+    );
     await host.activateAll();
     expect(boundPlanControl, isNotNull);
 
     host.deactivate(kPlanPluginId);
 
-    expect(
-      [for (final w in host.slots.winnersOfSlot(kPlanSeatSlot)) w.options.id],
-      isNot(contains(kPlanSeatId)),
-    );
+    expect([
+      for (final w in host.slots.winnersOfSlot(kPlanSeatSlot)) w.options.id,
+    ], isNot(contains(kPlanSeatId)));
     expect(boundPlanControl, isNull);
   });
 
-  testWidgets('seat chip renders only while the effective target is plan mode', (tester) async {
+  testWidgets('seat chip renders only while the effective target is plan mode', (
+    tester,
+  ) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
     Widget seat() => UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(home: Scaffold(body: Builder(builder: (_) => buildPlanSeat()))),
-        );
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(body: Builder(builder: (_) => buildPlanSeat())),
+      ),
+    );
 
     // Default seed: inactive before first host projection — target off.
     await tester.pumpWidget(seat());

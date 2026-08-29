@@ -9,8 +9,16 @@ import '../../core/session/session_models.dart';
 /// remains usable without a host (e.g. Flutter test, offline). Real data
 /// comes from `workspaceList()` when available.
 const kWorkspaceOptions = [
-  WorkspaceView(workspaceId: WorkspaceId('default'), name: 'Default', cwd: '/work/default'),
-  WorkspaceView(workspaceId: WorkspaceId('project-a'), name: 'Project A', cwd: '/work/project-a'),
+  WorkspaceView(
+    workspaceId: WorkspaceId('default'),
+    name: 'Default',
+    cwd: '/work/default',
+  ),
+  WorkspaceView(
+    workspaceId: WorkspaceId('project-a'),
+    name: 'Project A',
+    cwd: '/work/project-a',
+  ),
 ];
 
 /// Real `workspace.list` provider — parses `items` and `archivedSessionIds`.

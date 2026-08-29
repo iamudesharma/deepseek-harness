@@ -46,8 +46,11 @@ class SettingsRpcFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) =>
-      _client.settingsMutate(ns: ns, ops: ops, expectedRevision: expectedRevision);
+  }) => _client.settingsMutate(
+    ns: ns,
+    ops: ops,
+    expectedRevision: expectedRevision,
+  );
 }
 
 /// Snapshot status of one namespace scope.
@@ -118,9 +121,9 @@ class SettingsScope<T> {
     required SettingsFace face,
     required String namespace,
     T? Function(Map<String, Object?> raw)? decode,
-  })  : _face = face,
-        _namespace = namespace,
-        _decode = decode {
+  }) : _face = face,
+       _namespace = namespace,
+       _decode = decode {
     _snapshot = SettingsScopeSnapshot<T>(
       status: SettingsScopeStatus.loading,
       value: null,
@@ -169,35 +172,47 @@ class SettingsScope<T> {
       final sections = (doc['namespaces'] as Map?) ?? doc;
       final section = sections[_namespace];
       if (section is! Map) {
-        _publish(SettingsScopeSnapshot<T>(
-          status: SettingsScopeStatus.unavailable,
-          value: null,
-          writable: false,
-        ));
+        _publish(
+          SettingsScopeSnapshot<T>(
+            status: SettingsScopeStatus.unavailable,
+            value: null,
+            writable: false,
+          ),
+        );
         return;
       }
       _publish(_derive(section.cast<String, Object?>()));
     } catch (_) {
       if (!_disposed) {
-        _publish(SettingsScopeSnapshot<T>(
-          status: SettingsScopeStatus.unavailable,
-          value: null,
-          writable: false,
-        ));
+        _publish(
+          SettingsScopeSnapshot<T>(
+            status: SettingsScopeStatus.unavailable,
+            value: null,
+            writable: false,
+          ),
+        );
       }
     }
   }
 
   SettingsScopeSnapshot<T> _derive(Map<String, Object?> section) {
     final rawValue = (section['value'] ?? section['user']) ?? section['base'];
-    final decoded = _decode != null && rawValue is Map ? _decode!(rawValue.cast<String, Object?>()) : rawValue as T?;
+    final decoded = _decode != null && rawValue is Map
+        ? _decode!(rawValue.cast<String, Object?>())
+        : rawValue as T?;
     final schemaRaw = section['schema'];
-    final schemaMap = schemaRaw is Map ? schemaRaw.cast<String, Object?>() : null;
+    final schemaMap = schemaRaw is Map
+        ? schemaRaw.cast<String, Object?>()
+        : null;
     return SettingsScopeSnapshot<T>(
       status: SettingsScopeStatus.ready,
       value: decoded,
-      base: section['base'] is Map ? (section['base'] as Map).cast<String, Object?>() : null,
-      user: section['user'] is Map ? (section['user'] as Map).cast<String, Object?>() : null,
+      base: section['base'] is Map
+          ? (section['base'] as Map).cast<String, Object?>()
+          : null,
+      user: section['user'] is Map
+          ? (section['user'] as Map).cast<String, Object?>()
+          : null,
       revision: section['revision'] is int ? section['revision'] as int : null,
       writable: section['writable'] == true,
       schema: schemaMap,
@@ -206,26 +221,38 @@ class SettingsScope<T> {
 
   /// Sets one scalar field inside the namespace.
   Future<void> set(String field, Object? value) => _write([
-        {'op': 'set', 'path': [field], 'value': value},
-      ]);
+    {
+      'op': 'set',
+      'path': [field],
+      'value': value,
+    },
+  ]);
 
   /// Clears one field back toward its base/default.
   Future<void> unset(String field) => _write([
-        {'op': 'unset', 'path': [field]},
-      ]);
+    {
+      'op': 'unset',
+      'path': [field],
+    },
+  ]);
 
   Future<void> _write(List<Map<String, Object?>> ops) {
     return _enqueue(() async {
       final generation = ++_generation;
       final revision = _pendingRevision ?? _snapshot.revision;
       try {
-        final result = await _face.mutate(ns: _namespace, ops: ops, expectedRevision: revision);
+        final result = await _face.mutate(
+          ns: _namespace,
+          ops: ops,
+          expectedRevision: revision,
+        );
         // A newer queued write supersedes this answer's mirror fold.
         if (generation != _generation || _disposed) return;
         final section = (result['namespace'] ?? result[_namespace]) as Map?;
         if (section != null) {
-          _pendingRevision =
-              section['revision'] is int ? section['revision'] as int : _pendingRevision;
+          _pendingRevision = section['revision'] is int
+              ? section['revision'] as int
+              : _pendingRevision;
           _publish(_derive(section.cast<String, Object?>()));
         } else {
           await refreshFromDescribe();

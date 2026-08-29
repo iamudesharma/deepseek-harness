@@ -12,18 +12,21 @@ import 'package:desktop_drop/desktop_drop.dart' show DropTarget;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-DroppedFile file(String name,
-        {String mime = 'image/png',
-        int size = 10,
-        String? path,
-        Uint8List? bytes}) =>
-    DroppedFile(name: name, mimeType: mime, size: size, path: path, bytes: bytes);
+DroppedFile file(
+  String name, {
+  String mime = 'image/png',
+  int size = 10,
+  String? path,
+  Uint8List? bytes,
+}) => DroppedFile(
+  name: name,
+  mimeType: mime,
+  size: size,
+  path: path,
+  bytes: bytes,
+);
 
-ImageLimits limits({
-  int count = 2,
-  int perFile = 100,
-  int total = 150,
-}) =>
+ImageLimits limits({int count = 2, int perFile = 100, int total = 150}) =>
     ImageLimits(
       mediaTypes: const ['image/png', 'image/jpeg'],
       maxImagesPerMessage: count,
@@ -241,18 +244,21 @@ void main() {
       expect(staged, isEmpty);
     });
 
-    test('total limit includes staged attachments when batch would overflow', () {
-      final staged = [const ComposerAttachment(name: 'a.png', size: 80)];
-      final fresh = <ComposerAttachment>[];
-      final rejected = intakeComposerImages(
-        staged: staged,
-        limits: limits(total: 150),
-        add: fresh.addAll,
-        files: [file('b.png', size: 80)],
-      );
-      expect(rejected, contains('total less than'));
-      expect(fresh, isEmpty);
-    });
+    test(
+      'total limit includes staged attachments when batch would overflow',
+      () {
+        final staged = [const ComposerAttachment(name: 'a.png', size: 80)];
+        final fresh = <ComposerAttachment>[];
+        final rejected = intakeComposerImages(
+          staged: staged,
+          limits: limits(total: 150),
+          add: fresh.addAll,
+          files: [file('b.png', size: 80)],
+        );
+        expect(rejected, contains('total less than'));
+        expect(fresh, isEmpty);
+      },
+    );
 
     test('staged+incoming within total budget stages the batch', () {
       final staged = [const ComposerAttachment(name: 'a.png', size: 80)];
@@ -270,8 +276,18 @@ void main() {
 
   group('ComposerAttachment unified model', () {
     test('create generates unique ids for distinct drops', () {
-      final a = ComposerAttachment.create(name: 'a.png', path: '/tmp/a.png', size: 10, mimeType: 'image/png');
-      final b = ComposerAttachment.create(name: 'a.png', path: '/tmp/a.png', size: 10, mimeType: 'image/png');
+      final a = ComposerAttachment.create(
+        name: 'a.png',
+        path: '/tmp/a.png',
+        size: 10,
+        mimeType: 'image/png',
+      );
+      final b = ComposerAttachment.create(
+        name: 'a.png',
+        path: '/tmp/a.png',
+        size: 10,
+        mimeType: 'image/png',
+      );
       expect(a.id, isNotEmpty);
       expect(b.id, isNotEmpty);
       expect(a.id, isNot(b.id));
@@ -285,39 +301,56 @@ void main() {
     });
 
     test('real attachments dedupe by id even when name/path coincide', () {
-      final a = ComposerAttachment.create(name: 'file.txt', path: '/tmp/file.txt');
-      final b = ComposerAttachment(id: a.id, name: 'file.txt', path: '/tmp/file.txt');
+      final a = ComposerAttachment.create(
+        name: 'file.txt',
+        path: '/tmp/file.txt',
+      );
+      final b = ComposerAttachment(
+        id: a.id,
+        name: 'file.txt',
+        path: '/tmp/file.txt',
+      );
       expect(a, equals(b));
     });
   });
 
   group('DropOverlay', () {
-    Future<void> pump(WidgetTester tester,
-        {required bool disabled, String? limitsText}) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: DropOverlay(disabled: disabled, limitsText: limitsText),
+    Future<void> pump(
+      WidgetTester tester, {
+      required bool disabled,
+      String? limitsText,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DropOverlay(disabled: disabled, limitsText: limitsText),
+          ),
         ),
-      ));
+      );
     }
 
-    testWidgets('enabled state invites the drop and shows limits',
-        (tester) async {
+    testWidgets('enabled state invites the drop and shows limits', (
+      tester,
+    ) async {
       await pump(tester, disabled: false, limitsText: 'Up to 5 images');
       expect(find.text('Drop images to attach'), findsOneWidget);
       expect(find.text('Up to 5 images'), findsOneWidget);
     });
 
-    testWidgets('disabled state names the block and hides limits',
-        (tester) async {
+    testWidgets('disabled state names the block and hides limits', (
+      tester,
+    ) async {
       await pump(tester, disabled: true, limitsText: 'Up to 5 images');
-      expect(find.text('Image uploads are unavailable right now'),
-          findsOneWidget);
+      expect(
+        find.text('Image uploads are unavailable right now'),
+        findsOneWidget,
+      );
       expect(find.text('Up to 5 images'), findsNothing);
     });
 
-    testWidgets('overlay ignores pointers so drags pass through',
-        (tester) async {
+    testWidgets('overlay ignores pointers so drags pass through', (
+      tester,
+    ) async {
       await pump(tester, disabled: false);
       final finder = find.descendant(
         of: find.byType(DropOverlay),
@@ -354,31 +387,35 @@ void main() {
     testWidgets('shows DropTarget when enabled and no modal', (tester) async {
       final controller = DragDropController(onAddImages: (_) => null);
       addTearDown(controller.dispose);
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: DocumentDropScope(
-            controller: controller,
-            onAddImages: (_) => null,
-            child: const Text('content'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DocumentDropScope(
+              controller: controller,
+              onAddImages: (_) => null,
+              child: const Text('content'),
+            ),
           ),
         ),
-      ));
+      );
       expect(find.byType(DropTarget), findsOneWidget);
     });
 
     testWidgets('hides DropTarget when enabled=false', (tester) async {
       final controller = DragDropController(onAddImages: (_) => null);
       addTearDown(controller.dispose);
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: DocumentDropScope(
-            controller: controller,
-            enabled: false,
-            onAddImages: (_) => null,
-            child: const Text('content'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DocumentDropScope(
+              controller: controller,
+              enabled: false,
+              onAddImages: (_) => null,
+              child: const Text('content'),
+            ),
           ),
         ),
-      ));
+      );
       expect(find.byType(DropTarget), findsNothing);
       expect(find.text('content'), findsOneWidget);
     });
@@ -386,15 +423,17 @@ void main() {
     testWidgets('hides DropTarget when modal route is on top', (tester) async {
       final controller = DragDropController(onAddImages: (_) => null);
       addTearDown(controller.dispose);
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: DocumentDropScope(
-            controller: controller,
-            onAddImages: (_) => null,
-            child: const Text('content'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DocumentDropScope(
+              controller: controller,
+              onAddImages: (_) => null,
+              child: const Text('content'),
+            ),
           ),
         ),
-      ));
+      );
       expect(find.byType(DropTarget), findsOneWidget);
       // Push a dialog route — underlying DocumentDropScope's ModalRoute becomes non-current.
       showDialog<void>(

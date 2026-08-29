@@ -9,8 +9,17 @@ ChatUser _currentUser = const ChatUser(id: 'user', firstName: 'You');
 void main() {
   group('harnessMessageToChatMessages', () {
     test('maps user message to plain bubble', () {
-      final msg = const Message(id: 'user-1', role: MessageRole.user, content: 'hi there', time: 1);
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final msg = const Message(
+        id: 'user-1',
+        role: MessageRole.user,
+        content: 'hi there',
+        time: 1,
+      );
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list, hasLength(1));
       expect(list.first.user.id, 'user');
       expect(list.first.text, 'hi there');
@@ -18,8 +27,17 @@ void main() {
     });
 
     test('maps plain assistant text to markdown bubble', () {
-      final msg = const Message(id: 'assistant-1', role: MessageRole.assistant, content: 'Hello **world**', time: 1);
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final msg = const Message(
+        id: 'assistant-1',
+        role: MessageRole.assistant,
+        content: 'Hello **world**',
+        time: 1,
+      );
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list, hasLength(1));
       expect(list.first.user.id, 'ai');
       expect(list.first.isMarkdown, isTrue);
@@ -37,10 +55,17 @@ void main() {
           AssistantBlock.text('final answer'),
         ],
       );
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list, hasLength(2));
       expect(list.first.customProperties!['resultKind'], 'reasoning');
-      expect(list.first.customProperties!['resultData']['text'], 'the thought process');
+      expect(
+        list.first.customProperties!['resultData']['text'],
+        'the thought process',
+      );
       expect(list.last.isMarkdown, isTrue);
       expect(list.last.text, 'final answer');
     });
@@ -54,7 +79,11 @@ void main() {
         streaming: true,
         blocks: [AssistantBlock.reasoning('partial thought')],
       );
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list, hasLength(1));
       expect(list.first.customProperties!['isLoading'], isTrue);
       expect(list.first.text, contains('Thinking'));
@@ -69,10 +98,18 @@ void main() {
         content: '',
         time: 1,
         blocks: [
-          AssistantBlock.toolCall(callId: 'call-1', name: 'read', argsRaw: '{"path":"README.md"}'),
+          AssistantBlock.toolCall(
+            callId: 'call-1',
+            name: 'read',
+            argsRaw: '{"path":"README.md"}',
+          ),
         ],
       );
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list, isEmpty);
     });
 
@@ -88,20 +125,43 @@ void main() {
         failureMessage: 'timeout',
         retryMode: 'normal',
       );
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list, hasLength(1));
       expect(list.first.customProperties!['resultKind'], 'retry');
     });
 
     test('system turn/error becomes rich error bubble', () {
-      final msg = const Message(id: 'err-1', role: MessageRole.system, content: 'Model not supported', time: 1);
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final msg = const Message(
+        id: 'err-1',
+        role: MessageRole.system,
+        content: 'Model not supported',
+        time: 1,
+      );
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list.first.customProperties!['resultKind'], 'error');
     });
 
     test('streaming text bubble carries isStreaming flag for animation', () {
-      final msg = const Message(id: 'assistant-5', role: MessageRole.assistant, content: 'partial…', time: 1, streaming: true);
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final msg = const Message(
+        id: 'assistant-5',
+        role: MessageRole.assistant,
+        content: 'partial…',
+        time: 1,
+        streaming: true,
+      );
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(list.first.customProperties!['isStreaming'], isTrue);
     });
 
@@ -113,7 +173,11 @@ void main() {
         time: 1,
         citations: const [Citation(label: '[1]', url: 'https://example.com')],
       );
-      final list = harnessMessageToChatMessages(msg, aiUser: _aiUser, currentUser: _currentUser);
+      final list = harnessMessageToChatMessages(
+        msg,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect((list.first.customProperties!['citations'] as List).length, 1);
     });
   });
@@ -140,22 +204,56 @@ void main() {
       final controller = ChatMessagesController();
       addTearDown(controller.dispose);
       final msgs = [
-        const Message(id: 'user-1', role: MessageRole.user, content: 'hi', time: 1),
-        const Message(id: 'assistant-1', role: MessageRole.assistant, content: 'hello', time: 2),
+        const Message(
+          id: 'user-1',
+          role: MessageRole.user,
+          content: 'hi',
+          time: 1,
+        ),
+        const Message(
+          id: 'assistant-1',
+          role: MessageRole.assistant,
+          content: 'hello',
+          time: 2,
+        ),
       ];
-      syncMessagesToController(msgs, const [], controller, aiUser: _aiUser, currentUser: _currentUser);
+      syncMessagesToController(
+        msgs,
+        const [],
+        controller,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(controller.messages.length, 2);
 
       // Update in place: change text
       final updated = [
-        const Message(id: 'user-1', role: MessageRole.user, content: 'hi', time: 1),
-        const Message(id: 'assistant-1', role: MessageRole.assistant, content: 'hello world', time: 2),
+        const Message(
+          id: 'user-1',
+          role: MessageRole.user,
+          content: 'hi',
+          time: 1,
+        ),
+        const Message(
+          id: 'assistant-1',
+          role: MessageRole.assistant,
+          content: 'hello world',
+          time: 2,
+        ),
       ];
-      syncMessagesToController(updated, const [], controller, aiUser: _aiUser, currentUser: _currentUser);
+      syncMessagesToController(
+        updated,
+        const [],
+        controller,
+        aiUser: _aiUser,
+        currentUser: _currentUser,
+      );
       expect(controller.messages.length, 2);
       expect(
         controller.messages
-            .firstWhere((m) => (m.customProperties?['id'] as String?) == 'assistant-1')
+            .firstWhere(
+              (m) => (m.customProperties?['id'] as String?) == 'assistant-1',
+            )
             .text,
         contains('world'),
       );

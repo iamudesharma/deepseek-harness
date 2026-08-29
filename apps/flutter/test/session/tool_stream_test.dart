@@ -11,13 +11,12 @@ import 'package:flutter_test/flutter_test.dart';
 Map<String, Object?> _chunkEvent({
   required int seq,
   required Map<String, Object?> chunk,
-}) =>
-    {
-      'type': 'assistant/chunk',
-      'seq': seq,
-      'time': 0,
-      'data': {'turn': 1, 'step': 1, 'chunk': chunk},
-    };
+}) => {
+  'type': 'assistant/chunk',
+  'seq': seq,
+  'time': 0,
+  'data': {'turn': 1, 'step': 1, 'chunk': chunk},
+};
 
 void main() {
   group('decodeAssistantChunk', () {
@@ -34,12 +33,14 @@ void main() {
       expect(tool.name, 'echo');
       expect(tool.argumentsDelta, '{"text":');
 
-      expect(decodeAssistantChunk(const {'type': 'text-delta', 'text': 'hi'}),
-          isA<TextDeltaChunk>());
       expect(
-          decodeAssistantChunk(
-              const {'type': 'reasoning-delta', 'text': 'th'}),
-          isA<ReasoningDeltaChunk>());
+        decodeAssistantChunk(const {'type': 'text-delta', 'text': 'hi'}),
+        isA<TextDeltaChunk>(),
+      );
+      expect(
+        decodeAssistantChunk(const {'type': 'reasoning-delta', 'text': 'th'}),
+        isA<ReasoningDeltaChunk>(),
+      );
     });
 
     test('unknown variants degrade instead of throwing', () {
@@ -52,18 +53,22 @@ void main() {
   group('ToolStreamAccumulator (partial.ts fold semantics)', () {
     test('accumulates callId, name, and argsRaw across fragments', () {
       final acc = ToolStreamAccumulator();
-      acc.fold(decodeAssistantChunk(const {
-        'type': 'tool-call-delta',
-        'index': 0,
-        'id': 'call-1',
-        'name': 'echo',
-        'argumentsDelta': '{"text":',
-      }));
-      acc.fold(decodeAssistantChunk(const {
-        'type': 'tool-call-delta',
-        'index': 0,
-        'argumentsDelta': '"hi"}',
-      }));
+      acc.fold(
+        decodeAssistantChunk(const {
+          'type': 'tool-call-delta',
+          'index': 0,
+          'id': 'call-1',
+          'name': 'echo',
+          'argumentsDelta': '{"text":',
+        }),
+      );
+      acc.fold(
+        decodeAssistantChunk(const {
+          'type': 'tool-call-delta',
+          'index': 0,
+          'argumentsDelta': '"hi"}',
+        }),
+      );
       final partial = acc.snapshot().single;
       // First non-empty id wins; later continuation deltas carry empty ids.
       expect(partial.callId, 'call-1');
@@ -71,24 +76,27 @@ void main() {
       expect(partial.argsRaw, '{"text":"hi"}');
     });
 
-    test('keeps block-level identity per index; non-deltas change nothing',
-        () {
+    test('keeps block-level identity per index; non-deltas change nothing', () {
       final acc = ToolStreamAccumulator();
       acc.fold(const TextDeltaChunk('ignored here'));
       expect(acc.snapshot(), isEmpty);
-      acc.fold(decodeAssistantChunk(const {
-        'type': 'tool-call-delta',
-        'index': 0,
-        'id': 'c1',
-        'argumentsDelta': '{}',
-      }));
-      acc.fold(decodeAssistantChunk(const {
-        'type': 'tool-call-delta',
-        'index': 1,
-        'id': 'c2',
-        'name': 'read',
-        'argumentsDelta': '{"pa',
-      }));
+      acc.fold(
+        decodeAssistantChunk(const {
+          'type': 'tool-call-delta',
+          'index': 0,
+          'id': 'c1',
+          'argumentsDelta': '{}',
+        }),
+      );
+      acc.fold(
+        decodeAssistantChunk(const {
+          'type': 'tool-call-delta',
+          'index': 1,
+          'id': 'c2',
+          'name': 'read',
+          'argumentsDelta': '{"pa',
+        }),
+      );
       final blocks = acc.snapshot();
       expect(blocks.length, 2);
       expect(blocks[0].callId, 'c1');
@@ -102,70 +110,98 @@ void main() {
     test('argument deltas surface on the in-flight assistant node and settle '
         'with its message', () {
       final folder = ConversationNodeFolder();
-      folder.add(SessionEventEnvelope.fromJson(_chunkEvent(
-        seq: 5,
-        chunk: const {
-          'type': 'tool-call-delta',
-          'index': 0,
-          'id': 'call-1',
-          'name': 'bash',
-          'argumentsDelta': '{"comm',
-        },
-      )));
-      folder.add(SessionEventEnvelope.fromJson(_chunkEvent(
-        seq: 6,
-        chunk: const {
-          'type': 'tool-call-delta',
-          'index': 0,
-          'argumentsDelta': 'and":"ls"}',
-        },
-      )));
+      folder.add(
+        SessionEventEnvelope.fromJson(
+          _chunkEvent(
+            seq: 5,
+            chunk: const {
+              'type': 'tool-call-delta',
+              'index': 0,
+              'id': 'call-1',
+              'name': 'bash',
+              'argumentsDelta': '{"comm',
+            },
+          ),
+        ),
+      );
+      folder.add(
+        SessionEventEnvelope.fromJson(
+          _chunkEvent(
+            seq: 6,
+            chunk: const {
+              'type': 'tool-call-delta',
+              'index': 0,
+              'argumentsDelta': 'and":"ls"}',
+            },
+          ),
+        ),
+      );
 
-      final inFlight = folder.snapshot().nodes.whereType<AssistantNode>()
+      final inFlight = folder
+          .snapshot()
+          .nodes
+          .whereType<AssistantNode>()
           .singleWhere((n) => n.key == 'a-turn1-step1');
       expect(inFlight.streaming, isTrue);
       expect(inFlight.partialToolCalls.single.callId, 'call-1');
       expect(inFlight.partialToolCalls.single.name, 'bash');
-      expect(
-          inFlight.partialToolCalls.single.argsRaw, '{"command":"ls"}');
+      expect(inFlight.partialToolCalls.single.argsRaw, '{"command":"ls"}');
 
       // The settled message supersedes the partial projection.
-      folder.add(SessionEventEnvelope.fromJson({
-        'type': 'assistant/message',
-        'seq': 7,
-        'time': 0,
-        'sourceEventSeqs': [5, 6],
-        'data': {
-          'turn': 1,
-          'step': 1,
-          'message': {'role': 'assistant', 'content': []},
-        },
-      }));
-      final settled = folder.snapshot().nodes.whereType<AssistantNode>()
+      folder.add(
+        SessionEventEnvelope.fromJson({
+          'type': 'assistant/message',
+          'seq': 7,
+          'time': 0,
+          'sourceEventSeqs': [5, 6],
+          'data': {
+            'turn': 1,
+            'step': 1,
+            'message': {'role': 'assistant', 'content': []},
+          },
+        }),
+      );
+      final settled = folder
+          .snapshot()
+          .nodes
+          .whereType<AssistantNode>()
           .singleWhere((n) => n.key == 'a-turn1-step1');
       expect(settled.streaming, isFalse);
       expect(settled.partialToolCalls, isEmpty);
     });
 
-    test('reasoning-delta lands in its own buffer, text stays byte-for-byte',
-        () {
-      final folder = ConversationNodeFolder();
-      folder.add(SessionEventEnvelope.fromJson(_chunkEvent(
-        seq: 1,
-        chunk: const {'type': 'text-delta', 'text': 'Hel'},
-      )));
-      folder.add(SessionEventEnvelope.fromJson(_chunkEvent(
-        seq: 2,
-        chunk: const {'type': 'reasoning-delta', 'text': 'why'},
-      )));
+    test(
+      'reasoning-delta lands in its own buffer, text stays byte-for-byte',
+      () {
+        final folder = ConversationNodeFolder();
+        folder.add(
+          SessionEventEnvelope.fromJson(
+            _chunkEvent(
+              seq: 1,
+              chunk: const {'type': 'text-delta', 'text': 'Hel'},
+            ),
+          ),
+        );
+        folder.add(
+          SessionEventEnvelope.fromJson(
+            _chunkEvent(
+              seq: 2,
+              chunk: const {'type': 'reasoning-delta', 'text': 'why'},
+            ),
+          ),
+        );
 
-      final node = folder.snapshot().nodes.whereType<AssistantNode>()
-          .singleWhere((n) => n.key == 'a-turn1-step1');
-      // Reasoning is kept separate for the Think row (React ReasoningRow
-      // parity); it must never leak into the visible text buffer.
-      expect(node.text, 'Hel');
-      expect(node.reasoning, 'why');
-      expect(node.partialToolCalls, isEmpty);
-    });
+        final node = folder
+            .snapshot()
+            .nodes
+            .whereType<AssistantNode>()
+            .singleWhere((n) => n.key == 'a-turn1-step1');
+        // Reasoning is kept separate for the Think row (React ReasoningRow
+        // parity); it must never leak into the visible text buffer.
+        expect(node.text, 'Hel');
+        expect(node.reasoning, 'why');
+        expect(node.partialToolCalls, isEmpty);
+      },
+    );
   });
 }

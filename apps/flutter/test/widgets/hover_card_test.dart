@@ -15,24 +15,26 @@ void main() {
     String? copyText,
     void Function()? onCopy,
   }) async {
-    await tester.pumpWidget(ProviderScope(
-      child: MaterialApp(
-        home: Scaffold(
-          body: Align(
-            alignment: alignment,
-            child: DsHoverCard(
-              trigger: const SizedBox(width: 100, height: 40),
-              content: const Text('hover-card-content'),
-              openDelay: dwell,
-              closeDelay: grace,
-              enabled: enabled,
-              copyText: copyText,
-              onCopy: onCopy,
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: alignment,
+              child: DsHoverCard(
+                trigger: const SizedBox(width: 100, height: 40),
+                content: const Text('hover-card-content'),
+                openDelay: dwell,
+                closeDelay: grace,
+                enabled: enabled,
+                copyText: copyText,
+                onCopy: onCopy,
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pump();
   }
 
@@ -43,7 +45,9 @@ void main() {
   Future<TestGesture> hoverAnchor(WidgetTester tester) async {
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(gesture.removePointer);
-    await gesture.addPointer(location: tester.getCenter(find.byType(DsHoverCard)));
+    await gesture.addPointer(
+      location: tester.getCenter(find.byType(DsHoverCard)),
+    );
     await tester.pump();
     return gesture;
   }
@@ -60,7 +64,9 @@ void main() {
     expect(find.text('hover-card-content'), findsOneWidget);
   });
 
-  testWidgets('leaving the anchor closes after the grace delay', (tester) async {
+  testWidgets('leaving the anchor closes after the grace delay', (
+    tester,
+  ) async {
     await pumpCard(tester);
     final gesture = await hoverAnchor(tester);
     await tester.pump(dwell + const Duration(milliseconds: 50));
@@ -75,8 +81,9 @@ void main() {
     expect(find.text('hover-card-content'), findsNothing);
   });
 
-  testWidgets('the card is reachable: resting on it cancels the grace close',
-      (tester) async {
+  testWidgets('the card is reachable: resting on it cancels the grace close', (
+    tester,
+  ) async {
     await pumpCard(tester);
     final gesture = await hoverAnchor(tester);
     await tester.pump(dwell + const Duration(milliseconds: 50));
@@ -89,8 +96,9 @@ void main() {
     expect(find.text('hover-card-content'), findsOneWidget);
   });
 
-  testWidgets('flips to the left of the anchor near the right viewport edge',
-      (tester) async {
+  testWidgets('flips to the left of the anchor near the right viewport edge', (
+    tester,
+  ) async {
     // Anchor flush against the right edge: targetRight + 8 + cardWidth
     // overflows the viewport, so placement must mirror to the left side.
     await pumpCard(tester, alignment: Alignment.centerRight);
@@ -114,8 +122,9 @@ void main() {
     expect(find.text('hover-card-content'), findsNothing);
   });
 
-  testWidgets('disabling mid-hover closes an open card immediately',
-      (tester) async {
+  testWidgets('disabling mid-hover closes an open card immediately', (
+    tester,
+  ) async {
     await pumpCard(tester);
     await hoverAnchor(tester);
     await tester.pump(dwell + const Duration(milliseconds: 50));

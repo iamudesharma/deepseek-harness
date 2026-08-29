@@ -9,7 +9,12 @@ import 'package:dsh_flutter/src/plugins/tool/tool_presentation_registry.dart';
 import 'package:dsh_flutter/src/plugins/tool/tool_models.dart';
 import 'package:dsh_flutter/src/plugins/tool/ui/keyed_tool_card.dart';
 import 'package:dsh_flutter/src/plugins/tool/ui/tool_call_tree.dart'
-    show BashToolCard, DiffToolCard, GenericToolCard, ReadToolCard, SearchToolCard;
+    show
+        BashToolCard,
+        DiffToolCard,
+        GenericToolCard,
+        ReadToolCard,
+        SearchToolCard;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,8 +27,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 PluginHost _host() {
@@ -33,7 +37,10 @@ PluginHost _host() {
     'conversation',
     ConversationController(
       client: ConnectionClient(baseUrl: ''),
-      settingsScope: SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-theme'),
+      settingsScope: SettingsScope<Object?>(
+        face: _NoopFace(),
+        namespace: 'ui-theme',
+      ),
     ),
   );
   return host;
@@ -48,33 +55,34 @@ SessionEventEnvelope _event(String type, int seq, Map<String, Object?> data) =>
     });
 
 ChatNodeData _dataFor(ConversationNode node) => ChatNodeData(
-      key: node.key,
-      lines: switch (node) {
-        ToolNode(:final callId, :final result) => [callId, ?result],
-        _ => [node.key],
-      },
-      toolName: switch (node) {
-        ToolNode(:final name) => name,
-        _ => null,
-      },
-      raw: switch (node) {
-        ToolNode() => _TestToolAdapter(node),
-        _ => null,
-      },
-    );
+  key: node.key,
+  lines: switch (node) {
+    ToolNode(:final callId, :final result) => [callId, ?result],
+    _ => [node.key],
+  },
+  toolName: switch (node) {
+    ToolNode(:final name) => name,
+    _ => null,
+  },
+  raw: switch (node) {
+    ToolNode() => _TestToolAdapter(node),
+    _ => null,
+  },
+);
 
 class _TestToolAdapter implements ToolNodeAdapter, ToolNodeAdapterWithSubCalls {
   _TestToolAdapter(this.node);
   final ToolNode node;
   @override
-  List<ToolSubCallAdapter> get subCalls => node.subCalls.map((c) => _TestSubCallAdapter(c)).toList();
+  List<ToolSubCallAdapter> get subCalls =>
+      node.subCalls.map((c) => _TestSubCallAdapter(c)).toList();
   @override
   ToolCall toToolCall() {
     final status = node.status == ToolNodeStatus.running
         ? ToolCallStatus.running
         : node.isError
-            ? ToolCallStatus.error
-            : ToolCallStatus.success;
+        ? ToolCallStatus.error
+        : ToolCallStatus.success;
     return ToolCall(
       id: node.callId,
       toolName: node.name,
@@ -98,17 +106,20 @@ class _TestSubCallAdapter implements ToolSubCallAdapter {
   @override
   String? get result => sub.result;
   @override
-  List<ToolSubCallAdapter> get children => sub.children.map(_TestSubCallAdapter.new).toList();
+  List<ToolSubCallAdapter> get children =>
+      sub.children.map(_TestSubCallAdapter.new).toList();
 }
 
 /// Folds a call+result script and returns (settled node, running node).
 (ToolNode, ToolNode) _foldCallAndResult() {
   final folder = ConversationNodeFolder()
     ..add(_event('tool/call', 1, {'callId': 'c1', 'name': 'read'}))
-    ..add(_event('tool/result', 2, {
-      'message': {'callId': 'c1'},
-      'result': 'file body\nline two',
-    }))
+    ..add(
+      _event('tool/result', 2, {
+        'message': {'callId': 'c1'},
+        'result': 'file body\nline two',
+      }),
+    )
     ..add(_event('tool/call', 3, {'callId': 'c2', 'name': 'read'}));
   final nodes = folder.snapshot().nodes.whereType<ToolNode>().toList();
   return (nodes.first, nodes.last);
@@ -122,24 +133,27 @@ void main() {
 
     await host.activateAll();
 
-    final presentations = host.service<ToolPresentationRegistry>('toolPresentation');
+    final presentations = host.service<ToolPresentationRegistry>(
+      'toolPresentation',
+    );
     expect(presentations, isNotNull);
     // React's shipped registrations: bash/read rows, edit/write diff row,
     // grep/glob search row, web_search/web_fetch, todo_write, ask_user_question.
     expect(
-        presentations!.keys,
-        containsAll([
-          'bash',
-          'read',
-          'edit',
-          'write',
-          'grep',
-          'glob',
-          'web_search',
-          'web_fetch',
-          'todo_write',
-          'ask_user_question'
-        ]));
+      presentations!.keys,
+      containsAll([
+        'bash',
+        'read',
+        'edit',
+        'write',
+        'grep',
+        'glob',
+        'web_search',
+        'web_fetch',
+        'todo_write',
+        'ask_user_question',
+      ]),
+    );
     final conversation = host.service<ConversationController>('conversation')!;
     // Single chat-node entry key `tool-call` owns the ToolCallTree dispatch.
     expect(conversation.renderers.resolve('tool-call'), isNotNull);
@@ -154,7 +168,9 @@ void main() {
     host.register(ToolPlugin());
     await host.activateAll();
 
-    final presentations = host.service<ToolPresentationRegistry>('toolPresentation')!;
+    final presentations = host.service<ToolPresentationRegistry>(
+      'toolPresentation',
+    )!;
     final conversation = host.service<ConversationController>('conversation')!;
     // Unknown tool not in shipped set -> generic fallback via tool-call renderer.
     expect(presentations.resolve('mystery_tool_xyz'), isNull);
@@ -173,88 +189,112 @@ void main() {
     );
   });
 
-  testWidgets('folded tool/call+result stream picks the right card per tool name', (tester) async {
-    final host = _host();
-    addTearDown(host.deactivateAll);
-    host.register(ToolPlugin());
-    await host.activateAll();
-    final conversation = host.service<ConversationController>('conversation')!;
-    final (settled, running) = _foldCallAndResult();
+  testWidgets(
+    'folded tool/call+result stream picks the right card per tool name',
+    (tester) async {
+      final host = _host();
+      addTearDown(host.deactivateAll);
+      host.register(ToolPlugin());
+      await host.activateAll();
+      final conversation = host.service<ConversationController>(
+        'conversation',
+      )!;
+      final (settled, running) = _foldCallAndResult();
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Column(children: [
-          Builder(builder: (context) {
-            final renderer = conversation.renderers.resolve('tool-call')!;
-            return renderer(context, _dataFor(settled));
-          }),
-          Builder(builder: (context) {
-            final renderer = conversation.renderers.resolve('tool-call')!;
-            return renderer(context, _dataFor(running));
-          }),
-        ]),
-      ),
-    ));
-
-    // Both rows dispatched through the single tool-call entry; each renders
-    // its tool-specific card via the keyed presentation table.
-    expect(find.byType(KeyedToolCard), findsNWidgets(0));
-    // The new ToolCallTree row is used for tool-call nodes.
-    expect(find.text('read'), findsNWidgets(2));
-
-    // The settled row is expandable and its expanded body IS the read card.
-    // Tap the first row's header to expand.
-    await tester.tap(find.text('read').first);
-    await tester.pumpAndSettle();
-    expect(find.byType(ReadToolCard), findsOneWidget);
-
-    // The running row has no result line, so it stays collapsed.
-    expect(find.byType(ReadToolCard), findsOneWidget);
-  });
-
-  testWidgets('dispatch falls back per key: bash→terminal card, grep→search card, unknown→generic', (tester) async {
-    final host = _host();
-    addTearDown(host.deactivateAll);
-    host.register(ToolPlugin());
-    await host.activateAll();
-    final conversation = host.service<ConversationController>('conversation')!;
-
-    ChatNodeData dataFor(String toolName, String callId) => ChatNodeData(
-          key: 't$callId',
-          lines: [callId, 'out'],
-          toolName: toolName,
-          raw: null,
-        );
-    Widget pump(String toolName, String callId) => MaterialApp(
+      await tester.pumpWidget(
+        MaterialApp(
           home: Scaffold(
-            body: Builder(builder: (context) {
+            body: Column(
+              children: [
+                Builder(
+                  builder: (context) {
+                    final renderer = conversation.renderers.resolve(
+                      'tool-call',
+                    )!;
+                    return renderer(context, _dataFor(settled));
+                  },
+                ),
+                Builder(
+                  builder: (context) {
+                    final renderer = conversation.renderers.resolve(
+                      'tool-call',
+                    )!;
+                    return renderer(context, _dataFor(running));
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Both rows dispatched through the single tool-call entry; each renders
+      // its tool-specific card via the keyed presentation table.
+      expect(find.byType(KeyedToolCard), findsNWidgets(0));
+      // The new ToolCallTree row is used for tool-call nodes.
+      expect(find.text('read'), findsNWidgets(2));
+
+      // The settled row is expandable and its expanded body IS the read card.
+      // Tap the first row's header to expand.
+      await tester.tap(find.text('read').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(ReadToolCard), findsOneWidget);
+
+      // The running row has no result line, so it stays collapsed.
+      expect(find.byType(ReadToolCard), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'dispatch falls back per key: bash→terminal card, grep→search card, unknown→generic',
+    (tester) async {
+      final host = _host();
+      addTearDown(host.deactivateAll);
+      host.register(ToolPlugin());
+      await host.activateAll();
+      final conversation = host.service<ConversationController>(
+        'conversation',
+      )!;
+
+      ChatNodeData dataFor(String toolName, String callId) => ChatNodeData(
+        key: 't$callId',
+        lines: [callId, 'out'],
+        toolName: toolName,
+        raw: null,
+      );
+      Widget pump(String toolName, String callId) => MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
               final renderer = conversation.renderers.resolve('tool-call')!;
               return renderer(context, dataFor(toolName, callId));
-            }),
+            },
           ),
-        );
+        ),
+      );
 
-    await tester.pumpWidget(pump('bash', 'b1'));
-    await tester.tap(find.text('bash').first);
-    await tester.pumpAndSettle();
-    expect(find.byType(BashToolCard), findsOneWidget);
+      await tester.pumpWidget(pump('bash', 'b1'));
+      await tester.tap(find.text('bash').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(BashToolCard), findsOneWidget);
 
-    await tester.pumpWidget(pump('grep', 'g1'));
-    await tester.tap(find.text('grep').first);
-    await tester.pumpAndSettle();
-    expect(find.byType(SearchToolCard), findsOneWidget);
+      await tester.pumpWidget(pump('grep', 'g1'));
+      await tester.tap(find.text('grep').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(SearchToolCard), findsOneWidget);
 
-    await tester.pumpWidget(pump('edit', 'e1'));
-    await tester.tap(find.text('edit').first);
-    await tester.pumpAndSettle();
-    expect(find.byType(DiffToolCard), findsOneWidget);
+      await tester.pumpWidget(pump('edit', 'e1'));
+      await tester.tap(find.text('edit').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(DiffToolCard), findsOneWidget);
 
-    // An unclaimed name lands on the generic fallback via the tool-call renderer.
-    await tester.pumpWidget(pump('mystery_tool_xyz', 't9'));
-    await tester.tap(find.text('mystery_tool_xyz').first);
-    await tester.pumpAndSettle();
-    expect(find.byType(GenericToolCard), findsOneWidget);
-  });
+      // An unclaimed name lands on the generic fallback via the tool-call renderer.
+      await tester.pumpWidget(pump('mystery_tool_xyz', 't9'));
+      await tester.tap(find.text('mystery_tool_xyz').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(GenericToolCard), findsOneWidget);
+    },
+  );
 
   test('live ToolCallNode resolves to chat-node renderer tool-call and produces visible content', () async {
     final host = _host();
@@ -263,9 +303,14 @@ void main() {
     await host.activateAll();
     final conversation = host.service<ConversationController>('conversation')!;
     final renderer = conversation.renderers.resolve('tool-call');
-    expect(renderer, isNotNull, reason: 'tool-call renderer must be registered');
+    expect(
+      renderer,
+      isNotNull,
+      reason: 'tool-call renderer must be registered',
+    );
     // Simulate a live ToolNode folded from tool/call.
-    final folder = ConversationNodeFolder()..add(_event('tool/call', 1, {'callId': 'live-1', 'name': 'bash'}));
+    final folder = ConversationNodeFolder()
+      ..add(_event('tool/call', 1, {'callId': 'live-1', 'name': 'bash'}));
     final node = folder.snapshot().nodes.whereType<ToolNode>().single;
     final data = _dataFor(node);
     expect(data.toolName, 'bash');

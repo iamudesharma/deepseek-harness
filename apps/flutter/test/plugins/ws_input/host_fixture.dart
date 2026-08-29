@@ -20,8 +20,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 /// One recorded `respond` call (the answerable-frame carrier).
@@ -63,7 +62,9 @@ class WsInputRecordingClient extends ConnectionClient {
 
   @override
   Future<Map<String, dynamic>> callMethod(
-      String method, Map<String, dynamic> payload) async {
+    String method,
+    Map<String, dynamic> payload,
+  ) async {
     calls.add((method, payload));
     final failure = failNext;
     if (failure != null) throw Exception('$method: $failure');
@@ -97,20 +98,23 @@ Map<String, dynamic> questionRequestedFrame({
   required String sessionId,
   required String rpcId,
   required List<Map<String, Object?>> questions,
-}) =>
-    {'type': 'question/requested', 'rpcId': rpcId, 'sessionId': sessionId, 'questions': questions};
+}) => {
+  'type': 'question/requested',
+  'rpcId': rpcId,
+  'sessionId': sessionId,
+  'questions': questions,
+};
 
 Map<String, dynamic> questionResolvedFrame({
   required String sessionId,
   required String rpcId,
   required String outcome,
-}) =>
-    {
-      'type': 'question/resolved',
-      'sessionId': sessionId,
-      'questionRpcId': rpcId,
-      'outcome': outcome,
-    };
+}) => {
+  'type': 'question/resolved',
+  'sessionId': sessionId,
+  'questionRpcId': rpcId,
+  'outcome': outcome,
+};
 
 /// One AskUserQuestionItem wire row.
 Map<String, Object?> askItem({
@@ -119,17 +123,13 @@ Map<String, Object?> askItem({
   String? detail,
   List<Map<String, Object?>> options = const [],
   bool multiSelect = false,
-}) =>
-    {
-      'id': id,
-      'question': question,
-      if (detail != null) 'detail': detail,
-      if (options.isNotEmpty)
-        'options': [
-          for (final o in options) o,
-        ],
-      if (multiSelect) 'multiSelect': true,
-    };
+}) => {
+  'id': id,
+  'question': question,
+  if (detail != null) 'detail': detail,
+  if (options.isNotEmpty) 'options': [for (final o in options) o],
+  if (multiSelect) 'multiSelect': true,
+};
 
 /// Decodes a candidate's opaque payload for assertions.
 Map<String, dynamic>? decodeCandidateValue(String? raw) {
@@ -149,8 +149,14 @@ PluginHost wsInputHost({WsInputRecordingClient? client}) {
   host.provide('sessions', SessionsService(c));
   host.provide('locale', LocaleService());
   host.provide('remote', RemoteEventBus());
-  final scope = SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-conversation');
-  host.provide('conversation', ConversationController(client: c, settingsScope: scope));
+  final scope = SettingsScope<Object?>(
+    face: _NoopFace(),
+    namespace: 'ui-conversation',
+  );
+  host.provide(
+    'conversation',
+    ConversationController(client: c, settingsScope: scope),
+  );
   declareComposerHoles(host);
   return host;
 }
@@ -162,17 +168,24 @@ void declareComposerHoles(PluginHost host) {
     const RegistrationOptions(
       name: 'root',
       children: {
-        'conversation.input.left':
-            SlotSpec(kind: SlotKind.list, scope: SlotScope.session),
-        'conversation.input.right':
-            SlotSpec(kind: SlotKind.list, scope: SlotScope.session),
+        'conversation.input.left': SlotSpec(
+          kind: SlotKind.list,
+          scope: SlotScope.session,
+        ),
+        'conversation.input.right': SlotSpec(
+          kind: SlotKind.list,
+          scope: SlotScope.session,
+        ),
       },
     ),
     (context, props) => const SizedBox.shrink(),
   );
 }
 
-Future<void> pumpUntil(bool Function() test, {Duration limit = const Duration(seconds: 2)}) async {
+Future<void> pumpUntil(
+  bool Function() test, {
+  Duration limit = const Duration(seconds: 2),
+}) async {
   final end = DateTime.now().add(limit);
   while (!test()) {
     if (DateTime.now().isAfter(end)) {

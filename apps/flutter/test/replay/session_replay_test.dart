@@ -14,7 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// tagged with its logical stream.
 List<({String stream, Object frame})> loadRecordedStream() {
   const fixturePath = 'test/fixtures/session-stream.jsonl';
-  final lines = File(fixturePath).readAsLinesSync().where((l) => l.trim().isNotEmpty);
+  final lines = File(fixturePath)
+      .readAsLinesSync()
+      .where((l) => l.trim().isNotEmpty);
   return [
     for (final line in lines)
       () {
@@ -57,101 +59,145 @@ void main() {
 
   group('streaming discipline', () {
     SessionEventFrame chunkFrame(int seq) => SessionEventFrame(
-          sessionId: const SessionId('s-9'),
-          event: {
-            'type': 'assistant/chunk',
-            'seq': seq,
-            'time': 0,
-            'data': {'turn': 2, 'step': 1, 'chunk': {'text': 'x'}},
-          },
-        );
+      sessionId: const SessionId('s-9'),
+      event: {
+        'type': 'assistant/chunk',
+        'seq': seq,
+        'time': 0,
+        'data': {
+          'turn': 2,
+          'step': 1,
+          'chunk': {'text': 'x'},
+        },
+      },
+    );
 
-    test('partial → cumulative → completed: chunks coalesce into the settled node', () {
-      final folder = TranscriptFolder()
-        ..add(chunkFrame(1))
-        ..add(chunkFrame(2))
-        ..add(SessionEventFrame(
-          sessionId: const SessionId('s-9'),
-          event: {
-            'type': 'assistant/message',
-            'seq': 3,
-            'time': 0,
-            'data': {'turn': 2, 'step': 1, 'message': {'role': 'assistant'}},
-          },
-        ));
+    test(
+      'partial → cumulative → completed: chunks coalesce into the settled node',
+      () {
+        final folder = TranscriptFolder()
+          ..add(chunkFrame(1))
+          ..add(chunkFrame(2))
+          ..add(
+            SessionEventFrame(
+              sessionId: const SessionId('s-9'),
+              event: {
+                'type': 'assistant/message',
+                'seq': 3,
+                'time': 0,
+                'data': {
+                  'turn': 2,
+                  'step': 1,
+                  'message': {'role': 'assistant'},
+                },
+              },
+            ),
+          );
 
-      // No per-chunk lines: in-flight state stays out of the transcript until
-      // the settled message lands, which reports the coalesced count.
-      expect(folder.length, 1);
-      expect(folder.snapshot(), contains('chunks=2'));
-    });
+        // No per-chunk lines: in-flight state stays out of the transcript until
+        // the settled message lands, which reports the coalesced count.
+        expect(folder.length, 1);
+        expect(folder.snapshot(), contains('chunks=2'));
+      },
+    );
 
     test('a chunk arriving after its step settled is a loud violation', () {
       final folder = TranscriptFolder()..add(chunkFrame(1));
-      folder.add(SessionEventFrame(
-        sessionId: const SessionId('s-9'),
-        event: {
-          'type': 'assistant/message',
-          'seq': 2,
-          'time': 0,
-          'data': {'turn': 2, 'step': 1, 'message': {}},
-        },
-      ));
-      expect(() => folder.add(chunkFrame(3)),
-          throwsA(predicate((e) => e is StateError && e.message.contains('settled'))));
+      folder.add(
+        SessionEventFrame(
+          sessionId: const SessionId('s-9'),
+          event: {
+            'type': 'assistant/message',
+            'seq': 2,
+            'time': 0,
+            'data': {'turn': 2, 'step': 1, 'message': {}},
+          },
+        ),
+      );
+      expect(
+        () => folder.add(chunkFrame(3)),
+        throwsA(
+          predicate((e) => e is StateError && e.message.contains('settled')),
+        ),
+      );
     });
 
     test('required-unknown events refuse; ignorable unknowns skip', () {
       final folder = TranscriptFolder();
       expect(
-        () => folder.add(SessionEventFrame(
-          sessionId: const SessionId('s-9'),
-          event: {'type': 'agent-team/journal', 'seq': 1, 'time': 0, 'data': {}},
-        )),
-        throwsA(predicate((e) => e is StateError && e.message.contains('refusing reconstruction'))),
+        () => folder.add(
+          SessionEventFrame(
+            sessionId: const SessionId('s-9'),
+            event: {
+              'type': 'agent-team/journal',
+              'seq': 1,
+              'time': 0,
+              'data': {},
+            },
+          ),
+        ),
+        throwsA(
+          predicate(
+            (e) =>
+                e is StateError &&
+                e.message.contains('refusing reconstruction'),
+          ),
+        ),
       );
 
-      folder.add(SessionEventFrame(
-        sessionId: const SessionId('s-9'),
-        event: {'type': 'plugin/heartbeat', 'seq': 2, 'time': 0, 'data': {}, 'ignorable': true},
-      ));
+      folder.add(
+        SessionEventFrame(
+          sessionId: const SessionId('s-9'),
+          event: {
+            'type': 'plugin/heartbeat',
+            'seq': 2,
+            'time': 0,
+            'data': {},
+            'ignorable': true,
+          },
+        ),
+      );
       expect(folder.snapshot(), contains('ignorable-skip'));
     });
   });
 
-  testWidgets('recorded stream renders through host → slots → outlet as a stable snapshot',
-      (tester) async {
-    final folder = TranscriptFolder()..forEachRecorded(recorded);
-    final host = buildReplayHost(folder);
-    await host.activateAll();
+  testWidgets(
+    'recorded stream renders through host → slots → outlet as a stable snapshot',
+    (tester) async {
+      final folder = TranscriptFolder()..forEachRecorded(recorded);
+      final host = buildReplayHost(folder);
+      await host.activateAll();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SlotVersionBuilder(
-            registry: host.slots,
-            builder: (context, version) =>
-                SlotOutlet(registry: host.slots, slotKey: 'replay.transcript'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SlotVersionBuilder(
+              registry: host.slots,
+              builder: (context, version) => SlotOutlet(
+                registry: host.slots,
+                slotKey: 'replay.transcript',
+              ),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    final rendered = tester
-        .widgetList<Text>(find.byType(Text))
-        .map((t) => t.data)
-        .whereType<String>()
-        .toList();
+      final rendered = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data)
+          .whereType<String>()
+          .toList();
 
-    // Byte-stable transcript snapshot — change here means a contract or fold
-    // change, never formatting drift.
-    expect(rendered.join('\n'), kExpectedTranscriptSnapshot);
+      // Byte-stable transcript snapshot — change here means a contract or fold
+      // change, never formatting drift.
+      expect(rendered.join('\n'), kExpectedTranscriptSnapshot);
 
-    host.deactivateAll();
-    await tester.pump();
-    expect(find.byType(Text), findsNothing);
-  });
+      host.deactivateAll();
+      await tester.pump();
+      expect(find.byType(Text), findsNothing);
+    },
+  );
 }
 
 extension on TranscriptFolder {

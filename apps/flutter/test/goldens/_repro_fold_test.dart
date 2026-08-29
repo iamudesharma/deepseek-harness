@@ -16,7 +16,9 @@ void main() {
     for (final line in lines) {
       final wire = jsonDecode(line) as Map<String, dynamic>;
       if (wire['stream'] != 'mux') continue;
-      final frame = MuxFrame.fromJson((wire['frame'] as Map).cast<String, Object?>());
+      final frame = MuxFrame.fromJson(
+        (wire['frame'] as Map).cast<String, Object?>(),
+      );
       if (frame is! SessionEventFrame) continue;
       final ev = frame.event;
       if (ev['type'] == 'assistant/chunk') {

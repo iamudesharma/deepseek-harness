@@ -31,16 +31,25 @@ void main() {
 
     test('every inspected alias resolves in both modes', () {
       for (final entry in inspected.entries) {
-        expect(() => entry.value(light), returnsNormally,
-            reason: 'missing light alias ${entry.key}');
-        expect(() => entry.value(dark), returnsNormally,
-            reason: 'missing dark alias ${entry.key}');
+        expect(
+          () => entry.value(light),
+          returnsNormally,
+          reason: 'missing light alias ${entry.key}',
+        );
+        expect(
+          () => entry.value(dark),
+          returnsNormally,
+          reason: 'missing dark alias ${entry.key}',
+        );
       }
     });
 
     test('scheme-dependent aliases differ across modes', () {
       expect(inspected['bg-base']!(light), isNot(inspected['bg-base']!(dark)));
-      expect(inspected['label-primary']!(light), isNot(inspected['label-primary']!(dark)));
+      expect(
+        inspected['label-primary']!(light),
+        isNot(inspected['label-primary']!(dark)),
+      );
     });
 
     test('sidebar specific token exists in both modes', () {
@@ -53,17 +62,25 @@ void main() {
     // Component-local ports of React literals are exempt when they cite their
     // source; the palette itself stays centralized in dsw_tokens.dart.
     const exemptions = {
-      'lib/src/routing/app_router.dart':
-          'hero glow ellipse ported from ui-conversation EmptyHero.tsx (#6187D8 @ 8%)',
+      'lib/src/routing/app_router.dart': 'hero glow ellipse ported from ui-conversation EmptyHero.tsx (#6187D8 @ 8%)',
     };
     final offenders = <String>[];
-    for (final dir in ['lib/src/features', 'lib/src/widgets', 'lib/src/core', 'lib/src/routing']) {
-      Directory(dir).listSync(recursive: true).whereType<File>().forEach((file) {
-        final rel = file.path;
-        if (!file.path.endsWith('.dart')) return;
-        if (exemptions.containsKey(rel)) return;
-        if (file.readAsStringSync().contains('Color(0x')) offenders.add(file.path);
-      });
+    for (final dir in [
+      'lib/src/features',
+      'lib/src/widgets',
+      'lib/src/core',
+      'lib/src/routing',
+    ]) {
+      Directory(dir)
+          .listSync(recursive: true)
+          .whereType<File>()
+          .forEach((file) {
+            final rel = file.path;
+            if (!file.path.endsWith('.dart')) return;
+            if (exemptions.containsKey(rel)) return;
+            if (file.readAsStringSync().contains('Color(0x'))
+              offenders.add(file.path);
+          });
     }
     expect(offenders, isEmpty);
   });

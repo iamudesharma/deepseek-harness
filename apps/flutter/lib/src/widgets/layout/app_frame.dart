@@ -94,23 +94,29 @@ class _DragHandleState extends State<DragHandle> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Positioned.fill(
-              child: Container(color: DswTokens.transparent),
-            ),
+            Positioned.fill(child: Container(color: DswTokens.transparent)),
             if (widget.side == 'details')
               Center(
                 child: AnimatedOpacity(
-                  duration: _dragging ? Duration.zero : DswTokens.transitionDurationSlow,
+                  duration: _dragging
+                      ? Duration.zero
+                      : DswTokens.transitionDurationSlow,
                   opacity: (_hovered || _dragging) ? 1 : 0,
                   child: Container(
                     width: 12,
                     height: 32,
                     decoration: BoxDecoration(
                       color: _hovered || _dragging
-                          ? Theme.of(context).extension<DswThemeExtension>()?.aliases.buttonFloatingHover ??
-                              DswTokens.neutralBluish00
-                          : Theme.of(context).extension<DswThemeExtension>()?.aliases.buttonFloatingFill ??
-                              DswTokens.neutralBluish00,
+                          ? Theme.of(context)
+                                    .extension<DswThemeExtension>()
+                                    ?.aliases
+                                    .buttonFloatingHover ??
+                                DswTokens.neutralBluish00
+                          : Theme.of(context)
+                                    .extension<DswThemeExtension>()
+                                    ?.aliases
+                                    .buttonFloatingFill ??
+                                DswTokens.neutralBluish00,
                       borderRadius: BorderRadius.circular(DswTokens.radiusSm),
                       border: Border.all(
                         color: Theme.of(context).dividerColor,
@@ -193,7 +199,11 @@ class _AppFrameState extends ConsumerState<AppFrame> {
   bool _dragging = false;
   double _sidebarBase = 0;
   double _detailsBase = 0;
-  col.Columns _colsRef = const col.Columns(sidebar: col.kSidebarCollapsed, center: 0, details: 0);
+  col.Columns _colsRef = const col.Columns(
+    sidebar: col.kSidebarCollapsed,
+    center: 0,
+    details: 0,
+  );
   double _lastWideWidth = col.kSidebarDefault;
   bool _settled = true;
   bool? _prevCollapsed;
@@ -229,7 +239,8 @@ class _AppFrameState extends ConsumerState<AppFrame> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double viewport = constraints.maxWidth.isFinite && constraints.maxWidth > 0
+        final double viewport =
+            constraints.maxWidth.isFinite && constraints.maxWidth > 0
             ? constraints.maxWidth
             : MediaQuery.sizeOf(context).width;
 
@@ -240,7 +251,9 @@ class _AppFrameState extends ConsumerState<AppFrame> {
           });
         }
 
-        final bool sidebarCollapsed = narrow ? !layout.narrowExpanded : layout.sidebar == 0;
+        final bool sidebarCollapsed = narrow
+            ? !layout.narrowExpanded
+            : layout.sidebar == 0;
         // Settle handling mirrors SidebarRoot.tsx: wide stays mounted while collapse animates (150ms fade).
         if (_prevCollapsed != sidebarCollapsed) {
           if (sidebarCollapsed) {
@@ -257,21 +270,24 @@ class _AppFrameState extends ConsumerState<AppFrame> {
         final double sidebarPreference = sidebarCollapsed
             ? 0
             : layout.sidebar == 0
-                ? col.kSidebarDefault
-                : layout.sidebar;
+            ? col.kSidebarDefault
+            : layout.sidebar;
 
         final double detailsPreference = layout.details;
 
-        final col.Columns cols = col.computeColumns(viewport, sidebarPreference, detailsPreference);
+        final col.Columns cols = col.computeColumns(
+          viewport,
+          sidebarPreference,
+          detailsPreference,
+        );
         _colsRef = cols;
         // Freeze last wide width while fading — sliding column clips it instead of reflowing.
         if (!sidebarCollapsed) _lastWideWidth = cols.sidebar;
 
         final bool detailsCollapsed = cols.details == 0;
-        final Duration animDuration =
-            _dragging || prefersReducedMotion(context)
-                ? Duration.zero
-                : DswTokens.transitionDurationSlow;
+        final Duration animDuration = _dragging || prefersReducedMotion(context)
+            ? Duration.zero
+            : DswTokens.transitionDurationSlow;
         const Curve animCurve = DswTokens.easeInOut;
 
         void onSidebarStart() {
@@ -297,15 +313,20 @@ class _AppFrameState extends ConsumerState<AppFrame> {
           // Persist layout widths for window restore (SharedPreferences;
           // window_manager minSize is set once in initWindow).
           final current = ref.read(layoutProvider);
-          persistLayoutWidths(sidebar: current.sidebar, details: current.details);
+          persistLayoutWidths(
+            sidebar: current.sidebar,
+            details: current.details,
+          );
         }
 
-        final Widget centerChild = widget.navigationShell ??
+        final Widget centerChild =
+            widget.navigationShell ??
             widget.conversation ??
             widget.child ??
             const _PlaceholderConversation();
 
-        final Widget sidebarChild = widget.sidebar ?? const _PlaceholderSidebar();
+        final Widget sidebarChild =
+            widget.sidebar ?? const _PlaceholderSidebar();
         final Widget detailsChild = widget.details ?? const SizedBox.shrink();
         final Widget? overlayChild = widget.overlay;
         final Widget? conversationLayer = widget.conversationLayer;
@@ -324,7 +345,10 @@ class _AppFrameState extends ConsumerState<AppFrame> {
                     width: cols.sidebar,
                     clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).extension<DswThemeExtension>()?.aliases.specificSidebarFill,
+                      color: Theme.of(context)
+                          .extension<DswThemeExtension>()
+                          ?.aliases
+                          .specificSidebarFill,
                       border: Border(
                         right: BorderSide(
                           color: Theme.of(context).dividerColor,
@@ -333,12 +357,16 @@ class _AppFrameState extends ConsumerState<AppFrame> {
                       ),
                     ),
                     child: SizedBox(
-                      width: sidebarCollapsed && !_settled ? _lastWideWidth : cols.sidebar,
+                      width: sidebarCollapsed && !_settled
+                          ? _lastWideWidth
+                          : cols.sidebar,
                       child: prefersReducedMotion(context)
                           ? sidebarChild
                           : AnimatedOpacity(
                               opacity: sidebarCollapsed && !_settled ? 0 : 1,
-                              duration: sidebarCollapsed && !_settled ? _collapseSettle : DswTokens.transitionDurationSlow,
+                              duration: sidebarCollapsed && !_settled
+                                  ? _collapseSettle
+                                  : DswTokens.transitionDurationSlow,
                               child: sidebarChild,
                             ),
                     ),
@@ -389,10 +417,7 @@ class _AppFrameState extends ConsumerState<AppFrame> {
               ),
               if (overlayChild != null)
                 Positioned.fill(
-                  child: IgnorePointer(
-                    ignoring: false,
-                    child: overlayChild,
-                  ),
+                  child: IgnorePointer(ignoring: false, child: overlayChild),
                 ),
               if (!sidebarCollapsed)
                 AnimatedPositioned(

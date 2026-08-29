@@ -73,8 +73,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 /// Host carrying every service the WS-Surfaces plugins declare, so
@@ -102,12 +101,18 @@ void declareSurfaceHoles(PluginHost host) {
     const RegistrationOptions(
       name: 'root',
       children: {
-        'conversation.hero.brand.mark':
-            SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
-        'conversation.hero.workspace':
-            SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
-        'conversation.input.model':
-            SlotSpec(kind: SlotKind.single, scope: SlotScope.session),
+        'conversation.hero.brand.mark': SlotSpec(
+          kind: SlotKind.single,
+          scope: SlotScope.root,
+        ),
+        'conversation.hero.workspace': SlotSpec(
+          kind: SlotKind.single,
+          scope: SlotScope.root,
+        ),
+        'conversation.input.model': SlotSpec(
+          kind: SlotKind.single,
+          scope: SlotScope.session,
+        ),
       },
     ),
     (context, props) => const SizedBox.shrink(),
@@ -116,18 +121,18 @@ void declareSurfaceHoles(PluginHost host) {
 
 /// All eleven WS-Surfaces plugins in registration order.
 List<DshPlugin> wsSurfacePlugins() => [
-      const BrandOfficialPlugin(),
-      const WorkspacePlugin(),
-      const ModelSelectionPlugin(),
-      const PermissionPresetsPlugin(),
-      const AttachmentPlugin(),
-      const BrowseDirectoryPickerPlugin(),
-      const NativeDirectoryPickerPlugin(),
-      const GeneralSettingsPlugin(),
-      const ModelsSettingsPlugin(),
-      const PluginsSettingsPlugin(),
-      const PluginInventoryPlugin(),
-    ];
+  const BrandOfficialPlugin(),
+  const WorkspacePlugin(),
+  const ModelSelectionPlugin(),
+  const PermissionPresetsPlugin(),
+  const AttachmentPlugin(),
+  const BrowseDirectoryPickerPlugin(),
+  const NativeDirectoryPickerPlugin(),
+  const GeneralSettingsPlugin(),
+  const ModelsSettingsPlugin(),
+  const PluginsSettingsPlugin(),
+  const PluginInventoryPlugin(),
+];
 
 /// Service names the suite asserts after activation.
 const surfaceServices = [

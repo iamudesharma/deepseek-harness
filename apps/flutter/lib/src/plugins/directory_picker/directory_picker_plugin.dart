@@ -56,7 +56,9 @@ class BrowseDirectoryPickerPlugin extends DshPlugin {
 
   @override
   Future<void> apply(DshContext ctx) async {
-    final WorkspacesService workspaces = ctx.require<WorkspacesService>('workspaces');
+    final WorkspacesService workspaces = ctx.require<WorkspacesService>(
+      'workspaces',
+    );
     final LocaleService locale = ctx.require<LocaleService>('locale');
     final BrowseDirectoryPicker picker = BrowseDirectoryPicker(workspaces);
     ctx.provide(kBrowsePickerServiceName, picker);
@@ -69,7 +71,12 @@ class BrowseDirectoryPickerPlugin extends DshPlugin {
     // squats the namespace's other locale.
     final List<void Function()> localeDisposers = [];
     try {
-      localeDisposers.add(locale.register(kDirectoryBrowserLocaleNs, {'zh': kDirectoryBrowserZh, 'en': kDirectoryBrowserEn}));
+      localeDisposers.add(
+        locale.register(kDirectoryBrowserLocaleNs, {
+          'zh': kDirectoryBrowserZh,
+          'en': kDirectoryBrowserEn,
+        }),
+      );
     } catch (e) {
       for (final d in localeDisposers.reversed) {
         d();
@@ -84,7 +91,8 @@ class BrowseDirectoryPickerPlugin extends DshPlugin {
 
     // Injected browse face — closed over workspaces + locale bind, so the
     // occupant's `t` follows locale changes via the stable bind function.
-    BrowseFlowInjected injected() => browseInjectedFrom(workspaces, locale.bind(kDirectoryBrowserLocaleNs));
+    BrowseFlowInjected injected() =>
+        browseInjectedFrom(workspaces, locale.bind(kDirectoryBrowserLocaleNs));
 
     // Only the web composition mounts the browse occupant — the native
     // composition owns the same single holes on desktop. Registering both at
@@ -98,36 +106,54 @@ class BrowseDirectoryPickerPlugin extends DshPlugin {
       return;
     }
 
-    final stopHero = ctx.slots.inject('conversation.hero.workspace.directoryFlow', () {
-      final inj = injected();
-      return [
-        ctx.slots.register(
-          RegistrationOptions(
-            name: 'conversation.hero.workspace.directoryFlow',
-            registrant: kBrowsePickerPluginId,
+    final stopHero = ctx.slots.inject(
+      'conversation.hero.workspace.directoryFlow',
+      () {
+        final inj = injected();
+        return [
+          ctx.slots.register(
+            RegistrationOptions(
+              name: 'conversation.hero.workspace.directoryFlow',
+              registrant: kBrowsePickerPluginId,
+            ),
+            (context, props) => BrowseDirectoryFlow(
+              owner: DirectoryFlowOwnerProps(
+                open: false,
+                busy: false,
+                onPicked: (_) {},
+                onCancel: () {},
+                onError: (_) {},
+              ),
+              injected: inj,
+            ),
           ),
-          (context, props) => BrowseDirectoryFlow(
-            owner: DirectoryFlowOwnerProps(open: false, busy: false, onPicked: (_) {}, onCancel: () {}, onError: (_) {}),
-            injected: inj,
+        ];
+      },
+    );
+    final stopSidebar = ctx.slots.inject(
+      'sidebar.workspaces.directoryFlow',
+      () {
+        final inj = injected();
+        return [
+          ctx.slots.register(
+            RegistrationOptions(
+              name: 'sidebar.workspaces.directoryFlow',
+              registrant: kBrowsePickerPluginId,
+            ),
+            (context, props) => BrowseDirectoryFlow(
+              owner: DirectoryFlowOwnerProps(
+                open: false,
+                busy: false,
+                onPicked: (_) {},
+                onCancel: () {},
+                onError: (_) {},
+              ),
+              injected: inj,
+            ),
           ),
-        ),
-      ];
-    });
-    final stopSidebar = ctx.slots.inject('sidebar.workspaces.directoryFlow', () {
-      final inj = injected();
-      return [
-        ctx.slots.register(
-          RegistrationOptions(
-            name: 'sidebar.workspaces.directoryFlow',
-            registrant: kBrowsePickerPluginId,
-          ),
-          (context, props) => BrowseDirectoryFlow(
-            owner: DirectoryFlowOwnerProps(open: false, busy: false, onPicked: (_) {}, onCancel: () {}, onError: (_) {}),
-            injected: inj,
-          ),
-        ),
-      ];
-    });
+        ];
+      },
+    );
     ctx.onDispose(() {
       stopHero();
       stopSidebar();
@@ -148,49 +174,70 @@ class NativeDirectoryPickerPlugin extends DshPlugin {
 
   @override
   Future<void> apply(DshContext ctx) async {
-    final WorkspacesService workspaces = ctx.require<WorkspacesService>('workspaces');
+    final WorkspacesService workspaces = ctx.require<WorkspacesService>(
+      'workspaces',
+    );
     final NativeDirectoryPicker picker = NativeDirectoryPicker(workspaces);
     ctx.provide(kNativePickerServiceName, picker);
     bindActivatedPickDirectory(picker);
     ctx.onDispose(() => bindActivatedPickDirectory(null));
 
-    NativeFlowInjected injected() => NativeFlowInjected(pick: () => workspaces.pickDirectory());
+    NativeFlowInjected injected() =>
+        NativeFlowInjected(pick: () => workspaces.pickDirectory());
 
     if (kIsWeb) {
       // Browse owns the holes on web — native leaves them.
       return;
     }
 
-    final stopHero = ctx.slots.inject('conversation.hero.workspace.directoryFlow', () {
-      final inj = injected();
-      return [
-        ctx.slots.register(
-          RegistrationOptions(
-            name: 'conversation.hero.workspace.directoryFlow',
-            registrant: kNativePickerPluginId,
+    final stopHero = ctx.slots.inject(
+      'conversation.hero.workspace.directoryFlow',
+      () {
+        final inj = injected();
+        return [
+          ctx.slots.register(
+            RegistrationOptions(
+              name: 'conversation.hero.workspace.directoryFlow',
+              registrant: kNativePickerPluginId,
+            ),
+            (context, props) => NativeDirectoryFlow(
+              owner: DirectoryFlowOwnerProps(
+                open: false,
+                busy: false,
+                onPicked: (_) {},
+                onCancel: () {},
+                onError: (_) {},
+              ),
+              injected: inj,
+            ),
           ),
-          (context, props) => NativeDirectoryFlow(
-            owner: DirectoryFlowOwnerProps(open: false, busy: false, onPicked: (_) {}, onCancel: () {}, onError: (_) {}),
-            injected: inj,
+        ];
+      },
+    );
+    final stopSidebar = ctx.slots.inject(
+      'sidebar.workspaces.directoryFlow',
+      () {
+        final inj = injected();
+        return [
+          ctx.slots.register(
+            RegistrationOptions(
+              name: 'sidebar.workspaces.directoryFlow',
+              registrant: kNativePickerPluginId,
+            ),
+            (context, props) => NativeDirectoryFlow(
+              owner: DirectoryFlowOwnerProps(
+                open: false,
+                busy: false,
+                onPicked: (_) {},
+                onCancel: () {},
+                onError: (_) {},
+              ),
+              injected: inj,
+            ),
           ),
-        ),
-      ];
-    });
-    final stopSidebar = ctx.slots.inject('sidebar.workspaces.directoryFlow', () {
-      final inj = injected();
-      return [
-        ctx.slots.register(
-          RegistrationOptions(
-            name: 'sidebar.workspaces.directoryFlow',
-            registrant: kNativePickerPluginId,
-          ),
-          (context, props) => NativeDirectoryFlow(
-            owner: DirectoryFlowOwnerProps(open: false, busy: false, onPicked: (_) {}, onCancel: () {}, onError: (_) {}),
-            injected: inj,
-          ),
-        ),
-      ];
-    });
+        ];
+      },
+    );
     ctx.onDispose(() {
       stopHero();
       stopSidebar();

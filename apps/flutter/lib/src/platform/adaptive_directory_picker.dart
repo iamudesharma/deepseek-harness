@@ -103,13 +103,12 @@ class MacDirectoryPicker implements PlatformDirectoryPicker {
 ///   child: MyApp(),
 /// )
 /// ```
-final platformDirectoryPickerProvider = Provider<PlatformDirectoryPicker>(
-  (ref) {
-    if (kIsWeb) return const WebDirectoryPicker();
-    return const MacDirectoryPicker();
-  },
-  name: 'platformDirectoryPickerProvider',
-);
+final platformDirectoryPickerProvider = Provider<PlatformDirectoryPicker>((
+  ref,
+) {
+  if (kIsWeb) return const WebDirectoryPicker();
+  return const MacDirectoryPicker();
+}, name: 'platformDirectoryPickerProvider');
 
 /// Adaptive directory picker widget.
 ///
@@ -204,21 +203,29 @@ class WebDirectoryPickerField extends ConsumerStatefulWidget {
   final ValueChanged<String?> onPicked;
 
   @override
-  ConsumerState<WebDirectoryPickerField> createState() => _WebDirectoryPickerFieldState();
+  ConsumerState<WebDirectoryPickerField> createState() =>
+      _WebDirectoryPickerFieldState();
 }
 
-class _WebDirectoryPickerFieldState extends ConsumerState<WebDirectoryPickerField> {
+class _WebDirectoryPickerFieldState
+    extends ConsumerState<WebDirectoryPickerField> {
   bool _open = false;
   bool _busy = false;
 
-  Future<DirectoryListing> _listDirectory({String? path, DirectoryListSignal? signal}) async {
+  Future<DirectoryListing> _listDirectory({
+    String? path,
+    DirectoryListSignal? signal,
+  }) async {
     final client = ref.read(connectionClientProvider);
     final svc = WorkspacesService(client);
     final map = await svc.listDirectory(path: path, signal: signal);
     return DirectoryListing.fromJson(map.cast<String, dynamic>());
   }
 
-  Future<String> _createDirectory({required String path, required String name}) async {
+  Future<String> _createDirectory({
+    required String path,
+    required String name,
+  }) async {
     final client = ref.read(connectionClientProvider);
     final svc = WorkspacesService(client);
     return svc.createDirectory(path: path, name: name);
@@ -374,30 +381,36 @@ class _DirectoryPickerRow extends StatelessWidget {
       children: [
         Text(label, style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
-        Text(hint, style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+        Text(
+          hint,
+          style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: theme.dividerColor),
                   borderRadius: BorderRadius.circular(8),
-                  color: theme.inputDecorationTheme.fillColor ?? theme.cardColor,
+                  color:
+                      theme.inputDecorationTheme.fillColor ?? theme.cardColor,
                 ),
                 child: Text(
-                  value == null || value!.isEmpty ? 'No folder selected' : value!,
+                  value == null || value!.isEmpty
+                      ? 'No folder selected'
+                      : value!,
                   style: theme.textTheme.bodySmall,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: onPressed,
-              child: Text(buttonLabel),
-            ),
+            OutlinedButton(onPressed: onPressed, child: Text(buttonLabel)),
           ],
         ),
       ],

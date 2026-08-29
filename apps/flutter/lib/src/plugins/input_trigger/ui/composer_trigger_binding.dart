@@ -81,8 +81,7 @@ class ComposerTriggerBinding {
   bool _disposed = false;
 
   /// Live occurrence table, offset-sorted.
-  List<ComposerOccurrence> get occurrences =>
-      List.unmodifiable(_occurrences);
+  List<ComposerOccurrence> get occurrences => List.unmodifiable(_occurrences);
 
   /// The bound controller (exposed for tests asserting pipeline coupling).
   InputTriggerController get controller => _controller;
@@ -104,7 +103,11 @@ class ComposerTriggerBinding {
     // changes (the React selectionchange re-detect): the menu follows the
     // token under the caret without waiting for a text edit. track() itself
     // gates chip-transaction pushes on real text changes.
-    _controller.track(next, _caret(), const TriggerGuard(TriggerGuardTier.plain));
+    _controller.track(
+      next,
+      _caret(),
+      const TriggerGuard(TriggerGuardTier.plain),
+    );
     if (identical(prev, next) || prev == next) return;
     _reconcile(prev, next);
   }
@@ -141,20 +144,22 @@ class ComposerTriggerBinding {
         // the occurrence keeps the clipboard projection.
         final before = _occurrences.length;
         if (!_splice(span.start, span.end, '@${insert.label}')) return false;
-        _occurrences.add(ComposerOccurrence(
-          occurrenceId: ++_occurrenceSeq,
-          source: insert.source,
-          ref: insert.ref,
-          offset: span.start,
-          length: insert.label.length + 1,
-          label: insert.label,
-          appearance: insert.appearance,
-          clipboardText: insert.clipboardText,
-        ));
+        _occurrences.add(
+          ComposerOccurrence(
+            occurrenceId: ++_occurrenceSeq,
+            source: insert.source,
+            ref: insert.ref,
+            offset: span.start,
+            length: insert.label.length + 1,
+            label: insert.label,
+            appearance: insert.appearance,
+            clipboardText: insert.clipboardText,
+          ),
+        );
         _sortOccurrences();
         assert(_occurrences.length == before + 1);
         return true;
-      }
+    }
   }
 
   /// Remove the chip occurrence adjacent to a collapsed caret — the InputBar
@@ -212,16 +217,18 @@ class ComposerTriggerBinding {
   bool _splice(int start, int end, String replacement) {
     final prev = _field.text;
     if (start < 0 || end < start || end > prev.length) return false;
-    final next =
-        prev.replaceRange(start, end, replacement);
+    final next = prev.replaceRange(start, end, replacement);
     _field.value = TextEditingValue(
       text: next,
       selection: TextSelection.collapsed(offset: start + replacement.length),
       composing: TextRange.empty,
     );
     _reconcile(prev, next);
-    _controller.track(next, start + replacement.length,
-        const TriggerGuard(TriggerGuardTier.plain));
+    _controller.track(
+      next,
+      start + replacement.length,
+      const TriggerGuard(TriggerGuardTier.plain),
+    );
     _onCommit(next);
     return true;
   }
@@ -234,8 +241,9 @@ class ComposerTriggerBinding {
     if (_occurrences.isEmpty) return;
     final range = diffEdit(prev, next);
     final delta = range.insertedLength - (range.end - range.start);
-    _occurrences.retainWhere((o) =>
-        o.offset + o.length <= range.start || o.offset >= range.end);
+    _occurrences.retainWhere(
+      (o) => o.offset + o.length <= range.start || o.offset >= range.end,
+    );
     if (delta != 0) {
       for (var i = 0; i < _occurrences.length; i++) {
         final o = _occurrences[i];

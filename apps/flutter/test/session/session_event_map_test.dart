@@ -16,17 +16,20 @@ void main() {
       expect(envelope.data, {'turn': 1});
     });
 
-    test('plugin extension types decode flagged unknown (merge-extensible map)', () {
-      final envelope = SessionEventEnvelope.fromJson({
-        'type': 'agent-team/journal',
-        'seq': 2,
-        'time': 0,
-        'data': <String, Object?>{},
-        'ignorable': true,
-      });
-      expect(envelope.isKnown, isFalse);
-      expect(envelope.ignorable, isTrue);
-    });
+    test(
+      'plugin extension types decode flagged unknown (merge-extensible map)',
+      () {
+        final envelope = SessionEventEnvelope.fromJson({
+          'type': 'agent-team/journal',
+          'seq': 2,
+          'time': 0,
+          'data': <String, Object?>{},
+          'ignorable': true,
+        });
+        expect(envelope.isKnown, isFalse);
+        expect(envelope.ignorable, isTrue);
+      },
+    );
 
     test('surface metadata accepted only on surface-eligible members', () {
       final surface = SessionEventEnvelope.fromJson({
@@ -66,21 +69,30 @@ void main() {
       // seq must be an integer.
       expect(
         () => SessionEventEnvelope.fromJson({
-          'type': 'turn/start', 'seq': '1', 'time': 0, 'data': {},
+          'type': 'turn/start',
+          'seq': '1',
+          'time': 0,
+          'data': {},
         }),
         throwsArgumentError,
       );
       // time is required.
       expect(
         () => SessionEventEnvelope.fromJson({
-          'type': 'turn/start', 'seq': 1, 'data': {},
+          'type': 'turn/start',
+          'seq': 1,
+          'data': {},
         }),
         throwsArgumentError,
       );
       // ignorable only carries the literal true.
       expect(
         () => SessionEventEnvelope.fromJson({
-          'type': 'turn/start', 'seq': 1, 'time': 0, 'data': {}, 'ignorable': false,
+          'type': 'turn/start',
+          'seq': 1,
+          'time': 0,
+          'data': {},
+          'ignorable': false,
         }),
         throwsArgumentError,
       );
@@ -98,11 +110,15 @@ void main() {
       expect(envelope.isKnown, isFalse);
       expect(
         () => envelope.requireKnown(),
-        throwsA(predicate((e) =>
-            e is StateError &&
-            e.message.contains('refusing reconstruction') &&
-            e.message.contains('agent-team/journal') &&
-            e.message.contains('seq 9'))),
+        throwsA(
+          predicate(
+            (e) =>
+                e is StateError &&
+                e.message.contains('refusing reconstruction') &&
+                e.message.contains('agent-team/journal') &&
+                e.message.contains('seq 9'),
+          ),
+        ),
       );
     });
 

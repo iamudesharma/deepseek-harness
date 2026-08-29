@@ -28,7 +28,9 @@ void main() {
     if (!built) {
       // Loud, explicit skip posture mirroring apps/web/tests requireDist():
       // the lane needs the built workspace, never a silent pass.
-      fail('live-host E2E needs the built dsh bin at apps/cli/lib/bin.js — run pnpm run build');
+      fail(
+        'live-host E2E needs the built dsh bin at apps/cli/lib/bin.js — run pnpm run build',
+      );
     }
 
     final world = await Directory.systemTemp.createTemp('dsh-flutter-live-');
@@ -93,8 +95,11 @@ void main() {
         final inner = (frame['event'] as Map).cast<String, Object?>();
         nodeFolder.add(SessionEventEnvelope.fromJson(inner));
       }
-      expect(nodeFolder.snapshot().nodes, isNotEmpty,
-          reason: 'live session events must fold into typed nodes');
+      expect(
+        nodeFolder.snapshot().nodes,
+        isNotEmpty,
+        reason: 'live session events must fold into typed nodes',
+      );
       // Every envelope decoded as a known-or-ignorable event: the folder
       // throws on unrecognized required types, so reaching here proves the
       // required-on-read gate held across the whole live stream.
@@ -127,19 +132,22 @@ void main() {
 Future<String> _waitForBaseUrl(Stream<List<int>> out) async {
   final completer = Completer<String>();
   late final StreamSubscription<String> sub;
-  sub = out
-      .transform(utf8.decoder)
-      .transform(const LineSplitter())
-      .listen((line) {
+  sub = out.transform(utf8.decoder).transform(const LineSplitter()).listen((
+    line,
+  ) {
     final match = RegExp(r'dsh web: (http://\S+)').firstMatch(line);
-    if (match != null && !completer.isCompleted) completer.complete(match.group(1)!);
+    if (match != null && !completer.isCompleted)
+      completer.complete(match.group(1)!);
   });
   final url = await completer.future.timeout(const Duration(seconds: 60));
   await sub.cancel();
   return url;
 }
 
-Future<void> _waitForCondition(bool Function() condition, {required Duration timeout}) async {
+Future<void> _waitForCondition(
+  bool Function() condition, {
+  required Duration timeout,
+}) async {
   final deadline = DateTime.now().add(timeout);
   while (!condition()) {
     if (DateTime.now().isAfter(deadline)) {

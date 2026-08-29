@@ -7,8 +7,14 @@ import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/plugins/trajectory/trajectory_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-HistoryEntry _entry(String type, Map<String, dynamic> data, int seq, int time) =>
-    HistoryEntry(event: SessionEvent(type: type, data: data, seq: seq, time: time));
+HistoryEntry _entry(
+  String type,
+  Map<String, dynamic> data,
+  int seq,
+  int time,
+) => HistoryEntry(
+  event: SessionEvent(type: type, data: data, seq: seq, time: time),
+);
 
 void main() {
   test('empty history yields an empty trajectory', () {
@@ -57,7 +63,12 @@ void main() {
       _entry('user/message', {'content': 'Summarize the repo'}, 1, 1000),
       _entry('tool/call', {'name': 'read'}, 2, 1500),
       _entry('tool/result', {}, 3, 1600),
-      _entry('assistant/message', {'content': 'It is a plugin harness.'}, 4, 2000),
+      _entry(
+        'assistant/message',
+        {'content': 'It is a plugin harness.'},
+        4,
+        2000,
+      ),
       _entry('user/message', {'content': 'Now list packages'}, 5, 5000),
       _entry('assistant/chunk', {'text': '…'}, 6, 5500),
     ];

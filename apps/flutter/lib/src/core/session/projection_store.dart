@@ -72,7 +72,6 @@ class SessionProjectionStore {
 
 /// One [SessionProjectionStore] per session id; rows persist for the
 /// container lifetime so seq memory survives reconnect resyncs.
-final sessionProjectionStores =
-    Provider.family<SessionProjectionStore, String>(
+final sessionProjectionStores = Provider.family<SessionProjectionStore, String>(
   (ref, sessionId) => SessionProjectionStore(),
 );

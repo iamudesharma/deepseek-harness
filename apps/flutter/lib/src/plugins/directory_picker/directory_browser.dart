@@ -36,12 +36,16 @@ class DirectoryEntry {
   final bool hidden;
 
   factory DirectoryEntry.fromJson(Map<String, dynamic> j) => DirectoryEntry(
-        name: j['name'] as String? ?? '',
-        path: j['path'] as String? ?? '',
-        hidden: j['hidden'] as bool? ?? false,
-      );
+    name: j['name'] as String? ?? '',
+    path: j['path'] as String? ?? '',
+    hidden: j['hidden'] as bool? ?? false,
+  );
 
-  Map<String, dynamic> toJson() => {'name': name, 'path': path, 'hidden': hidden};
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'path': path,
+    'hidden': hidden,
+  };
 }
 
 /// One directory level plus its ancestry.
@@ -98,7 +102,10 @@ List<DirectoryEntry> displayCrumbs(DirectoryListing listing, String homeLabel) {
   final idx = listing.crumbs.indexWhere((c) => c.path == listing.home);
   if (idx == -1) return listing.crumbs;
   final tail = listing.crumbs.sublist(idx + 1);
-  return [DirectoryEntry(name: homeLabel, path: listing.home, hidden: false), ...tail];
+  return [
+    DirectoryEntry(name: homeLabel, path: listing.home, hidden: false),
+    ...tail,
+  ];
 }
 
 String separatorOf(DirectoryListing listing) =>
@@ -117,7 +124,9 @@ class ScannedDirectory {
 
 String? draftDirectory(DirectoryListing listing, String draft) {
   final cut = separatorOf(listing) == r'\'
-      ? (draft.lastIndexOf(r'\') > draft.lastIndexOf('/') ? draft.lastIndexOf(r'\') : draft.lastIndexOf('/'))
+      ? (draft.lastIndexOf(r'\') > draft.lastIndexOf('/')
+            ? draft.lastIndexOf(r'\')
+            : draft.lastIndexOf('/'))
       : draft.lastIndexOf('/');
   return cut == -1 ? null : draft.substring(0, cut + 1);
 }
@@ -129,9 +138,15 @@ String? draftDirectory(DirectoryListing listing, String draft) {
 ) {
   final directory = draftDirectory(listing, draft);
   if (directory == null) return (directory: null, tail: null);
-  final answers = directory == levelDirectory(listing) ||
-      (scanned != null && scanned.directory == directory && scanned.landed == listing.path);
-  return (directory: directory, tail: answers ? draft.substring(directory.length) : null);
+  final answers =
+      directory == levelDirectory(listing) ||
+      (scanned != null &&
+          scanned.directory == directory &&
+          scanned.landed == listing.path);
+  return (
+    directory: directory,
+    tail: answers ? draft.substring(directory.length) : null,
+  );
 }
 
 List<DirectoryEntry> visibleEntries(
@@ -141,8 +156,10 @@ List<DirectoryEntry> visibleEntries(
   String? filterPrefix,
 ) {
   final needle = filterPrefix == null ? '' : filterPrefix.toLowerCase();
-  bool displayable(DirectoryEntry e) => showHidden || !e.hidden || needle.startsWith('.');
-  bool matches(DirectoryEntry e) => displayable(e) && e.name.toLowerCase().startsWith(needle);
+  bool displayable(DirectoryEntry e) =>
+      showHidden || !e.hidden || needle.startsWith('.');
+  bool matches(DirectoryEntry e) =>
+      displayable(e) && e.name.toLowerCase().startsWith(needle);
   final narrowing = needle.isNotEmpty && entries.any(matches);
   return entries.where((e) {
     if (e.path == selectedPath) return true;
@@ -156,7 +173,10 @@ List<DirectoryEntry> visibleEntries(
 // ---------------------------------------------------------------------------
 
 typedef ListDirectory = Future<Map<String, Object?>> Function({String? path});
-typedef CreateDirectory = Future<String> Function({required String path, required String name});
+typedef CreateDirectory = Future<String> Function({
+  required String path,
+  required String name,
+});
 
 class DirectoryBrowser extends StatefulWidget {
   const DirectoryBrowser({
@@ -175,8 +195,13 @@ class DirectoryBrowser extends StatefulWidget {
   /// Mirrors React `listDirectory(path, signal)` — the [DirectoryListSignal]
   /// is the Dart analog of `AbortSignal`. Callers may ignore it; the widget
   /// uses it to abort the previous scan on supersession.
-  final Future<DirectoryListing> Function({String? path, DirectoryListSignal? signal}) listDirectory;
-  final Future<String> Function({required String path, required String name}) createDirectory;
+  final Future<DirectoryListing> Function({
+    String? path,
+    DirectoryListSignal? signal,
+  })
+  listDirectory;
+  final Future<String> Function({required String path, required String name})
+  createDirectory;
   final ValueChanged<String> onOpen;
   final VoidCallback onClose;
   final bool busy;
@@ -251,7 +276,8 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
       'browser.open': 'Open',
       'browser.editPath': 'Edit path',
       'browser.loading': 'Loading…',
-      'browser.truncated': 'Too many folders to list; only the beginning is shown.',
+      'browser.truncated':
+          'Too many folders to list; only the beginning is shown.',
       'browser.showHidden': 'Show hidden files',
     };
     return en[k] ?? k;
@@ -400,7 +426,8 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
     _slowTimer?.cancel();
     final win = ++_scanWindow;
     _slowTimer = Timer(_slowDelay, () {
-      if (mounted && seq == _requestSeq && win == _scanWindow && _loading) setState(() => _slowScan = true);
+      if (mounted && seq == _requestSeq && win == _scanWindow && _loading)
+        setState(() => _slowScan = true);
     });
 
     void settle() {
@@ -425,73 +452,88 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
       settle();
     }
 
-    widget.listDirectory(path: path, signal: navSignal).then((target) {
-      if (seq != _requestSeq || navSignal.aborted) return;
-      // Two-pane determination uses collapsed crumbs depth
-      final crumbs = displayCrumbs(target, '');
-      if (crumbs.length < 2) {
-        landSingle(target);
-        return;
-      }
-      final parentCrumb = crumbs[crumbs.length - 2];
-      bool landed = false;
-      Timer? timeout;
-      void trySingle() {
-        if (landed || seq != _requestSeq) return;
-        landed = true;
-        landSingle(target);
-      }
+    widget
+        .listDirectory(path: path, signal: navSignal)
+        .then(
+          (target) {
+            if (seq != _requestSeq || navSignal.aborted) return;
+            // Two-pane determination uses collapsed crumbs depth
+            final crumbs = displayCrumbs(target, '');
+            if (crumbs.length < 2) {
+              landSingle(target);
+              return;
+            }
+            final parentCrumb = crumbs[crumbs.length - 2];
+            bool landed = false;
+            Timer? timeout;
+            void trySingle() {
+              if (landed || seq != _requestSeq) return;
+              landed = true;
+              landSingle(target);
+            }
 
-      timeout = Timer(_parentWait, trySingle);
-      final parentSignal = DirectoryListSignal();
-      // Parent leg is part of same navigation scan window — supersession
-      // aborts it via the same sequence. Store as current so _supersede()
-      // aborts the parent leg too.
-      _scanSignal = parentSignal;
-      widget.listDirectory(path: parentCrumb.path, signal: parentSignal).then((parentLevel) {
-        if (seq != _requestSeq || parentSignal.aborted) return;
-        timeout?.cancel();
-        if (landed) {
-          final sep = separatorOf(parentLevel);
-          String fold(String s) => sep == r'\' ? s.toLowerCase() : s;
-          final match = parentLevel.entries.where((e) => fold(e.path) == fold(target.path)).firstOrNull;
-          if (match != null) {
-            setState(() {
-              _parent = parentLevel;
-              _selected = match;
-              _child = target;
-            });
-          }
-          return;
-        }
-        final sep = separatorOf(parentLevel);
-        String fold(String s) => sep == r'\' ? s.toLowerCase() : s;
-        final match = parentLevel.entries.where((e) => fold(e.path) == fold(target.path)).firstOrNull;
-        if (match == null) {
-          landed = true;
-          landSingle(target);
-          return;
-        }
-        landed = true;
-        timeout?.cancel();
-        if (seq != _requestSeq) return;
-        setState(() {
-          _parent = parentLevel;
-          _selected = match;
-          _child = target;
-        });
-        settle();
-      }, onError: (Object e) {
-        if (e.toString().contains('aborted')) return;
-        timeout?.cancel();
-        trySingle();
-      });
-    }, onError: (Object e) {
-      if (e.toString().contains('aborted') || navSignal.aborted) return;
-      if (seq != _requestSeq) return;
-      _setLoading(false);
-      setState(() => _error = e.toString());
-    });
+            timeout = Timer(_parentWait, trySingle);
+            final parentSignal = DirectoryListSignal();
+            // Parent leg is part of same navigation scan window — supersession
+            // aborts it via the same sequence. Store as current so _supersede()
+            // aborts the parent leg too.
+            _scanSignal = parentSignal;
+            widget
+                .listDirectory(path: parentCrumb.path, signal: parentSignal)
+                .then(
+                  (parentLevel) {
+                    if (seq != _requestSeq || parentSignal.aborted) return;
+                    timeout?.cancel();
+                    if (landed) {
+                      final sep = separatorOf(parentLevel);
+                      String fold(String s) =>
+                          sep == r'\' ? s.toLowerCase() : s;
+                      final match = parentLevel.entries
+                          .where((e) => fold(e.path) == fold(target.path))
+                          .firstOrNull;
+                      if (match != null) {
+                        setState(() {
+                          _parent = parentLevel;
+                          _selected = match;
+                          _child = target;
+                        });
+                      }
+                      return;
+                    }
+                    final sep = separatorOf(parentLevel);
+                    String fold(String s) => sep == r'\' ? s.toLowerCase() : s;
+                    final match = parentLevel.entries
+                        .where((e) => fold(e.path) == fold(target.path))
+                        .firstOrNull;
+                    if (match == null) {
+                      landed = true;
+                      landSingle(target);
+                      return;
+                    }
+                    landed = true;
+                    timeout?.cancel();
+                    if (seq != _requestSeq) return;
+                    setState(() {
+                      _parent = parentLevel;
+                      _selected = match;
+                      _child = target;
+                    });
+                    settle();
+                  },
+                  onError: (Object e) {
+                    if (e.toString().contains('aborted')) return;
+                    timeout?.cancel();
+                    trySingle();
+                  },
+                );
+          },
+          onError: (Object e) {
+            if (e.toString().contains('aborted') || navSignal.aborted) return;
+            if (seq != _requestSeq) return;
+            _setLoading(false);
+            setState(() => _error = e.toString());
+          },
+        );
   }
 
   void _landForDraft(String directory) {
@@ -503,77 +545,93 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
     final win = ++_scanWindow;
     _slowTimer?.cancel();
     _slowTimer = Timer(_slowDelay, () {
-      if (mounted && seq == _requestSeq && win == _scanWindow && _loading) setState(() => _slowScan = true);
+      if (mounted && seq == _requestSeq && win == _scanWindow && _loading)
+        setState(() => _slowScan = true);
     });
 
-    widget.listDirectory(path: directory, signal: draftSignal).then((target) {
-      if (seq != _requestSeq || draftSignal.aborted) return;
-      _scanned = ScannedDirectory(directory: directory, landed: target.path);
-      // Similar two-pane logic as _navigate but keep editor open — wait both legs
-      // (no timeout) so one keystroke moves view once, and re-park focus if
-      // swap dropped it to body.
-      final crumbs = displayCrumbs(target, '');
-      if (crumbs.length < 2) {
-        if (seq != _requestSeq) return;
-        setState(() {
-          _parent = target;
-          _selected = null;
-          _child = null;
-          _error = null;
-        });
-        _setLoading(false);
-        if (FocusManager.instance.primaryFocus == null) {
-          _refocusPathInput = true;
-          _runPostFrameFocusPark();
-        }
-        return;
-      }
-      final parentCrumb = crumbs[crumbs.length - 2];
-      final parentSignal = DirectoryListSignal();
-      _scanSignal = parentSignal;
-      widget.listDirectory(path: parentCrumb.path, signal: parentSignal).then((parentLevel) {
-        if (seq != _requestSeq) return;
-        final sep = separatorOf(parentLevel);
-        String fold(String s) => sep == r'\' ? s.toLowerCase() : s;
-        final match = parentLevel.entries.where((e) => fold(e.path) == fold(target.path)).firstOrNull;
-        if (match == null) {
-          setState(() {
-            _parent = target;
-            _selected = null;
-            _child = null;
-            _error = null;
-          });
-          _setLoading(false);
-          return;
-        }
-        setState(() {
-          _parent = parentLevel;
-          _selected = match;
-          _child = target;
-          _error = null;
-        });
-        _setLoading(false);
-      }, onError: (Object e) {
-        if (e.toString().contains('aborted')) return;
-        if (seq != _requestSeq) return;
-        setState(() {
-          _parent = target;
-          _selected = null;
-          _child = null;
-        });
-        _setLoading(false);
-      });
-      // Keep editor focus after draft walk — re-park if swap dropped to body.
-      if (FocusManager.instance.primaryFocus == null) {
-        _refocusPathInput = true;
-        _runPostFrameFocusPark();
-      }
-    }, onError: (Object e) {
-      if (e.toString().contains('aborted')) return;
-      if (seq != _requestSeq) return;
-      _setLoading(false);
-      // draft failure keeps stale view silent, no alert
-    });
+    widget
+        .listDirectory(path: directory, signal: draftSignal)
+        .then(
+          (target) {
+            if (seq != _requestSeq || draftSignal.aborted) return;
+            _scanned = ScannedDirectory(
+              directory: directory,
+              landed: target.path,
+            );
+            // Similar two-pane logic as _navigate but keep editor open — wait both legs
+            // (no timeout) so one keystroke moves view once, and re-park focus if
+            // swap dropped it to body.
+            final crumbs = displayCrumbs(target, '');
+            if (crumbs.length < 2) {
+              if (seq != _requestSeq) return;
+              setState(() {
+                _parent = target;
+                _selected = null;
+                _child = null;
+                _error = null;
+              });
+              _setLoading(false);
+              if (FocusManager.instance.primaryFocus == null) {
+                _refocusPathInput = true;
+                _runPostFrameFocusPark();
+              }
+              return;
+            }
+            final parentCrumb = crumbs[crumbs.length - 2];
+            final parentSignal = DirectoryListSignal();
+            _scanSignal = parentSignal;
+            widget
+                .listDirectory(path: parentCrumb.path, signal: parentSignal)
+                .then(
+                  (parentLevel) {
+                    if (seq != _requestSeq) return;
+                    final sep = separatorOf(parentLevel);
+                    String fold(String s) => sep == r'\' ? s.toLowerCase() : s;
+                    final match = parentLevel.entries
+                        .where((e) => fold(e.path) == fold(target.path))
+                        .firstOrNull;
+                    if (match == null) {
+                      setState(() {
+                        _parent = target;
+                        _selected = null;
+                        _child = null;
+                        _error = null;
+                      });
+                      _setLoading(false);
+                      return;
+                    }
+                    setState(() {
+                      _parent = parentLevel;
+                      _selected = match;
+                      _child = target;
+                      _error = null;
+                    });
+                    _setLoading(false);
+                  },
+                  onError: (Object e) {
+                    if (e.toString().contains('aborted')) return;
+                    if (seq != _requestSeq) return;
+                    setState(() {
+                      _parent = target;
+                      _selected = null;
+                      _child = null;
+                    });
+                    _setLoading(false);
+                  },
+                );
+            // Keep editor focus after draft walk — re-park if swap dropped to body.
+            if (FocusManager.instance.primaryFocus == null) {
+              _refocusPathInput = true;
+              _runPostFrameFocusPark();
+            }
+          },
+          onError: (Object e) {
+            if (e.toString().contains('aborted')) return;
+            if (seq != _requestSeq) return;
+            _setLoading(false);
+            // draft failure keeps stale view silent, no alert
+          },
+        );
   }
 
   void _select(DirectoryEntry entry) {
@@ -594,32 +652,40 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
     final win = ++_scanWindow;
     _slowTimer?.cancel();
     _slowTimer = Timer(_slowDelay, () {
-      if (mounted && seq == _requestSeq && win == _scanWindow && _loading) setState(() => _slowScan = true);
+      if (mounted && seq == _requestSeq && win == _scanWindow && _loading)
+        setState(() => _slowScan = true);
     });
-    widget.listDirectory(path: entry.path, signal: selectSignal).then((next) {
-      if (seq != _requestSeq || selectSignal.aborted) return;
-      setState(() => _child = next);
-      _setLoading(false);
-      // Pin miller row to child pane after landing
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_millerRow.hasClients) _millerRow.jumpTo(_millerRow.position.maxScrollExtent);
-      });
-      if (_refocusPick) _runPostFrameFocusPark();
-    }, onError: (Object e) {
-      if (e.toString().contains('aborted') || selectSignal.aborted) return;
-      if (seq != _requestSeq) return;
-      _setLoading(false);
-      setState(() {
-        _error = e.toString();
-        _selected = null;
-      });
-      // Clearing selection can orphan focus to body if dot-revealed hidden row
-      // re-hides — re-park on edit zone only if focus actually fell to body.
-      if (FocusManager.instance.primaryFocus == null) {
-        _refocusEditZone = true;
-        _runPostFrameFocusPark();
-      }
-    });
+    widget
+        .listDirectory(path: entry.path, signal: selectSignal)
+        .then(
+          (next) {
+            if (seq != _requestSeq || selectSignal.aborted) return;
+            setState(() => _child = next);
+            _setLoading(false);
+            // Pin miller row to child pane after landing
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_millerRow.hasClients)
+                _millerRow.jumpTo(_millerRow.position.maxScrollExtent);
+            });
+            if (_refocusPick) _runPostFrameFocusPark();
+          },
+          onError: (Object e) {
+            if (e.toString().contains('aborted') || selectSignal.aborted)
+              return;
+            if (seq != _requestSeq) return;
+            _setLoading(false);
+            setState(() {
+              _error = e.toString();
+              _selected = null;
+            });
+            // Clearing selection can orphan focus to body if dot-revealed hidden row
+            // re-hides — re-park on edit zone only if focus actually fell to body.
+            if (FocusManager.instance.primaryFocus == null) {
+              _refocusEditZone = true;
+              _runPostFrameFocusPark();
+            }
+          },
+        );
   }
 
   void _advance(DirectoryEntry entry) {
@@ -663,59 +729,86 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
       _createError = null;
     });
     final gen = _openGeneration;
-    widget.createDirectory(path: targetPath, name: draft).then((createdPath) {
-      if (gen != _openGeneration || !mounted) return;
-      setState(() {
-        _creatingFolder = false;
-        _folderDraft = null;
-      });
-      final seq = ++_requestSeq;
-      _setLoading(true);
-      final win = ++_scanWindow;
-      _slowTimer?.cancel();
-      _slowTimer = Timer(_slowDelay, () {
-        if (mounted && seq == _requestSeq && win == _scanWindow && _loading) setState(() => _slowScan = true);
-      });
-      setState(() => _error = null);
-      _scanSignal?.abort();
-      final createSignal = DirectoryListSignal();
-      _scanSignal = createSignal;
-      widget.listDirectory(path: targetPath, signal: createSignal).then((level) {
-        if (seq != _requestSeq || createSignal.aborted) return;
-        setState(() {
-          _parent = level;
-          _loading = false;
-          _slowScan = false;
-        });
-        // select created folder — mirrors figma 802:57446→813:23278 flow
-        _select(DirectoryEntry(name: draft, path: createdPath, hidden: false));
-      }, onError: (Object e) {
-        if (e.toString().contains('aborted') || createSignal.aborted) return;
-        if (seq != _requestSeq) return;
-        _setLoading(false);
-        setState(() => _error = e.toString());
-      });
-    }, onError: (Object e) {
-      if (gen != _openGeneration || !mounted) return;
-      setState(() {
-        _creatingFolder = false;
-        _createError = e.toString();
-      });
-    });
+    widget
+        .createDirectory(path: targetPath, name: draft)
+        .then(
+          (createdPath) {
+            if (gen != _openGeneration || !mounted) return;
+            setState(() {
+              _creatingFolder = false;
+              _folderDraft = null;
+            });
+            final seq = ++_requestSeq;
+            _setLoading(true);
+            final win = ++_scanWindow;
+            _slowTimer?.cancel();
+            _slowTimer = Timer(_slowDelay, () {
+              if (mounted &&
+                  seq == _requestSeq &&
+                  win == _scanWindow &&
+                  _loading)
+                setState(() => _slowScan = true);
+            });
+            setState(() => _error = null);
+            _scanSignal?.abort();
+            final createSignal = DirectoryListSignal();
+            _scanSignal = createSignal;
+            widget
+                .listDirectory(path: targetPath, signal: createSignal)
+                .then(
+                  (level) {
+                    if (seq != _requestSeq || createSignal.aborted) return;
+                    setState(() {
+                      _parent = level;
+                      _loading = false;
+                      _slowScan = false;
+                    });
+                    // select created folder — mirrors figma 802:57446→813:23278 flow
+                    _select(
+                      DirectoryEntry(
+                        name: draft,
+                        path: createdPath,
+                        hidden: false,
+                      ),
+                    );
+                  },
+                  onError: (Object e) {
+                    if (e.toString().contains('aborted') ||
+                        createSignal.aborted)
+                      return;
+                    if (seq != _requestSeq) return;
+                    _setLoading(false);
+                    setState(() => _error = e.toString());
+                  },
+                );
+          },
+          onError: (Object e) {
+            if (gen != _openGeneration || !mounted) return;
+            setState(() {
+              _creatingFolder = false;
+              _createError = e.toString();
+            });
+          },
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     if (!widget.open) return const SizedBox.shrink();
     final ThemeData theme = Theme.of(context);
-    final DswAliases aliases = theme.extension<DswThemeExtension>()?.aliases ??
-        (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
 
     final crumbSource = _child ?? _parent;
     final typedPrefix = crumbSource == null || _pathDraft == null
         ? null
         : readDraft(crumbSource, _pathDraft!, _scanned).tail;
-    final crumbs = crumbSource == null ? <DirectoryEntry>[] : displayCrumbs(crumbSource, _t('browser.home'));
+    final crumbs = crumbSource == null
+        ? <DirectoryEntry>[]
+        : displayCrumbs(crumbSource, _t('browser.home'));
     final targetPath = _selected?.path ?? _parent?.path;
     final twoPane = _selected != null;
     final parentInert = widget.busy || _folderDraft != null;
@@ -723,15 +816,26 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
 
     // crumb tail scroll pin and miller pin are handled via controllers/effects
 
-    final targetName = _selected?.name ??
-        (_parent == null ? '' : (displayCrumbs(_parent!, _t('browser.home')).lastOrNull?.name ?? _parent!.path));
+    final targetName =
+        _selected?.name ??
+        (_parent == null
+            ? ''
+            : (displayCrumbs(_parent!, _t('browser.home')).lastOrNull?.name ??
+                  _parent!.path));
     final showCreateDialog = _folderDraft != null;
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       backgroundColor: aliases.bgLayer2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DswTokens.radiusLg)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 500, minWidth: 320, minHeight: 240),
+        constraints: const BoxConstraints(
+          maxWidth: 680,
+          maxHeight: 500,
+          minWidth: 320,
+          minHeight: 240,
+        ),
         child: SizedBox(
           width: 680,
           height: 500,
@@ -740,278 +844,397 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(24, 16, 14, 8),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: aliases.borderL3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_t('browser.title'),
-                        style: TextStyle(fontSize: DswTokens.fontSizeBase16, fontWeight: FontWeight.w600, color: aliases.labelPrimary)),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 28,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: _pathDraft != null ? aliases.borderL2 : DswTokens.transparent),
-                        borderRadius: BorderRadius.circular(8),
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 14, 8),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: aliases.borderL3),
                       ),
-                      child: _pathDraft == null
-                          ? Row(
-                              children: [
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    controller: _crumbTrail,
-                                    scrollDirection: Axis.horizontal,
-                                    child: Row(
-                                      children: [
-                                        for (int i = 0; i < crumbs.length; i++) ...[
-                                          if (i > 0) Icon(Icons.chevron_right, size: 12, color: aliases.labelTertiary),
-                                          TextButton(
-                                            onPressed: parentInert ? null : () => _navigate(crumbs[i].path),
-                                            style: TextButton.styleFrom(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                                minimumSize: Size.zero,
-                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                            child: Text(crumbs[i].name,
-                                                style: TextStyle(
-                                                    fontSize: DswTokens.fontSizeXs13,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _t('browser.title'),
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeBase16,
+                            fontWeight: FontWeight.w600,
+                            color: aliases.labelPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 28,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: _pathDraft != null
+                                  ? aliases.borderL2
+                                  : DswTokens.transparent,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: _pathDraft == null
+                              ? Row(
+                                  children: [
+                                    Expanded(
+                                      child: SingleChildScrollView(
+                                        controller: _crumbTrail,
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: [
+                                            for (
+                                              int i = 0;
+                                              i < crumbs.length;
+                                              i++
+                                            ) ...[
+                                              if (i > 0)
+                                                Icon(
+                                                  Icons.chevron_right,
+                                                  size: 12,
+                                                  color: aliases.labelTertiary,
+                                                ),
+                                              TextButton(
+                                                onPressed: parentInert
+                                                    ? null
+                                                    : () => _navigate(
+                                                        crumbs[i].path,
+                                                      ),
+                                                style: TextButton.styleFrom(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                      ),
+                                                  minimumSize: Size.zero,
+                                                  tapTargetSize:
+                                                      MaterialTapTargetSize
+                                                          .shrinkWrap,
+                                                ),
+                                                child: Text(
+                                                  crumbs[i].name,
+                                                  style: TextStyle(
+                                                    fontSize:
+                                                        DswTokens.fontSizeXs13,
                                                     fontWeight: FontWeight.w500,
-                                                    color: aliases.labelTertiary)),
+                                                    color:
+                                                        aliases.labelTertiary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // edit zone — pencil affordance (focus target for re-park)
+                                    IconButton(
+                                      key: const ValueKey('crumbEditZone'),
+                                      focusNode: _editZoneFocus,
+                                      tooltip: _t('browser.editPath'),
+                                      onPressed: parentInert
+                                          ? null
+                                          : () {
+                                              _supersede();
+                                              _previewSuspended = false;
+                                              if (_parent == null) {
+                                                setState(() {
+                                                  _pathDraft = '';
+                                                  _pathCtrl.text = '';
+                                                });
+                                                WidgetsBinding.instance
+                                                    .addPostFrameCallback(
+                                                      (_) => _pathFocus
+                                                          .requestFocus(),
+                                                    );
+                                                return;
+                                              }
+                                              final base =
+                                                  _selected?.path ??
+                                                  _parent!.path;
+                                              final sep = separatorOf(_parent!);
+                                              final seed = base.endsWith(sep)
+                                                  ? base
+                                                  : '$base$sep';
+                                              setState(() {
+                                                _pathDraft = seed;
+                                                _pathCtrl.text = seed;
+                                              });
+                                              WidgetsBinding.instance
+                                                  .addPostFrameCallback(
+                                                    (_) => _pathFocus
+                                                        .requestFocus(),
+                                                  );
+                                            },
+                                      icon: Icon(
+                                        Icons.edit_outlined,
+                                        size: 14,
+                                        color: aliases.labelTertiary,
+                                      ),
+                                      style: IconButton.styleFrom(
+                                        minimumSize: const Size(34, 22),
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : TextField(
+                                  key: const ValueKey('pathInput'),
+                                  controller: _pathCtrl,
+                                  focusNode: _pathFocus,
+                                  autofocus: true,
+                                  enabled: !parentInert,
+                                  style: TextStyle(
+                                    fontSize: DswTokens.fontSizeXs13,
+                                    color: aliases.labelPrimary,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      vertical: 6,
+                                    ),
+                                  ),
+                                  onChanged: (v) {
+                                    // IME composition guard — TextEditingValue.composing.isValid
+                                    // mirrors React composingRef + isComposing check.
+                                    _isComposing =
+                                        _pathCtrl.value.composing.isValid;
+                                    _onDraftChanged(v);
+                                  },
+                                  onSubmitted: (value) {
+                                    // IME confirmation (Enter selecting candidate) must not submit.
+                                    if (_pathCtrl.value.composing.isValid ||
+                                        _isComposing)
+                                      return;
+                                    if (value.trim().isEmpty) return;
+                                    _previewSuspended = true;
+                                    // Park focus on edit zone after submission — only if
+                                    // focus was actually in input; mirrors
+                                    // refocusEditZone.current = document.activeElement === pathInput
+                                    if (_pathFocus.hasFocus)
+                                      _refocusEditZone = true;
+                                    _navigate(value);
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Miller content
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  controller: _millerRow,
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (_parent != null)
+                                        SizedBox(
+                                          width: twoPane ? 320 : 632,
+                                          child: _LevelColumn(
+                                            key: const ValueKey('parentColumn'),
+                                            entries: _parent!.entries,
+                                            selectedPath: _selected?.path,
+                                            busy: parentInert,
+                                            onPick: _select,
+                                            showHidden: _showHidden,
+                                            filterPrefix: _child == null
+                                                ? typedPrefix
+                                                : null,
+                                            pathEditing: draftPending,
                                           ),
-                                        ]
-                                      ],
+                                        ),
+                                      if (twoPane)
+                                        Container(
+                                          width: 1,
+                                          color: aliases.borderL3,
+                                          margin: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                        ),
+                                      if (twoPane && _child != null)
+                                        SizedBox(
+                                          width: 320,
+                                          child: _LevelColumn(
+                                            key: const ValueKey('childColumn'),
+                                            entries: _child!.entries,
+                                            selectedPath: null,
+                                            busy: parentInert,
+                                            onPick: _advance,
+                                            showHidden: _showHidden,
+                                            filterPrefix: typedPrefix,
+                                            pathEditing: draftPending,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if ((_parent?.truncated ?? false) ||
+                                  (_child?.truncated ?? false))
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 8,
+                                    right: 120,
+                                  ),
+                                  child: Text(
+                                    _t('browser.truncated'),
+                                    style: TextStyle(
+                                      fontSize: DswTokens.fontSizeXxs12,
+                                      color: aliases.labelSecondary,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                // edit zone — pencil affordance (focus target for re-park)
-                                IconButton(
-                                  key: const ValueKey('crumbEditZone'),
-                                  focusNode: _editZoneFocus,
-                                  tooltip: _t('browser.editPath'),
-                                  onPressed: parentInert
-                                      ? null
-                                      : () {
-                                          _supersede();
-                                          _previewSuspended = false;
-                                          if (_parent == null) {
-                                            setState(() {
-                                              _pathDraft = '';
-                                              _pathCtrl.text = '';
-                                            });
-                                            WidgetsBinding.instance.addPostFrameCallback((_) => _pathFocus.requestFocus());
-                                            return;
-                                          }
-                                          final base = _selected?.path ?? _parent!.path;
-                                          final sep = separatorOf(_parent!);
-                                          final seed = base.endsWith(sep) ? base : '$base$sep';
-                                          setState(() {
-                                            _pathDraft = seed;
-                                            _pathCtrl.text = seed;
-                                          });
-                                          WidgetsBinding.instance.addPostFrameCallback((_) => _pathFocus.requestFocus());
-                                        },
-                                  icon: Icon(Icons.edit_outlined, size: 14, color: aliases.labelTertiary),
-                                  style: IconButton.styleFrom(minimumSize: const Size(34, 22), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                              if (_error != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 4,
+                                    right: 120,
+                                  ),
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      fontSize: DswTokens.fontSizeXxs12,
+                                      color: aliases.stateErrorPrimary,
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            )
-                          : TextField(
-                              key: const ValueKey('pathInput'),
-                              controller: _pathCtrl,
-                              focusNode: _pathFocus,
-                              autofocus: true,
-                              enabled: !parentInert,
-                              style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: aliases.labelPrimary),
-                              decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 6),
+                            ],
+                          ),
+                        ),
+                        if (_loading && _slowScan)
+                          Positioned(
+                            right: 16,
+                            bottom: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
                               ),
-                              onChanged: (v) {
-                                // IME composition guard — TextEditingValue.composing.isValid
-                                // mirrors React composingRef + isComposing check.
-                                _isComposing = _pathCtrl.value.composing.isValid;
-                                _onDraftChanged(v);
-                              },
-                              onSubmitted: (value) {
-                                // IME confirmation (Enter selecting candidate) must not submit.
-                                if (_pathCtrl.value.composing.isValid || _isComposing) return;
-                                if (value.trim().isEmpty) return;
-                                _previewSuspended = true;
-                                // Park focus on edit zone after submission — only if
-                                // focus was actually in input; mirrors
-                                // refocusEditZone.current = document.activeElement === pathInput
-                                if (_pathFocus.hasFocus) _refocusEditZone = true;
-                                _navigate(value);
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              // Miller content
-              Expanded(
-                child: Stack(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              controller: _millerRow,
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (_parent != null)
-                                    SizedBox(
-                                      width: twoPane ? 320 : 632,
-                                      child: _LevelColumn(
-                                        key: const ValueKey('parentColumn'),
-                                        entries: _parent!.entries,
-                                        selectedPath: _selected?.path,
-                                        busy: parentInert,
-                                        onPick: _select,
-                                        showHidden: _showHidden,
-                                        filterPrefix: _child == null ? typedPrefix : null,
-                                        pathEditing: draftPending,
-                                      ),
-                                    ),
-                                  if (twoPane) Container(width: 1, color: aliases.borderL3, margin: const EdgeInsets.symmetric(horizontal: 12)),
-                                  if (twoPane && _child != null)
-                                    SizedBox(
-                                      width: 320,
-                                      child: _LevelColumn(
-                                        key: const ValueKey('childColumn'),
-                                        entries: _child!.entries,
-                                        selectedPath: null,
-                                        busy: parentInert,
-                                        onPick: _advance,
-                                        showHidden: _showHidden,
-                                        filterPrefix: typedPrefix,
-                                        pathEditing: draftPending,
-                                      ),
-                                    ),
-                                ],
+                              color: aliases.bgLayer2,
+                              child: Text(
+                                _t('browser.loading'),
+                                style: TextStyle(
+                                  fontSize: DswTokens.fontSizeXxs12,
+                                  color: aliases.labelSecondary,
+                                ),
                               ),
                             ),
                           ),
-                          if ((_parent?.truncated ?? false) || (_child?.truncated ?? false))
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8, right: 120),
-                              child: Text(_t('browser.truncated'),
-                                  style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary)),
-                            ),
-                          if (_error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4, right: 120),
-                              child: Text(_error!,
-                                  style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.stateErrorPrimary)),
-                            ),
-                        ],
-                      ),
+                      ],
                     ),
-                    if (_loading && _slowScan)
-                      Positioned(
-                        right: 16,
-                        bottom: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          color: aliases.bgLayer2,
-                          child: Text(_t('browser.loading'),
-                              style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary)),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              // Footer
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(border: Border(top: BorderSide(color: aliases.borderL3))),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Wrap(
+                  ),
+                  // Footer
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: aliases.borderL3)),
+                    ),
+                    child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: (_parent == null || _loading || parentInert || draftPending)
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _folderDraft = '';
-                                    _folderCtrl.text = '';
-                                    _createError = null;
-                                  });
-                                },
-                          icon: const Icon(Icons.create_new_folder_outlined, size: 14),
-                          label: Text(_t('browser.newFolder')),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed:
+                                  (_parent == null ||
+                                      _loading ||
+                                      parentInert ||
+                                      draftPending)
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _folderDraft = '';
+                                        _folderCtrl.text = '';
+                                        _createError = null;
+                                      });
+                                    },
+                              icon: const Icon(
+                                Icons.create_new_folder_outlined,
+                                size: 14,
+                              ),
+                              label: Text(_t('browser.newFolder')),
+                            ),
+                            TextButton.icon(
+                              onPressed: parentInert
+                                  ? null
+                                  : () => setState(
+                                      () => _showHidden = !_showHidden,
+                                    ),
+                              icon: _showHidden
+                                  ? const Icon(Icons.check, size: 14)
+                                  : const SizedBox.shrink(),
+                              label: Text(_t('browser.showHidden')),
+                              style: TextButton.styleFrom(
+                                foregroundColor: _showHidden
+                                    ? aliases.labelPrimary
+                                    : aliases.labelSecondary,
+                              ),
+                            ),
+                          ],
                         ),
-                        TextButton.icon(
-                          onPressed: parentInert
-                              ? null
-                              : () => setState(() => _showHidden = !_showHidden),
-                          icon: _showHidden ? const Icon(Icons.check, size: 14) : const SizedBox.shrink(),
-                          label: Text(_t('browser.showHidden')),
-                          style: TextButton.styleFrom(
-                            foregroundColor: _showHidden ? aliases.labelPrimary : aliases.labelSecondary,
-                          ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            OutlinedButton(
+                              onPressed: parentInert ? null : widget.onClose,
+                              child: Text(_t('browser.cancel')),
+                            ),
+                            FilledButton(
+                              onPressed:
+                                  (targetPath == null ||
+                                      _loading ||
+                                      parentInert ||
+                                      draftPending)
+                                  ? null
+                                  : () => widget.onOpen(targetPath),
+                              child: Text(_t('browser.open')),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        OutlinedButton(
-                          onPressed: parentInert ? null : widget.onClose,
-                          child: Text(_t('browser.cancel')),
-                        ),
-                        FilledButton(
-                          onPressed: (targetPath == null || _loading || parentInert || draftPending)
-                              ? null
-                              : () => widget.onOpen(targetPath),
-                          child: Text(_t('browser.open')),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                  // Keyboard handling for Escape to cancel path edit or dialog
+                  Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent &&
+                          event.logicalKey == LogicalKeyboardKey.escape) {
+                        if (_pathDraft != null) {
+                          _cancelPathEdit();
+                          return KeyEventResult.handled;
+                        }
+                        if (_folderDraft == null && !widget.busy) {
+                          widget.onClose();
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: const SizedBox.shrink(),
+                  ),
+                ],
               ),
-              // Keyboard handling for Escape to cancel path edit or dialog
-              Focus(
-                onKeyEvent: (node, event) {
-                  if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
-                    if (_pathDraft != null) {
-                      _cancelPathEdit();
-                      return KeyEventResult.handled;
-                    }
-                    if (_folderDraft == null && !widget.busy) {
-                      widget.onClose();
-                      return KeyEventResult.handled;
-                    }
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: const SizedBox.shrink(),
-              ),
-            ],
-          ),
               if (showCreateDialog)
                 Positioned.fill(
                   child: Container(
@@ -1021,24 +1244,33 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
                         constraints: const BoxConstraints(maxWidth: 380),
                         child: Material(
                           color: aliases.bgLayer2,
-                          borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DswTokens.radiusLg,
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(_t('browser.newFolder'),
-                                    style: TextStyle(
-                                        fontSize: DswTokens.fontSizeBase16,
-                                        fontWeight: FontWeight.w600,
-                                        color: aliases.labelPrimary)),
+                                Text(
+                                  _t('browser.newFolder'),
+                                  style: TextStyle(
+                                    fontSize: DswTokens.fontSizeBase16,
+                                    fontWeight: FontWeight.w600,
+                                    color: aliases.labelPrimary,
+                                  ),
+                                ),
                                 const SizedBox(height: 12),
                                 Text(
                                   _t('browser.createIn').contains('{name}')
-                                      ? _t('browser.createIn').replaceAll('{name}', targetName)
+                                      ? _t('browser.createIn')
+                                            .replaceAll('{name}', targetName)
                                       : 'New folder in "$targetName"',
-                                  style: TextStyle(fontSize: DswTokens.fontSizeS14, color: aliases.labelPrimary),
+                                  style: TextStyle(
+                                    fontSize: DswTokens.fontSizeS14,
+                                    color: aliases.labelPrimary,
+                                  ),
                                 ),
                                 const SizedBox(height: 12),
                                 TextField(
@@ -1048,40 +1280,62 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
                                   enabled: !_creatingFolder,
                                   decoration: InputDecoration(
                                     hintText: _t('browser.untitledFolder'),
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(22)),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(22),
+                                    ),
                                   ),
                                   onChanged: (v) {
-                                    _isComposing = _folderCtrl.value.composing.isValid;
+                                    _isComposing =
+                                        _folderCtrl.value.composing.isValid;
                                     setState(() => _folderDraft = v);
                                   },
                                   onSubmitted: (_) {
-                                    if (_folderCtrl.value.composing.isValid || _isComposing) return;
+                                    if (_folderCtrl.value.composing.isValid ||
+                                        _isComposing)
+                                      return;
                                     _confirmCreate();
                                   },
                                 ),
                                 if (_createError != null) ...[
                                   const SizedBox(height: 8),
-                                  Text(_createError!,
-                                      style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.stateErrorPrimary)),
+                                  Text(
+                                    _createError!,
+                                    style: TextStyle(
+                                      fontSize: DswTokens.fontSizeXxs12,
+                                      color: aliases.stateErrorPrimary,
+                                    ),
+                                  ),
                                 ],
                                 const SizedBox(height: 20),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     TextButton(
-                                      onPressed: _creatingFolder ? null : () => setState(() => _folderDraft = null),
+                                      onPressed: _creatingFolder
+                                          ? null
+                                          : () => setState(
+                                              () => _folderDraft = null,
+                                            ),
                                       child: Text(_t('browser.cancel')),
                                     ),
                                     const SizedBox(width: 8),
                                     FilledButton(
-                                      onPressed: (_creatingFolder || (_folderDraft?.trim().isEmpty ?? true))
+                                      onPressed:
+                                          (_creatingFolder ||
+                                              (_folderDraft?.trim().isEmpty ??
+                                                  true))
                                           ? null
                                           : _confirmCreate,
                                       child: _creatingFolder
                                           ? SizedBox(
                                               width: 14,
                                               height: 14,
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: aliases.labelPrimaryForeground))
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: aliases
+                                                    .labelPrimaryForeground,
+                                              ),
+                                            )
                                           : Text(_t('browser.create')),
                                     ),
                                   ],
@@ -1125,9 +1379,17 @@ class _LevelColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final DswAliases aliases = theme.extension<DswThemeExtension>()?.aliases ??
-        (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
-    final visible = visibleEntries(entries, selectedPath, showHidden, filterPrefix);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final visible = visibleEntries(
+      entries,
+      selectedPath,
+      showHidden,
+      filterPrefix,
+    );
     return ListView.separated(
       shrinkWrap: true,
       physics: const ClampingScrollPhysics(),
@@ -1158,12 +1420,16 @@ class _LevelColumn extends StatelessWidget {
                 onPressed: busy ? null : () => onPick(entry),
                 autofocus: false,
                 style: TextButton.styleFrom(
-                backgroundColor: selected ? aliases.interactiveBgActive : DswTokens.transparent,
-                foregroundColor: aliases.labelPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                alignment: Alignment.centerLeft,
-              ),
+                  backgroundColor: selected
+                      ? aliases.interactiveBgActive
+                      : DswTokens.transparent,
+                  foregroundColor: aliases.labelPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.centerLeft,
+                ),
                 child: Semantics(
                   selected: selected,
                   // aria-current counterpart — mark selected row as current for a11y
@@ -1172,18 +1438,30 @@ class _LevelColumn extends StatelessWidget {
                   button: true,
                   child: Row(
                     children: [
-                      Icon(selected ? Icons.folder_open : Icons.folder_outlined,
-                          size: 16, color: selected ? aliases.buttonInfoFill : aliases.labelSecondary),
+                      Icon(
+                        selected ? Icons.folder_open : Icons.folder_outlined,
+                        size: 16,
+                        color: selected
+                            ? aliases.buttonInfoFill
+                            : aliases.labelSecondary,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(entry.name,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: DswTokens.fontSizeXs13,
-                                fontWeight: FontWeight.w500,
-                                color: aliases.labelPrimary)),
+                        child: Text(
+                          entry.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            fontWeight: FontWeight.w500,
+                            color: aliases.labelPrimary,
+                          ),
+                        ),
                       ),
-                      Icon(Icons.chevron_right, size: 12, color: aliases.labelTertiary),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 12,
+                        color: aliases.labelTertiary,
+                      ),
                     ],
                   ),
                 ),
@@ -1208,21 +1486,35 @@ Future<void> showCreateFolderDialog({
   required String Function(String) t,
 }) {
   final ThemeData theme = Theme.of(context);
-  final DswAliases aliases = theme.extension<DswThemeExtension>()?.aliases ??
-      (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+  final DswAliases aliases =
+      theme.extension<DswThemeExtension>()?.aliases ??
+      (theme.brightness == Brightness.dark
+          ? DswTokens.darkAliases
+          : DswTokens.lightAliases);
   return showDialog<void>(
     context: context,
     barrierDismissible: !creating,
     builder: (ctx) => AlertDialog(
       backgroundColor: aliases.bgLayer2,
-      title: Text(t('browser.newFolder'),
-          style: TextStyle(fontSize: DswTokens.fontSizeBase16, fontWeight: FontWeight.w600, color: aliases.labelPrimary)),
+      title: Text(
+        t('browser.newFolder'),
+        style: TextStyle(
+          fontSize: DswTokens.fontSizeBase16,
+          fontWeight: FontWeight.w600,
+          color: aliases.labelPrimary,
+        ),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(t('browser.createIn').replaceAll('{name}', targetName),
-              style: TextStyle(fontSize: DswTokens.fontSizeS14, color: aliases.labelPrimary)),
+          Text(
+            t('browser.createIn').replaceAll('{name}', targetName),
+            style: TextStyle(
+              fontSize: DswTokens.fontSizeS14,
+              color: aliases.labelPrimary,
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: controller,
@@ -1230,19 +1522,35 @@ Future<void> showCreateFolderDialog({
             enabled: !creating,
             decoration: InputDecoration(
               hintText: t('browser.untitledFolder'),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(22)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+              ),
             ),
             onSubmitted: (_) => onCreate(),
           ),
           if (createError != null) ...[
             const SizedBox(height: 8),
-            Text(createError, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.stateErrorPrimary)),
+            Text(
+              createError,
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXxs12,
+                color: aliases.stateErrorPrimary,
+              ),
+            ),
           ],
         ],
       ),
       actions: [
-        TextButton(onPressed: creating ? null : onCancel, child: Text(t('browser.cancel'))),
-        FilledButton(onPressed: creating || controller.text.trim().isEmpty ? null : onCreate, child: Text(t('browser.create'))),
+        TextButton(
+          onPressed: creating ? null : onCancel,
+          child: Text(t('browser.cancel')),
+        ),
+        FilledButton(
+          onPressed: creating || controller.text.trim().isEmpty
+              ? null
+              : onCreate,
+          child: Text(t('browser.create')),
+        ),
       ],
     ),
   );

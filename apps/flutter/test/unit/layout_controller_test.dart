@@ -39,20 +39,32 @@ void main() {
       expect(container.read(layoutProvider).effectiveSidebar, 0);
     });
 
-    test('effectiveSidebar returns default when narrowExpanded with sidebar 0', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      container.read(layoutProvider.notifier).toggleSidebar(); // close -> sidebar 0
-      container.read(layoutProvider.notifier).setNarrow(true); // narrow true resets narrowExpanded false
-      // Now collapsed
-      expect(container.read(layoutProvider).sidebarCollapsed, isTrue);
-      container.read(layoutProvider.notifier).toggleSidebar(); // narrow flip -> expanded
-      expect(container.read(layoutProvider).narrowExpanded, isTrue);
-      expect(container.read(layoutProvider).sidebarCollapsed, isFalse);
-      // sidebar still 0 but effective returns default
-      expect(container.read(layoutProvider).sidebar, 0);
-      expect(container.read(layoutProvider).effectiveSidebar, kSidebarDefault);
-    });
+    test(
+      'effectiveSidebar returns default when narrowExpanded with sidebar 0',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        container
+            .read(layoutProvider.notifier)
+            .toggleSidebar(); // close -> sidebar 0
+        container
+            .read(layoutProvider.notifier)
+            .setNarrow(true); // narrow true resets narrowExpanded false
+        // Now collapsed
+        expect(container.read(layoutProvider).sidebarCollapsed, isTrue);
+        container
+            .read(layoutProvider.notifier)
+            .toggleSidebar(); // narrow flip -> expanded
+        expect(container.read(layoutProvider).narrowExpanded, isTrue);
+        expect(container.read(layoutProvider).sidebarCollapsed, isFalse);
+        // sidebar still 0 but effective returns default
+        expect(container.read(layoutProvider).sidebar, 0);
+        expect(
+          container.read(layoutProvider).effectiveSidebar,
+          kSidebarDefault,
+        );
+      },
+    );
 
     test('detailsCollapsed and detailsOpen mirror details == 0', () {
       final container = ProviderContainer();
@@ -303,23 +315,39 @@ void main() {
       expect(cols.details, 0);
     });
 
-    test('viewport 0 with open sidebar keeps preference (center clamps to 0)', () {
-      final cols = col.computeColumns(0, 280, 360);
-      expect(cols.sidebar, 280);
-      expect(cols.center, 0);
-      expect(cols.details, 0);
-    });
+    test(
+      'viewport 0 with open sidebar keeps preference (center clamps to 0)',
+      () {
+        final cols = col.computeColumns(0, 280, 360);
+        expect(cols.sidebar, 280);
+        expect(cols.center, 0);
+        expect(cols.details, 0);
+      },
+    );
 
     test('mirrors web fixture: wide viewport with defaults', () {
       // from columns.ts tests convention: computeColumns(viewport, sidebarDefault, detailsDefault)
-      expect(col.computeColumns(1400, col.kSidebarDefault, col.kDetailsDefault),
-          equals(col.Columns(sidebar: col.kSidebarDefault, center: 760, details: col.kDetailsDefault)));
+      expect(
+        col.computeColumns(1400, col.kSidebarDefault, col.kDetailsDefault),
+        equals(
+          col.Columns(
+            sidebar: col.kSidebarDefault,
+            center: 760,
+            details: col.kDetailsDefault,
+          ),
+        ),
+      );
     });
   });
 
   group('LayoutState copyWith and equality', () {
     test('copyWith replaces selected fields', () {
-      const a = LayoutState(sidebar: 280, details: 360, narrow: false, narrowExpanded: false);
+      const a = LayoutState(
+        sidebar: 280,
+        details: 360,
+        narrow: false,
+        narrowExpanded: false,
+      );
       final b = a.copyWith(sidebar: 300);
       expect(b.sidebar, 300);
       expect(b.details, 360);
@@ -327,8 +355,18 @@ void main() {
     });
 
     test('equality includes all fields', () {
-      const a = LayoutState(sidebar: 280, details: 360, narrow: false, narrowExpanded: false);
-      const b = LayoutState(sidebar: 280, details: 360, narrow: false, narrowExpanded: false);
+      const a = LayoutState(
+        sidebar: 280,
+        details: 360,
+        narrow: false,
+        narrowExpanded: false,
+      );
+      const b = LayoutState(
+        sidebar: 280,
+        details: 360,
+        narrow: false,
+        narrowExpanded: false,
+      );
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });

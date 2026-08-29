@@ -45,7 +45,7 @@ class _FakeClient extends ConnectionClient {
     mutatedExpectedRevision = expectedRevision;
     if (mutateError != null) throw mutateError!;
     return const <String, dynamic>{};
-    }
+  }
 }
 
 /// Client whose describe face always fails (wire-down arm).
@@ -57,7 +57,8 @@ class _FailingDescribeClient extends ConnectionClient {
       throw StateError('wire down');
 }
 
-Map<String, Object?> _describeAnswer({String? preference, int revision = 2}) => {
+Map<String, Object?> _describeAnswer({String? preference, int revision = 2}) =>
+    {
       'namespaces': [
         {
           'ns': 'locale',
@@ -86,26 +87,30 @@ void main() {
       addTearDown(container.dispose);
 
       final controller = container.read(languageRowProvider.notifier);
-      controller.sync('zh', const [LanguageOptionRow(id: 'zh', label: '中文')], 3);
+      controller.sync('zh', const [
+        LanguageOptionRow(id: 'zh', label: '中文'),
+      ], 3);
       expect(container.read(languageRowProvider).active, 'zh');
       expect(container.read(languageRowProvider).revision, 3);
 
       // Stale duplicates are dropped by the revision guard.
-      controller.sync(
-          'en', const [LanguageOptionRow(id: 'en', label: 'English')], 3);
+      controller.sync('en', const [
+        LanguageOptionRow(id: 'en', label: 'English'),
+      ], 3);
       expect(container.read(languageRowProvider).active, 'zh');
 
-      controller.sync(
-          'en', const [LanguageOptionRow(id: 'en', label: 'English')], 4);
+      controller.sync('en', const [
+        LanguageOptionRow(id: 'en', label: 'English'),
+      ], 4);
       expect(container.read(languageRowProvider).active, 'en');
     });
 
     test('load reads the locale namespace off settings.describe', () async {
       final client = _FakeClient()
         ..describeAnswer = _describeAnswer(preference: 'zh', revision: 7);
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
+      final container = ProviderContainer(
+        overrides: [connectionClientProvider.overrideWithValue(client)],
+      );
       addTearDown(container.dispose);
 
       await container.read(languageRowProvider.notifier).load();
@@ -119,9 +124,11 @@ void main() {
     });
 
     test('load records wire errors on state and clears loading', () async {
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(_FailingDescribeClient()),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          connectionClientProvider.overrideWithValue(_FailingDescribeClient()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(languageRowProvider.notifier).load();
@@ -131,99 +138,111 @@ void main() {
       expect(state.error, isNotNull);
     });
 
-    test('setLocale writes ns locale set preference with revision guard',
-        () async {
-      final client = _FakeClient()
-        ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
-      addTearDown(container.dispose);
-      await container.read(languageRowProvider.notifier).load();
-      client.calls.clear();
+    test(
+      'setLocale writes ns locale set preference with revision guard',
+      () async {
+        final client = _FakeClient()
+          ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
+        final container = ProviderContainer(
+          overrides: [connectionClientProvider.overrideWithValue(client)],
+        );
+        addTearDown(container.dispose);
+        await container.read(languageRowProvider.notifier).load();
+        client.calls.clear();
 
-      final err =
-          await container.read(languageRowProvider.notifier).setLocale('zh');
+        final err = await container
+            .read(languageRowProvider.notifier)
+            .setLocale('zh');
 
-      expect(err, isNull);
-      // Guard describe → mutate → confirming re-sync describe.
-      expect(
-        client.calls,
-        containsAllInOrder(['settings.describe', 'settings.mutate']),
-      );
-      expect(client.calls.last, 'settings.describe');
-      expect(container.read(languageRowProvider).active, 'zh');
-    });
+        expect(err, isNull);
+        // Guard describe → mutate → confirming re-sync describe.
+        expect(
+          client.calls,
+          containsAllInOrder(['settings.describe', 'settings.mutate']),
+        );
+        expect(client.calls.last, 'settings.describe');
+        expect(container.read(languageRowProvider).active, 'zh');
+      },
+    );
 
-    test('setLocale rolls back the optimistic update when mutate fails',
-        () async {
-      final client = _FakeClient()
-        ..describeAnswer = _describeAnswer(preference: 'en', revision: 5)
-        ..mutateError = StateError('conflict');
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
-      addTearDown(container.dispose);
-      await container.read(languageRowProvider.notifier).load();
+    test(
+      'setLocale rolls back the optimistic update when mutate fails',
+      () async {
+        final client = _FakeClient()
+          ..describeAnswer = _describeAnswer(preference: 'en', revision: 5)
+          ..mutateError = StateError('conflict');
+        final container = ProviderContainer(
+          overrides: [connectionClientProvider.overrideWithValue(client)],
+        );
+        addTearDown(container.dispose);
+        await container.read(languageRowProvider.notifier).load();
 
-      final err =
-          await container.read(languageRowProvider.notifier).setLocale('zh');
+        final err = await container
+            .read(languageRowProvider.notifier)
+            .setLocale('zh');
 
-      expect(err, isNotNull);
-      final state = container.read(languageRowProvider);
-      expect(state.active, 'en');
-      expect(state.revision, 5);
-      expect(state.error, isNotNull);
-    });
+        expect(err, isNotNull);
+        final state = container.read(languageRowProvider);
+        expect(state.active, 'en');
+        expect(state.revision, 5);
+        expect(state.error, isNotNull);
+      },
+    );
 
-    test('setLocale publishes through LocaleService before persisting',
-        () async {
-      final journal = <String>[];
-      final client = _FakeClient(journal: journal)
-        ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
-      addTearDown(container.dispose);
+    test(
+      'setLocale publishes through LocaleService before persisting',
+      () async {
+        final journal = <String>[];
+        final client = _FakeClient(journal: journal)
+          ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
+        final container = ProviderContainer(
+          overrides: [connectionClientProvider.overrideWithValue(client)],
+        );
+        addTearDown(container.dispose);
 
-      final service = container.read(localeServiceProvider);
-      service.onChanged(() => journal.add('publish:${service.locale}'));
-      service.register('probe', {
-        'zh': {'greeting': '你好'},
-        'en': {'greeting': 'Hello'},
-      });
-      final controller = container.read(languageRowProvider.notifier);
-      await controller.load();
-      // Land on en so the switch under test moves the service for real
-      // (the service boots on zh; the row's describe read alone does not).
-      await controller.setLocale('en');
-      journal.clear();
+        final service = container.read(localeServiceProvider);
+        service.onChanged(() => journal.add('publish:${service.locale}'));
+        service.register('probe', {
+          'zh': {'greeting': '你好'},
+          'en': {'greeting': 'Hello'},
+        });
+        final controller = container.read(languageRowProvider.notifier);
+        await controller.load();
+        // Land on en so the switch under test moves the service for real
+        // (the service boots on zh; the row's describe read alone does not).
+        await controller.setLocale('en');
+        journal.clear();
 
-      final err = await controller.setLocale('zh');
+        final err = await controller.setLocale('zh');
 
-      // React order: publish the snapshot change first, then the durable
-      // write — persistence is a consequence, not the switch mechanism.
-      expect(err, isNull);
-      expect(journal.first, 'publish:zh');
-      expect(journal[1], 'settings.describe');
-      expect(service.locale, 'zh');
-      expect(service.bind('probe')('greeting'), '你好');
-      // Mutate carries ns 'locale', the preference set op, and the describe
-      // revision as fence.
-      expect(client.mutatedNs, 'locale');
-      expect(client.mutatedOps, [
-        {'op': 'set', 'path': ['preference'], 'value': 'zh'}
-      ]);
-      expect(client.mutatedExpectedRevision, 5);
-    });
+        // React order: publish the snapshot change first, then the durable
+        // write — persistence is a consequence, not the switch mechanism.
+        expect(err, isNull);
+        expect(journal.first, 'publish:zh');
+        expect(journal[1], 'settings.describe');
+        expect(service.locale, 'zh');
+        expect(service.bind('probe')('greeting'), '你好');
+        // Mutate carries ns 'locale', the preference set op, and the describe
+        // revision as fence.
+        expect(client.mutatedNs, 'locale');
+        expect(client.mutatedOps, [
+          {
+            'op': 'set',
+            'path': ['preference'],
+            'value': 'zh',
+          },
+        ]);
+        expect(client.mutatedExpectedRevision, 5);
+      },
+    );
 
     test('setLocale rolls back BOTH controller state and LocaleService '
         'when mutate fails', () async {
       final client = _FakeClient()
         ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
+      final container = ProviderContainer(
+        overrides: [connectionClientProvider.overrideWithValue(client)],
+      );
       addTearDown(container.dispose);
 
       final service = container.read(localeServiceProvider);
@@ -251,43 +270,46 @@ void main() {
       expect(state.error, isNotNull);
     });
 
-    test('unknown id keeps the previous locale and surfaces the ArgumentError',
-        () async {
-      final client = _FakeClient()
-        ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
-      final container = ProviderContainer(overrides: [
-        connectionClientProvider.overrideWithValue(client),
-      ]);
-      addTearDown(container.dispose);
+    test(
+      'unknown id keeps the previous locale and surfaces the ArgumentError',
+      () async {
+        final client = _FakeClient()
+          ..describeAnswer = _describeAnswer(preference: 'en', revision: 5);
+        final container = ProviderContainer(
+          overrides: [connectionClientProvider.overrideWithValue(client)],
+        );
+        addTearDown(container.dispose);
 
-      final service = container.read(localeServiceProvider);
-      service.register('probe', {
-        'zh': {'greeting': '你好'},
-        'en': {'greeting': 'Hello'},
-      });
-      final controller = container.read(languageRowProvider.notifier);
-      await controller.load();
-      // Land on en so "previous locale" is a real service state.
-      await controller.setLocale('en');
-      client.calls.clear();
-      final landedRevision = container.read(languageRowProvider).revision;
+        final service = container.read(localeServiceProvider);
+        service.register('probe', {
+          'zh': {'greeting': '你好'},
+          'en': {'greeting': 'Hello'},
+        });
+        final controller = container.read(languageRowProvider.notifier);
+        await controller.load();
+        // Land on en so "previous locale" is a real service state.
+        await controller.setLocale('en');
+        client.calls.clear();
+        final landedRevision = container.read(languageRowProvider).revision;
 
-      final err = await controller.setLocale('xx');
+        final err = await controller.setLocale('xx');
 
-      // LocaleService's registered-id check fires before any wire traffic;
-      // the row restores its optimistic state around it.
-      expect(err, contains('locale is not registered'));
-      expect(service.locale, 'en');
-      expect(client.calls, isEmpty);
-      final state = container.read(languageRowProvider);
-      expect(state.active, 'en');
-      expect(state.revision, landedRevision);
-      expect(state.error, isNotNull);
-    });
+        // LocaleService's registered-id check fires before any wire traffic;
+        // the row restores its optimistic state around it.
+        expect(err, contains('locale is not registered'));
+        expect(service.locale, 'en');
+        expect(client.calls, isEmpty);
+        final state = container.read(languageRowProvider);
+        expect(state.active, 'en');
+        expect(state.revision, landedRevision);
+        expect(state.error, isNotNull);
+      },
+    );
   });
 
-  testWidgets('LanguageRow renders title and selector placeholder',
-      (tester) async {
+  testWidgets('LanguageRow renders title and selector placeholder', (
+    tester,
+  ) async {
     final client = _FakeClient()
       ..describeAnswer = _describeAnswer(preference: '', revision: 0);
 
@@ -296,7 +318,9 @@ void main() {
         overrides: [connectionClientProvider.overrideWithValue(client)],
         child: MaterialApp(
           theme: ThemeData(
-            extensions: const [DswThemeExtension(aliases: DswTokens.lightAliases)],
+            extensions: const [
+              DswThemeExtension(aliases: DswTokens.lightAliases),
+            ],
           ),
           home: const Scaffold(body: LanguageRow()),
         ),
@@ -313,8 +337,9 @@ void main() {
     expect(client.calls, contains('settings.describe'));
   });
 
-  testWidgets('LanguageRow shows the active locale label after sync',
-      (tester) async {
+  testWidgets('LanguageRow shows the active locale label after sync', (
+    tester,
+  ) async {
     final client = _FakeClient()
       ..describeAnswer = _describeAnswer(preference: 'zh', revision: 1);
 
@@ -323,7 +348,9 @@ void main() {
         overrides: [connectionClientProvider.overrideWithValue(client)],
         child: MaterialApp(
           theme: ThemeData(
-            extensions: const [DswThemeExtension(aliases: DswTokens.lightAliases)],
+            extensions: const [
+              DswThemeExtension(aliases: DswTokens.lightAliases),
+            ],
           ),
           home: const Scaffold(body: LanguageRow()),
         ),

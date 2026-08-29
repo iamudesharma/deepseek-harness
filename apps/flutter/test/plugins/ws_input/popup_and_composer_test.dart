@@ -36,7 +36,10 @@ class FakeSpec implements PopupSpec<SessionId> {
   ];
 
   @override
-  Future<List<SelectOption>> options(SessionId context, PopupSignal signal) async {
+  Future<List<SelectOption>> options(
+    SessionId context,
+    PopupSignal signal,
+  ) async {
     loadCount++;
     if (failFirst && loadCount == 1) throw StateError('offline');
     return rows;
@@ -77,88 +80,119 @@ void main() {
       expect(filterOptions(rows, 'zzz'), isEmpty);
     });
 
-    test('open loads options once; search filters locally without refetch',
-        () async {
-      final spec = FakeSpec();
-      final controller = PopupSelectController<SessionId>(RecordingDeps());
-      controller.open('deploy', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/deploy'));
-      await Future<void>.delayed(Duration.zero);
-      expect(controller.state.value.status, PopupStatus.ready);
-      expect(controller.state.value.command, 'deploy');
-      expect(spec.loadCount, 1);
+    test(
+      'open loads options once; search filters locally without refetch',
+      () async {
+        final spec = FakeSpec();
+        final controller = PopupSelectController<SessionId>(RecordingDeps());
+        controller.open(
+          'deploy',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/deploy'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.state.value.status, PopupStatus.ready);
+        expect(controller.state.value.command, 'deploy');
+        expect(spec.loadCount, 1);
 
-      controller.setSearch('alph');
-      expect(controller.state.value.search, 'alph');
-      expect(controller.state.value.active, 0);
-      expect(spec.loadCount, 1); // never re-queried per keystroke
-    });
+        controller.setSearch('alph');
+        expect(controller.state.value.search, 'alph');
+        expect(controller.state.value.active, 0);
+        expect(spec.loadCount, 1); // never re-queried per keystroke
+      },
+    );
 
-    test('move wraps over filtered rows; highlight rejects out-of-range', () async {
-      final spec = FakeSpec();
-      final controller = PopupSelectController<SessionId>(RecordingDeps());
-      controller.open('x', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/x'));
-      await Future<void>.delayed(Duration.zero);
-      controller.move(1);
-      expect(controller.state.value.active, 1);
-      controller.move(-1);
-      expect(controller.state.value.active, 0);
-      controller.move(-1); // wraps to the last row
-      expect(controller.state.value.active, 2);
-      controller.highlight(9); // out of range → no-op
-      expect(controller.state.value.active, 2);
-    });
+    test(
+      'move wraps over filtered rows; highlight rejects out-of-range',
+      () async {
+        final spec = FakeSpec();
+        final controller = PopupSelectController<SessionId>(RecordingDeps());
+        controller.open(
+          'x',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/x'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        controller.move(1);
+        expect(controller.state.value.active, 1);
+        controller.move(-1);
+        expect(controller.state.value.active, 0);
+        controller.move(-1); // wraps to the last row
+        expect(controller.state.value.active, 2);
+        controller.highlight(9); // out of range → no-op
+        expect(controller.state.value.active, 2);
+      },
+    );
 
-    test('select settles single-flight, consumes segment, closes, focuses',
-        () async {
-      final spec = FakeSpec();
-      final deps = RecordingDeps();
-      final controller = PopupSelectController<SessionId>(deps);
-      controller.open('deploy', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/deploy'));
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'select settles single-flight, consumes segment, closes, focuses',
+      () async {
+        final spec = FakeSpec();
+        final deps = RecordingDeps();
+        final controller = PopupSelectController<SessionId>(deps);
+        controller.open(
+          'deploy',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/deploy'),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      // Single-flight: while the first settle is in flight (spec records
-      // synchronously here, so drive two and expect one settlement).
-      await controller.select(0);
-      await controller.select(1);
-      expect(spec.settled.map((o) => o.id), ['a']);
-      expect(deps.consumed.single,
-          isA<EnterSegment>().having((s) => s.token, 'token', '/deploy'));
-      expect(controller.state.value.open, isFalse);
-      expect(deps.focusCalls, 1);
-    });
+        // Single-flight: while the first settle is in flight (spec records
+        // synchronously here, so drive two and expect one settlement).
+        await controller.select(0);
+        await controller.select(1);
+        expect(spec.settled.map((o) => o.id), ['a']);
+        expect(
+          deps.consumed.single,
+          isA<EnterSegment>().having((s) => s.token, 'token', '/deploy'),
+        );
+        expect(controller.state.value.open, isFalse);
+        expect(deps.focusCalls, 1);
+      },
+    );
 
-    test('gated option enters confirmation; select blocked until acknowledged',
-        () async {
-      final spec = FakeSpec();
-      final deps = RecordingDeps();
-      final controller = PopupSelectController<SessionId>(deps);
-      controller.open('gamma', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/gamma'));
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'gated option enters confirmation; select blocked until acknowledged',
+      () async {
+        final spec = FakeSpec();
+        final deps = RecordingDeps();
+        final controller = PopupSelectController<SessionId>(deps);
+        controller.open(
+          'gamma',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/gamma'),
+        );
+        await Future<void>.delayed(Duration.zero);
 
-      await controller.select(2); // Gamma carries the gate
-      expect(controller.state.value.confirming?.id, 'c');
-      expect(deps.consumed, isEmpty); // nothing settled yet
+        await controller.select(2); // Gamma carries the gate
+        expect(controller.state.value.confirming?.id, 'c');
+        expect(deps.consumed, isEmpty); // nothing settled yet
 
-      await controller.select(0); // picker interactions no-op while gated
-      expect(spec.settled, isEmpty);
+        await controller.select(0); // picker interactions no-op while gated
+        expect(spec.settled, isEmpty);
 
-      controller.acknowledge(true);
-      expect(controller.state.value.acknowledged, isTrue);
-      await controller.confirm();
-      expect(spec.settled.single.id, 'c');
-      expect(controller.state.value.open, isFalse);
-      expect(deps.focusCalls, 1);
-    });
+        controller.acknowledge(true);
+        expect(controller.state.value.acknowledged, isTrue);
+        await controller.confirm();
+        expect(spec.settled.single.id, 'c');
+        expect(controller.state.value.open, isFalse);
+        expect(deps.focusCalls, 1);
+      },
+    );
 
     test('cancelConfirmation returns to the picker without settling', () async {
       final spec = FakeSpec();
       final controller = PopupSelectController<SessionId>(RecordingDeps());
-      controller.open('gamma', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/gamma'));
+      controller.open(
+        'gamma',
+        spec,
+        const SessionId('s1'),
+        const TokenSegment.enter(token: '/gamma'),
+      );
       await Future<void>.delayed(Duration.zero);
       await controller.select(2);
       controller.cancelConfirmation();
@@ -167,80 +201,107 @@ void main() {
       expect(spec.settled, isEmpty);
     });
 
-    test('onSelect failure keeps the shell open with error; retry re-arms select',
-        () async {
-      final spec = FakeSpec(throwOnSelect: true);
-      final controller = PopupSelectController<SessionId>(RecordingDeps());
-      controller.open('boom', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/boom'));
-      await Future<void>.delayed(Duration.zero);
-      await controller.select(0);
-      expect(controller.state.value.open, isTrue);
-      expect(controller.state.value.error, contains('settle blew up'));
-      expect(controller.state.value.submitting, isFalse);
-    });
+    test(
+      'onSelect failure keeps the shell open with error; retry re-arms select',
+      () async {
+        final spec = FakeSpec(throwOnSelect: true);
+        final controller = PopupSelectController<SessionId>(RecordingDeps());
+        controller.open(
+          'boom',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/boom'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await controller.select(0);
+        expect(controller.state.value.open, isTrue);
+        expect(controller.state.value.error, contains('settle blew up'));
+        expect(controller.state.value.submitting, isFalse);
+      },
+    );
 
-    test('options failure surfaces failed state; retry reloads same binding',
-        () async {
-      final spec = FakeSpec(failFirst: true);
-      final controller = PopupSelectController<SessionId>(RecordingDeps());
-      controller.open('flaky', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/flaky'));
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      expect(controller.state.value.status, PopupStatus.failed);
-      expect(controller.state.value.error, contains('offline'));
+    test(
+      'options failure surfaces failed state; retry reloads same binding',
+      () async {
+        final spec = FakeSpec(failFirst: true);
+        final controller = PopupSelectController<SessionId>(RecordingDeps());
+        controller.open(
+          'flaky',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/flaky'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.state.value.status, PopupStatus.failed);
+        expect(controller.state.value.error, contains('offline'));
 
-      controller.retry();
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      expect(controller.state.value.status, PopupStatus.ready);
-      expect(spec.loadCount, 2);
-    });
+        controller.retry();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.state.value.status, PopupStatus.ready);
+        expect(spec.loadCount, 2);
+      },
+    );
 
-    test('dismiss during flying options drops the late write and consumption',
-        () async {
-      final completer = Completer<List<SelectOption>>();
-      late PopupSignal captured;
-      final spec = _HangingSpec(completer, (signal) => captured = signal);
-      final deps = RecordingDeps();
-      final controller = PopupSelectController<SessionId>(deps);
-      controller.open('slow', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/slow'));
-      controller.dismiss();
+    test(
+      'dismiss during flying options drops the late write and consumption',
+      () async {
+        final completer = Completer<List<SelectOption>>();
+        late PopupSignal captured;
+        final spec = _HangingSpec(completer, (signal) => captured = signal);
+        final deps = RecordingDeps();
+        final controller = PopupSelectController<SessionId>(deps);
+        controller.open(
+          'slow',
+          spec,
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/slow'),
+        );
+        controller.dismiss();
 
-      completer.complete(FakeSpec.rows); // late settlement flies in
-      await Future<void>.delayed(Duration.zero);
-      expect(captured.aborted, isTrue);
-      expect(controller.state.value.open, isFalse); // stays closed
-      expect(deps.consumed, isEmpty);
-    });
+        completer.complete(FakeSpec.rows); // late settlement flies in
+        await Future<void>.delayed(Duration.zero);
+        expect(captured.aborted, isTrue);
+        expect(controller.state.value.open, isFalse); // stays closed
+        expect(deps.consumed, isEmpty);
+      },
+    );
 
-    test('reopen supersedes the previous binding (late first fetch dropped)',
-        () async {
-      final first = Completer<List<SelectOption>>();
-      final second = Completer<List<SelectOption>>();
-      late PopupSignal firstSignal;
-      final controller =
-          PopupSelectController<SessionId>(RecordingDeps());
+    test(
+      'reopen supersedes the previous binding (late first fetch dropped)',
+      () async {
+        final first = Completer<List<SelectOption>>();
+        final second = Completer<List<SelectOption>>();
+        late PopupSignal firstSignal;
+        final controller = PopupSelectController<SessionId>(RecordingDeps());
 
-      controller.open('one', _HangingSpec(first, (s) => firstSignal = s),
-          const SessionId('s1'), const TokenSegment.enter(token: '/one'));
-      controller.open('two', _HangingSpec(second, (_) {}),
-          const SessionId('s1'), const TokenSegment.enter(token: '/two'));
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+        controller.open(
+          'one',
+          _HangingSpec(first, (s) => firstSignal = s),
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/one'),
+        );
+        controller.open(
+          'two',
+          _HangingSpec(second, (_) {}),
+          const SessionId('s1'),
+          const TokenSegment.enter(token: '/two'),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(controller.state.value.command, 'two');
-      first.complete(FakeSpec.rows); // stale binding settles late
-      await Future<void>.delayed(Duration.zero);
-      second.complete(const [SelectOption(id: 'z', label: 'Zeta')]);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      expect(controller.state.value.status, PopupStatus.ready);
-      expect(controller.state.value.options.single.label, 'Zeta');
-      expect(firstSignal.aborted, isTrue);
-    });
+        expect(controller.state.value.command, 'two');
+        first.complete(FakeSpec.rows); // stale binding settles late
+        await Future<void>.delayed(Duration.zero);
+        second.complete(const [SelectOption(id: 'z', label: 'Zeta')]);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.state.value.status, PopupStatus.ready);
+        expect(controller.state.value.options.single.label, 'Zeta');
+        expect(firstSignal.aborted, isTrue);
+      },
+    );
   });
 
   group('PopupSelectOverlay widget', () {
@@ -248,22 +309,27 @@ void main() {
     // (bottom of the column): the shell opens UPWARD from that anchor
     // (React `bottom: calc(100% + 4px)`), so the fixture anchors low.
     Widget host(PopupSelectController<SessionId> controller) => MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.bottomCenter,
-              child: PopupSelectOverlay(controller: controller),
-            ),
-          ),
-        );
-    testWidgets('closed renders nothing; open renders rows; tap settles',
-        (tester) async {
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: PopupSelectOverlay(controller: controller),
+        ),
+      ),
+    );
+    testWidgets('closed renders nothing; open renders rows; tap settles', (
+      tester,
+    ) async {
       final spec = FakeSpec();
       final controller = PopupSelectController<SessionId>(RecordingDeps());
       await tester.pumpWidget(host(controller));
       expect(find.byKey(const ValueKey('popup-select')), findsNothing);
 
-      controller.open('deploy', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/deploy'));
+      controller.open(
+        'deploy',
+        spec,
+        const SessionId('s1'),
+        const TokenSegment.enter(token: '/deploy'),
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('popup-select')), findsOne);
       expect(find.text('/deploy'), findsOne); // search hint
@@ -278,8 +344,12 @@ void main() {
     testWidgets('gated row swaps to the confirmation card', (tester) async {
       final spec = FakeSpec();
       final controller = PopupSelectController<SessionId>(RecordingDeps());
-      controller.open('gamma', spec, const SessionId('s1'),
-          const TokenSegment.enter(token: '/gamma'));
+      controller.open(
+        'gamma',
+        spec,
+        const SessionId('s1'),
+        const TokenSegment.enter(token: '/gamma'),
+      );
       await tester.pumpWidget(host(controller));
       await tester.pumpAndSettle();
 
@@ -318,7 +388,7 @@ void main() {
 /// Spec whose options fetch hangs until the test completes it.
 class _HangingSpec implements PopupSpec<SessionId> {
   _HangingSpec(this._completer, void Function(PopupSignal) onSignal)
-      : _onSignal = onSignal;
+    : _onSignal = onSignal;
 
   final Completer<List<SelectOption>> _completer;
   final void Function(PopupSignal) _onSignal;

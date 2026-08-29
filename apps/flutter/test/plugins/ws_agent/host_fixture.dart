@@ -16,8 +16,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 /// Host carrying every service the four WS plugins declare (`slots`,
@@ -25,7 +24,10 @@ class _NoopFace implements SettingsFace {
 /// `settingsScope`, plus `conversation` unless a test boots the real
 /// [ConversationPlugin] to provide it), so activation runs against the real
 /// DI fixpoint without booting the app shell.
-PluginHost wsAgentHost({ConnectionClient? client, bool withConversation = true}) {
+PluginHost wsAgentHost({
+  ConnectionClient? client,
+  bool withConversation = true,
+}) {
   final c = client ?? ConnectionClient(baseUrl: '');
   final host = PluginHost();
   host.provide('slots', host.slots);
@@ -35,10 +37,16 @@ PluginHost wsAgentHost({ConnectionClient? client, bool withConversation = true})
   host.provide('locale', LocaleService());
   host.provide('remote', RemoteEventBus());
   host.provide('inputTriggers', TriggerSourceRegistry());
-  final scope = SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-conversation');
+  final scope = SettingsScope<Object?>(
+    face: _NoopFace(),
+    namespace: 'ui-conversation',
+  );
   host.provide('settingsScope', scope);
   if (withConversation) {
-    host.provide('conversation', ConversationController(client: c, settingsScope: scope));
+    host.provide(
+      'conversation',
+      ConversationController(client: c, settingsScope: scope),
+    );
   }
   return host;
 }
@@ -52,10 +60,14 @@ void declareHeaderActionsHole(PluginHost host) {
     const RegistrationOptions(
       name: 'root',
       children: {
-        'conversation.session.header.actions':
-            SlotSpec(kind: SlotKind.list, scope: SlotScope.session),
-        'conversation.input.plan':
-            SlotSpec(kind: SlotKind.single, scope: SlotScope.session),
+        'conversation.session.header.actions': SlotSpec(
+          kind: SlotKind.list,
+          scope: SlotScope.session,
+        ),
+        'conversation.input.plan': SlotSpec(
+          kind: SlotKind.single,
+          scope: SlotScope.session,
+        ),
       },
     ),
     (context, props) => const SizedBox.shrink(),

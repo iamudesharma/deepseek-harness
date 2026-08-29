@@ -9,8 +9,16 @@ void main() {
     test('decodes PermissionSelect with options and currentValue', () {
       final json = {
         'options': [
-          {'value': 'workspace-write', 'name': 'Workspace Write', 'description': 'Write inside workspace'},
-          {'value': 'danger-full-access', 'name': 'Full Access', 'description': 'Full file access'},
+          {
+            'value': 'workspace-write',
+            'name': 'Workspace Write',
+            'description': 'Write inside workspace',
+          },
+          {
+            'value': 'danger-full-access',
+            'name': 'Full Access',
+            'description': 'Full file access',
+          },
         ],
         'currentValue': 'workspace-write',
       };
@@ -103,7 +111,11 @@ void main() {
 
     test('changing model clears incompatible effort', () {
       // Simulate selecting a new model with different reasoning
-      final oldSelection = ModelSelection(provider: 'p1', model: 'm1', reasoningEffort: 'max');
+      final oldSelection = ModelSelection(
+        provider: 'p1',
+        model: 'm1',
+        reasoningEffort: 'max',
+      );
       final newModel = ModelInfo.fromJson({
         'id': 'm2',
         'name': 'M2',
@@ -125,9 +137,17 @@ void main() {
     });
 
     test('changing effort preserves provider/model', () {
-      final current = ModelSelection(provider: 'p1', model: 'm1', reasoningEffort: 'high');
+      final current = ModelSelection(
+        provider: 'p1',
+        model: 'm1',
+        reasoningEffort: 'high',
+      );
       final newEffort = 'max';
-      final updated = ModelSelection(provider: current.provider, model: current.model, reasoningEffort: newEffort);
+      final updated = ModelSelection(
+        provider: current.provider,
+        model: current.model,
+        reasoningEffort: newEffort,
+      );
       expect(updated.provider, current.provider);
       expect(updated.model, current.model);
       expect(updated.reasoningEffort, 'max');
@@ -145,8 +165,13 @@ void main() {
           'defaultEffort': 'high',
         },
       });
-      final current = ModelSelection(provider: 'p1', model: 'm1', reasoningEffort: null);
-      final effective = current.reasoningEffort ?? model.reasoning?.defaultEffort;
+      final current = ModelSelection(
+        provider: 'p1',
+        model: 'm1',
+        reasoningEffort: null,
+      );
+      final effective =
+          current.reasoningEffort ?? model.reasoning?.defaultEffort;
       expect(effective, 'high');
     });
 
@@ -184,7 +209,9 @@ void main() {
       notifier.setPending();
       expect(notifier.state.pending, isTrue);
       // Effective target = pending ? !active : active = !true = false -> chip hidden
-      final target = notifier.state.pending ? !notifier.state.active : notifier.state.active;
+      final target = notifier.state.pending
+          ? !notifier.state.active
+          : notifier.state.active;
       expect(target, isFalse);
     });
 
@@ -236,13 +263,19 @@ void main() {
     test('UI chip follows authoritative effective state', () {
       final notifier = PlanNotifier();
       notifier.settle(active: true);
-      var target = notifier.state.pending ? !notifier.state.active : notifier.state.active;
+      var target = notifier.state.pending
+          ? !notifier.state.active
+          : notifier.state.active;
       expect(target, isTrue); // visible
       notifier.setPending();
-      target = notifier.state.pending ? !notifier.state.active : notifier.state.active;
+      target = notifier.state.pending
+          ? !notifier.state.active
+          : notifier.state.active;
       expect(target, isFalse); // hidden while leaving
       notifier.settle(active: false);
-      target = notifier.state.pending ? !notifier.state.active : notifier.state.active;
+      target = notifier.state.pending
+          ? !notifier.state.active
+          : notifier.state.active;
       expect(target, isFalse); // hidden after committed
     });
   });

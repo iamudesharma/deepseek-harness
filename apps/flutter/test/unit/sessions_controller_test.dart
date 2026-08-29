@@ -3,7 +3,13 @@ import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-SessionSummary _summary(String id, {int updatedAt = 1000, bool running = false, bool blank = false, String? title}) {
+SessionSummary _summary(
+  String id, {
+  int updatedAt = 1000,
+  bool running = false,
+  bool blank = false,
+  String? title,
+}) {
   return SessionSummary(
     sessionId: SessionId(id),
     updatedAt: updatedAt,
@@ -30,7 +36,10 @@ void main() {
       notifier.setCurrent(const SessionId('s1'));
       expect(container.read(sessionsProvider).hasCurrent, isTrue);
       expect(container.read(sessionsProvider).currentSession, isNotNull);
-      expect(container.read(sessionsProvider).currentSession!.sessionId.value, 's1');
+      expect(
+        container.read(sessionsProvider).currentSession!.sessionId.value,
+        's1',
+      );
     });
 
     test('hasCurrent false when current not in byId', () {
@@ -126,7 +135,10 @@ void main() {
       final notifier = container.read(sessionsProvider.notifier);
       notifier.addSession(_summary('s1', title: 'First'));
       expect(container.read(sessionsProvider).byId.length, 1);
-      expect(container.read(sessionsProvider).byId[const SessionId('s1')]!.title, 'First');
+      expect(
+        container.read(sessionsProvider).byId[const SessionId('s1')]!.title,
+        'First',
+      );
     });
 
     test('replaces existing id', () {
@@ -135,7 +147,10 @@ void main() {
       final notifier = container.read(sessionsProvider.notifier);
       notifier.addSession(_summary('s1', title: 'Old'));
       notifier.addSession(_summary('s1', title: 'New'));
-      expect(container.read(sessionsProvider).byId[const SessionId('s1')]!.title, 'New');
+      expect(
+        container.read(sessionsProvider).byId[const SessionId('s1')]!.title,
+        'New',
+      );
       expect(container.read(sessionsProvider).byId.length, 1);
     });
   });
@@ -146,16 +161,25 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(sessionsProvider.notifier);
       notifier.addSession(_summary('s1', title: 'Old'));
-      final updated = notifier.updateSession(const SessionId('s1'), (s) => s.copyWith(title: 'New'));
+      final updated = notifier.updateSession(
+        const SessionId('s1'),
+        (s) => s.copyWith(title: 'New'),
+      );
       expect(updated, isTrue);
-      expect(container.read(sessionsProvider).byId[const SessionId('s1')]!.title, 'New');
+      expect(
+        container.read(sessionsProvider).byId[const SessionId('s1')]!.title,
+        'New',
+      );
     });
 
     test('returns false when session not found', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final notifier = container.read(sessionsProvider.notifier);
-      final result = notifier.updateSession(const SessionId('missing'), (s) => s);
+      final result = notifier.updateSession(
+        const SessionId('missing'),
+        (s) => s,
+      );
       expect(result, isFalse);
     });
 
@@ -173,8 +197,14 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(sessionsProvider.notifier);
       notifier.addSession(_summary('s1', updatedAt: 100));
-      notifier.updateSession(const SessionId('s1'), (s) => s.copyWith(updatedAt: 500));
-      expect(container.read(sessionsProvider).byId[const SessionId('s1')]!.updatedAt, 500);
+      notifier.updateSession(
+        const SessionId('s1'),
+        (s) => s.copyWith(updatedAt: 500),
+      );
+      expect(
+        container.read(sessionsProvider).byId[const SessionId('s1')]!.updatedAt,
+        500,
+      );
     });
   });
 
@@ -187,7 +217,13 @@ void main() {
       notifier.addSession(_summary('s2'));
       notifier.setCurrent(const SessionId('s1'));
       notifier.removeSession(const SessionId('s1'));
-      expect(container.read(sessionsProvider).byId.containsKey(const SessionId('s1')), isFalse);
+      expect(
+        container
+            .read(sessionsProvider)
+            .byId
+            .containsKey(const SessionId('s1')),
+        isFalse,
+      );
       expect(container.read(sessionsProvider).current, isNull);
     });
 
@@ -241,12 +277,27 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(sessionsProvider.notifier);
       notifier.addSession(_summary('old', updatedAt: 1));
-      notifier.setAll([_summary('s1', updatedAt: 100), _summary('s2', updatedAt: 200)]);
+      notifier.setAll([
+        _summary('s1', updatedAt: 100),
+        _summary('s2', updatedAt: 200),
+      ]);
       // before microtask, old state still visible
-      expect(container.read(sessionsProvider).byId.containsKey(const SessionId('old')), isTrue);
+      expect(
+        container
+            .read(sessionsProvider)
+            .byId
+            .containsKey(const SessionId('old')),
+        isTrue,
+      );
       await Future<void>.delayed(Duration.zero);
       expect(container.read(sessionsProvider).byId.length, 2);
-      expect(container.read(sessionsProvider).byId.containsKey(const SessionId('old')), isFalse);
+      expect(
+        container
+            .read(sessionsProvider)
+            .byId
+            .containsKey(const SessionId('old')),
+        isFalse,
+      );
     });
 
     test('preserves current when present in new list', () async {
@@ -280,8 +331,14 @@ void main() {
       notifier.setAll([_summary('b')]);
       notifier.setAll([_summary('c')]);
       await Future<void>.delayed(Duration.zero);
-      expect(container.read(sessionsProvider).byId.containsKey(const SessionId('c')), isTrue);
-      expect(container.read(sessionsProvider).byId.containsKey(const SessionId('a')), isFalse);
+      expect(
+        container.read(sessionsProvider).byId.containsKey(const SessionId('c')),
+        isTrue,
+      );
+      expect(
+        container.read(sessionsProvider).byId.containsKey(const SessionId('a')),
+        isFalse,
+      );
     });
   });
 }

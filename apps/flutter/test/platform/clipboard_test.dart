@@ -13,13 +13,13 @@ void main() {
     setDataCalls.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') {
-        final data = call.arguments as Map<Object?, Object?>?;
-        setDataCalls.add(data?['text'] as String?);
-        return null;
-      }
-      return null;
-    });
+          if (call.method == 'Clipboard.setData') {
+            final data = call.arguments as Map<Object?, Object?>?;
+            setDataCalls.add(data?['text'] as String?);
+            return null;
+          }
+          return null;
+        });
   });
 
   tearDown(() {
@@ -35,20 +35,23 @@ void main() {
       expect(setDataCalls, ['hello harness']);
     });
 
-    testWidgets('empty input returns false without touching the channel',
-        (tester) async {
+    testWidgets('empty input returns false without touching the channel', (
+      tester,
+    ) async {
       final ok = await ClipboardHelper.copy('');
       expect(ok, isFalse);
       expect(setDataCalls, isEmpty);
     });
 
-    testWidgets('platform denial reports failure without throwing',
-        (tester) async {
+    testWidgets('platform denial reports failure without throwing', (
+      tester,
+    ) async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-        if (call.method == 'Clipboard.setData') throw PlatformException(code: 'denied');
-        return null;
-      });
+            if (call.method == 'Clipboard.setData')
+              throw PlatformException(code: 'denied');
+            return null;
+          });
       final ok = await ClipboardHelper.copy('blocked');
       expect(ok, isFalse);
     });
@@ -56,7 +59,9 @@ void main() {
 
   group('copyWithFeedback', () {
     Future<void> pumpHost(WidgetTester tester) async {
-      await tester.pumpWidget(const MaterialApp(home: Scaffold(body: SizedBox.shrink())));
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: SizedBox.shrink())),
+      );
     }
 
     testWidgets('success shows the floating copied SnackBar', (tester) async {
@@ -68,8 +73,10 @@ void main() {
       await tester.pump();
       expect(ok, isTrue);
       expect(find.text('Copied to clipboard'), findsOneWidget);
-      expect(tester.widget<SnackBar>(find.byType(SnackBar)).behavior,
-          SnackBarBehavior.floating);
+      expect(
+        tester.widget<SnackBar>(find.byType(SnackBar)).behavior,
+        SnackBarBehavior.floating,
+      );
     });
 
     testWidgets('success message override wins when provided', (tester) async {
@@ -87,9 +94,10 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, (call) async {
-        if (call.method == 'Clipboard.setData') throw PlatformException(code: 'fail');
-        return null;
-      });
+            if (call.method == 'Clipboard.setData')
+              throw PlatformException(code: 'fail');
+            return null;
+          });
       await pumpHost(tester);
       final ok = await ClipboardHelper.copyWithFeedback(
         tester.element(find.byType(Scaffold)),

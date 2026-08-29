@@ -35,8 +35,7 @@ class _ScriptedHistoryClient extends ConnectionClient {
     SessionId id, {
     int? beforeSeq,
     int? maxMessages,
-  }) =>
-      _scriptedEvents(id);
+  }) => _scriptedEvents(id);
 }
 
 /// Server-truth history used by the gap-repair fixture: full window 1..5.
@@ -45,24 +44,23 @@ int _fetchCount = 0;
 Future<List<HistoryEntry>> _scriptedEvents(SessionId id) async {
   _fetchCount++;
   HistoryEntry entry(int seq, String type) => HistoryEntry(
-        event: SessionEvent.fromJson({
-          'type': type,
-          'seq': seq,
-          'time': 0,
-          if (type == 'user/message') 'surfaceOp': 'append',
-          'data': {
-            if (type == 'turn/start') 'turn': 1,
-            if (type == 'user/message')
-              ...{
-                'role': 'user',
-                'content': [
-                  {'type': 'text', 'text': 'gap'},
-                ],
-                'source': {'kind': 'user'},
-              },
-          },
-        }),
-      );
+    event: SessionEvent.fromJson({
+      'type': type,
+      'seq': seq,
+      'time': 0,
+      if (type == 'user/message') 'surfaceOp': 'append',
+      'data': {
+        if (type == 'turn/start') 'turn': 1,
+        if (type == 'user/message') ...{
+          'role': 'user',
+          'content': [
+            {'type': 'text', 'text': 'gap'},
+          ],
+          'source': {'kind': 'user'},
+        },
+      },
+    }),
+  );
   return [
     entry(1, 'turn/start'),
     entry(2, 'user/message'),
@@ -73,68 +71,77 @@ Future<List<HistoryEntry>> _scriptedEvents(SessionId id) async {
 }
 
 void main() {
-  test('gap repair contract: hold the hole, resync server truth, drop dups',
-      () async {
-    final container = ProviderContainer(overrides: [
-      connectionClientProvider.overrideWithValue(_ScriptedHistoryClient()),
-    ]);
-    addTearDown(container.dispose);
+  test(
+    'gap repair contract: hold the hole, resync server truth, drop dups',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          connectionClientProvider.overrideWithValue(_ScriptedHistoryClient()),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    HistoryEntry entry(int seq, String type) => HistoryEntry(
-          event: SessionEvent.fromJson({
-            'type': type,
-            'seq': seq,
-            'time': 0,
-            if (type == 'user/message') 'surfaceOp': 'append',
-            'data': {
-              if (type == 'turn/start') 'turn': 1,
-              if (type == 'user/message')
-                ...{
-                  'role': 'user',
-                  'content': [
-                    {'type': 'text', 'text': 'gap'},
-                  ],
-                  'source': {'kind': 'user'},
-                },
+      HistoryEntry entry(int seq, String type) => HistoryEntry(
+        event: SessionEvent.fromJson({
+          'type': type,
+          'seq': seq,
+          'time': 0,
+          if (type == 'user/message') 'surfaceOp': 'append',
+          'data': {
+            if (type == 'turn/start') 'turn': 1,
+            if (type == 'user/message') ...{
+              'role': 'user',
+              'content': [
+                {'type': 'text', 'text': 'gap'},
+              ],
+              'source': {'kind': 'user'},
             },
-          }),
-        );
+          },
+        }),
+      );
 
-    // Server truth resolves first so every mutation below stays synchronous
-    // on one live notifier instance (Riverpod swaps instances lazily).
-    final serverTruth = await _scriptedEvents(const SessionId('g1'));
-    final notifier = container.read(liveHistoryProvider('g1').notifier);
+      // Server truth resolves first so every mutation below stays synchronous
+      // on one live notifier instance (Riverpod swaps instances lazily).
+      final serverTruth = await _scriptedEvents(const SessionId('g1'));
+      final notifier = container.read(liveHistoryProvider('g1').notifier);
 
-    notifier.replaceAll([entry(1, 'turn/start'), entry(2, 'user/message')]);
+      notifier.replaceAll([entry(1, 'turn/start'), entry(2, 'user/message')]);
 
-    // A gapped live event is HELD OUT (never appended as a hole) — the same
-    // decision React's acceptLiveEvent makes before repairGap(); production
-    // then refetches authoritative truth (the resync leg below mirrors the
-    // Session.repairGap stitch). Hold-out itself is pinned by
-    // live_sync_test's gap/dedup case.
-    notifier.appendLive(entry(4, 'assistant/chunk'));
+      // A gapped live event is HELD OUT (never appended as a hole) — the same
+      // decision React's acceptLiveEvent makes before repairGap(); production
+      // then refetches authoritative truth (the resync leg below mirrors the
+      // Session.repairGap stitch). Hold-out itself is pinned by
+      // live_sync_test's gap/dedup case.
+      notifier.appendLive(entry(4, 'assistant/chunk'));
 
-    // Invalidation is lazy: the next notifier read rebuilds the provider,
-    // and the resync replaces the rebuilt window with authoritative truth.
-    final repaired = container.read(liveHistoryProvider('g1').notifier);
-    repaired.replaceAll(serverTruth);
+      // Invalidation is lazy: the next notifier read rebuilds the provider,
+      // and the resync replaces the rebuilt window with authoritative truth.
+      final repaired = container.read(liveHistoryProvider('g1').notifier);
+      repaired.replaceAll(serverTruth);
 
-    // Post-repair live appends and reconnect replay duplicates behave.
-    repaired.appendLive(entry(5, 'assistant/chunk'));
-    repaired.appendLive(entry(2, 'user/message')); // replay dup → dropped
+      // Post-repair live appends and reconnect replay duplicates behave.
+      repaired.appendLive(entry(5, 'assistant/chunk'));
+      repaired.appendLive(entry(2, 'user/message')); // replay dup → dropped
 
-    final seqs = container
-        .read(liveHistoryProvider('g1'))
-        .map((e) => e.event.seq)
-        .toList();
-    expect(seqs, [1, 2, 3, 4, 5],
-        reason: 'both stacks converge to the identical repaired window');
-  });
+      final seqs = container
+          .read(liveHistoryProvider('g1'))
+          .map((e) => e.event.seq)
+          .toList();
+      expect(seqs, [
+        1,
+        2,
+        3,
+        4,
+        5,
+      ], reason: 'both stacks converge to the identical repaired window');
+    },
+  );
 
   test('Flutter projects parity-stream identically to the React reference', () {
     const fixturePath = 'test/goldens/replay/parity-stream.jsonl';
-    final lines =
-        File(fixturePath).readAsLinesSync().where((l) => l.trim().isNotEmpty);
+    final lines = File(fixturePath)
+        .readAsLinesSync()
+        .where((l) => l.trim().isNotEmpty);
 
     var muxErrors = 0;
     var hostErrors = 0;
@@ -200,36 +207,38 @@ class ParityProjector {
 
   /// Apply one decoded wire frame.
   void add(MuxFrame frame) => switch (frame) {
-        SessionEventFrame(:final sessionId, :final event) =>
-          _addEvent(sessionId.value, event),
-        SessionQueueFrame(:final items) => _queue = items.length,
-        ApprovalRequestedFrame(:final approvalId, :final toolName) => () {
-            _pending.add('a:$approvalId');
-            _pendingLine = 'pending approval:$toolName';
-          }(),
-        ApprovalResolvedFrame(:final approvalId) => () {
-            _pending.remove('a:$approvalId');
-            if (_pending.isEmpty) _pendingLine = null;
-          }(),
-        QuestionRequestedFrame() => () {
-            _pending.add('q:fixture');
-            _pendingLine = 'pending question';
-          }(),
-        QuestionResolvedFrame() => () {
-            for (final key in _pending.where((k) => k.startsWith('q:')).toList()) {
-              _pending.remove(key);
-            }
-            if (_pending.isEmpty) _pendingLine = null;
-          }(),
-        _ => null,
-      };
+    SessionEventFrame(:final sessionId, :final event) => _addEvent(
+      sessionId.value,
+      event,
+    ),
+    SessionQueueFrame(:final items) => _queue = items.length,
+    ApprovalRequestedFrame(:final approvalId, :final toolName) => () {
+      _pending.add('a:$approvalId');
+      _pendingLine = 'pending approval:$toolName';
+    }(),
+    ApprovalResolvedFrame(:final approvalId) => () {
+      _pending.remove('a:$approvalId');
+      if (_pending.isEmpty) _pendingLine = null;
+    }(),
+    QuestionRequestedFrame() => () {
+      _pending.add('q:fixture');
+      _pendingLine = 'pending question';
+    }(),
+    QuestionResolvedFrame() => () {
+      for (final key in _pending.where((k) => k.startsWith('q:')).toList()) {
+        _pending.remove(key);
+      }
+      if (_pending.isEmpty) _pendingLine = null;
+    }(),
+    _ => null,
+  };
 
   /// Apply one decoded host frame.
   void addHost(HostFrame frame) => switch (frame) {
-        SessionAddedFrame(:final blank) => _blank = blank,
-        SessionStatusFrame(:final running) => _running = running,
-        AgentErrorFrame() || _ => null,
-      };
+    SessionAddedFrame(:final blank) => _blank = blank,
+    SessionStatusFrame(:final running) => _running = running,
+    AgentErrorFrame() || _ => null,
+  };
 
   void _addEvent(String sid, Map<String, Object?> raw) {
     final type = raw['type'] as String;
@@ -253,10 +262,13 @@ class ParityProjector {
       case 'assistant/message':
         final key = (data['turn'] as int, data['step'] as int);
         final chunks =
-            (raw['sourceEventSeqs'] as List?)?.length ?? _pendingChunks.remove(key) ?? 0;
+            (raw['sourceEventSeqs'] as List?)?.length ??
+            _pendingChunks.remove(key) ??
+            0;
         _settled.add(key);
         final content =
-            ((data['message'] as Map)['content'] as List?)?.cast<Map>() ?? const [];
+            ((data['message'] as Map)['content'] as List?)?.cast<Map>() ??
+            const [];
         final histogram = <String, int>{};
         for (final block in content) {
           final kind = switch (block['type']) {
@@ -271,11 +283,13 @@ class ParityProjector {
         final blocks = histogram.entries.toList()
           ..sort((a, b) => a.key.compareTo(b.key));
         final interrupted = data['interrupted'] == true;
-        _nodes.add(_Node(
-          'node $seq assistant turn=${data['turn']} step=${data['step']} '
-          'blocks=${blocks.map((e) => '${e.key}:${e.value}').join(',')} '
-          'interrupted=$interrupted',
-        ));
+        _nodes.add(
+          _Node(
+            'node $seq assistant turn=${data['turn']} step=${data['step']} '
+            'blocks=${blocks.map((e) => '${e.key}:${e.value}').join(',')} '
+            'interrupted=$interrupted',
+          ),
+        );
         assert(chunks >= 0);
       case 'tool/call':
         _callNames[data['callId'] as String] = data['name'] as String;
@@ -289,11 +303,13 @@ class ParityProjector {
         _runningCalls.remove(callId);
         final subs = _subCalls.remove(callId) ?? const [];
         final subErrors = subs.where(((s) => s.$2)).length;
-        _nodes.add(_Node(
-          'node $seq tool-result callId=$callId '
-          'name=${_callNames[callId] ?? '-'} error=${error?['name'] ?? 'none'} '
-          'subcalls=${subs.length}/$subErrors',
-        ));
+        _nodes.add(
+          _Node(
+            'node $seq tool-result callId=$callId '
+            'name=${_callNames[callId] ?? '-'} error=${error?['name'] ?? 'none'} '
+            'subcalls=${subs.length}/$subErrors',
+          ),
+        );
       case 'tool/code-dispatch-start':
       case 'tool/code-dispatch':
         final rootCallId = data['rootCallId'] as String?;
@@ -317,19 +333,23 @@ class ParityProjector {
         final retry = (data['retry'] as num?)?.toInt() ?? 0;
         final maxRetries = (data['maxRetries'] as num?)?.toInt() ?? 0;
         _retries[retryId] = (seq, retry, maxRetries, false);
-        _nodes.add(_Node(
-          'node $seq model-retry retry=$retry maxRetries=$maxRetries state=scheduled',
-        ));
+        _nodes.add(
+          _Node(
+            'node $seq model-retry retry=$retry maxRetries=$maxRetries state=scheduled',
+          ),
+        );
       case 'llm/retry-started':
         final startedId = data['retryId'] as String?;
         if (startedId != null && _retries.containsKey(startedId)) {
           final cur = _retries[startedId]!;
           _retries[startedId] = (cur.$1, cur.$2, cur.$3, true);
-          final idx = _nodes
-              .indexWhere((n) => n.line.startsWith('node ${cur.$1} model-retry'));
+          final idx = _nodes.indexWhere(
+            (n) => n.line.startsWith('node ${cur.$1} model-retry'),
+          );
           if (idx != -1) {
             _nodes[idx] = _Node(
-                _nodes[idx].line.replaceFirst('state=scheduled', 'state=started'));
+              _nodes[idx].line.replaceFirst('state=scheduled', 'state=started'),
+            );
           }
         }
       case 'turn/start':
@@ -354,7 +374,9 @@ class ParityProjector {
   List<String> snapshot() {
     final lines = <String>[
       'session s-200 blank=$_blank running=$_running',
-      ...((_nodes.toList()..sort((a, b) => a.seq.compareTo(b.seq))).map((n) => n.line)),
+      ...((_nodes.toList()..sort((a, b) => a.seq.compareTo(b.seq))).map(
+        (n) => n.line,
+      )),
       ..._turnEnds.entries.map((e) => 'turn-end ${e.key} seq=${e.value}'),
       'running-calls ${_runningCalls.length}',
       'queue $_queue',

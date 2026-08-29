@@ -6,7 +6,8 @@ import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/core/settings/settings_scope.dart';
 import 'package:dsh_flutter/src/core/slots/slot_registry.dart';
 import 'package:dsh_flutter/src/plugins/conversation/conversation_plugin.dart';
-import 'package:dsh_flutter/src/core/renderer/slot_outlet.dart' show SlotComponentProps;
+import 'package:dsh_flutter/src/core/renderer/slot_outlet.dart'
+    show SlotComponentProps;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,8 +20,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 /// Minimal host carrying the services ConversationPlugin declares, so
@@ -35,10 +35,7 @@ PluginHost _hostWith(ConnectionClient client) {
   host.provide('remote', RemoteEventBus());
   host.provide(
     'settingsScope',
-    SettingsScope<Object?>(
-      face: _NoopFace(),
-      namespace: 'ui-theme',
-    ),
+    SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-theme'),
   );
   host.register(ConversationPlugin());
   return host;
@@ -51,17 +48,20 @@ Widget _stubRenderer(BuildContext context, ChatNodeData data) =>
     const SizedBox.shrink();
 
 void main() {
-  test('activation queues contribution until layout declares its hole', () async {
-    final host = _hostWith(ConnectionClient(baseUrl: ''));
-    addTearDown(host.deactivateAll);
+  test(
+    'activation queues contribution until layout declares its hole',
+    () async {
+      final host = _hostWith(ConnectionClient(baseUrl: ''));
+      addTearDown(host.deactivateAll);
 
-    await host.activateAll();
+      await host.activateAll();
 
-    // No layout shell in this fixture: the wait-and-follow stays queued and
-    // the service seam is still live.
-    expect(host.slots.isDeclared('layout.center'), isFalse);
-    expect(host.service<Object>('conversation'), isNotNull);
-  });
+      // No layout shell in this fixture: the wait-and-follow stays queued and
+      // the service seam is still live.
+      expect(host.slots.isDeclared('layout.center'), isFalse);
+      expect(host.service<Object>('conversation'), isNotNull);
+    },
+  );
 
   test('inject installs declarations once layout.center exists', () async {
     final host = _hostWith(ConnectionClient(baseUrl: ''));
@@ -77,28 +77,39 @@ void main() {
     expect(host.slots.isDeclared('conversation'), isTrue);
   });
 
-  test('chat-node renderer registry: register, resolve, fallback, conflict', () {
-    final controller = ConversationController(client: ConnectionClient(baseUrl: ''), settingsScope: _scope());
-    controller.renderers.register('tool', _stubRenderer);
+  test(
+    'chat-node renderer registry: register, resolve, fallback, conflict',
+    () {
+      final controller = ConversationController(
+        client: ConnectionClient(baseUrl: ''),
+        settingsScope: _scope(),
+      );
+      controller.renderers.register('tool', _stubRenderer);
 
-    expect(controller.renderers.resolve('tool'), same(_stubRenderer));
-    expect(controller.renderers.resolve('goal'), isNull);
-    expect(
-      () => controller.renderers.register('tool', _stubRenderer),
-      throwsStateError,
-    );
-  });
+      expect(controller.renderers.resolve('tool'), same(_stubRenderer));
+      expect(controller.renderers.resolve('goal'), isNull);
+      expect(
+        () => controller.renderers.register('tool', _stubRenderer),
+        throwsStateError,
+      );
+    },
+  );
 
   test('fallback renderer serves unknown keys when registered under *', () {
-    final controller = ConversationController(client: ConnectionClient(baseUrl: ''), settingsScope: _scope())
-      ..renderers.register('*', _stubRenderer);
+    final controller = ConversationController(
+      client: ConnectionClient(baseUrl: ''),
+      settingsScope: _scope(),
+    )..renderers.register('*', _stubRenderer);
     expect(controller.renderers.resolve('anything'), same(_stubRenderer));
   });
 
   test('send delegates to session.prompt for the given session', () async {
     final sent = <({String sessionId, String content})>[];
     final client = ConnectionClient(baseUrl: '');
-    final controller = ConversationController(client: client, settingsScope: _scope());
+    final controller = ConversationController(
+      client: client,
+      settingsScope: _scope(),
+    );
 
     // Spy by overriding through a subclass is unnecessary: assert the call
     // surfaces the carrier error for an empty baseUrl (no network attempted),
@@ -124,7 +135,10 @@ class _LayoutShellPlugin extends DshPlugin {
         const RegistrationOptions(
           name: 'root',
           children: {
-            'layout.center': SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
+            'layout.center': SlotSpec(
+              kind: SlotKind.single,
+              scope: SlotScope.root,
+            ),
           },
         ),
         _frame,

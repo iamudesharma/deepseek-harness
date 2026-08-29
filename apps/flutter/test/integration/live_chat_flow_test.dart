@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -24,48 +25,76 @@ import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 class _MockHost {
   final List<HistoryEntry> history = [];
   int seq = 0;
-  final StreamController<Map<String, dynamic>> muxController = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> muxController =
+      StreamController.broadcast();
 
   Future<http.Response> handle(http.Request req) async {
     final body = req.body.isEmpty ? '{}' : req.body;
-    final Map<String, dynamic> envelope = jsonDecode(body) as Map<String, dynamic>;
+    final Map<String, dynamic> envelope =
+        jsonDecode(body) as Map<String, dynamic>;
     final method = envelope['method'] as String? ?? '';
     final payload = envelope['payload'] as Map<String, dynamic>? ?? {};
     final rpcId = envelope['rpcId'] as String? ?? 'test';
 
     Map<String, dynamic> ok(Object? value) => {
-          'type': 'server-response',
-          'rpcId': rpcId,
-          'result': {'ok': true, 'value': value}
-        };
+      'type': 'server-response',
+      'rpcId': rpcId,
+      'result': {'ok': true, 'value': value},
+    };
     Map<String, dynamic> err(String code, String msg) => {
-          'type': 'server-response',
-          'rpcId': rpcId,
-          'result': {'ok': false, 'error': {'code': code, 'message': msg}}
-        };
+      'type': 'server-response',
+      'rpcId': rpcId,
+      'result': {
+        'ok': false,
+        'error': {'code': code, 'message': msg},
+      },
+    };
 
     if (req.url.path == '/api/session.list') {
-      return http.Response(jsonEncode(ok({'items': []})), 200, headers: {'content-type': 'application/json'});
+      return http.Response(
+        jsonEncode(ok({'items': []})),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
     if (req.url.path == '/api/session.history') {
       final sessionId = payload['sessionId'] as String? ?? '';
       // Return history filtered by sessionId (for simplicity, return all)
       final filtered = history.where((e) => true).toList();
       return http.Response(
-          jsonEncode(ok({'events': filtered.map((e) => e.toJson()).toList(), 'hasMore': false, 'projections': {'asOfSeq': seq, 'values': {}}})), 200,
-          headers: {'content-type': 'application/json'});
+        jsonEncode(
+          ok({
+            'events': filtered.map((e) => e.toJson()).toList(),
+            'hasMore': false,
+            'projections': {'asOfSeq': seq, 'values': {}},
+          }),
+        ),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
     if (req.url.path == '/api/session.create') {
       final newId = 'test-session-${DateTime.now().millisecondsSinceEpoch}';
       // Add to history a blank session? For now just return id
-      return http.Response(jsonEncode(ok({'sessionId': newId})), 200, headers: {'content-type': 'application/json'});
+      return http.Response(
+        jsonEncode(ok({'sessionId': newId})),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
     if (req.url.path == '/api/session.prompt') {
       final sessionId = payload['sessionId'] as String? ?? 'test-session';
-      final content = (payload['content'] as List?)?.firstOrNullX?['text'] as String? ?? 'hi';
+      final content =
+          (payload['content'] as List?)?.firstOrNullX?['text'] as String? ??
+          'hi';
       // Simulate host immediately emitting user/message via mux stream
       final userEvent = HistoryEntry(
-        event: SessionEvent(type: 'user/message', data: {'content': content}, seq: seq++, time: DateTime.now().millisecondsSinceEpoch),
+        event: SessionEvent(
+          type: 'user/message',
+          data: {'content': content},
+          seq: seq++,
+          time: DateTime.now().millisecondsSinceEpoch,
+        ),
         view: null,
       );
       history.add(userEvent);
@@ -79,7 +108,12 @@ class _MockHost {
       // Simulate assistant chunk streaming after a short delay
       Future.delayed(const Duration(milliseconds: 50), () {
         final chunk = HistoryEntry(
-          event: SessionEvent(type: 'assistant/chunk', data: {'delta': 'Hello!'}, seq: seq++, time: DateTime.now().millisecondsSinceEpoch),
+          event: SessionEvent(
+            type: 'assistant/chunk',
+            data: {'delta': 'Hello!'},
+            seq: seq++,
+            time: DateTime.now().millisecondsSinceEpoch,
+          ),
           view: null,
         );
         history.add(chunk);
@@ -91,7 +125,12 @@ class _MockHost {
       });
       Future.delayed(const Duration(milliseconds: 100), () {
         final msg = HistoryEntry(
-          event: SessionEvent(type: 'assistant/message', data: {'content': 'Hello! How can I help?'}, seq: seq++, time: DateTime.now().millisecondsSinceEpoch),
+          event: SessionEvent(
+            type: 'assistant/message',
+            data: {'content': 'Hello! How can I help?'},
+            seq: seq++,
+            time: DateTime.now().millisecondsSinceEpoch,
+          ),
           view: null,
         );
         history.add(msg);
@@ -101,17 +140,30 @@ class _MockHost {
           'event': msg.event.toJson(),
         });
       });
-      return http.Response(jsonEncode(ok({})), 200, headers: {'content-type': 'application/json'});
+      return http.Response(
+        jsonEncode(ok({})),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
-    if (req.url.path == '/api/events.mux' || req.url.path == '/api/events.host') {
+    if (req.url.path == '/api/events.mux' ||
+        req.url.path == '/api/events.host') {
       // For SSE, return a stream that never ends (but for test we handle via muxController.stream)
       // This path is for the initial handshake; we return a simple 200 with empty stream
       // The actual mux stream is via muxController.stream in the mock.
       // For now, just return a 200 with empty body and let the test drive the stream via direct muxController.
-      return http.Response('', 200, headers: {'content-type': 'text/event-stream'});
+      return http.Response(
+        '',
+        200,
+        headers: {'content-type': 'text/event-stream'},
+      );
     }
     if (req.url.path == '/api/host.describe') {
-      return http.Response(jsonEncode(ok({'cwd': '/tmp', 'home': '/tmp', 'version': 'test'})), 200, headers: {'content-type': 'application/json'});
+      return http.Response(
+        jsonEncode(ok({'cwd': '/tmp', 'home': '/tmp', 'version': 'test'})),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
     }
     return http.Response(jsonEncode(err('not-found', 'unknown $method')), 404);
   }
@@ -127,20 +179,33 @@ void main() {
     final mockHost = _MockHost();
     final mockHttp = MockClient((req) async {
       // Handle SSE specially: if it's a GET to /api/events.mux, return a stream from muxController
-      if (req.method == 'GET' && (req.url.path == '/api/events.mux' || req.url.path == '/api/events.host')) {
+      if (req.method == 'GET' &&
+          (req.url.path == '/api/events.mux' ||
+              req.url.path == '/api/events.host')) {
         // For the test, we don't actually use the SSE transport; we directly
         // drive the liveHistory via the muxController. So just return an empty SSE response
         // that never emits, and the test will manually push to liveHistory.
-        final streamed = http.StreamedResponse(const Stream.empty(), 200, headers: {'content-type': 'text/event-stream'});
-        return http.Response('', 200, headers: {'content-type': 'text/event-stream'});
+        final streamed = http.StreamedResponse(
+          const Stream.empty(),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+        return http.Response(
+          '',
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
       }
       return mockHost.handle(req);
     });
 
-    final client = ConnectionClient(baseUrl: 'http://test', httpClient: mockHttp);
-    final container = ProviderContainer(overrides: [
-      connectionClientProvider.overrideWithValue(client),
-    ]);
+    final client = ConnectionClient(
+      baseUrl: 'http://test',
+      httpClient: mockHttp,
+    );
+    final container = ProviderContainer(
+      overrides: [connectionClientProvider.overrideWithValue(client)],
+    );
     addTearDown(() {
       container.dispose();
       client.dispose();
@@ -149,8 +214,16 @@ void main() {
 
     // Seed a session
     const sid = 'test-session-live';
-    container.read(sessionsProvider.notifier).addSession(
-          SessionSummary(sessionId: const SessionId(sid), updatedAt: 1000, running: false, blank: true, title: 'Test'),
+    container
+        .read(sessionsProvider.notifier)
+        .addSession(
+          SessionSummary(
+            sessionId: const SessionId(sid),
+            updatedAt: 1000,
+            running: false,
+            blank: true,
+            title: 'Test',
+          ),
         );
     container.read(sessionsProvider.notifier).setCurrent(const SessionId(sid));
 
@@ -179,11 +252,21 @@ void main() {
 
     // The liveMessageList should now show the optimistic user message immediately
     final liveMsgsAfterSubmit = container.read(liveMessageListProvider(sid));
-    expect(liveMsgsAfterSubmit.any((m) => m.content == 'hello live' && m.role == MessageRole.user), isTrue);
+    expect(
+      liveMsgsAfterSubmit.any(
+        (m) => m.content == 'hello live' && m.role == MessageRole.user,
+      ),
+      isTrue,
+    );
 
     // Simulate host echo: user/message event arrives via liveHistory
     final hostUserEntry = HistoryEntry(
-      event: SessionEvent(type: 'user/message', data: {'content': 'hello live'}, seq: 0, time: 1000),
+      event: SessionEvent(
+        type: 'user/message',
+        data: {'content': 'hello live'},
+        seq: 0,
+        time: 1000,
+      ),
       view: null,
     );
     container.read(liveHistoryProvider(sid).notifier).appendLive(hostUserEntry);
@@ -193,31 +276,60 @@ void main() {
 
     // Simulate assistant chunk streaming
     final chunkEntry = HistoryEntry(
-      event: SessionEvent(type: 'assistant/chunk', data: {'delta': 'Hi there'}, seq: 1, time: 1001),
+      event: SessionEvent(
+        type: 'assistant/chunk',
+        data: {'delta': 'Hi there'},
+        seq: 1,
+        time: 1001,
+      ),
       view: null,
     );
     container.read(liveHistoryProvider(sid).notifier).appendLive(chunkEntry);
     // Need to set running to true for streaming to be shown
-    container.read(sessionsProvider.notifier).updateSession(const SessionId(sid), (s) => s.copyWith(running: true));
+    container
+        .read(sessionsProvider.notifier)
+        .updateSession(const SessionId(sid), (s) => s.copyWith(running: true));
     final streamingMsgs = container.read(liveMessageListProvider(sid));
-    expect(streamingMsgs.any((m) => m.content == 'Hi there' && m.streaming), isTrue);
+    expect(
+      streamingMsgs.any((m) => m.content == 'Hi there' && m.streaming),
+      isTrue,
+    );
 
     // Simulate final assistant message
     final assistantEntry = HistoryEntry(
-      event: SessionEvent(type: 'assistant/message', data: {'content': 'Hello! How can I help?'}, seq: 2, time: 1002),
+      event: SessionEvent(
+        type: 'assistant/message',
+        data: {'content': 'Hello! How can I help?'},
+        seq: 2,
+        time: 1002,
+      ),
       view: null,
     );
-    container.read(liveHistoryProvider(sid).notifier).appendLive(assistantEntry);
-    container.read(sessionsProvider.notifier).updateSession(const SessionId(sid), (s) => s.copyWith(running: false));
+    container
+        .read(liveHistoryProvider(sid).notifier)
+        .appendLive(assistantEntry);
+    container
+        .read(sessionsProvider.notifier)
+        .updateSession(const SessionId(sid), (s) => s.copyWith(running: false));
     final finalMsgs = container.read(liveMessageListProvider(sid));
     expect(finalMsgs.any((m) => m.content.contains('How can I help?')), isTrue);
 
     // Send another message without refresh — should still work
     notifier.setText('second message');
     await notifier.submit();
-    expect(container.read(optimisticMessagesProvider(sid)).any((m) => m.content == 'second message'), isTrue);
+    expect(
+      container
+          .read(optimisticMessagesProvider(sid))
+          .any((m) => m.content == 'second message'),
+      isTrue,
+    );
     final secondHost = HistoryEntry(
-      event: SessionEvent(type: 'user/message', data: {'content': 'second message'}, seq: 3, time: 1003),
+      event: SessionEvent(
+        type: 'user/message',
+        data: {'content': 'second message'},
+        seq: 3,
+        time: 1003,
+      ),
       view: null,
     );
     container.read(liveHistoryProvider(sid).notifier).appendLive(secondHost);
@@ -227,10 +339,17 @@ void main() {
     // Simulate page refresh: create a new container that re-fetches history via messageListProvider
     // For this test, we just verify that liveHistory persists across a new container that shares the same mockHost history
     // In a real app, refresh would re-fetch via session.history and get all events
-    final refreshContainer = ProviderContainer(overrides: [connectionClientProvider.overrideWithValue(client)]);
+    final refreshContainer = ProviderContainer(
+      overrides: [connectionClientProvider.overrideWithValue(client)],
+    );
     addTearDown(refreshContainer.dispose);
     // Seed history via mockHost.history
-    mockHost.history.addAll([hostUserEntry, chunkEntry, assistantEntry, secondHost]);
+    mockHost.history.addAll([
+      hostUserEntry,
+      chunkEntry,
+      assistantEntry,
+      secondHost,
+    ]);
     // The new container's liveHistory would be empty initially, but messageListProvider would fetch history and get all
     // For this test, we just verify that messagesFromHistory on the full history contains all
     final allHistory = mockHost.history;

@@ -15,16 +15,20 @@ void main() {
       return;
     }
     print('created $newId');
-    final container = ProviderContainer(overrides: [
-      connectionClientProvider.overrideWithValue(client),
-    ]);
+    final container = ProviderContainer(
+      overrides: [connectionClientProvider.overrideWithValue(client)],
+    );
     addTearDown(container.dispose);
     final sessionId = newId.value;
-    final notifier = container.read(composerControllerProvider(sessionId).notifier);
+    final notifier = container.read(
+      composerControllerProvider(sessionId).notifier,
+    );
     notifier.setText('hello from test');
     await notifier.submit();
     final state = container.read(composerControllerProvider(sessionId));
-    print('after submit text empty? ${state.text.isEmpty} isSending ${state.isSending} error ${state.error}');
+    print(
+      'after submit text empty? ${state.text.isEmpty} isSending ${state.isSending} error ${state.error}',
+    );
     expect(state.text, isEmpty);
     expect(state.error, isNull);
     // Host verification skipped for stubbed composer (real host wiring overrides submit in app).

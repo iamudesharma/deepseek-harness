@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
@@ -24,7 +25,9 @@ void main() {
   }
 ]""";
     final List<dynamic> arr = jsonDecode(raw) as List;
-    final entries = arr.map((e) => HistoryEntry.fromJson((e as Map).cast<String, dynamic>())).toList();
+    final entries = arr
+        .map((e) => HistoryEntry.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
     final messages = messagesFromHistory(entries);
     expect(messages, isA<List<Message>>());
   });

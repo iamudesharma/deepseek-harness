@@ -16,7 +16,8 @@ import '../../../features/model_selection/model_directory.dart';
 import '../../../features/conversation/composer_controller.dart';
 import '../../../platform/layout.dart' show isMobileLayout;
 import '../../../widgets/primitives/dsh_menu_scaffold.dart';
-import '../../../core/services/runtime_services.dart' show localeServiceProvider;
+import '../../../core/services/runtime_services.dart'
+    show localeServiceProvider;
 import '../../attachment/attachment_limits.dart';
 import '../locales.dart' show kConversationNamespace;
 import '../../input_trigger/input_trigger_controller.dart'
@@ -355,24 +356,33 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
     // ref.read(composerControllerProvider).
     final notifier = ref.read(composerControllerProvider(sid).notifier);
     final limits = ref.read(imageLimitsProvider);
-    debugPrint('[composer] _pickImages entry isMobileLayout=$isMobileLayout enabled=${widget.enabled} isSending=${ref.read(composerControllerProvider(sid)).isSending} mounted=$isMountedAtEntry sid=$sid');
+    debugPrint(
+      '[composer] _pickImages entry isMobileLayout=$isMobileLayout enabled=${widget.enabled} isSending=${ref.read(composerControllerProvider(sid)).isSending} mounted=$isMountedAtEntry sid=$sid',
+    );
     if (isMobileLayout) {
       final MobileAttachmentSource? source = await _showMobileAttachmentSheet();
       final bool isMountedAfterSheet = mounted;
-      debugPrint('[composer] sheet returned source=$source mounted=$isMountedAfterSheet sid=$sid');
+      debugPrint(
+        '[composer] sheet returned source=$source mounted=$isMountedAfterSheet sid=$sid',
+      );
       if (source == null) return;
       // Do not early-return on !mounted — the container-held notifier is still valid;
       // the sheet's route temporarily makes State.mounted false on MIUI.
       if (!isMountedAfterSheet) {
-        debugPrint('[composer] sheet returned but State.mounted false, still proceeding (container notifier captured)');
+        debugPrint(
+          '[composer] sheet returned but State.mounted false, still proceeding (container notifier captured)',
+        );
       }
       final ImagePicker picker = ImagePicker();
       try {
         switch (source) {
           case MobileAttachmentSource.camera:
-            final XFile? shot = await picker.pickImage(source: ImageSource.camera);
+            final XFile? shot = await picker.pickImage(
+              source: ImageSource.camera,
+            );
             debugPrint('[composer] camera result=${shot?.path}');
-            if (shot != null) await _intakeXFilesWithNotifier(<XFile>[shot], notifier, limits);
+            if (shot != null)
+              await _intakeXFilesWithNotifier(<XFile>[shot], notifier, limits);
           case MobileAttachmentSource.library:
             final List<XFile> picked = await picker.pickMultiImage();
             debugPrint('[composer] library picked ${picked.length}');
@@ -389,7 +399,6 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
     await _pickImagesViaFilePickerWithNotifier(notifier, limits);
   }
 
-
   /// Direct system image picker (desktop/Web path, mobile document entry).
   Future<void> _pickImagesViaFilePicker() async {
     try {
@@ -399,10 +408,14 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         allowMultiple: true,
         withData: true,
       );
-      debugPrint('[composer] file_picker result=${result?.files.length} cancelled=${result==null}');
+      debugPrint(
+        '[composer] file_picker result=${result?.files.length} cancelled=${result == null}',
+      );
       if (result == null || result.files.isEmpty) return;
       for (final f in result.files) {
-        debugPrint('[composer] file_picker file name=${f.name} mime=${_mimeTypeFor(f.name)} size=${f.size} bytes=${f.bytes?.length} path=${f.path}');
+        debugPrint(
+          '[composer] file_picker file name=${f.name} mime=${_mimeTypeFor(f.name)} size=${f.size} bytes=${f.bytes?.length} path=${f.path}',
+        );
       }
       final String? rejected = intakeImages(
         result.files
@@ -435,7 +448,9 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
       final List<DroppedFile> dropped = <DroppedFile>[];
       for (final XFile file in files) {
         final int len = await file.length().catchError((_) => 0);
-        debugPrint('[composer] _intakeXFiles file name=${file.name} path=${file.path} len=$len mime=${_mimeTypeFor(file.name)}');
+        debugPrint(
+          '[composer] _intakeXFiles file name=${file.name} path=${file.path} len=$len mime=${_mimeTypeFor(file.name)}',
+        );
         dropped.add(
           DroppedFile(
             name: file.name,
@@ -460,7 +475,10 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
   }
 
   Future<void> _intakeXFilesWithNotifier(
-      List<XFile> files, ComposerController notifier, ImageLimits? limits) async {
+    List<XFile> files,
+    ComposerController notifier,
+    ImageLimits? limits,
+  ) async {
     if (files.isEmpty) {
       debugPrint('[composer] _intakeXFilesWithNotifier empty, cancelled');
       return;
@@ -469,14 +487,18 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
       final List<DroppedFile> dropped = <DroppedFile>[];
       for (final XFile file in files) {
         final int len = await file.length().catchError((_) => 0);
-        debugPrint('[composer] _intakeXFilesWithNotifier file name=${file.name} path=${file.path} len=$len mime=${_mimeTypeFor(file.name)}');
-        dropped.add(DroppedFile(
-          name: file.name,
-          mimeType: _mimeTypeFor(file.name),
-          size: len,
-          path: file.path,
-          bytes: null,
-        ));
+        debugPrint(
+          '[composer] _intakeXFilesWithNotifier file name=${file.name} path=${file.path} len=$len mime=${_mimeTypeFor(file.name)}',
+        );
+        dropped.add(
+          DroppedFile(
+            name: file.name,
+            mimeType: _mimeTypeFor(file.name),
+            size: len,
+            path: file.path,
+            bytes: null,
+          ),
+        );
       }
       final String? rejected = intakeComposerImages(
         staged: notifier.state.attachments,
@@ -489,7 +511,9 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         // Use mounted check for SnackBar, but not for staging which already succeeded via notifier
         if (mounted) _showRejection(rejected);
       } else {
-        debugPrint('[composer] _intakeXFilesWithNotifier staged ${dropped.length} ok total=${notifier.state.attachments.length}');
+        debugPrint(
+          '[composer] _intakeXFilesWithNotifier staged ${dropped.length} ok total=${notifier.state.attachments.length}',
+        );
       }
     } catch (e, st) {
       debugPrint('[composer] _intakeXFilesWithNotifier error: $e\n$st');
@@ -498,7 +522,9 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
   }
 
   Future<void> _pickImagesViaFilePickerWithNotifier(
-      ComposerController notifier, ImageLimits? limits) async {
+    ComposerController notifier,
+    ImageLimits? limits,
+  ) async {
     try {
       debugPrint('[composer] file_picker with notifier pickFiles start');
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -506,23 +532,29 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         allowMultiple: true,
         withData: true,
       );
-      debugPrint('[composer] file_picker with notifier result=${result?.files.length} cancelled=${result==null}');
+      debugPrint(
+        '[composer] file_picker with notifier result=${result?.files.length} cancelled=${result == null}',
+      );
       if (result == null || result.files.isEmpty) return;
       for (final f in result.files) {
-        debugPrint('[composer] file_picker with notifier file name=${f.name} mime=${_mimeTypeFor(f.name)} size=${f.size} bytes=${f.bytes?.length} path=${f.path}');
+        debugPrint(
+          '[composer] file_picker with notifier file name=${f.name} mime=${_mimeTypeFor(f.name)} size=${f.size} bytes=${f.bytes?.length} path=${f.path}',
+        );
       }
       final String? rejected = intakeComposerImages(
         staged: notifier.state.attachments,
         limits: limits,
         add: (items) => notifier.addAttachments(items),
         files: result.files
-            .map((file) => DroppedFile(
-                  name: file.name,
-                  mimeType: _mimeTypeFor(file.name),
-                  size: file.size,
-                  path: file.path,
-                  bytes: file.bytes,
-                ))
+            .map(
+              (file) => DroppedFile(
+                name: file.name,
+                mimeType: _mimeTypeFor(file.name),
+                size: file.size,
+                path: file.path,
+                bytes: file.bytes,
+              ),
+            )
             .toList(growable: false),
       );
       if (rejected != null && mounted) _showRejection(rejected);
@@ -834,67 +866,77 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                           // sits immediately before send. The plan seat is a
                           // declared list hole; entries appear when an owning
                           // plugin registers.
-                          Builder(builder: (BuildContext context) {
-                            final bool narrowMobile = isMobileLayout &&
-                                MediaQuery.sizeOf(context).width < 600;
-                            Widget permissionSeat = const PermissionSeat();
-                            if (narrowMobile) {
-                              permissionSeat = Flexible(child: permissionSeat);
-                            }
-                            Widget modelSeat = _LiveModelDropdown(
-                              sessionId: widget.sessionId,
-                              aliases: aliases,
-                              enabled: widget.enabled && !isSending,
-                              compact: narrowMobile,
-                            );
-                            if (narrowMobile) {
-                              modelSeat = Flexible(child: modelSeat);
-                            }
-                            final bool attachEnabled = widget.enabled && !isSending;
-                            debugPrint('[composer] build attachEnabled=$attachEnabled isMobileLayout=$isMobileLayout width=${MediaQuery.sizeOf(context).width}');
-                            return Row(
-                              children: <Widget>[
-                                permissionSeat,
-                                HoleOutlet(
-                                  registry: slotRegistry,
-                                  slotKey: 'conversation.input.plan',
-                                ),
-                                IconButton(
-                                  tooltip: 'Attach images',
-                                  icon: Icon(
-                                    Icons.attach_file,
-                                    size: 18,
-                                    color: aliases.labelTertiary,
-                                  ),
-                                  onPressed: attachEnabled
-                                      ? () {
-                                          debugPrint('[composer] attach button tapped');
-                                          _pickImages();
-                                        }
-                                      : null,
-                                ),
-                                HoleOutlet(
-                                  registry: slotRegistry,
-                                  slotKey: 'conversation.input.left',
-                                ),
-                                const Spacer(),
-                                HoleOutlet(
-                                  registry: slotRegistry,
-                                  slotKey: 'conversation.input.right',
-                                ),
-                                modelSeat,
-                              const SizedBox(width: DswTokens.spaceSm),
-                              // Send disc — figma IconButton 34:10465: 34px circle, info-fill pair (500→400) + white glyph.
-                              // Mirrors `InputBar.module.css .primary`: `background: var(--dsw-alias-button-info-fill)`.
-                              _SendDisc(
-                                enabled: canSend && !isSending,
-                                isSending: isSending,
+                          Builder(
+                            builder: (BuildContext context) {
+                              final bool narrowMobile =
+                                  isMobileLayout &&
+                                  MediaQuery.sizeOf(context).width < 600;
+                              Widget permissionSeat = const PermissionSeat();
+                              if (narrowMobile) {
+                                permissionSeat = Flexible(
+                                  child: permissionSeat,
+                                );
+                              }
+                              Widget modelSeat = _LiveModelDropdown(
+                                sessionId: widget.sessionId,
                                 aliases: aliases,
-                                onPressed: canSend ? _handleSubmit : null,
-                              ),
-                            ],
-                          );
-                          }),
+                                enabled: widget.enabled && !isSending,
+                                compact: narrowMobile,
+                              );
+                              if (narrowMobile) {
+                                modelSeat = Flexible(child: modelSeat);
+                              }
+                              final bool attachEnabled =
+                                  widget.enabled && !isSending;
+                              debugPrint(
+                                '[composer] build attachEnabled=$attachEnabled isMobileLayout=$isMobileLayout width=${MediaQuery.sizeOf(context).width}',
+                              );
+                              return Row(
+                                children: <Widget>[
+                                  permissionSeat,
+                                  HoleOutlet(
+                                    registry: slotRegistry,
+                                    slotKey: 'conversation.input.plan',
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Attach images',
+                                    icon: Icon(
+                                      Icons.attach_file,
+                                      size: 18,
+                                      color: aliases.labelTertiary,
+                                    ),
+                                    onPressed: attachEnabled
+                                        ? () {
+                                            debugPrint(
+                                              '[composer] attach button tapped',
+                                            );
+                                            _pickImages();
+                                          }
+                                        : null,
+                                  ),
+                                  HoleOutlet(
+                                    registry: slotRegistry,
+                                    slotKey: 'conversation.input.left',
+                                  ),
+                                  const Spacer(),
+                                  HoleOutlet(
+                                    registry: slotRegistry,
+                                    slotKey: 'conversation.input.right',
+                                  ),
+                                  modelSeat,
+                                  const SizedBox(width: DswTokens.spaceSm),
+                                  // Send disc — figma IconButton 34:10465: 34px circle, info-fill pair (500→400) + white glyph.
+                                  // Mirrors `InputBar.module.css .primary`: `background: var(--dsw-alias-button-info-fill)`.
+                                  _SendDisc(
+                                    enabled: canSend && !isSending,
+                                    isSending: isSending,
+                                    aliases: aliases,
+                                    onPressed: canSend ? _handleSubmit : null,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
                           if (state.error != null)
                             Padding(
                               padding: const EdgeInsets.only(

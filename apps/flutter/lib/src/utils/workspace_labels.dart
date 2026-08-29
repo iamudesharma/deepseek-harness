@@ -11,7 +11,8 @@
 /// Structured relative time bucket.
 class RelativeTime {
   const RelativeTime({required this.unit, required this.n});
-  final String unit; // 'now' | 'minutes' | 'hours' | 'days' | 'months' | 'years'
+  final String
+  unit; // 'now' | 'minutes' | 'hours' | 'days' | 'months' | 'years'
   final int n;
 }
 
@@ -26,7 +27,8 @@ RelativeTime relativeTime(int updatedAt, int now) {
   if (diff < hour) return RelativeTime(unit: 'minutes', n: diff ~/ min);
   if (diff < day) return RelativeTime(unit: 'hours', n: diff ~/ hour);
   if (diff < 30 * day) return RelativeTime(unit: 'days', n: diff ~/ day);
-  if (diff < 365 * day) return RelativeTime(unit: 'months', n: diff ~/ (30 * day));
+  if (diff < 365 * day)
+    return RelativeTime(unit: 'months', n: diff ~/ (30 * day));
   return RelativeTime(unit: 'years', n: diff ~/ (365 * day));
 }
 
@@ -73,7 +75,10 @@ String createdLabel(int createdAtMillis) {
 /// Ungrouped bucket fallback mirrors `tree.ts:workspaceLabel`.
 String workspaceLabel(String? cwd) {
   if (cwd == null || cwd.isEmpty) return 'Ungrouped';
-  final base = cwd.replaceAll(RegExp(r'[/\\]+$'), '').split(RegExp(r'[/\\]')).last;
+  final base = cwd
+      .replaceAll(RegExp(r'[/\\]+$'), '')
+      .split(RegExp(r'[/\\]'))
+      .last;
   if (base.isNotEmpty) return base;
   return cwd;
 }

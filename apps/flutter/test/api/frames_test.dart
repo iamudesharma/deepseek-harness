@@ -12,7 +12,10 @@ void main() {
           'type': 'session/event',
           'sessionId': 's1',
           'event': {'type': 'x', 'seq': 1},
-          'view': {'for': 'call', 'view': {'kind': 'bash'}},
+          'view': {
+            'for': 'call',
+            'view': {'kind': 'bash'},
+          },
         }),
       );
       final frame = request.frame as SessionEventFrame;
@@ -53,7 +56,11 @@ void main() {
 
       final streamError = MuxFrame.fromJson({
         'type': 'stream/error',
-        'error': {'code': 'internal', 'message': 'carriage detached', 'details': {}},
+        'error': {
+          'code': 'internal',
+          'message': 'carriage detached',
+          'details': {},
+        },
       }) as StreamErrorFrame;
       expect(streamError.error.code, RpcErrorCode.internal);
     });
@@ -98,12 +105,15 @@ void main() {
       expect(resolved.questionRpcId.value, 'h9');
     });
 
-    test('throws on an unknown mux discriminant (host schema owns validity)', () {
-      expect(
-        () => MuxFrame.fromJson({'type': 'session/something-else'}),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'throws on an unknown mux discriminant (host schema owns validity)',
+      () {
+        expect(
+          () => MuxFrame.fromJson({'type': 'session/something-else'}),
+          throwsArgumentError,
+        );
+      },
+    );
   });
 
   group('HostFrame.fromJson', () {
@@ -119,23 +129,28 @@ void main() {
       expect(added.origin, 'subagent');
 
       expect(
-        (HostFrame.fromJson({'type': 'host/session-removed', 'sessionId': 's2'}) as SessionRemovedFrame)
-            .sessionId
-            .value,
+        (HostFrame.fromJson({
+          'type': 'host/session-removed',
+          'sessionId': 's2',
+        }) as SessionRemovedFrame).sessionId.value,
         's2',
       );
 
       expect(
-        (HostFrame.fromJson({'type': 'host/session-status', 'sessionId': 's2', 'running': false})
-                as SessionStatusFrame)
-            .running,
+        (HostFrame.fromJson({
+          'type': 'host/session-status',
+          'sessionId': 's2',
+          'running': false,
+        }) as SessionStatusFrame).running,
         isFalse,
       );
 
       expect(
-        (HostFrame.fromJson({'type': 'host/agent-error', 'sessionId': 's2', 'message': 'boom'})
-                as AgentErrorFrame)
-            .message,
+        (HostFrame.fromJson({
+          'type': 'host/agent-error',
+          'sessionId': 's2',
+          'message': 'boom',
+        }) as AgentErrorFrame).message,
         'boom',
       );
 
@@ -143,8 +158,7 @@ void main() {
         (HostFrame.fromJson({
           'type': 'host/workspace-changed',
           'workspace': {'workspaceId': 'w1'},
-        }) as WorkspaceChangedFrame)
-            .workspace,
+        }) as WorkspaceChangedFrame).workspace,
         {'workspaceId': 'w1'},
       );
 
@@ -152,8 +166,7 @@ void main() {
         (HostFrame.fromJson({
           'type': 'host/workspace-order-changed',
           'workspaceIds': ['w2', 'w1'],
-        }) as WorkspaceOrderChangedFrame)
-            .workspaceIds,
+        }) as WorkspaceOrderChangedFrame).workspaceIds,
         ['w2', 'w1'],
       );
 
@@ -161,8 +174,7 @@ void main() {
         (HostFrame.fromJson({
           'type': 'host/archived-sessions-changed',
           'archivedSessionIds': ['s9'],
-        }) as ArchivedSessionsChangedFrame)
-            .archivedSessionIds,
+        }) as ArchivedSessionsChangedFrame).archivedSessionIds,
         ['s9'],
       );
 
@@ -175,7 +187,10 @@ void main() {
     });
 
     test('throws on an unknown host discriminant', () {
-      expect(() => HostFrame.fromJson({'type': 'host/nonsense'}), throwsArgumentError);
+      expect(
+        () => HostFrame.fromJson({'type': 'host/nonsense'}),
+        throwsArgumentError,
+      );
     });
   });
 

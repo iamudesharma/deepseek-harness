@@ -26,7 +26,8 @@ class _ScriptedHost {
     final server = await HttpServer.bind('127.0.0.1', 0);
     _server = server;
     server.listen((request) async {
-      if (request.method == 'POST' && request.uri.path == '/api/host.describe') {
+      if (request.method == 'POST' &&
+          request.uri.path == '/api/host.describe') {
         describeCalls++;
         final body = await utf8.decoder.bind(request).join();
         final req = jsonDecode(body) as Map<String, dynamic>;
@@ -55,7 +56,8 @@ class _ScriptedHost {
           await request.response.close();
           return;
         }
-        final channel = await WebSocketTransformer.upgrade(request).then(IOWebSocketChannel.new);
+        final channel = await WebSocketTransformer.upgrade(request)
+            .then(IOWebSocketChannel.new);
         _muxSockets.add(channel);
         for (final frame in muxScript) {
           channel.sink.add(jsonEncode(frame));
@@ -112,9 +114,11 @@ class _DescribeGatedClient extends http.BaseClient {
 
 void main() {
   test('generation increments on stream loss and state walks connected→reconnecting→connected', () async {
-    final host = _ScriptedHost(muxScript: [
-      {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 0},
-    ]);
+    final host = _ScriptedHost(
+      muxScript: [
+        {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 0},
+      ],
+    );
     final baseUrl = await host.start();
     final states = <ConnectionState>[];
     final controller = FlutterConnectionController(
@@ -142,71 +146,83 @@ void main() {
     await host.stop();
   });
 
-  test('stream/error ends the generation and is not delivered to sinks', () async {
-    final host = _ScriptedHost(muxScript: [
-      {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 0},
-    ]);
-    final baseUrl = await host.start();
-    final delivered = <Map<String, dynamic>>[];
-    final controller = FlutterConnectionController(
-      ConnectionClient(baseUrl: baseUrl),
-      onMuxEnvelope: delivered.add,
-      config: const ConnectionConfig(backoffBaseMs: 5, backoffMaxMs: 10),
-    )..start();
+  test(
+    'stream/error ends the generation and is not delivered to sinks',
+    () async {
+      final host = _ScriptedHost(
+        muxScript: [
+          {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 0},
+        ],
+      );
+      final baseUrl = await host.start();
+      final delivered = <Map<String, dynamic>>[];
+      final controller = FlutterConnectionController(
+        ConnectionClient(baseUrl: baseUrl),
+        onMuxEnvelope: delivered.add,
+        config: const ConnectionConfig(backoffBaseMs: 5, backoffMaxMs: 10),
+      )..start();
 
-    while (!delivered.any((f) => f['type'] == 'session/subscribed')) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-    }
-    final genBefore = controller.generation;
+      while (!delivered.any((f) => f['type'] == 'session/subscribed')) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      final genBefore = controller.generation;
 
-    host.pushMux({
-      'type': 'session/event',
-      'sessionId': 's1',
-      'event': {'type': 'turn/start', 'seq': 1},
-    });
-    host.pushMux({
-      'type': 'stream/error',
-      'error': {'code': 'internal', 'message': 'carriage detached', 'details': {}},
-    });
+      host.pushMux({
+        'type': 'session/event',
+        'sessionId': 's1',
+        'event': {'type': 'turn/start', 'seq': 1},
+      });
+      host.pushMux({
+        'type': 'stream/error',
+        'error': {
+          'code': 'internal',
+          'message': 'carriage detached',
+          'details': {},
+        },
+      });
 
-    // Wait up to 200ms for the generation to turn over (30ms is tight under
-    // full-suite load; poll like the first test).
-    for (var i = 0; i < 20; i++) {
-      if (controller.generation > genBefore) break;
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
+      // Wait up to 200ms for the generation to turn over (30ms is tight under
+      // full-suite load; poll like the first test).
+      for (var i = 0; i < 20; i++) {
+        if (controller.generation > genBefore) break;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
 
-    expect(delivered.any((f) => f['type'] == 'session/event'), isTrue);
-    expect(delivered.any((f) => f['type'] == 'stream/error'), isFalse);
-    expect(controller.generation, greaterThan(genBefore));
+      expect(delivered.any((f) => f['type'] == 'session/event'), isTrue);
+      expect(delivered.any((f) => f['type'] == 'stream/error'), isFalse);
+      expect(controller.generation, greaterThan(genBefore));
 
-    controller.stop();
-    await host.stop();
-  });
+      controller.stop();
+      await host.stop();
+    },
+  );
 
-  test('stop during handshake never fires onConnected for a dead generation', () async {
-    final host = _ScriptedHost();
-    final baseUrl = await host.start();
+  test(
+    'stop during handshake never fires onConnected for a dead generation',
+    () async {
+      final host = _ScriptedHost();
+      final baseUrl = await host.start();
 
-    final release = Completer<void>();
-    final describeSeen = Completer<void>();
-    final gated = _DescribeGatedClient(release, describeSeen);
+      final release = Completer<void>();
+      final describeSeen = Completer<void>();
+      final gated = _DescribeGatedClient(release, describeSeen);
 
-    final connectedDescriptions = <Map<String, dynamic>>[];
-    final controller = FlutterConnectionController(
-      ConnectionClient(baseUrl: baseUrl, httpClient: gated),
-      onConnected: connectedDescriptions.add,
-      config: const ConnectionConfig(backoffBaseMs: 5, backoffMaxMs: 10),
-    )..start();
+      final connectedDescriptions = <Map<String, dynamic>>[];
+      final controller = FlutterConnectionController(
+        ConnectionClient(baseUrl: baseUrl, httpClient: gated),
+        onConnected: connectedDescriptions.add,
+        config: const ConnectionConfig(backoffBaseMs: 5, backoffMaxMs: 10),
+      )..start();
 
-    await describeSeen.future;
-    controller.stop();
-    release.complete();
+      await describeSeen.future;
+      controller.stop();
+      release.complete();
 
-    await Future<void>.delayed(const Duration(milliseconds: 40));
-    expect(connectedDescriptions, isEmpty);
-    expect(controller.isRunning, isFalse);
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      expect(connectedDescriptions, isEmpty);
+      expect(controller.isRunning, isFalse);
 
-    await host.stop();
-  });
+      await host.stop();
+    },
+  );
 }

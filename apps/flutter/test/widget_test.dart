@@ -11,12 +11,14 @@ import 'plugins/ws_input/host_fixture.dart' show WsInputRecordingClient;
 
 void main() {
   testWidgets('App loads with welcome', (WidgetTester tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        connectionClientProvider.overrideWithValue(WsInputRecordingClient()),
-      ],
-      child: const DshApp(),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectionClientProvider.overrideWithValue(WsInputRecordingClient()),
+        ],
+        child: const DshApp(),
+      ),
+    );
 
     // Drive the async host activation to quiescence.
     final element = tester.element(find.byType(DshApp));

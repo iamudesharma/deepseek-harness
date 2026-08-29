@@ -46,30 +46,63 @@ class _FakeEventServer {
 
 void main() {
   group('ConnectionClient event streams (WebSocket carrier)', () {
-    test('eventsMux yields envelopes in order with onOpen before first frame', () async {
-      final server = _FakeEventServer([
-        {'type': 'server-request', 'rpcId': 'r1', 'method': 'session/subscribed', 'payload': {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 7}},
-        {'type': 'server-request', 'rpcId': 'r2', 'method': 'session/event', 'payload': {'type': 'session/event', 'sessionId': 's1', 'event': {'type': 'turn/start'}}},
-      ]);
-      final base = await server.start();
-      addTearDown(server.stop);
+    test(
+      'eventsMux yields envelopes in order with onOpen before first frame',
+      () async {
+        final server = _FakeEventServer([
+          {
+            'type': 'server-request',
+            'rpcId': 'r1',
+            'method': 'session/subscribed',
+            'payload': {
+              'type': 'session/subscribed',
+              'sessionId': 's1',
+              'lastSeq': 7,
+            },
+          },
+          {
+            'type': 'server-request',
+            'rpcId': 'r2',
+            'method': 'session/event',
+            'payload': {
+              'type': 'session/event',
+              'sessionId': 's1',
+              'event': {'type': 'turn/start'},
+            },
+          },
+        ]);
+        final base = await server.start();
+        addTearDown(server.stop);
 
-      final client = ConnectionClient(baseUrl: base);
-      final order = <String>[];
-      final frames = await client.eventsMux(onOpen: () => order.add('open')).take(2).toList();
+        final client = ConnectionClient(baseUrl: base);
+        final order = <String>[];
+        final frames = await client
+            .eventsMux(onOpen: () => order.add('open'))
+            .take(2)
+            .toList();
 
-      expect(order, ['open']);
-      expect(frames, hasLength(2));
-      // Transport unwraps the ServerRequest envelope → narrow frame payloads.
-      expect(frames[0]['type'], 'session/subscribed');
-      expect(frames[0]['lastSeq'], 7);
-      expect(frames[1]['type'], 'session/event');
-      expect(server.connections, 1);
-    });
+        expect(order, ['open']);
+        expect(frames, hasLength(2));
+        // Transport unwraps the ServerRequest envelope → narrow frame payloads.
+        expect(frames[0]['type'], 'session/subscribed');
+        expect(frames[0]['lastSeq'], 7);
+        expect(frames[1]['type'], 'session/event');
+        expect(server.connections, 1);
+      },
+    );
 
     test('malformed frames are skipped without killing the stream', () async {
       final server = _FakeEventServer([
-        {'type': 'server-request', 'rpcId': 'ok', 'method': 'host/session-status', 'payload': {'type': 'host/session-status', 'sessionId': 's9', 'running': true}},
+        {
+          'type': 'server-request',
+          'rpcId': 'ok',
+          'method': 'host/session-status',
+          'payload': {
+            'type': 'host/session-status',
+            'sessionId': 's9',
+            'running': true,
+          },
+        },
       ]);
       final base = await server.start();
       addTearDown(server.stop);
@@ -81,7 +114,18 @@ void main() {
       final channel = IOWebSocketChannel.connect(uri);
       await channel.ready;
       channel.sink.add('not json at all');
-      channel.sink.add(jsonEncode({'type': 'server-request', 'rpcId': 'ok2', 'method': 'host/session-status', 'payload': {'type': 'host/session-status', 'sessionId': 's9', 'running': true}}));
+      channel.sink.add(
+        jsonEncode({
+          'type': 'server-request',
+          'rpcId': 'ok2',
+          'method': 'host/session-status',
+          'payload': {
+            'type': 'host/session-status',
+            'sessionId': 's9',
+            'running': true,
+          },
+        }),
+      );
 
       final frames = await openEventStream(uri).take(1).toList();
       expect(frames, hasLength(1));
@@ -92,7 +136,9 @@ void main() {
     test('empty baseUrl yields an empty stream without connecting', () async {
       final client = ConnectionClient(baseUrl: '');
       var opened = false;
-      final frames = await client.eventsMux(onOpen: () => opened = true).toList();
+      final frames = await client
+          .eventsMux(onOpen: () => opened = true)
+          .toList();
       expect(frames, isEmpty);
       expect(opened, isFalse);
     });
@@ -103,7 +149,13 @@ void main() {
       addTearDown(server.stop);
       // Indirect check: a successful connect proves ws:// derivation from http://.
       final client = ConnectionClient(baseUrl: base);
-      final frames = await client.eventsHost().timeout(const Duration(seconds: 3), onTimeout: (sink) => sink.close()).toList();
+      final frames = await client
+          .eventsHost()
+          .timeout(
+            const Duration(seconds: 3),
+            onTimeout: (sink) => sink.close(),
+          )
+          .toList();
       expect(frames, isEmpty); // no scripted frames; stream just ends on close
       expect(server.connections, greaterThanOrEqualTo(1));
     });

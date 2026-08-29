@@ -12,6 +12,7 @@ import '../api/rpc_envelope.dart';
 import 'connection_target.dart';
 import 'secure_token_store.dart';
 import 'websocket_transport.dart';
+
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 export 'connection_controller.dart';
@@ -44,6 +45,7 @@ String newRpcId() {
 class RemoteAuthException implements Exception {
   /// HTTP status (401 for missing/expired/revoked/unknown, 403 for scope).
   final int statusCode;
+
   /// Short reason (never includes the raw token).
   final String message;
   RemoteAuthException(this.statusCode, this.message);
@@ -113,7 +115,7 @@ class ConnectionClient {
     http.Client? httpClient,
     this.target,
     this.tokenStore,
-  })  : _http = httpClient ?? http.Client();
+  }) : _http = httpClient ?? http.Client();
 
   /// Create from a [ConnectionTarget] (preferred for Phase 3).
   factory ConnectionClient.fromTarget(
@@ -138,16 +140,18 @@ class ConnectionClient {
   }
 
   Uri _uri(String path, [Map<String, String>? query]) {
-    final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final base = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final uri = Uri.parse('$base$path');
     if (query == null || query.isEmpty) return uri;
     return uri.replace(queryParameters: {...uri.queryParameters, ...query});
   }
 
   Map<String, String> _headers(String rpcId) => {
-        'content-type': 'application/json',
-        'x-rpc-id': rpcId,
-      };
+    'content-type': 'application/json',
+    'x-rpc-id': rpcId,
+  };
 
   /// Bearer token for the current [RemoteTarget], or `null` for [LocalTarget]
   /// / missing token. Never logs the raw value.
@@ -186,15 +190,23 @@ class ConnectionClient {
       body: jsonEncode(envelope),
     );
     if (resp.statusCode == 401 || resp.statusCode == 403) {
-      throw RemoteAuthException(resp.statusCode, 'POST /api/$method rejected: ${resp.statusCode}');
+      throw RemoteAuthException(
+        resp.statusCode,
+        'POST /api/$method rejected: ${resp.statusCode}',
+      );
     }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw http.ClientException('POST /api/$method failed: ${resp.statusCode} ${resp.body}', uri);
+      throw http.ClientException(
+        'POST /api/$method failed: ${resp.statusCode} ${resp.body}',
+        uri,
+      );
     }
     final decoded = jsonDecode(resp.body);
     if (decoded is Map<String, dynamic>) return decoded;
     if (decoded is Map) return decoded.cast<String, dynamic>();
-    throw FormatException('Expected JSON object from /api/$method, got $decoded');
+    throw FormatException(
+      'Expected JSON object from /api/$method, got $decoded',
+    );
   }
 
   /// Backward-compat shim for legacy `/api/sessions/*` callers: delegates to Typert.
@@ -219,10 +231,16 @@ class ConnectionClient {
       body: jsonEncode({'rpcId': id, ...payload}),
     );
     if (resp.statusCode == 401 || resp.statusCode == 403) {
-      throw RemoteAuthException(resp.statusCode, 'POST $path rejected: ${resp.statusCode}');
+      throw RemoteAuthException(
+        resp.statusCode,
+        'POST $path rejected: ${resp.statusCode}',
+      );
     }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw http.ClientException('POST $path failed: ${resp.statusCode} ${resp.body}', uri);
+      throw http.ClientException(
+        'POST $path failed: ${resp.statusCode} ${resp.body}',
+        uri,
+      );
     }
     final decoded = jsonDecode(resp.body);
     if (decoded is Map<String, dynamic>) return decoded;
@@ -258,16 +276,17 @@ class ConnectionClient {
     int? beforeSeq,
     int? maxMessages,
   }) async {
-    final res = await getSessionHistory(id, beforeSeq: beforeSeq, maxMessages: maxMessages);
+    final res = await getSessionHistory(
+      id,
+      beforeSeq: beforeSeq,
+      maxMessages: maxMessages,
+    );
     return res.entries;
   }
 
   /// Full history fetch including the tail projections block.
-  Future<({List<HistoryEntry> entries, SessionProjectionsBlock? projections})> getSessionHistory(
-    SessionId id, {
-    int? beforeSeq,
-    int? maxMessages,
-  }) async {
+  Future<({List<HistoryEntry> entries, SessionProjectionsBlock? projections})>
+  getSessionHistory(SessionId id, {int? beforeSeq, int? maxMessages}) async {
     final payload = <String, dynamic>{
       'sessionId': id.value,
       // ignore: use_null_aware_elements
@@ -286,7 +305,9 @@ class ConnectionClient {
       final proj = cur['projections'];
       if (proj is Map) {
         try {
-          block = SessionProjectionsBlock.fromJson(proj.cast<String, dynamic>());
+          block = SessionProjectionsBlock.fromJson(
+            proj.cast<String, dynamic>(),
+          );
         } catch (_) {}
       }
     }
@@ -324,12 +345,15 @@ class ConnectionClient {
   /// Create a new session (Typert `session.create`).
   Future<SessionId> createSession({String? workspaceId, String? cwd}) async {
     final body = await _postTypert(
-        'session.create', sessionCreatePayload(workspaceId: workspaceId, cwd: cwd));
+      'session.create',
+      sessionCreatePayload(workspaceId: workspaceId, cwd: cwd),
+    );
     // Unwrap `result.value.sessionId`
     dynamic cur = body;
     if (cur is Map && cur.containsKey('result')) cur = cur['result'];
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
-    if (cur is Map && cur['sessionId'] is String) return SessionId(cur['sessionId'] as String);
+    if (cur is Map && cur['sessionId'] is String)
+      return SessionId(cur['sessionId'] as String);
     throw FormatException('session.create: missing sessionId in $body');
   }
 
@@ -356,7 +380,10 @@ class ConnectionClient {
 
   /// Read one durable image attachment: `session.attachment {sessionId, attachmentId}`.
   /// Returns the raw bytes decoded from the host's base64 `data` field.
-  Future<Uint8List> readAttachment(SessionId sessionId, String attachmentId) async {
+  Future<Uint8List> readAttachment(
+    SessionId sessionId,
+    String attachmentId,
+  ) async {
     final body = await _postTypert('session.attachment', {
       'sessionId': sessionId.value,
       'attachmentId': attachmentId,
@@ -387,7 +414,9 @@ class ConnectionClient {
     final message = <String, dynamic>{
       'type': 'client-response',
       'rpcId': rpcId.toJson(),
-      'result': ok ? {'ok': true, 'value': value} : {'ok': false, 'error': error},
+      'result': ok
+          ? {'ok': true, 'value': value}
+          : {'ok': false, 'error': error},
     };
     final uri = _uri('/api/respond');
     final headers = _headers(rpcId.value);
@@ -399,14 +428,22 @@ class ConnectionClient {
       body: jsonEncode(message),
     );
     if (resp.statusCode == 401 || resp.statusCode == 403) {
-      throw RemoteAuthException(resp.statusCode, 'POST /api/respond rejected: ${resp.statusCode}');
+      throw RemoteAuthException(
+        resp.statusCode,
+        'POST /api/respond rejected: ${resp.statusCode}',
+      );
     }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw http.ClientException('POST /api/respond failed: ${resp.statusCode} ${resp.body}', uri);
+      throw http.ClientException(
+        'POST /api/respond failed: ${resp.statusCode} ${resp.body}',
+        uri,
+      );
     }
     final decoded = jsonDecode(resp.body);
     if (decoded is! Map) {
-      throw FormatException('Expected receipt object from /api/respond, got $decoded');
+      throw FormatException(
+        'Expected receipt object from /api/respond, got $decoded',
+      );
     }
     return RpcReceipt.fromJson(Map<String, Object?>.from(decoded));
   }
@@ -420,7 +457,10 @@ class ConnectionClient {
     if (cur is Map && cur.containsKey('items')) {
       final items = cur['items'];
       if (items is List) {
-        return items.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        return items
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
       }
     }
     // No items present is treated as empty list (host may return empty `session.list`).
@@ -439,12 +479,18 @@ class ConnectionClient {
     if (cur is Map && cur.containsKey('events')) {
       final events = cur['events'];
       if (events is List) {
-        return events.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        return events
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
       }
     }
     // Raw event array fallback.
     if (body['events'] is List) {
-      return (body['events'] as List).whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return (body['events'] as List)
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
@@ -476,7 +522,9 @@ class ConnectionClient {
     if (cur is Map && cur.containsKey('result')) {
       final message = parseRpcMessage(Map<String, Object?>.from(body));
       if (message is! ServerResponse) {
-        throw FormatException('Expected server-response from $method, got ${message.typeWire}');
+        throw FormatException(
+          'Expected server-response from $method, got ${message.typeWire}',
+        );
       }
       return message.result.fold(
         ok: (value) {
@@ -493,14 +541,18 @@ class ConnectionClient {
           if (cur is Map) return Map<String, dynamic>.from(cur);
           // For void responses (e.g. credentials.set returns {}), tolerate empty.
           if (cur == null) return <String, dynamic>{};
-          throw FormatException('Expected object value from $method, got $cur in $body');
+          throw FormatException(
+            'Expected object value from $method, got $cur in $body',
+          );
         },
         failure: (error) => throw Exception('$method: ${error.message}'),
       );
     }
     if (cur is Map && cur['ok'] == false) {
       final err = cur['error'];
-      final msg = err is Map && err['message'] is String ? err['message'] as String : '$err';
+      final msg = err is Map && err['message'] is String
+          ? err['message'] as String
+          : '$err';
       throw Exception('$method: $msg');
     }
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
@@ -508,7 +560,9 @@ class ConnectionClient {
     if (cur is Map) return cur.cast<String, dynamic>();
     // For void responses (e.g. credentials.set returns {}), tolerate empty.
     if (cur == null) return <String, dynamic>{};
-    throw FormatException('Expected object value from $method, got $cur in $body');
+    throw FormatException(
+      'Expected object value from $method, got $cur in $body',
+    );
   }
 
   /// `settings.describe` — returns `{ writable, hasDocument, namespaces }`.
@@ -539,8 +593,14 @@ class ConnectionClient {
   }
 
   /// `credentials.set` — store one credential value.
-  Future<void> credentialsSet({required String ref, required String value}) async {
-    final body = await _postTypert('credentials.set', {'ref': ref, 'value': value});
+  Future<void> credentialsSet({
+    required String ref,
+    required String value,
+  }) async {
+    final body = await _postTypert('credentials.set', {
+      'ref': ref,
+      'value': value,
+    });
     _unwrapValue(body, 'credentials.set');
   }
 
@@ -556,7 +616,10 @@ class ConnectionClient {
     final value = _unwrapValue(body, 'llm.providers');
     final providers = value['providers'];
     if (providers is List) {
-      return providers.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return providers
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
@@ -568,7 +631,9 @@ class ConnectionClient {
   }
 
   /// `session.models` — per-session model directory (current + groups + failures).
-  Future<Map<String, dynamic>> sessionModels({required String sessionId}) async {
+  Future<Map<String, dynamic>> sessionModels({
+    required String sessionId,
+  }) async {
     final body = await _postTypert('session.models', {'sessionId': sessionId});
     return _unwrapValue(body, 'session.models');
   }
@@ -609,7 +674,10 @@ class ConnectionClient {
     final value = _unwrapValue(body, 'llm.discoverModels');
     final models = value['models'];
     if (models is List) {
-      return models.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      return models
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
     }
     return const [];
   }
@@ -639,7 +707,10 @@ class ConnectionClient {
   }
 
   /// `workspace.insertBefore { workspaceId, beforeWorkspaceId? }` — durable workspace display order.
-  Future<void> workspaceInsertBefore({required String workspaceId, String? beforeWorkspaceId}) async {
+  Future<void> workspaceInsertBefore({
+    required String workspaceId,
+    String? beforeWorkspaceId,
+  }) async {
     final payload = <String, dynamic>{
       'workspaceId': workspaceId,
       if (beforeWorkspaceId != null) 'beforeWorkspaceId': beforeWorkspaceId,
@@ -664,20 +735,31 @@ class ConnectionClient {
   }
 
   /// `workspace.rename { workspaceId, title }`
-  Future<Map<String, dynamic>> workspaceRename({required String workspaceId, required String title}) async {
-    final body = await _postTypert('workspace.rename', {'workspaceId': workspaceId, 'title': title});
+  Future<Map<String, dynamic>> workspaceRename({
+    required String workspaceId,
+    required String title,
+  }) async {
+    final body = await _postTypert('workspace.rename', {
+      'workspaceId': workspaceId,
+      'title': title,
+    });
     return _unwrapValue(body, 'workspace.rename');
   }
 
   /// `workspace.delete { workspaceId }`
   Future<void> workspaceDelete({required String workspaceId}) async {
-    final body = await _postTypert('workspace.delete', {'workspaceId': workspaceId});
+    final body = await _postTypert('workspace.delete', {
+      'workspaceId': workspaceId,
+    });
     _unwrapValue(body, 'workspace.delete');
   }
 
   /// `session.search { query }` — ranked host search with snippet overlay.
   /// Returns `{ items: [{ sessionId, snippet }], hasMore }` bounded by `SESSION_SEARCH_RESULT_LIMIT` (20).
-  Future<Map<String, dynamic>> sessionSearch({required String query, String? signal}) async {
+  Future<Map<String, dynamic>> sessionSearch({
+    required String query,
+    String? signal,
+  }) async {
     // Host `session.search` is Typert unary, abort via signal is caller-side debounce.
     final body = await _postTypert('session.search', {'query': query});
     return _unwrapValue(body, 'session.search');
@@ -693,8 +775,14 @@ class ConnectionClient {
     return _unwrapValue(body, 'agentPreset.list');
   }
 
-  Future<Map<String, dynamic>> agentPresetSelect({required String sessionId, required String agentPreset}) async {
-    final body = await _postTypert('agentPreset.select', {'sessionId': sessionId, 'agentPreset': agentPreset});
+  Future<Map<String, dynamic>> agentPresetSelect({
+    required String sessionId,
+    required String agentPreset,
+  }) async {
+    final body = await _postTypert('agentPreset.select', {
+      'sessionId': sessionId,
+      'agentPreset': agentPreset,
+    });
     return _unwrapValue(body, 'agentPreset.select');
   }
 
@@ -733,7 +821,8 @@ class ConnectionClient {
     final body = await _postTypert('remote.ws-ticket', {});
     final value = _unwrapValue(body, 'remote.ws-ticket');
     final ticket = value['ticket'];
-    if (ticket is! String) throw FormatException('remote.ws-ticket: missing ticket');
+    if (ticket is! String)
+      throw FormatException('remote.ws-ticket: missing ticket');
     return ticket;
   }
 
@@ -742,7 +831,8 @@ class ConnectionClient {
     final body = await _postTypert('remote.refresh', {});
     final value = _unwrapValue(body, 'remote.refresh');
     final token = value['deviceToken'] as String? ?? value['token'] as String?;
-    if (token is! String || token.isEmpty) throw FormatException('remote.refresh: missing deviceToken');
+    if (token is! String || token.isEmpty)
+      throw FormatException('remote.refresh: missing deviceToken');
     return token;
   }
 
@@ -781,7 +871,10 @@ class ConnectionClient {
   static const bool _useSse =
       const String.fromEnvironment('DSH_TRANSPORT') == 'sse';
 
-  Stream<Map<String, dynamic>> _openEvents(String path, {void Function()? onOpen}) async* {
+  Stream<Map<String, dynamic>> _openEvents(
+    String path, {
+    void Function()? onOpen,
+  }) async* {
     if (baseUrl.isEmpty) {
       return;
     }
@@ -830,14 +923,18 @@ class ConnectionClient {
         try {
           final decoded = jsonDecode(trimmed);
           if (decoded is! Map) continue;
-          final Map<String, dynamic> envelope =
-              decoded is Map<String, dynamic> ? decoded : decoded.cast<String, dynamic>();
+          final Map<String, dynamic> envelope = decoded is Map<String, dynamic>
+              ? decoded
+              : decoded.cast<String, dynamic>();
           final dynamic payload = envelope['payload'];
           final Map<String, dynamic> frame = payload is Map
-              ? (payload is Map<String, dynamic> ? payload : payload.cast<String, dynamic>())
+              ? (payload is Map<String, dynamic>
+                    ? payload
+                    : payload.cast<String, dynamic>())
               : envelope;
           final envId = envelope['rpcId'];
-          if (envId is String && !frame.containsKey('rpcId')) frame['rpcId'] = envId;
+          if (envId is String && !frame.containsKey('rpcId'))
+            frame['rpcId'] = envId;
           yield frame;
         } catch (_) {}
       }
@@ -850,28 +947,41 @@ class ConnectionClient {
   }
 
   Uri _wsUri(String path, {String? ticket}) {
-    final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final base = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final source = Uri.parse(base);
     final scheme = source.scheme == 'https' ? 'wss' : 'ws';
     var uri = source.replace(scheme: scheme, path: path);
     if (ticket != null) {
-      uri = uri.replace(queryParameters: {...uri.queryParameters, 'ticket': ticket});
+      uri = uri.replace(
+        queryParameters: {...uri.queryParameters, 'ticket': ticket},
+      );
     }
     return uri;
   }
 
-  Stream<Map<String, dynamic>> _readWebSocket(String path, {void Function()? onOpen}) {
+  Stream<Map<String, dynamic>> _readWebSocket(
+    String path, {
+    void Function()? onOpen,
+  }) {
     return openEventStream(_wsUri(path), onOpen: onOpen);
   }
 
-  Stream<Map<String, dynamic>> _readSse(String ssePath, {void Function()? onOpen}) async* {
+  Stream<Map<String, dynamic>> _readSse(
+    String ssePath, {
+    void Function()? onOpen,
+  }) async* {
     final uri = _uri(ssePath);
     final req = http.Request('GET', uri);
     req.headers['accept'] = 'text/event-stream';
     req.headers['cache-control'] = 'no-cache';
     final streamed = await _http.send(req);
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
-      throw http.ClientException('SSE $ssePath failed: ${streamed.statusCode}', uri);
+      throw http.ClientException(
+        'SSE $ssePath failed: ${streamed.statusCode}',
+        uri,
+      );
     }
     onOpen?.call();
     String buffer = '';
@@ -895,18 +1005,25 @@ class ConnectionClient {
           // frames (approval/question requested) answer by echoing the
           // envelope rpcId, so it is stamped onto the yielded frame —
           // business code reads `frame['rpcId']`.
-          final Map<String, dynamic> envelope =
-              decoded is Map<String, dynamic> ? decoded : decoded.cast<String, dynamic>();
+          final Map<String, dynamic> envelope = decoded is Map<String, dynamic>
+              ? decoded
+              : decoded.cast<String, dynamic>();
           final dynamic payload = envelope['payload'];
           final Map<String, dynamic> frame = payload is Map
-              ? (payload is Map<String, dynamic> ? payload : payload.cast<String, dynamic>())
+              ? (payload is Map<String, dynamic>
+                    ? payload
+                    : payload.cast<String, dynamic>())
               : envelope;
           final envId = envelope['rpcId'];
-          if (envId is String && !frame.containsKey('rpcId')) frame['rpcId'] = envId;
+          if (envId is String && !frame.containsKey('rpcId'))
+            frame['rpcId'] = envId;
           yield frame;
         } catch (_) {
           // Malformed frame must not kill the stream — gap detection covers it.
-          if (kDebugMode) debugPrint('[ConnectionClient] dropping malformed SSE frame on $ssePath');
+          if (kDebugMode)
+            debugPrint(
+              '[ConnectionClient] dropping malformed SSE frame on $ssePath',
+            );
         }
       }
     }

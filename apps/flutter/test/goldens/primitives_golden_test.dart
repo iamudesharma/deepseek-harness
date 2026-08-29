@@ -17,12 +17,22 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: buildLightTheme(),
-            home: const Scaffold(body: Center(child: DsButton(label: 'Primary', variant: DsButtonVariant.primary))),
+            home: const Scaffold(
+              body: Center(
+                child: DsButton(
+                  label: 'Primary',
+                  variant: DsButtonVariant.primary,
+                ),
+              ),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await expectLater(find.byType(DsButton), matchesGoldenFile('goldens/button_light_desktop.png'));
+      await expectLater(
+        find.byType(DsButton),
+        matchesGoldenFile('goldens/button_light_desktop.png'),
+      );
     });
 
     testWidgets('ghost narrow', (tester) async {
@@ -34,12 +44,19 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: buildLightTheme(),
-            home: const Scaffold(body: Center(child: DsButton(label: 'Ghost', variant: DsButtonVariant.ghost))),
+            home: const Scaffold(
+              body: Center(
+                child: DsButton(label: 'Ghost', variant: DsButtonVariant.ghost),
+              ),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await expectLater(find.byType(DsButton), matchesGoldenFile('goldens/button_ghost_narrow.png'));
+      await expectLater(
+        find.byType(DsButton),
+        matchesGoldenFile('goldens/button_ghost_narrow.png'),
+      );
     });
 
     testWidgets('dark primary', (tester) async {
@@ -53,12 +70,22 @@ void main() {
             theme: buildLightTheme(),
             darkTheme: buildDarkTheme(),
             themeMode: ThemeMode.dark,
-            home: const Scaffold(body: Center(child: DsButton(label: 'Dark', variant: DsButtonVariant.primary))),
+            home: const Scaffold(
+              body: Center(
+                child: DsButton(
+                  label: 'Dark',
+                  variant: DsButtonVariant.primary,
+                ),
+              ),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await expectLater(find.byType(DsButton), matchesGoldenFile('goldens/button_dark.png'));
+      await expectLater(
+        find.byType(DsButton),
+        matchesGoldenFile('goldens/button_dark.png'),
+      );
     });
   });
 
@@ -68,12 +95,17 @@ void main() {
         ProviderScope(
           child: MaterialApp(
             theme: buildLightTheme(),
-            home: const Scaffold(body: DsModal(title: 'Test Modal', child: Text('Content'))),
+            home: const Scaffold(
+              body: DsModal(title: 'Test Modal', child: Text('Content')),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
-      await expectLater(find.byType(DsModal), matchesGoldenFile('goldens/modal_light.png'));
+      await expectLater(
+        find.byType(DsModal),
+        matchesGoldenFile('goldens/modal_light.png'),
+      );
     });
   });
 }

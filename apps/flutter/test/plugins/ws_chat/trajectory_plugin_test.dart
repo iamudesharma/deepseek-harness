@@ -1,7 +1,8 @@
 import 'package:dsh_flutter/src/core/connection/connection_client.dart';
 import 'package:dsh_flutter/src/core/plugin/plugin_contract.dart';
 import 'package:dsh_flutter/src/core/plugin/plugin_host.dart';
-import 'package:dsh_flutter/src/core/renderer/slot_outlet.dart' show SlotComponentProps;
+import 'package:dsh_flutter/src/core/renderer/slot_outlet.dart'
+    show SlotComponentProps;
 import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/core/slots/slot_registry.dart';
 import 'package:dsh_flutter/src/plugins/trajectory/trajectory_plugin.dart';
@@ -24,16 +25,20 @@ class _ViewShellPlugin extends DshPlugin {
 
   @override
   Future<void> apply(DshContext ctx) async {
-    ctx.onDispose(ctx.slots.register(
-      const RegistrationOptions(
-        name: 'root',
-        children: {
-          'conversation.view':
-              SlotSpec(kind: SlotKind.list, scope: SlotScope.session),
-        },
+    ctx.onDispose(
+      ctx.slots.register(
+        const RegistrationOptions(
+          name: 'root',
+          children: {
+            'conversation.view': SlotSpec(
+              kind: SlotKind.list,
+              scope: SlotScope.session,
+            ),
+          },
+        ),
+        (_, _) => const SizedBox.shrink(),
       ),
-      (_, _) => const SizedBox.shrink(),
-    ));
+    );
   }
 }
 
@@ -50,21 +55,27 @@ void main() {
     expect(host.slots.winnersOfSlot('conversation.view'), isEmpty);
   });
 
-  test('inject installs the trajectory tab once conversation.view exists', () async {
-    final host = _host();
-    addTearDown(host.deactivateAll);
-    host.register(_ViewShellPlugin());
-    host.register(TrajectoryPlugin());
+  test(
+    'inject installs the trajectory tab once conversation.view exists',
+    () async {
+      final host = _host();
+      addTearDown(host.deactivateAll);
+      host.register(_ViewShellPlugin());
+      host.register(TrajectoryPlugin());
 
-    await host.activateAll();
+      await host.activateAll();
 
-    final winners = host.slots.winnersOfSlot('conversation.view');
-    expect(winners, hasLength(1));
-    expect(winners.first.options.id, 'trajectory');
-    expect(winners.first.options.order, 10);
-    // The contributed component is a widget builder over slot props.
-    expect(winners.first.component, isA<Widget Function(BuildContext, SlotComponentProps)>());
-  });
+      final winners = host.slots.winnersOfSlot('conversation.view');
+      expect(winners, hasLength(1));
+      expect(winners.first.options.id, 'trajectory');
+      expect(winners.first.options.order, 10);
+      // The contributed component is a widget builder over slot props.
+      expect(
+        winners.first.component,
+        isA<Widget Function(BuildContext, SlotComponentProps)>(),
+      );
+    },
+  );
 
   test('deactivation removes the tab', () async {
     final host = _host();

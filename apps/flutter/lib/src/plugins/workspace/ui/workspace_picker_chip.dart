@@ -56,7 +56,10 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
         // Web: Miller-column browse over host primitives.
         final client = ref.read(connectionClientProvider);
         final svc = WorkspacesService(client);
-        Future<DirectoryListing> list({String? path, DirectoryListSignal? signal}) async {
+        Future<DirectoryListing> list({
+          String? path,
+          DirectoryListSignal? signal,
+        }) async {
           final map = await svc.listDirectory(path: path, signal: signal);
           return DirectoryListing.fromJson(map.cast<String, dynamic>());
         }
@@ -76,7 +79,8 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
           ),
         );
       } else {
-        final DirectoryPickFace? picker = widget.picker ?? activatedPickDirectory;
+        final DirectoryPickFace? picker =
+            widget.picker ?? activatedPickDirectory;
         path = await picker?.pick();
       }
       if (!mounted) return;
@@ -99,9 +103,9 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
-            (theme.brightness == Brightness.dark
-                ? DswTokens.darkAliases
-                : DswTokens.lightAliases);
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
     // bindLocale watches localeRevisionProvider, so a Language-row switch
     // rebuilds the chip and its overlay copy together.
     final t = ref.bindLocale(kWorkspaceNamespace);
@@ -109,94 +113,135 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
 
     return OverlayPortal(
       controller: _portal,
-      overlayChildBuilder: (BuildContext overlayContext) => Stack(children: [
-        // Dismiss barrier.
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (_portal.isShowing) _portal.hide();
-            },
-          ),
-        ),
-        Positioned(
-          left: DswTokens.spaceLg,
-          top: kToolbarHeight + DswTokens.spaceSm,
-          child: Material(
-            color: aliases.specificMenu,
-            borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-            elevation: 4,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 280, maxHeight: 320),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Flexible(
-                  child: workspaces.maybeWhen(
-                    data: (items) => ListView(shrinkWrap: true, children: [
-                      for (final workspace in items)
-                        ListTile(
-                          dense: true,
-                          leading:
-                              Icon(Icons.folder_outlined, size: 16, color: aliases.labelTertiary),
-                          title: Text(workspace.name,
-                              style: TextStyle(
-                                  fontSize: DswTokens.fontSizeS14,
-                                  color: aliases.labelPrimary)),
-                          onTap: () {
-                            ref.read(selectedWorkspaceProvider.notifier).state =
-                                workspace.workspaceId;
-                            if (_portal.isShowing) _portal.hide();
-                          },
-                        ),
-                    ]),
-                    orElse: () => Padding(
-                      padding: const EdgeInsets.all(DswTokens.spaceMd),
-                      child: Text(t('picker.loading'),
-                          style: TextStyle(
-                              fontSize: DswTokens.fontSizeS14,
-                              color: aliases.labelSecondary)),
-                    ),
-                  ),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  dense: true,
-                  enabled: !_busy,
-                  leading: _busy
-                      ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: aliases.labelTertiary))
-                      : Icon(Icons.add, size: 16, color: aliases.labelSecondary),
-                  title: Text(t('menu.addWorkspace'),
-                      style: TextStyle(
-                          fontSize: DswTokens.fontSizeS14,
-                          color: aliases.labelPrimary)),
-                  onTap: _addWorkspace,
-                ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(DswTokens.spaceSm),
-                    child: Text('${t('folderError.title')}\n$_error',
-                        style: TextStyle(
-                            fontSize: DswTokens.fontSizeXxs12,
-                            color: aliases.stateErrorPrimary)),
-                  ),
-              ]),
+      overlayChildBuilder: (BuildContext overlayContext) => Stack(
+        children: [
+          // Dismiss barrier.
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (_portal.isShowing) _portal.hide();
+              },
             ),
           ),
-        ),
-      ]),
+          Positioned(
+            left: DswTokens.spaceLg,
+            top: kToolbarHeight + DswTokens.spaceSm,
+            child: Material(
+              color: aliases.specificMenu,
+              borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+              elevation: 4,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 280,
+                  maxHeight: 320,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: workspaces.maybeWhen(
+                        data: (items) => ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (final workspace in items)
+                              ListTile(
+                                dense: true,
+                                leading: Icon(
+                                  Icons.folder_outlined,
+                                  size: 16,
+                                  color: aliases.labelTertiary,
+                                ),
+                                title: Text(
+                                  workspace.name,
+                                  style: TextStyle(
+                                    fontSize: DswTokens.fontSizeS14,
+                                    color: aliases.labelPrimary,
+                                  ),
+                                ),
+                                onTap: () {
+                                  ref
+                                      .read(selectedWorkspaceProvider.notifier)
+                                      .state = workspace
+                                      .workspaceId;
+                                  if (_portal.isShowing) _portal.hide();
+                                },
+                              ),
+                          ],
+                        ),
+                        orElse: () => Padding(
+                          padding: const EdgeInsets.all(DswTokens.spaceMd),
+                          child: Text(
+                            t('picker.loading'),
+                            style: TextStyle(
+                              fontSize: DswTokens.fontSizeS14,
+                              color: aliases.labelSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      enabled: !_busy,
+                      leading: _busy
+                          ? SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: aliases.labelTertiary,
+                              ),
+                            )
+                          : Icon(
+                              Icons.add,
+                              size: 16,
+                              color: aliases.labelSecondary,
+                            ),
+                      title: Text(
+                        t('menu.addWorkspace'),
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeS14,
+                          color: aliases.labelPrimary,
+                        ),
+                      ),
+                      onTap: _addWorkspace,
+                    ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(DswTokens.spaceSm),
+                        child: Text(
+                          '${t('folderError.title')}\n$_error',
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeXxs12,
+                            color: aliases.stateErrorPrimary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       child: ActionChip(
         backgroundColor: aliases.bgOverlay,
         side: BorderSide(color: aliases.borderL2),
-        avatar: Icon(Icons.workspaces_outlined,
-            size: 14, color: aliases.labelSecondary),
-        label: Text(t('section.workspaces'),
-            style: TextStyle(
-                fontSize: DswTokens.fontSizeXxs12,
-                fontWeight: FontWeight.w600,
-                color: aliases.labelSecondary)),
+        avatar: Icon(
+          Icons.workspaces_outlined,
+          size: 14,
+          color: aliases.labelSecondary,
+        ),
+        label: Text(
+          t('section.workspaces'),
+          style: TextStyle(
+            fontSize: DswTokens.fontSizeXxs12,
+            fontWeight: FontWeight.w600,
+            color: aliases.labelSecondary,
+          ),
+        ),
         onPressed: () {
           if (_portal.isShowing) {
             _portal.hide();

@@ -42,8 +42,12 @@ class WorkspacePlugin extends DshPlugin {
     ctx.require<WorkspacesService>('workspaces');
     final LocaleService locale = ctx.require<LocaleService>('locale');
 
-    ctx.onDispose(locale.register(
-        kWorkspaceNamespace, {'zh': kWorkspaceZh, 'en': kWorkspaceEn}));
+    ctx.onDispose(
+      locale.register(kWorkspaceNamespace, {
+        'zh': kWorkspaceZh,
+        'en': kWorkspaceEn,
+      }),
+    );
 
     // Hero picker waits for the conversation-owned hero hole, installs
     // atomically, and leaves with this plugin. Mirrors React's
@@ -56,7 +60,10 @@ class WorkspacePlugin extends DshPlugin {
           const RegistrationOptions(
             name: kWorkspaceHeroSlot,
             children: {
-              'conversation.hero.workspace.directoryFlow': SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
+              'conversation.hero.workspace.directoryFlow': SlotSpec(
+                kind: SlotKind.single,
+                scope: SlotScope.root,
+              ),
             },
           ),
           (context, props) => const WorkspacePickerChip(),
@@ -76,7 +83,10 @@ class WorkspacePlugin extends DshPlugin {
           const RegistrationOptions(
             name: 'sidebar.workspaces',
             children: {
-              'sidebar.workspaces.directoryFlow': SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
+              'sidebar.workspaces.directoryFlow': SlotSpec(
+                kind: SlotKind.single,
+                scope: SlotScope.root,
+              ),
             },
           ),
           (context, props) => const SizedBox.shrink(),

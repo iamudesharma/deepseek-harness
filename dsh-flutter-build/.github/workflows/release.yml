@@ -1,0 +1,162 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "v*.*.*-*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0 or 1.0.0-rc.1)"
+        required: false
+        type: string
+      channel:
+        description: "Release channel"
+        required: false
+        default: "stable"
+        type: choice
+        options: [stable, beta, nightly, dev]
+
+concurrency:
+  group: dsh-flutter-build-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: validate manifest + revisions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.2"
+      - name: Install js-yaml
+        run: npm install -g js-yaml
+      - name: Validate release.yaml
+        run: node scripts/validate-manifest.mjs
+      - name: Bootstrap strict
+        run: bash scripts/bootstrap.sh --strict
+      - name: Version check
+        run: bash scripts/version.sh check
+
+  build-all:
+    name: build all platforms
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: web
+            runner: ubuntu-latest
+          - platform: android
+            runner: ubuntu-latest
+          - platform: linux
+            runner: ubuntu-22.04
+          - platform: macos
+            runner: macos-14
+          - platform: ios
+            runner: macos-14
+          - platform: windows
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.2"
+      - name: Install js-yaml
+        run: npm install -g js-yaml || npm i -g js-yaml
+
+      - name: Setup Java (android)
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Linux deps (linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.0"
+          channel: "stable"
+          cache: true
+
+      - name: Build ${{ matrix.platform }}
+        shell: bash
+        run: bash scripts/build-${{ matrix.platform }}.sh
+        env:
+          DSH_HOST_URL: ${{ secrets.DSH_HOST_URL }}
+          DSH_ANDROID_KEYSTORE_BASE64: ${{ secrets.DSH_ANDROID_KEYSTORE_BASE64 }}
+          DSH_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.DSH_ANDROID_KEYSTORE_PASSWORD }}
+          DSH_ANDROID_KEY_ALIAS: ${{ secrets.DSH_ANDROID_KEY_ALIAS }}
+          DSH_ANDROID_KEY_PASSWORD: ${{ secrets.DSH_ANDROID_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_NOTARIZATION_PROFILE: ${{ secrets.APPLE_NOTARIZATION_PROFILE }}
+
+      - name: Upload ${{ matrix.platform }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: artifacts/${{ matrix.platform }}/
+          if-no-files-found: warn
+
+  assemble-release:
+    name: checksums + manifest + publish
+    needs: build-all
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.2"
+      - name: Install js-yaml
+        run: npm install -g js-yaml
+      - name: Generate checksums
+        run: bash scripts/checksum.sh generate
+      - name: Verify checksums
+        run: bash scripts/checksum.sh verify
+      - name: Generate release manifest
+        run: node scripts/release-manifest.mjs
+        env:
+          DSH_SIGNING_STATUS: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && 'signed' || 'unsigned' }}
+          DSH_MACOS_SIGNING: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && 'signed' || 'unsigned' }}
+          DSH_IOS_SIGNING: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && 'signed' || 'unsigned' }}
+          DSH_ANDROID_SIGNING: ${{ secrets.DSH_ANDROID_KEYSTORE_BASE64 != '' && 'signed' || 'unsigned' }}
+      - name: Validate manifest
+        run: node scripts/release-manifest.mjs --check
+      - name: Build reproducibility check (inputs identical)
+        run: |
+          echo "Reproducibility: source revisions and toolchain pinned via release.yaml"
+          cat artifacts/release-manifest.json | head -80
+          echo "--- SHA256SUMS ---"
+          cat artifacts/checksums/SHA256SUMS | head -40
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*
+            artifacts/checksums/SHA256SUMS
+            artifacts/release-manifest.json
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') }}
+          fail_on_unmatched_files: false

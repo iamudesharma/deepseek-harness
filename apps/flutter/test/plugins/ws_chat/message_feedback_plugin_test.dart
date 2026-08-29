@@ -9,11 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// One recorded remote call, field-asserted instead of string-matched.
 class _Call {
-  _Call.put(this.messageId, this.rating, this.note, this.ifVersion) : op = 'put';
+  _Call.put(this.messageId, this.rating, this.note, this.ifVersion)
+    : op = 'put';
   _Call.delete(this.messageId, this.ifVersion)
-      : op = 'delete',
-        rating = null,
-        note = null;
+    : op = 'delete',
+      rating = null,
+      note = null;
 
   final String op;
   final String messageId;
@@ -31,19 +32,21 @@ class _FakeRemote implements MessageFeedbackRemote {
   bool forceVersionConflict = false;
 
   @override
-  Future<FeedbackReply<List<MessageFeedbackItem>>> list(
-      {required String sessionId}) async {
+  Future<FeedbackReply<List<MessageFeedbackItem>>> list({
+    required String sessionId,
+  }) async {
     if (failListWith != null) return ReplyError(failListWith!);
     return ReplyOk(List.of(stored));
   }
 
   @override
-  Future<FeedbackReply<MessageFeedbackItem?>> put(
-      {required String sessionId,
-      required String messageId,
-      required FeedbackRatingValue rating,
-      String? note,
-      required int? ifVersion}) async {
+  Future<FeedbackReply<MessageFeedbackItem?>> put({
+    required String sessionId,
+    required String messageId,
+    required FeedbackRatingValue rating,
+    String? note,
+    required int? ifVersion,
+  }) async {
     calls.add(_Call.put(messageId, rating, note, ifVersion));
     final observed = _byId(messageId);
     if (forceVersionConflict ||
@@ -63,10 +66,11 @@ class _FakeRemote implements MessageFeedbackRemote {
   }
 
   @override
-  Future<FeedbackReply<MessageFeedbackItem?>> delete(
-      {required String sessionId,
-      required String messageId,
-      required int ifVersion}) async {
+  Future<FeedbackReply<MessageFeedbackItem?>> delete({
+    required String sessionId,
+    required String messageId,
+    required int ifVersion,
+  }) async {
     calls.add(_Call.delete(messageId, ifVersion));
     final observed = _byId(messageId);
     if (observed == null) return const ReplyOk<MessageFeedbackItem?>(null);
@@ -94,19 +98,24 @@ void main() {
 
     await host.activateAll();
 
-    final controllers =
-        host.service<MessageFeedbackControllers>('messageFeedback');
+    final controllers = host.service<MessageFeedbackControllers>(
+      'messageFeedback',
+    );
     expect(controllers, isNotNull);
     final controller = controllers!.forSession('s-1');
     expect(controller.view.status, MessageFeedbackStatus.cold);
     expect(identical(controllers.forSession('s-1'), controller), isTrue);
   });
 
-  test('toggle seeds from the list read, then replaces against the observed version',
-      () async {
+  test('toggle seeds from the list read, then replaces against the observed version', () async {
     final remote = _FakeRemote();
-    remote.stored.add(const MessageFeedbackItem(
-        messageId: 'm1', rating: FeedbackRatingValue.positive, version: 3));
+    remote.stored.add(
+      const MessageFeedbackItem(
+        messageId: 'm1',
+        rating: FeedbackRatingValue.positive,
+        version: 3,
+      ),
+    );
     final controller = MessageFeedbackController(remote, 's-1');
 
     final result = await controller.toggle('m1', FeedbackRatingValue.negative);
@@ -124,8 +133,13 @@ void main() {
 
   test('toggle retracts when the committed rating already matches', () async {
     final remote = _FakeRemote();
-    remote.stored.add(const MessageFeedbackItem(
-        messageId: 'm2', rating: FeedbackRatingValue.positive, version: 1));
+    remote.stored.add(
+      const MessageFeedbackItem(
+        messageId: 'm2',
+        rating: FeedbackRatingValue.positive,
+        version: 1,
+      ),
+    );
     final controller = MessageFeedbackController(remote, 's-1');
 
     await controller.toggle('m2', FeedbackRatingValue.positive);
@@ -135,68 +149,88 @@ void main() {
     expect(controller.view.items.containsKey('m2'), isFalse);
   });
 
-  test('a version-conflict reply commits the authoritative row and reports', () async {
-    final remote = _FakeRemote();
-    remote.stored.add(const MessageFeedbackItem(
-        messageId: 'm3', rating: FeedbackRatingValue.negative, version: 7));
-    // Another client committed between our list read and this mutation.
-    remote.forceVersionConflict = true;
-    final controller = MessageFeedbackController(remote, 's-1');
+  test(
+    'a version-conflict reply commits the authoritative row and reports',
+    () async {
+      final remote = _FakeRemote();
+      remote.stored.add(
+        const MessageFeedbackItem(
+          messageId: 'm3',
+          rating: FeedbackRatingValue.negative,
+          version: 7,
+        ),
+      );
+      // Another client committed between our list read and this mutation.
+      remote.forceVersionConflict = true;
+      final controller = MessageFeedbackController(remote, 's-1');
 
-    final result =
-        await controller.rate('m3', FeedbackRatingValue.positive, note: 'x');
+      final result = await controller.rate(
+        'm3',
+        FeedbackRatingValue.positive,
+        note: 'x',
+      );
 
-    expect(result.ok, isFalse);
-    expect(result.code, 'version-conflict');
-    expect(result.message, 'feedback changed elsewhere');
-    // The reply's authoritative row replaced the optimistic one.
-    expect(controller.view.items['m3']!.version, 7);
-    expect(controller.view.items['m3']!.rating, FeedbackRatingValue.negative);
-  });
+      expect(result.ok, isFalse);
+      expect(result.code, 'version-conflict');
+      expect(result.message, 'feedback changed elsewhere');
+      // The reply's authoritative row replaced the optimistic one.
+      expect(controller.view.items['m3']!.version, 7);
+      expect(controller.view.items['m3']!.rating, FeedbackRatingValue.negative);
+    },
+  );
 
-  test('rate keeps the stored note; clearNote removes it keeping the rating', () async {
-    final remote = _FakeRemote();
-    remote.stored.add(const MessageFeedbackItem(
-        messageId: 'm4',
-        rating: FeedbackRatingValue.positive,
-        note: 'original',
-        version: 2));
-    final controller = MessageFeedbackController(remote, 's-1');
+  test(
+    'rate keeps the stored note; clearNote removes it keeping the rating',
+    () async {
+      final remote = _FakeRemote();
+      remote.stored.add(
+        const MessageFeedbackItem(
+          messageId: 'm4',
+          rating: FeedbackRatingValue.positive,
+          note: 'original',
+          version: 2,
+        ),
+      );
+      final controller = MessageFeedbackController(remote, 's-1');
 
-    await controller.rate('m4', FeedbackRatingValue.negative);
+      await controller.rate('m4', FeedbackRatingValue.negative);
 
-    expect(remote.calls.last.note, 'original');
+      expect(remote.calls.last.note, 'original');
 
-    await controller.clearNote('m4');
-    expect(controller.view.items['m4']!.rating, FeedbackRatingValue.negative);
-    expect(controller.view.items['m4']!.note, isNull);
-  });
+      await controller.clearNote('m4');
+      expect(controller.view.items['m4']!.rating, FeedbackRatingValue.negative);
+      expect(controller.view.items['m4']!.note, isNull);
+    },
+  );
 
-  test('queued toggles serialize: the second reads the first commit and retracts',
-      () async {
-    final remote = _FakeRemote();
-    final controller = MessageFeedbackController(remote, 's-1');
+  test(
+    'queued toggles serialize: the second reads the first commit and retracts',
+    () async {
+      final remote = _FakeRemote();
+      final controller = MessageFeedbackController(remote, 's-1');
 
-    final first = controller.toggle('m5', FeedbackRatingValue.positive);
-    final second = controller.toggle('m5', FeedbackRatingValue.positive);
-    await Future.wait([first, second]);
+      final first = controller.toggle('m5', FeedbackRatingValue.positive);
+      final second = controller.toggle('m5', FeedbackRatingValue.positive);
+      await Future.wait([first, second]);
 
-    // The second mutation ran after the first settled: it observed the
-    // committed positive rating and retracted instead of re-putting.
-    expect(remote.calls[0].op, 'put');
-    expect(remote.calls[0].ifVersion, isNull);
-    expect(remote.calls[1].op, 'delete');
-    expect(remote.calls[1].ifVersion, 1);
-    expect(controller.view.items.containsKey('m5'), isFalse);
-  });
+      // The second mutation ran after the first settled: it observed the
+      // committed positive rating and retracted instead of re-putting.
+      expect(remote.calls[0].op, 'put');
+      expect(remote.calls[0].ifVersion, isNull);
+      expect(remote.calls[1].op, 'delete');
+      expect(remote.calls[1].ifVersion, 1);
+      expect(controller.view.items.containsKey('m5'), isFalse);
+    },
+  );
 
   test('disposeAll retires every live controller', () async {
     final host = PluginHost();
     host.provide('slots', host.slots);
     host.register(MessageFeedbackPlugin());
     await host.activateAll();
-    final controllers =
-        host.service<MessageFeedbackControllers>('messageFeedback')!;
+    final controllers = host.service<MessageFeedbackControllers>(
+      'messageFeedback',
+    )!;
     final controller = controllers.forSession('s-9');
 
     controllers.disposeAll();
@@ -206,7 +240,9 @@ void main() {
     expect(result.code, 'disposed');
   });
 
-  testWidgets('feedback rows rate and toggle through the provider surface', (tester) async {
+  testWidgets('feedback rows rate and toggle through the provider surface', (
+    tester,
+  ) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -224,7 +260,9 @@ void main() {
 
     // Seed one recorded row through the notifier, like a settled transcript
     // would once the assistant-actions hole carries these controls.
-    container.read(messageFeedbackProvider.notifier).rate('m-1', FeedbackRating.positive);
+    container
+        .read(messageFeedbackProvider.notifier)
+        .rate('m-1', FeedbackRating.positive);
     await tester.pump();
 
     expect(find.text('No feedback yet'), findsNothing);
@@ -233,7 +271,10 @@ void main() {
     // Tapping the active rating retracts it (toggle semantics)…
     await tester.tap(find.byIcon(Icons.thumb_up));
     await tester.pump();
-    expect(container.read(messageFeedbackProvider)['m-1']!.rating, FeedbackRating.none);
+    expect(
+      container.read(messageFeedbackProvider)['m-1']!.rating,
+      FeedbackRating.none,
+    );
 
     // …and tapping an inactive rating commits it.
     await tester.tap(find.byIcon(Icons.thumb_down_outlined));

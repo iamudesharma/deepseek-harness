@@ -200,7 +200,8 @@ class _HoverCardOverlayState extends ConsumerState<_HoverCardOverlay> {
       if (top < margin) top = margin;
     }
 
-    final bool flipH = targetRight + gap + widget.cardWidth > viewport.width - margin;
+    final bool flipH =
+        targetRight + gap + widget.cardWidth > viewport.width - margin;
 
     if (flipH != _flipHorizontal || (top - targetTop).abs() > 0.5) {
       setState(() {
@@ -228,11 +229,16 @@ class _HoverCardOverlayState extends ConsumerState<_HoverCardOverlay> {
 
   @override
   Widget build(BuildContext context) {
-
     // Flip: when not enough space on right, show on left of anchor.
-    final Alignment targetAnchor = _flipHorizontal ? Alignment.centerLeft : Alignment.centerRight;
-    final Alignment followerAnchor = _flipHorizontal ? Alignment.centerRight : Alignment.centerLeft;
-    final Offset gapOffset = _flipHorizontal ? const Offset(-8, 0) : const Offset(8, 0);
+    final Alignment targetAnchor = _flipHorizontal
+        ? Alignment.centerLeft
+        : Alignment.centerRight;
+    final Alignment followerAnchor = _flipHorizontal
+        ? Alignment.centerRight
+        : Alignment.centerLeft;
+    final Offset gapOffset = _flipHorizontal
+        ? const Offset(-8, 0)
+        : const Offset(8, 0);
     final Offset offset = Offset(gapOffset.dx, gapOffset.dy + _topOffset);
 
     return CompositedTransformFollower(
@@ -249,7 +255,10 @@ class _HoverCardOverlayState extends ConsumerState<_HoverCardOverlay> {
           child: Container(
             width: widget.cardWidth,
             constraints: const BoxConstraints(maxWidth: 360),
-            padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceLg, vertical: DswTokens.spaceMd),
+            padding: const EdgeInsets.symmetric(
+              horizontal: DswTokens.spaceLg,
+              vertical: DswTokens.spaceMd,
+            ),
             decoration: BoxDecoration(
               // HoverCard.module.css bg is #2C2C2E in both themes — use specificMenu dark fallback
               color: DswTokens.neutralBluish850,
@@ -278,7 +287,11 @@ class _HoverCardOverlayState extends ConsumerState<_HoverCardOverlay> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        const Icon(Icons.copy, size: 12, color: DswTokens.neutralBluish00),
+                        const Icon(
+                          Icons.copy,
+                          size: 12,
+                          color: DswTokens.neutralBluish00,
+                        ),
                         const SizedBox(width: DswTokens.spaceXs),
                         Text(
                           'Copy',

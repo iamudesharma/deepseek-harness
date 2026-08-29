@@ -20,17 +20,20 @@ void main() {
     expect(description.canOpenPath, isTrue);
   });
 
-  test('optional provider/model stay nullable when the host sets no default', () {
-    final description = HostDescription.fromJson({
-      'version': '1.0.0',
-      'cwd': '/',
-      'attachedSessions': 0,
-      'home': '/',
-      'canOpenPath': false,
-    });
-    expect(description.provider, isNull);
-    expect(description.model, isNull);
-  });
+  test(
+    'optional provider/model stay nullable when the host sets no default',
+    () {
+      final description = HostDescription.fromJson({
+        'version': '1.0.0',
+        'cwd': '/',
+        'attachedSessions': 0,
+        'home': '/',
+        'canOpenPath': false,
+      });
+      expect(description.provider, isNull);
+      expect(description.model, isNull);
+    },
+  );
 
   test('throws on a missing required numeric field', () {
     expect(

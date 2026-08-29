@@ -16,7 +16,9 @@ class _FakeSource extends InputTriggerSource {
   String get name => 'cmd';
   @override
   Future<List<InputTriggerCandidate>> candidates(
-      String sessionId, CandidateRequest request) async {
+    String sessionId,
+    CandidateRequest request,
+  ) async {
     return [
       const InputTriggerCandidate(name: 'run', description: 'run a script'),
       const InputTriggerCandidate(name: 'build', description: 'build all'),
@@ -44,8 +46,9 @@ class _NeverSettlingSource extends InputTriggerSource {
   String get name => 'cmd';
   @override
   Future<List<InputTriggerCandidate>> candidates(
-          String sessionId, CandidateRequest request) =>
-      gate.future;
+    String sessionId,
+    CandidateRequest request,
+  ) => gate.future;
   @override
   PickOutcome? onPick(InputTriggerPick pick) => null;
   @override
@@ -61,15 +64,17 @@ Future<void> pumpProducer(
   InputTriggerController controller, {
   bool composing = false,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: InputKeyboardProducer(
-        controller: controller,
-        composing: composing,
-        child: const TextField(),
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: InputKeyboardProducer(
+          controller: controller,
+          composing: composing,
+          child: const TextField(),
+        ),
       ),
     ),
-  ));
+  );
   // Focus the field so keys route through the producer.
   await tester.tap(find.byType(TextField));
   await tester.pump();
@@ -80,8 +85,7 @@ void main() {
   late InputTriggerController controller;
 
   setUp(() {
-    registry = TriggerSourceRegistry()
-      ..registerSource(_FakeSource());
+    registry = TriggerSourceRegistry()..registerSource(_FakeSource());
     controller = registry.controllerFor('s1');
     // Open the trigger menu: draft "/run" with the caret past the slash.
     controller.track('/run', 3, const TriggerGuard(TriggerGuardTier.plain));
@@ -89,8 +93,9 @@ void main() {
 
   tearDown(() => registry.disposeController('s1'));
 
-  testWidgets('ArrowDown/ArrowUp move the highlight and are consumed',
-      (tester) async {
+  testWidgets('ArrowDown/ArrowUp move the highlight and are consumed', (
+    tester,
+  ) async {
     await pumpProducer(tester, controller);
     expect(controller.menu.value.open, isTrue);
     // Candidates settle → the first item is auto-highlighted.
@@ -106,8 +111,9 @@ void main() {
     expect(controller.menu.value.highlight!.index, 0);
   });
 
-  testWidgets('Enter picks the highlighted candidate and is consumed',
-      (tester) async {
+  testWidgets('Enter picks the highlighted candidate and is consumed', (
+    tester,
+  ) async {
     await pumpProducer(tester, controller);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
@@ -119,8 +125,9 @@ void main() {
     expect(pickedBefore, isTrue);
   });
 
-  testWidgets('Escape closes the menu and is consumed (no cancelTurn)',
-      (tester) async {
+  testWidgets('Escape closes the menu and is consumed (no cancelTurn)', (
+    tester,
+  ) async {
     await pumpProducer(tester, controller);
     expect(controller.menu.value.open, isTrue);
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -128,8 +135,7 @@ void main() {
     expect(controller.menu.value.open, isFalse);
   });
 
-  testWidgets('Enter with no highlight passes through',
-      (tester) async {
+  testWidgets('Enter with no highlight passes through', (tester) async {
     // A never-settling source leaves the menu open with no highlight.
     final noHighlightRegistry = TriggerSourceRegistry()
       ..registerSource(_NeverSettlingSource());
@@ -146,8 +152,9 @@ void main() {
     noHighlightRegistry.disposeController('n1');
   });
 
-  testWidgets('keys pass through when the menu is closed or composing',
-      (tester) async {
+  testWidgets('keys pass through when the menu is closed or composing', (
+    tester,
+  ) async {
     // Closed menu: plain draft opens nothing, Escape passes harmlessly.
     final closed = registry.controllerFor('s2');
     closed.track('hello', 5, const TriggerGuard(TriggerGuardTier.plain));
@@ -173,15 +180,17 @@ void main() {
   });
 
   testWidgets('null controller passes everything through', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: InputKeyboardProducer(
-          controller: null,
-          composing: false,
-          child: const TextField(),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: InputKeyboardProducer(
+            controller: null,
+            composing: false,
+            child: const TextField(),
+          ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.byType(TextField));
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);

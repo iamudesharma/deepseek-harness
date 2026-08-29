@@ -58,7 +58,10 @@ SearchResultSet deriveSearchResults(
     if (fromWorkspace != null) return fromWorkspace;
     final cwd = s.cwd;
     if (cwd == null || cwd.isEmpty) return 'Ungrouped';
-    final base = cwd.replaceAll(RegExp(r'[/\\]+$'), '').split(RegExp(r'[/\\]')).last;
+    final base = cwd
+        .replaceAll(RegExp(r'[/\\]+$'), '')
+        .split(RegExp(r'[/\\]'))
+        .last;
     return base.isNotEmpty ? base : cwd;
   }
 

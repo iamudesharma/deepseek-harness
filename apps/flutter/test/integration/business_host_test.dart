@@ -39,15 +39,16 @@ import 'package:flutter_test/flutter_test.dart';
 import '../plugins/ws_input/host_fixture.dart' show WsInputRecordingClient;
 
 void main() {
-  testWidgets(
-      'all five workstreams activate together in the real app host '
+  testWidgets('all five workstreams activate together in the real app host '
       '(DI order, hole composition, cross-plugin renderers)', (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        connectionClientProvider.overrideWithValue(WsInputRecordingClient()),
-      ],
-      child: const DshApp(),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          connectionClientProvider.overrideWithValue(WsInputRecordingClient()),
+        ],
+        child: const DshApp(),
+      ),
+    );
 
     // Drive the async activation to quiescence.
     final element = tester.element(find.byType(DshApp));
@@ -87,28 +88,53 @@ void main() {
         .map((e) => e.options.id)
         .whereType<String>()
         .toList();
-    expect(ids('conversation.input.overlay'),
-        containsAll([kInputMenuOverlayId, 'ui-commands-popup']),
-        reason: 'WS-Input slash menu + popupSelect share the overlay anchor');
+    expect(
+      ids('conversation.input.overlay'),
+      containsAll([kInputMenuOverlayId, 'ui-commands-popup']),
+      reason: 'WS-Input slash menu + popupSelect share the overlay anchor',
+    );
     // The tool-row seats stay declared but unoccupied (React parity —
     // nothing registers into conversation.input.left/right yet).
-    expect(ids('conversation.input.left'), isEmpty,
-        reason: 'left seat declared, unoccupied');
-    expect(ids('conversation.input.right'), isEmpty,
-        reason: 'right seat declared, unoccupied');
-    expect(ids('conversation.composer'), contains('ui-user-questions-composer'),
-        reason: 'WS-Input question composer chain entry');
-    expect(slots!.entries('conversation.input.model'), isNotEmpty,
-        reason: 'WS-Surfaces model seat');
-    expect(slots!.entries('layout.sidebar'), hasLength(1),
-        reason: 'shell sidebar');
+    expect(
+      ids('conversation.input.left'),
+      isEmpty,
+      reason: 'left seat declared, unoccupied',
+    );
+    expect(
+      ids('conversation.input.right'),
+      isEmpty,
+      reason: 'right seat declared, unoccupied',
+    );
+    expect(
+      ids('conversation.composer'),
+      contains('ui-user-questions-composer'),
+      reason: 'WS-Input question composer chain entry',
+    );
+    expect(
+      slots!.entries('conversation.input.model'),
+      isNotEmpty,
+      reason: 'WS-Surfaces model seat',
+    );
+    expect(
+      slots!.entries('layout.sidebar'),
+      hasLength(1),
+      reason: 'shell sidebar',
+    );
 
     // Cross-plugin chat-node registry: five plugins claimed distinct keys;
     // a duplicate would have thrown at activation (fail loud).
     final hub = activatedHub!;
-    expect(hub.controller.renderers.keys,
-        containsAll([kSubagentNodeKey, kQuestionNodeKey, kWorkflowRunNodeKey, kSkillNodeKey, kGoalCommandInputNodeKey]),
-        reason: 'WS-Agent + WS-Tasks + WS-Input node renderers');
+    expect(
+      hub.controller.renderers.keys,
+      containsAll([
+        kSubagentNodeKey,
+        kQuestionNodeKey,
+        kWorkflowRunNodeKey,
+        kSkillNodeKey,
+        kGoalCommandInputNodeKey,
+      ]),
+      reason: 'WS-Agent + WS-Tasks + WS-Input node renderers',
+    );
 
     // Service seams resolved through their globals: the conversation hub and
     // the input-trigger registry are alive (consumers resolve them by name).

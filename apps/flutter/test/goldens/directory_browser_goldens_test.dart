@@ -12,7 +12,8 @@
 /// Integrated.
 library;
 
-import 'package:dsh_flutter/src/core/services/runtime_services.dart' show DirectoryListSignal;
+import 'package:dsh_flutter/src/core/services/runtime_services.dart'
+    show DirectoryListSignal;
 import 'package:dsh_flutter/src/plugins/directory_picker/directory_browser.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -24,11 +25,21 @@ String _harness = '/home/u/Documents/harness';
 
 DirectoryListing _listingFor(String? path, {bool truncated = false}) {
   final asked = path ?? _home;
-  final target = asked.length > 1 && asked.endsWith('/') ? asked.substring(0, asked.length - 1) : asked;
+  final target = asked.length > 1 && asked.endsWith('/')
+      ? asked.substring(0, asked.length - 1)
+      : asked;
   final entriesForHome = [
-    const DirectoryEntry(name: '.config', path: '/home/u/.config', hidden: true),
+    const DirectoryEntry(
+      name: '.config',
+      path: '/home/u/.config',
+      hidden: true,
+    ),
     DirectoryEntry(name: 'Documents', path: _docs, hidden: false),
-    const DirectoryEntry(name: 'very-long-directory-name-that-should-truncate-with-ellipsis-when-overflow', path: '/home/u/very-long-directory-name-that-should-truncate-with-ellipsis-when-overflow', hidden: false),
+    const DirectoryEntry(
+      name: 'very-long-directory-name-that-should-truncate-with-ellipsis-when-overflow',
+      path: '/home/u/very-long-directory-name-that-should-truncate-with-ellipsis-when-overflow',
+      hidden: false,
+    ),
   ];
   final tree = <String, DirectoryListing>{
     _home: DirectoryListing(
@@ -74,7 +85,11 @@ DirectoryListing _listingFor(String? path, {bool truncated = false}) {
         const DirectoryEntry(name: '/', path: '/', hidden: false),
         const DirectoryEntry(name: 'home', path: '/home', hidden: false),
         DirectoryEntry(name: 'u', path: _home, hidden: false),
-        const DirectoryEntry(name: '.config', path: '/home/u/.config', hidden: true),
+        const DirectoryEntry(
+          name: '.config',
+          path: '/home/u/.config',
+          hidden: true,
+        ),
       ],
       entries: const [],
       truncated: false,
@@ -86,10 +101,10 @@ DirectoryListing _listingFor(String? path, {bool truncated = false}) {
 }
 
 Widget _wrap(Widget child, {bool dark = false}) => MaterialApp(
-      theme: dark ? buildDarkTheme() : buildLightTheme(),
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(body: Center(child: child)),
-    );
+  theme: dark ? buildDarkTheme() : buildLightTheme(),
+  debugShowCheckedModeBanner: false,
+  home: Scaffold(body: Center(child: child)),
+);
 
 void _setViewport(WidgetTester tester, Size size) {
   tester.view.physicalSize = size;
@@ -101,7 +116,11 @@ void _setViewport(WidgetTester tester, Size size) {
 Future<void> _pumpBrowser(
   WidgetTester tester, {
   bool dark = false,
-  Future<DirectoryListing> Function({String? path, DirectoryListSignal? signal})? list,
+  Future<DirectoryListing> Function({
+    String? path,
+    DirectoryListSignal? signal,
+  })?
+  list,
   String? showHiddenAction,
   String? dotPrefix,
   bool truncated = false,
@@ -109,18 +128,23 @@ Future<void> _pumpBrowser(
   bool nestedCreate = false,
 }) async {
   _setViewport(tester, const Size(720, 600));
-  final listFn = list ??
-      ({String? path, DirectoryListSignal? signal}) async => _listingFor(path, truncated: truncated);
-  await tester.pumpWidget(_wrap(
-    DirectoryBrowser(
-      open: true,
-      listDirectory: listFn,
-      createDirectory: ({required String path, required String name}) async => '$path/$name',
-      onOpen: (_) {},
-      onClose: () {},
+  final listFn =
+      list ??
+      ({String? path, DirectoryListSignal? signal}) async =>
+          _listingFor(path, truncated: truncated);
+  await tester.pumpWidget(
+    _wrap(
+      DirectoryBrowser(
+        open: true,
+        listDirectory: listFn,
+        createDirectory: ({required String path, required String name}) async =>
+            '$path/$name',
+        onOpen: (_) {},
+        onClose: () {},
+      ),
+      dark: dark,
     ),
-    dark: dark,
-  ));
+  );
   await tester.pumpAndSettle();
   if (twoPane) {
     await tester.tap(find.text('Documents'));
@@ -160,7 +184,9 @@ void main() {
     );
   });
 
-  testWidgets('directory browser - two pane light (Documents selected)', (tester) async {
+  testWidgets('directory browser - two pane light (Documents selected)', (
+    tester,
+  ) async {
     await _pumpBrowser(tester, dark: false, twoPane: true);
     await expectLater(
       find.byType(DirectoryBrowser),
@@ -176,7 +202,9 @@ void main() {
     );
   });
 
-  testWidgets('directory browser - show hidden reveals dot file', (tester) async {
+  testWidgets('directory browser - show hidden reveals dot file', (
+    tester,
+  ) async {
     await _pumpBrowser(tester, dark: false, showHiddenAction: 'tap');
     await expectLater(
       find.byType(DirectoryBrowser),
@@ -184,7 +212,9 @@ void main() {
     );
   });
 
-  testWidgets('directory browser - dot prefix filters hidden reveal', (tester) async {
+  testWidgets('directory browser - dot prefix filters hidden reveal', (
+    tester,
+  ) async {
     await _pumpBrowser(tester, dark: false, dotPrefix: '.co');
     await expectLater(
       find.byType(DirectoryBrowser),
@@ -208,7 +238,9 @@ void main() {
     );
   });
 
-  testWidgets('directory browser - truncated ellipsis for long name', (tester) async {
+  testWidgets('directory browser - truncated ellipsis for long name', (
+    tester,
+  ) async {
     await _pumpBrowser(tester, dark: false, twoPane: false);
     // The home listing contains a very long name that should ellipsize
     expect(find.textContaining('very-long'), findsOneWidget);

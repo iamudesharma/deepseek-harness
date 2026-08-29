@@ -37,7 +37,10 @@ void main() {
     test('throws on relative or unsupported commands (fail loud)', () {
       expect(() => parseSvgPathData('m0 0'), throwsFormatException);
       expect(() => parseSvgPathData('M0 0c1 1 2 2 3 3'), throwsFormatException);
-      expect(() => parseSvgPathData('M0 0A1 1 0 0 1 5 5'), throwsFormatException);
+      expect(
+        () => parseSvgPathData('M0 0A1 1 0 0 1 5 5'),
+        throwsFormatException,
+      );
       expect(() => parseSvgPathData('M0 0Q1 1 5 5'), throwsFormatException);
       expect(() => parseSvgPathData('12 34M0 0'), throwsFormatException);
       expect(() => parseSvgPathData('M0 0X5'), throwsFormatException);

@@ -29,8 +29,16 @@ void main() {
           builder: (context, version) => Column(
             children: [
               Text('v$version'),
-              SlotOutlet(registry: registry, slotKey: 'app.banner', fallback: fallback),
-              SlotOutlet(registry: registry, slotKey: 'missing.slot', fallback: fallback),
+              SlotOutlet(
+                registry: registry,
+                slotKey: 'app.banner',
+                fallback: fallback,
+              ),
+              SlotOutlet(
+                registry: registry,
+                slotKey: 'missing.slot',
+                fallback: fallback,
+              ),
             ],
           ),
         ),
@@ -39,12 +47,18 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('outlet renders winners and falls back while empty', (tester) async {
+  testWidgets('outlet renders winners and falls back while empty', (
+    tester,
+  ) async {
     await declareAndPump(tester);
     expect(find.text('banner-one'), findsNothing);
 
     final dispose = registry.register(
-      const RegistrationOptions(name: 'app.banner', id: 'one', registrant: 'p1'),
+      const RegistrationOptions(
+        name: 'app.banner',
+        id: 'one',
+        registrant: 'p1',
+      ),
       (context, props) => const Text('banner-one'),
     );
     await tester.pump();
@@ -77,7 +91,12 @@ void main() {
     registry.register(
       const RegistrationOptions(
         name: 'root',
-        children: {'chat.node': const SlotSpec(kind: SlotKind.keyed, scope: SlotScope.session)},
+        children: {
+          'chat.node': const SlotSpec(
+            kind: SlotKind.keyed,
+            scope: SlotScope.session,
+          ),
+        },
       ),
       (context, props) => const SizedBox.shrink(),
     );
@@ -90,22 +109,36 @@ void main() {
       },
     );
     await tester.pumpWidget(
-      MaterialApp(home: SlotOutlet(registry: registry, slotKey: 'chat.node')),
+      MaterialApp(
+        home: SlotOutlet(registry: registry, slotKey: 'chat.node'),
+      ),
     );
     expect(renderedKey, 'tool-call');
   });
 
-  testWidgets('non-builder components fail with a directed assert', (tester) async {
+  testWidgets('non-builder components fail with a directed assert', (
+    tester,
+  ) async {
     registry.register(
       const RegistrationOptions(
         name: 'root',
-        children: {'bad.slot': const SlotSpec(kind: SlotKind.single, scope: SlotScope.root)},
+        children: {
+          'bad.slot': const SlotSpec(
+            kind: SlotKind.single,
+            scope: SlotScope.root,
+          ),
+        },
       ),
       (context, props) => const SizedBox.shrink(),
     );
-    registry.register(const RegistrationOptions(name: 'bad.slot'), 'not-a-builder');
+    registry.register(
+      const RegistrationOptions(name: 'bad.slot'),
+      'not-a-builder',
+    );
     await tester.pumpWidget(
-      MaterialApp(home: SlotOutlet(registry: registry, slotKey: 'bad.slot')),
+      MaterialApp(
+        home: SlotOutlet(registry: registry, slotKey: 'bad.slot'),
+      ),
     );
     expect(tester.takeException(), isAssertionError);
   });
@@ -113,6 +146,6 @@ void main() {
 
 extension on CommonFinders {
   Finder textStartingWith(String prefix) => find.byWidgetPredicate(
-        (widget) => widget is Text && (widget.data?.startsWith(prefix) ?? false),
-      );
+    (widget) => widget is Text && (widget.data?.startsWith(prefix) ?? false),
+  );
 }

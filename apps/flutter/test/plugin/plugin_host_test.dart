@@ -30,20 +30,27 @@ class _RecordingPlugin extends DshPlugin {
 void main() {
   setUp(applicationOrder.clear);
 
-  test('activation waits on injected services regardless of registration order', () async {
-    final host = PluginHost();
-    host.provide('slots', host.slots);
-    host.register(
-      _RecordingPlugin('ui-conversation', inject: ['slots', 'layout'], provides: 'conversation'),
-    );
-    host.register(_RecordingPlugin('ui-layout', provides: 'layout'));
+  test(
+    'activation waits on injected services regardless of registration order',
+    () async {
+      final host = PluginHost();
+      host.provide('slots', host.slots);
+      host.register(
+        _RecordingPlugin(
+          'ui-conversation',
+          inject: ['slots', 'layout'],
+          provides: 'conversation',
+        ),
+      );
+      host.register(_RecordingPlugin('ui-layout', provides: 'layout'));
 
-    await host.activateAll();
+      await host.activateAll();
 
-    expect(applicationOrder, ['ui-layout', 'ui-conversation']);
-    expect(host.hasService('layout'), isTrue);
-    expect(host.hasService('conversation'), isTrue);
-  });
+      expect(applicationOrder, ['ui-layout', 'ui-conversation']);
+      expect(host.hasService('layout'), isTrue);
+      expect(host.hasService('conversation'), isTrue);
+    },
+  );
 
   test('deactivation removes contributions and provided services', () async {
     final host = PluginHost();
@@ -52,7 +59,11 @@ void main() {
     // ui-layout owns root's single cell; ui-shell occupies the declared child
     // hole — the composition shape every business plugin uses.
     final layout = _DeclaringPlugin('ui-layout');
-    final shell = _RegisteringIntoPlugin('ui-shell', 'app.frame', 'shell-widget');
+    final shell = _RegisteringIntoPlugin(
+      'ui-shell',
+      'app.frame',
+      'shell-widget',
+    );
     host.register(layout);
     host.register(shell);
 
@@ -70,16 +81,23 @@ void main() {
     expect(layout.disposedViaContext, isTrue);
   });
 
-  test('unsatisfiable injections fail loud naming the missing services', () async {
-    final host = PluginHost();
-    host.provide('slots', host.slots);
-    host.register(_RecordingPlugin('orphan', inject: ['sessions']));
+  test(
+    'unsatisfiable injections fail loud naming the missing services',
+    () async {
+      final host = PluginHost();
+      host.provide('slots', host.slots);
+      host.register(_RecordingPlugin('orphan', inject: ['sessions']));
 
-    await expectLater(
-      host.activateAll(),
-      throwsA(predicate((e) => e is StateError && e.toString().contains('"sessions"'))),
-    );
-  });
+      await expectLater(
+        host.activateAll(),
+        throwsA(
+          predicate(
+            (e) => e is StateError && e.toString().contains('"sessions"'),
+          ),
+        ),
+      );
+    },
+  );
 
   test('duplicate plugin ids throw at register', () {
     final host = PluginHost();
@@ -117,7 +135,9 @@ class _DeclaringPlugin extends DshPlugin {
     final disposeEntry = ctx.slots.register(
       const RegistrationOptions(
         name: 'root',
-        children: {'app.frame': SlotSpec(kind: SlotKind.single, scope: SlotScope.root)},
+        children: {
+          'app.frame': SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
+        },
       ),
       'frame-component',
     );
@@ -141,7 +161,9 @@ class _RegisteringIntoPlugin extends DshPlugin {
   @override
   Future<void> apply(DshContext ctx) async {
     applicationOrder.add(_id);
-    ctx.onDispose(ctx.slots.register(RegistrationOptions(name: slot), component));
+    ctx.onDispose(
+      ctx.slots.register(RegistrationOptions(name: slot), component),
+    );
     ctx.onDispose(() => disposedViaContext = true);
   }
 }

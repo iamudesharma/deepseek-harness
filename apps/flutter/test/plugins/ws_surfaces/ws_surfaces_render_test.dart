@@ -24,7 +24,10 @@ import 'host_fixture.dart';
 void _registerLocaleDictionaries(ProviderContainer container) {
   final LocaleService locale = container.read(localeServiceProvider);
   locale.register(kModelNamespace, {'zh': kModelZh, 'en': kModelEn});
-  locale.register(kWorkspaceNamespace, {'zh': kWorkspaceZh, 'en': kWorkspaceEn});
+  locale.register(kWorkspaceNamespace, {
+    'zh': kWorkspaceZh,
+    'en': kWorkspaceEn,
+  });
 }
 
 void main() {
@@ -37,20 +40,23 @@ void main() {
     await host.activateAll();
 
     declareSurfaceHoles(host);
-    final entry =
-        host.slots.winnersOfSlot('conversation.hero.brand.mark').single;
+    final entry = host.slots
+        .winnersOfSlot('conversation.hero.brand.mark')
+        .single;
     Widget mark(BuildContext context) =>
         (entry.component as Widget Function(BuildContext, SlotComponentProps))(
-            context,
-            const SlotComponentProps(slotKey: kHeroBrandMarkSlot, priority: 0));
+          context,
+          const SlotComponentProps(slotKey: kHeroBrandMarkSlot, priority: 0),
+        );
 
     await tester.pumpWidget(MaterialApp(home: Builder(builder: mark)));
     // The fish mark paints via a custom painter, not a text fallback.
     expect(find.byType(CustomPaint), findsWidgets);
   });
 
-  testWidgets('model seat shows the trigger and lists the loaded catalog',
-      (tester) async {
+  testWidgets('model seat shows the trigger and lists the loaded catalog', (
+    tester,
+  ) async {
     final directories = ModelDirectoryService(FakeClient());
     bindActivatedModelDirectories(directories);
     addTearDown(() => bindActivatedModelDirectories(null));
@@ -62,15 +68,17 @@ void main() {
       blank: true,
     );
 
-    final container = ProviderContainer(overrides: [
-      currentSessionProvider.overrideWithValue(summary),
-    ]);
+    final container = ProviderContainer(
+      overrides: [currentSessionProvider.overrideWithValue(summary)],
+    );
     addTearDown(container.dispose);
     _registerLocaleDictionaries(container);
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: const MaterialApp(home: Scaffold(body: ModelSeat())),
-    ));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: ModelSeat())),
+      ),
+    );
     await tester.pump();
 
     // Unset trigger shows the localized fallback copy.
@@ -83,8 +91,9 @@ void main() {
     expect(find.byType(PopupMenuItem<(String, ModelInfo)>), findsNothing);
   });
 
-  testWidgets('workspace picker chip renders the add flow affordance',
-      (tester) async {
+  testWidgets('workspace picker chip renders the add flow affordance', (
+    tester,
+  ) async {
     final client = FakeClient()
       ..answers['workspace.list'] = {
         'items': [
@@ -93,13 +102,16 @@ void main() {
       };
 
     final container = ProviderContainer(
-        overrides: [connectionClientProvider.overrideWithValue(client)]);
+      overrides: [connectionClientProvider.overrideWithValue(client)],
+    );
     addTearDown(container.dispose);
     _registerLocaleDictionaries(container);
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: const MaterialApp(home: Scaffold(body: WorkspacePickerChip())),
-    ));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: WorkspacePickerChip())),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // Chip label resolves workspace.section.workspaces in the default (zh)

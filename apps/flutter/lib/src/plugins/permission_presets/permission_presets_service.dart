@@ -32,7 +32,11 @@ String? defaultPresetOf(SettingsScopeSnapshot<Object?> snapshot) {
 
 /// One selectable preset option derived from the host schema union.
 class PermissionOption {
-  const PermissionOption({required this.id, required this.label, this.description});
+  const PermissionOption({
+    required this.id,
+    required this.label,
+    this.description,
+  });
   final String id;
   final String label;
   final String? description;
@@ -45,7 +49,9 @@ class PermissionOption {
 /// `const` nodes. When schema is absent or malformed, returns the last
 /// known host union fallback (`read-only` / `workspace-write`) so the row
 /// still renders, but callers should treat empty as unavailable.
-List<PermissionOption> permissionOptionsOf(SettingsScopeSnapshot<Object?> snapshot) {
+List<PermissionOption> permissionOptionsOf(
+  SettingsScopeSnapshot<Object?> snapshot,
+) {
   final schema = snapshot.schema;
   if (schema == null) return const [];
   try {
@@ -63,7 +69,10 @@ List<PermissionOption> permissionOptionsOf(SettingsScopeSnapshot<Object?> snapsh
     final type = node['type'] as String?;
     List<Map<String, Object?>> candidates = const [];
     if (type == 'union' && node['list'] is List) {
-      candidates = (node['list'] as List).whereType<Map>().map((e) => e.cast<String, Object?>()).toList();
+      candidates = (node['list'] as List)
+          .whereType<Map>()
+          .map((e) => e.cast<String, Object?>())
+          .toList();
     } else if (type == 'const') {
       candidates = [node];
     } else {
@@ -74,14 +83,19 @@ List<PermissionOption> permissionOptionsOf(SettingsScopeSnapshot<Object?> snapsh
       if (c['type'] != 'const') continue;
       final value = c['value'];
       if (value is! String) continue;
-      final meta = c['meta'] is Map ? (c['meta'] as Map).cast<String, Object?>() : null;
-      final desc = meta?['description'] is String ? meta!['description'] as String : null;
+      final meta = c['meta'] is Map
+          ? (c['meta'] as Map).cast<String, Object?>()
+          : null;
+      final desc = meta?['description'] is String
+          ? meta!['description'] as String
+          : null;
       final label = desc != null && desc.isNotEmpty ? desc : value;
       options.add(PermissionOption(id: value, label: label, description: desc));
     }
     // Validate current value is advertised; if not, keep empty to surface schema drift
     final current = defaultPresetOf(snapshot);
-    if (current != null && !options.any((o) => o.id == current)) return const [];
+    if (current != null && !options.any((o) => o.id == current))
+      return const [];
     return options;
   } catch (_) {
     return const [];

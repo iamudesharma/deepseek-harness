@@ -12,15 +12,36 @@ void main() {
       Map<String, dynamic>? captured;
       final mock = MockClient((http.Request req) async {
         captured = jsonDecode(req.body) as Map<String, dynamic>;
-        return http.Response(jsonEncode({'type': 'server-response', 'rpcId': captured!['rpcId'], 'result': {'ok': true, 'value': {'accepted': true}}}), 200, headers: {'content-type': 'application/json'});
+        return http.Response(
+          jsonEncode({
+            'type': 'server-response',
+            'rpcId': captured!['rpcId'],
+            'result': {
+              'ok': true,
+              'value': {'accepted': true},
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
       final client = ConnectionClient(baseUrl: 'http://fake', httpClient: mock);
       await client.sendMessage(
         sessionId: SessionId('s1'),
         content: 'hello',
         images: [
-          {'type': 'image', 'mediaType': 'image/png', 'data': 'AQID', 'name': 'a.png'},
-          {'type': 'image', 'mediaType': 'image/jpeg', 'data': 'BAUG', 'name': 'b.jpg'},
+          {
+            'type': 'image',
+            'mediaType': 'image/png',
+            'data': 'AQID',
+            'name': 'a.png',
+          },
+          {
+            'type': 'image',
+            'mediaType': 'image/jpeg',
+            'data': 'BAUG',
+            'name': 'b.jpg',
+          },
         ],
       );
       expect(captured, isNotNull);
@@ -38,7 +59,17 @@ void main() {
       Map<String, dynamic>? captured;
       final mock = MockClient((http.Request req) async {
         captured = jsonDecode(req.body) as Map<String, dynamic>;
-        return http.Response(jsonEncode({'type': 'server-response', 'rpcId': captured!['rpcId'], 'result': {'ok': true, 'value': {'accepted': true}}}), 200);
+        return http.Response(
+          jsonEncode({
+            'type': 'server-response',
+            'rpcId': captured!['rpcId'],
+            'result': {
+              'ok': true,
+              'value': {'accepted': true},
+            },
+          }),
+          200,
+        );
       });
       final client = ConnectionClient(baseUrl: 'http://fake', httpClient: mock);
       await client.sendMessage(
@@ -48,7 +79,8 @@ void main() {
           {'type': 'image', 'mediaType': 'image/png', 'data': 'AQID'},
         ],
       );
-      final content = (captured!['payload'] as Map<String, dynamic>)['content'] as List;
+      final content =
+          (captured!['payload'] as Map<String, dynamic>)['content'] as List;
       expect(content.length, 1);
       expect(content[0]['type'], 'image');
     });
@@ -57,13 +89,24 @@ void main() {
       Map<String, dynamic>? captured;
       final mock = MockClient((http.Request req) async {
         captured = jsonDecode(req.body) as Map<String, dynamic>;
-        return http.Response(jsonEncode({'type': 'server-response', 'rpcId': captured!['rpcId'], 'result': {'ok': true, 'value': {'accepted': true}}}), 200);
+        return http.Response(
+          jsonEncode({
+            'type': 'server-response',
+            'rpcId': captured!['rpcId'],
+            'result': {
+              'ok': true,
+              'value': {'accepted': true},
+            },
+          }),
+          200,
+        );
       });
       final client = ConnectionClient(baseUrl: 'http://fake', httpClient: mock);
       await client.sendMessage(sessionId: SessionId('s1'), content: 'hi');
-      final content = (captured!['payload'] as Map<String, dynamic>)['content'] as List;
+      final content =
+          (captured!['payload'] as Map<String, dynamic>)['content'] as List;
       expect(content, [
-        {'type': 'text', 'text': 'hi'}
+        {'type': 'text', 'text': 'hi'},
       ]);
     });
   });

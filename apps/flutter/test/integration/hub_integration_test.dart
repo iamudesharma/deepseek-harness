@@ -13,17 +13,21 @@ import 'package:flutter_test/flutter_test.dart';
 /// resolve via DshContext, slot composition carries the sidebar into the
 /// router's frame, and the theme service drives the live ThemeMode.
 void main() {
-  testWidgets('full host activation integrates all P1 hub seams', (tester) async {
+  testWidgets('full host activation integrates all P1 hub seams', (
+    tester,
+  ) async {
     late final WidgetRef captured;
     PluginHost? host;
     Object? failure;
 
     await tester.pumpWidget(
       ProviderScope(
-        child: Consumer(builder: (context, ref, _) {
-          captured = ref;
-          return const SizedBox.shrink();
-        }),
+        child: Consumer(
+          builder: (context, ref, _) {
+            captured = ref;
+            return const SizedBox.shrink();
+          },
+        ),
       ),
     );
 
@@ -92,6 +96,5 @@ class _HostContextView implements DshContext {
   SlotRegistry get slots => _host.slots;
 
   @override
-  void onDispose(Disposer disposer) =>
-      throw UnsupportedError('read-only view');
+  void onDispose(Disposer disposer) => throw UnsupportedError('read-only view');
 }

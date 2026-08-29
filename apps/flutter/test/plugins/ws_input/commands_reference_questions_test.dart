@@ -15,8 +15,15 @@ void main() {
   group('ui-commands CommandUiService', () {
     test('register duplicate throws; disposer removes', () {
       final dir = CommandDirectory(fetchCommands: (_) async => []);
-      final service = CommandUiService(directory: dir, execute: (_, __) async => CommandExecutionOutcome.success());
-      const contrib = CommandContribution(name: 'my-cmd', description: 'desc', available: _always);
+      final service = CommandUiService(
+        directory: dir,
+        execute: (_, __) async => CommandExecutionOutcome.success(),
+      );
+      const contrib = CommandContribution(
+        name: 'my-cmd',
+        description: 'desc',
+        available: _always,
+      );
       final dispose = service.register(contrib);
       expect(() => service.register(contrib), throwsStateError);
       dispose();
@@ -43,17 +50,17 @@ void main() {
       host.provide('connection', WsInputRecordingClient());
       final registry = TriggerSourceRegistry();
       host.provide('inputTriggers', registry);
-      host.register(ReferencePlugin(
-        fetchFiles: files ?? (_, __) async => const [],
-        fetchSessions: sessions ?? (_, __) async => const [],
-      ));
+      host.register(
+        ReferencePlugin(
+          fetchFiles: files ?? (_, __) async => const [],
+          fetchSessions: sessions ?? (_, __) async => const [],
+        ),
+      );
       await host.activateAll();
       return (registry, registry.sources('@').single);
     }
 
-    test(
-        'candidates merge file and session namespaces; quoted path suppresses sessions',
-        () async {
+    test('candidates merge file and session namespaces; quoted path suppresses sessions', () async {
       final (_, source) = await boot(
         files: (_, __) async => [
           {'path': 'lib/main.dart', 'kind': 'file'},
@@ -70,67 +77,70 @@ void main() {
         ],
       );
       final rows = await source.candidates(
-          's1',
-          const CandidateRequest(
-              query: '', position: TriggerPosition.leading));
-      expect(rows.map((r) => r.name),
-          ['File · main.dart', 'Folder · assets/', 'Session · Fix bug']);
-      expect(rows.map((r) => r.section),
-          ['Files', 'Files', 'Sessions']);
+        's1',
+        const CandidateRequest(query: '', position: TriggerPosition.leading),
+      );
+      expect(rows.map((r) => r.name), [
+        'File · main.dart',
+        'Folder · assets/',
+        'Session · Fix bug',
+      ]);
+      expect(rows.map((r) => r.section), ['Files', 'Files', 'Sessions']);
 
       // Inside an open quoted path token sessions never answer.
-      final quoted = await source.candidates('s1',
-          const CandidateRequest(
-              query: 'my folder',
-              quoted: true,
-              position: TriggerPosition.leading));
+      final quoted = await source.candidates(
+        's1',
+        const CandidateRequest(
+          query: 'my folder',
+          quoted: true,
+          position: TriggerPosition.leading,
+        ),
+      );
       expect(quoted.map((r) => r.section), everyElement('Files'));
     });
 
-    test('pick decision table: directory splices text; file/session insert chips',
-        () async {
-      final (_, source) = await boot(
-        files: (_, __) async => [
-          {'path': 'lib/main.dart', 'kind': 'file'},
-          {'path': 'assets', 'kind': 'directory'},
-        ],
-        sessions: (_, __) async => [
-          {
-            'sessionId': 's9',
-            'label': 'Fix bug',
-            'mention': '@session:s9',
-          },
-        ],
-      );
-      final rows = await source.candidates(
+    test(
+      'pick decision table: directory splices text; file/session insert chips',
+      () async {
+        final (_, source) = await boot(
+          files: (_, __) async => [
+            {'path': 'lib/main.dart', 'kind': 'file'},
+            {'path': 'assets', 'kind': 'directory'},
+          ],
+          sessions: (_, __) async => [
+            {'sessionId': 's9', 'label': 'Fix bug', 'mention': '@session:s9'},
+          ],
+        );
+        final rows = await source.candidates(
           's1',
-          const CandidateRequest(
-              query: '', position: TriggerPosition.leading));
-      InputTriggerPick pickOf(InputTriggerCandidate c) => InputTriggerPick(
-            candidate: c,
-            sessionId: 's1',
-            position: TriggerPosition.leading,
-            via: 'menu',
-            span: const TokenSpan(start: 0, end: 5, draftRev: 0),
-          );
+          const CandidateRequest(query: '', position: TriggerPosition.leading),
+        );
+        InputTriggerPick pickOf(InputTriggerCandidate c) => InputTriggerPick(
+          candidate: c,
+          sessionId: 's1',
+          position: TriggerPosition.leading,
+          via: 'menu',
+          span: const TokenSpan(start: 0, end: 5, draftRev: 0),
+        );
 
-      // Directory → literal splice keeping completion open (descent). The
-      // unquoted grammar: quotes appear only for whitespace paths.
-      final dir = source.onPick(pickOf(rows[1])) as TextOutcome;
-      expect(dir.text, '@assets/');
-      expect(dir.continueTracking, isTrue);
+        // Directory → literal splice keeping completion open (descent). The
+        // unquoted grammar: quotes appear only for whitespace paths.
+        final dir = source.onPick(pickOf(rows[1])) as TextOutcome;
+        expect(dir.text, '@assets/');
+        expect(dir.continueTracking, isTrue);
 
-      // File → reference chip with clipboard projection.
-      final file = source.onPick(pickOf(rows[0])) as InsertOutcome;
-      expect(file.insert.ref, '@lib/main.dart');
-      expect(file.insert.appearance, 'file');
-      expect(file.insert.clipboardText, '@lib/main.dart');
+        // File → reference chip with clipboard projection.
+        final file = source.onPick(pickOf(rows[0])) as InsertOutcome;
+        expect(file.insert.ref, '@lib/main.dart');
+        expect(file.insert.appearance, 'file');
+        expect(file.insert.clipboardText, '@lib/main.dart');
 
-      // Session → reference chip.
-      final session = source.onPick(pickOf(rows[2])) as InsertOutcome;
-      expect(session.insert.ref, '@session:s9');
-      expect(session.insert.appearance, 'session');
-    });
+        // Session → reference chip.
+        final session = source.onPick(pickOf(rows[2])) as InsertOutcome;
+        expect(session.insert.ref, '@session:s9');
+        expect(session.insert.appearance, 'session');
+      },
+    );
 
     test('failing namespaces degrade to an empty candidate list', () async {
       final (_, source) = await boot(
@@ -138,9 +148,9 @@ void main() {
         sessions: (_, __) async => throw StateError('namespace absent'),
       );
       final rows = await source.candidates(
-          's1',
-          const CandidateRequest(
-              query: '', position: TriggerPosition.leading));
+        's1',
+        const CandidateRequest(query: '', position: TriggerPosition.leading),
+      );
       expect(rows, isEmpty);
     });
   });
@@ -148,8 +158,11 @@ void main() {
   group('ui-user-questions QuestionsController', () {
     test('folds requested then resolved', () async {
       final controller = QuestionsController();
-      controller.requested('s1',
-          rpcId: 'r1', questions: [QuestionItem(id: 'q1', question: 'Q1')]);
+      controller.requested(
+        's1',
+        rpcId: 'r1',
+        questions: [QuestionItem(id: 'q1', question: 'Q1')],
+      );
       expect(controller.state['s1'], isNotNull);
       expect(controller.state['s1']!.rpcId, 'r1');
       controller.resolved('s1', 'r1', 'answered');
@@ -165,4 +178,3 @@ void main() {
 }
 
 bool _always(SessionId _) => true;
-

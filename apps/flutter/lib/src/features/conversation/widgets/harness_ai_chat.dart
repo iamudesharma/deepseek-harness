@@ -10,6 +10,8 @@ class HarnessAiChat extends ConsumerWidget {
   final String sessionId;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const Center(child: Text('Chat stub — use ConversationColumn/ChatView'));
+    return const Center(
+      child: Text('Chat stub — use ConversationColumn/ChatView'),
+    );
   }
 }

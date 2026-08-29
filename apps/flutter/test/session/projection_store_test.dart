@@ -26,24 +26,29 @@ void main() {
       expect(store.valueOf('title'), 'B');
     });
 
-    test('keys are independent; unknown key reads null (capability absent)', () {
-      final store = SessionProjectionStore()
-        ..offer('title', 'A', 5)
-        ..offer('permissions', {'options': []}, 3);
-      expect(store.valueOf('plan'), isNull);
-      expect(store.offer('plan', {'active': false}, 2), isTrue);
-      expect(store.valueOf('title'), 'A');
-      expect(store.valueOf('permissions'), {'options': []});
-    });
+    test(
+      'keys are independent; unknown key reads null (capability absent)',
+      () {
+        final store = SessionProjectionStore()
+          ..offer('title', 'A', 5)
+          ..offer('permissions', {'options': []}, 3);
+        expect(store.valueOf('plan'), isNull);
+        expect(store.offer('plan', {'active': false}, 2), isTrue);
+        expect(store.valueOf('title'), 'A');
+        expect(store.valueOf('permissions'), {'options': []});
+      },
+    );
   });
 
   group('history tail baseline seeding', () {
     test('seeds every key at the block cut', () {
       final store = SessionProjectionStore();
-      final accepted = store.seed(block(9, {
-        'title': 'History title',
-        'permissions': {'currentValue': 'default'},
-      }));
+      final accepted = store.seed(
+        block(9, {
+          'title': 'History title',
+          'permissions': {'currentValue': 'default'},
+        }),
+      );
       expect(accepted, containsAll(<String>['title', 'permissions']));
       expect(store.valueOf('title'), 'History title');
       expect(store.rowOf('title')!.seq, 9);
@@ -62,22 +67,29 @@ void main() {
     test('publishableProjectionKeys withholds regressed keys from folding', () {
       final store = SessionProjectionStore()
         ..offer('permissions', {'currentValue': 'pushed'}, 20);
-      final publishable =
-          publishableProjectionKeys(store, block(15, {'permissions': {'currentValue': 'tail'}}));
+      final publishable = publishableProjectionKeys(
+        store,
+        block(15, {
+          'permissions': {'currentValue': 'tail'},
+        }),
+      );
       // The permissions key must not reach its reactive surface…
       expect(publishable.contains('permissions'), isFalse);
       // …and an absent key stays unpublishable too (no block → nothing).
       expect(publishableProjectionKeys(store, null), isEmpty);
     });
 
-    test('re-seeding the same cut refreshes values without regression risk', () {
-      final store = SessionProjectionStore();
-      store.seed(block(9, {'title': 'T1'}));
-      // Same-cut reseed after reconnect resync: equal seq loses, so a second
-      // identical fold is idempotent rather than double-publishing.
-      final again = store.seed(block(9, {'title': 'T1'}));
-      expect(again, isEmpty);
-      expect(store.valueOf('title'), 'T1');
-    });
+    test(
+      're-seeding the same cut refreshes values without regression risk',
+      () {
+        final store = SessionProjectionStore();
+        store.seed(block(9, {'title': 'T1'}));
+        // Same-cut reseed after reconnect resync: equal seq loses, so a second
+        // identical fold is idempotent rather than double-publishing.
+        final again = store.seed(block(9, {'title': 'T1'}));
+        expect(again, isEmpty);
+        expect(store.valueOf('title'), 'T1');
+      },
+    );
   });
 }

@@ -21,26 +21,23 @@ class ChatMessage {
     required String resultKind,
     required Map<String, dynamic> data,
     required String id,
-  })  : text = '',
-        createdAt = null,
-        isMarkdown = false,
-        customProperties = {
-          'id': id,
-          'resultKind': resultKind,
-          'resultData': data,
-        };
+  }) : text = '',
+       createdAt = null,
+       isMarkdown = false,
+       customProperties = {
+         'id': id,
+         'resultKind': resultKind,
+         'resultData': data,
+       };
 
   ChatMessage.loading({
     required this.user,
     required String id,
     required String text,
-  })  : createdAt = null,
-        isMarkdown = false,
-        customProperties = {
-          'id': id,
-          'isLoading': true,
-        },
-        text = text;
+  }) : createdAt = null,
+       isMarkdown = false,
+       customProperties = {'id': id, 'isLoading': true},
+       text = text;
 
   final String text;
   final ChatUser user;
@@ -54,7 +51,11 @@ class ChatMessagesController {
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   void updateMessage(ChatMessage msg) {
     final String? id = msg.customProperties?['id'] as String? ?? msg.text;
-    final int idx = _messages.indexWhere((m) => (m.customProperties?['id'] as String?) == id || m.text == msg.text && m.user.id == msg.user.id);
+    final int idx = _messages.indexWhere(
+      (m) =>
+          (m.customProperties?['id'] as String?) == id ||
+          m.text == msg.text && m.user.id == msg.user.id,
+    );
     if (idx != -1) {
       _messages[idx] = msg;
     } else {
@@ -78,7 +79,9 @@ List<ChatMessage> harnessMessageToChatMessages(
 }) {
   Map<String, dynamic> _citations() => {
     if (msg.citations.isNotEmpty)
-      'citations': msg.citations.map((c) => {'label': c.label, 'url': c.url, 'title': c.title}).toList(),
+      'citations': msg.citations
+          .map((c) => {'label': c.label, 'url': c.url, 'title': c.title})
+          .toList(),
   };
 
   // Retry disclosure — non-message chat node.
@@ -128,7 +131,11 @@ List<ChatMessage> harnessMessageToChatMessages(
     // no renderable text (tool-call-only or fully empty) emits nothing — tool
     // rows come only from real tool/call events.
     final bool hasRenderable =
-        b != null && b.any((block) => (block.text ?? '').trim().isNotEmpty || block.kind != 'tool-call');
+        b != null &&
+        b.any(
+          (block) =>
+              (block.text ?? '').trim().isNotEmpty || block.kind != 'tool-call',
+        );
     if (!hasRenderable) {
       return const <ChatMessage>[];
     }
@@ -141,15 +148,10 @@ List<ChatMessage> harnessMessageToChatMessages(
     // the loading morph so the user sees "Thinking…" immediately.
     final bool isStreaming = msg.streaming;
     final repo = blocks.whereType<AssistantBlock>().toList();
-    final bool allReasoning = repo.isNotEmpty && repo.every((b) => b.kind == 'reasoning');
+    final bool allReasoning =
+        repo.isNotEmpty && repo.every((b) => b.kind == 'reasoning');
     if (isStreaming && allReasoning) {
-      return [
-        ChatMessage.loading(
-          user: aiUser,
-          id: msg.id,
-          text: 'Thinking…',
-        ),
-      ];
+      return [ChatMessage.loading(user: aiUser, id: msg.id, text: 'Thinking…')];
     }
 
     final List<ChatMessage> out = [];
@@ -159,12 +161,14 @@ List<ChatMessage> harnessMessageToChatMessages(
         case 'reasoning':
           final String reasonText = (block.text ?? '').trim();
           if (reasonText.isEmpty) break;
-          out.add(ChatMessage.rich(
-            user: aiUser,
-            resultKind: 'reasoning',
-            data: {'text': reasonText},
-            id: '${msg.id}-reasoning',
-          ));
+          out.add(
+            ChatMessage.rich(
+              user: aiUser,
+              resultKind: 'reasoning',
+              data: {'text': reasonText},
+              id: '${msg.id}-reasoning',
+            ),
+          );
           emittedRich = true;
           break;
         case 'tool-call':
@@ -173,54 +177,62 @@ List<ChatMessage> harnessMessageToChatMessages(
           // (real tool/call + tool/result events). Emit nothing here.
           break;
         case 'text':
-          out.add(ChatMessage(
-            text: block.text ?? '',
-            user: aiUser,
-            createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
-            isMarkdown: true,
-            customProperties: {
-              'id': '${msg.id}-text',
-              if (isStreaming) 'isStreaming': true,
-              ..._citations(),
-            },
-          ));
+          out.add(
+            ChatMessage(
+              text: block.text ?? '',
+              user: aiUser,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
+              isMarkdown: true,
+              customProperties: {
+                'id': '${msg.id}-text',
+                if (isStreaming) 'isStreaming': true,
+                ..._citations(),
+              },
+            ),
+          );
           break;
         default:
-          out.add(ChatMessage(
-            text: msg.content,
-            user: aiUser,
-            createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
-            isMarkdown: true,
-            customProperties: {
-              'id': msg.id,
-              if (isStreaming) 'isStreaming': true,
-              ..._citations(),
-            },
-          ));
+          out.add(
+            ChatMessage(
+              text: msg.content,
+              user: aiUser,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
+              isMarkdown: true,
+              customProperties: {
+                'id': msg.id,
+                if (isStreaming) 'isStreaming': true,
+                ..._citations(),
+              },
+            ),
+          );
       }
     }
     // If we emitted at least one rich bubble above, callers expected the
     // answer bubble to come from text blocks. When blocks produced only
     // rich bubbles (tool-call only), still emit a fallback if content present.
-    if (emittedRich && blocks.every((b) => b.kind != 'text') && msg.content.isNotEmpty) {
-      out.add(ChatMessage(
-        text: msg.content,
-        user: aiUser,
-        createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
-        isMarkdown: true,
-        customProperties: {'id': '${msg.id}-text', ..._citations()},
-      ));
+    if (emittedRich &&
+        blocks.every((b) => b.kind != 'text') &&
+        msg.content.isNotEmpty) {
+      out.add(
+        ChatMessage(
+          text: msg.content,
+          user: aiUser,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
+          isMarkdown: true,
+          customProperties: {'id': '${msg.id}-text', ..._citations()},
+        ),
+      );
     }
     return out.isEmpty
         ? [
-          ChatMessage(
-            text: msg.content,
-            user: aiUser,
-            createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
-            isMarkdown: true,
-            customProperties: {'id': msg.id, ..._citations()},
-          ),
-        ]
+            ChatMessage(
+              text: msg.content,
+              user: aiUser,
+              createdAt: DateTime.fromMillisecondsSinceEpoch(msg.time),
+              isMarkdown: true,
+              customProperties: {'id': msg.id, ..._citations()},
+            ),
+          ]
         : out;
   }
 
@@ -279,7 +291,9 @@ void syncMessagesToController(
 }) {
   final List<ChatMessage> desired = [];
   for (final m in messages) {
-    desired.addAll(harnessMessageToChatMessages(m, aiUser: aiUser, currentUser: currentUser));
+    desired.addAll(
+      harnessMessageToChatMessages(m, aiUser: aiUser, currentUser: currentUser),
+    );
   }
   for (final c in toolCalls) {
     desired.add(toolCallToChatMessage(c, aiUser));

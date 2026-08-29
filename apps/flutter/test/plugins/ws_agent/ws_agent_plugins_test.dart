@@ -27,7 +27,10 @@ class _LayoutShell extends DshPlugin {
         const RegistrationOptions(
           name: 'root',
           children: {
-            'layout.center': SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
+            'layout.center': SlotSpec(
+              kind: SlotKind.single,
+              scope: SlotScope.root,
+            ),
           },
         ),
         (context, props) => const SizedBox.shrink(),
@@ -37,66 +40,89 @@ class _LayoutShell extends DshPlugin {
 }
 
 void main() {
-  test('four WS plugins cohabit with ui-conversation on one booted host', () async {
-    // The real ConversationPlugin provides 'conversation' itself, so the
-    // fixture must not pre-provide it.
-    final host = wsAgentHost(withConversation: false);
-    addTearDown(host.deactivateAll);
+  test(
+    'four WS plugins cohabit with ui-conversation on one booted host',
+    () async {
+      // The real ConversationPlugin provides 'conversation' itself, so the
+      // fixture must not pre-provide it.
+      final host = wsAgentHost(withConversation: false);
+      addTearDown(host.deactivateAll);
 
-    host.register(_LayoutShell());
-    host.register(ConversationPlugin());
-    host.register(SubagentPlugin(
-      link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
-    ));
-    host.register(const SkillPlugin());
-    host.register(const AgentPresetPlugin());
-    host.register(PlanPlugin(
-      planControl: PlanControl(
-        execute: (_, _) async => const CommandOutcome(ok: true, hasValue: true),
-      ),
-    ));
+      host.register(_LayoutShell());
+      host.register(ConversationPlugin());
+      host.register(
+        SubagentPlugin(
+          link: SubagentLink(
+            selectSession: (_) {},
+            refreshParent: (_) async {},
+          ),
+        ),
+      );
+      host.register(const SkillPlugin());
+      host.register(const AgentPresetPlugin());
+      host.register(
+        PlanPlugin(
+          planControl: PlanControl(
+            execute: (_, _) async =>
+                const CommandOutcome(ok: true, hasValue: true),
+          ),
+        ),
+      );
 
-    await host.activateAll();
+      await host.activateAll();
 
-    // Conversation declared its subtree once layout.center existed.
-    expect(host.slots.isDeclared('conversation'), isTrue);
-    expect(host.slots.isDeclared('conversation.session.header.actions'), isTrue);
+      // Conversation declared its subtree once layout.center existed.
+      expect(host.slots.isDeclared('conversation'), isTrue);
+      expect(
+        host.slots.isDeclared('conversation.session.header.actions'),
+        isTrue,
+      );
 
-    // Header band ordering: static preset label leads, catalog action trails.
-    final headerWinners =
-        host.slots.winnersOfSlot('conversation.session.header.actions');
-    expect(
-      [for (final w in headerWinners) w.options.id],
-      [kAgentPresetHeaderId, kSubagentCatalogId],
-    );
+      // Header band ordering: static preset label leads, catalog action trails.
+      final headerWinners = host.slots.winnersOfSlot(
+        'conversation.session.header.actions',
+      );
+      expect(
+        [for (final w in headerWinners) w.options.id],
+        [kAgentPresetHeaderId, kSubagentCatalogId],
+      );
 
-    // Keyed chat-node seam carries both dependents.
-    final controller = host.service<ConversationController>('conversation')!;
-    expect(controller.renderers.keys, containsAll(['subagent', kSkillNodeKey]));
+      // Keyed chat-node seam carries both dependents.
+      final controller = host.service<ConversationController>('conversation')!;
+      expect(
+        controller.renderers.keys,
+        containsAll(['subagent', kSkillNodeKey]),
+      );
 
-    // Plan chip occupies the composer tool-row seat.
-    expect(host.slots.isDeclared(kPlanSeatSlot), isTrue);
-    expect(
-      [for (final w in host.slots.winnersOfSlot(kPlanSeatSlot)) w.options.id],
-      contains(kPlanSeatId),
-    );
-  });
+      // Plan chip occupies the composer tool-row seat.
+      expect(host.slots.isDeclared(kPlanSeatSlot), isTrue);
+      expect([
+        for (final w in host.slots.winnersOfSlot(kPlanSeatSlot)) w.options.id,
+      ], contains(kPlanSeatId));
+    },
+  );
 
   test('deactivating one plugin leaves the others installed', () async {
     final host = wsAgentHost();
     addTearDown(host.deactivateAll);
 
     declareHeaderActionsHole(host);
-    host.register(SubagentPlugin(
-      link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
-    ));
+    host.register(
+      SubagentPlugin(
+        link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
+      ),
+    );
     host.register(const AgentPresetPlugin());
     await host.activateAll();
 
     host.deactivate(kSubagentPluginId);
 
-    final ids =
-        [for (final w in host.slots.winnersOfSlot('conversation.session.header.actions')) w.options.id];
+    final ids = [
+      for (final w in host.slots.winnersOfSlot(
+        'conversation.session.header.actions',
+      ))
+        w.options.id,
+    ];
     expect(ids, [kAgentPresetHeaderId]);
     expect(host.hasService('subagents'), isFalse);
     final locale = host.service<LocaleService>('locale')!;

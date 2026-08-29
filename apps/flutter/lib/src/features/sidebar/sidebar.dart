@@ -1217,8 +1217,14 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                           final res = await client.getSessionHistory(newId);
                           final perm = res.projections?.values['permissions'];
                           if (perm is Map) {
-                            ref.read(permissionSelectProvider(newId.value).notifier).state =
-                                PermissionSelect.fromJson(perm.cast<String, dynamic>());
+                            ref
+                                .read(
+                                  permissionSelectProvider(newId.value)
+                                      .notifier,
+                                )
+                                .state = PermissionSelect.fromJson(
+                              perm.cast<String, dynamic>(),
+                            );
                           }
                         } catch (_) {}
                         // Project the host-born session before the confirming
@@ -1254,10 +1260,13 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                 Expanded(
                   child: Text(
                     formatWorkspaceCount(
-                        tw(filtered.length == 1
+                      tw(
+                        filtered.length == 1
                             ? 'sessions.count.one'
-                            : 'sessions.count.other'),
-                        filtered.length),
+                            : 'sessions.count.other',
+                      ),
+                      filtered.length,
+                    ),
                     style: TextStyle(
                       fontSize: DswTokens.fontSizeXxs12,
                       color: aliases.labelCaption,
@@ -1266,7 +1275,11 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                 ),
                 IconButton(
                   tooltip: 'Devices',
-                  icon: Icon(Icons.devices_outlined, size: 16, color: aliases.labelTertiary),
+                  icon: Icon(
+                    Icons.devices_outlined,
+                    size: 16,
+                    color: aliases.labelTertiary,
+                  ),
                   onPressed: () => context.push('/devices'),
                 ),
                 TextButton(
@@ -1539,7 +1552,9 @@ class _ProjectSection extends ConsumerWidget {
                       if (group.workspaceId != null) ...[
                         PopupMenuButton<String>(
                           tooltip: formatWorkspaceNamed(
-                              tw('actions.workspace.aria'), group.label),
+                            tw('actions.workspace.aria'),
+                            group.label,
+                          ),
                           icon: Icon(
                             Icons.more_horiz,
                             size: 16,
@@ -1592,8 +1607,12 @@ class _ProjectSection extends ConsumerWidget {
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   title: Text(tw('delete.workspace')),
-                                  content: Text(formatWorkspaceNamed(
-                                      tw('delete.desc'), group.label)),
+                                  content: Text(
+                                    formatWorkspaceNamed(
+                                      tw('delete.desc'),
+                                      group.label,
+                                    ),
+                                  ),
                                   actions: [
                                     TextButton(
                                       onPressed: () =>
@@ -1631,7 +1650,9 @@ class _ProjectSection extends ConsumerWidget {
                         ),
                         IconButton(
                           tooltip: formatWorkspaceNamed(
-                              tw('actions.newSession.aria'), group.label),
+                            tw('actions.newSession.aria'),
+                            group.label,
+                          ),
                           icon: Icon(
                             Icons.add,
                             size: 16,
@@ -1747,8 +1768,9 @@ class _SessionRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final Translate tw = ref.bindLocale(kWorkspaceNamespace);
     final Translate tc = ref.bindLocale(kCommonNamespace);
-    final String title =
-        summary.blank ? tw('session.new') : summary.displayTitle;
+    final String title = summary.blank
+        ? tw('session.new')
+        : summary.displayTitle;
     final String subtitle = _subtitleFor(summary, tw);
     final List<SessionStatus> statuses = summary.sessionStatuses();
     final SessionStatus primary = statuses.first;
@@ -1826,7 +1848,9 @@ class _SessionRow extends ConsumerWidget {
                 // Row actions menu — React SessionNodeItem menu: rename/fork/archive.
                 PopupMenuButton<String>(
                   tooltip: formatWorkspaceNamed(
-                      tw('actions.session.aria'), summary.displayTitle),
+                    tw('actions.session.aria'),
+                    summary.displayTitle,
+                  ),
                   icon: Icon(
                     Icons.more_horiz,
                     size: 14,
@@ -1922,7 +1946,9 @@ class _SessionRow extends ConsumerWidget {
                     PopupMenuItem(value: 'rename', child: Text(tw('rename'))),
                     PopupMenuItem(value: 'fork', child: Text(tw('menu.fork'))),
                     PopupMenuItem(
-                        value: 'archive', child: Text(tw('menu.archiveSession'))),
+                      value: 'archive',
+                      child: Text(tw('menu.archiveSession')),
+                    ),
                   ],
                 ),
               ],
@@ -2285,10 +2311,7 @@ StateDotState _stateDotState(String state) {
 }
 
 class _EmptyState extends ConsumerWidget {
-  const _EmptyState({
-    required this.aliases,
-    required this.hasQuery,
-  });
+  const _EmptyState({required this.aliases, required this.hasQuery});
   final DswAliases aliases;
   final bool hasQuery;
   @override

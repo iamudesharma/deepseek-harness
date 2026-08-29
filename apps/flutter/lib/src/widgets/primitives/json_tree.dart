@@ -26,9 +26,9 @@ class DsJsonTree extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
-            (theme.brightness == Brightness.dark
-                ? DswTokens.darkAliases
-                : DswTokens.lightAliases);
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
 
     return Container(
       decoration: BoxDecoration(
@@ -77,8 +77,7 @@ class _JsonNode extends StatefulWidget {
 class _JsonNodeState extends State<_JsonNode> {
   late bool _open = widget.initiallyExpanded;
 
-  bool get _isComposite =>
-      widget.data is Map || widget.data is List;
+  bool get _isComposite => widget.data is Map || widget.data is List;
 
   int get _childCount {
     if (widget.data is Map) return (widget.data as Map).length;
@@ -103,9 +102,9 @@ class _JsonNodeState extends State<_JsonNode> {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
-            (theme.brightness == Brightness.dark
-                ? DswTokens.darkAliases
-                : DswTokens.lightAliases);
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
 
     // Leaf — render inline key: value
     if (!_isComposite) {

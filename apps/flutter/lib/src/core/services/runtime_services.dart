@@ -107,7 +107,10 @@ class LocaleService {
     // same package that ships the service): the shared vocabulary consulted
     // by every bind fallback, and the Language row's copy. Never removed —
     // the service lives as long as its provider container.
-    _namespaces[kCommonNamespace] = {'zh': Map.of(kCommonZh), 'en': Map.of(kCommonEn)};
+    _namespaces[kCommonNamespace] = {
+      'zh': Map.of(kCommonZh),
+      'en': Map.of(kCommonEn),
+    };
     _namespaces[kSettingsLocaleNamespace] = {
       'zh': Map.of(kSettingsLocaleZh),
       'en': Map.of(kSettingsLocaleEn),
@@ -143,8 +146,11 @@ class LocaleService {
   VoidCallback register(String ns, Map<String, Map<String, String>> dicts) {
     final existing = _namespaces.putIfAbsent(ns, () => {});
     dicts.forEach((locale, dict) {
-      existing.update(locale, (d) => {...d, ...dict},
-          ifAbsent: () => Map.of(dict));
+      existing.update(
+        locale,
+        (d) => {...d, ...dict},
+        ifAbsent: () => Map.of(dict),
+      );
     });
     _bump();
     return () {
@@ -198,17 +204,20 @@ final localeServiceProvider = Provider<LocaleService>((ref) => LocaleService());
 /// publishes [LocaleService.revision], which advances on every service
 /// publish (active-locale switch or dictionary registration), so consumers
 /// re-invoke their bound translate functions when either moves.
-final localeRevisionProvider =
-    NotifierProvider<LocaleRevisionController, int>(LocaleRevisionController.new);
+final localeRevisionProvider = NotifierProvider<LocaleRevisionController, int>(
+  LocaleRevisionController.new,
+);
 
 /// Publishes [LocaleService.revision] as provider state.
 class LocaleRevisionController extends Notifier<int> {
   @override
   int build() {
     final LocaleService service = ref.watch(localeServiceProvider);
-    ref.onDispose(service.onChanged(() {
-      if (state != service.revision) state = service.revision;
-    }));
+    ref.onDispose(
+      service.onChanged(() {
+        if (state != service.revision) state = service.revision;
+      }),
+    );
     return service.revision;
   }
 }

@@ -26,7 +26,9 @@ class GoldenClient extends conn.ConnectionClient {
 
   @override
   Future<Map<String, dynamic>> callMethod(
-      String method, Map<String, dynamic> payload) async {
+    String method,
+    Map<String, dynamic> payload,
+  ) async {
     if (method == 'commands/list' ||
         method == 'command.list' ||
         method == 'fileReferences/list' ||
@@ -51,15 +53,21 @@ class GoldenClient extends conn.ConnectionClient {
   Future<Map<String, dynamic>> agentPresetList() async {
     return const <String, dynamic>{
       'presets': [
-        {'id': 'standard', 'name': 'Standard mode', 'trust': 'system', 'isDefault': true},
+        {
+          'id': 'standard',
+          'name': 'Standard mode',
+          'trust': 'system',
+          'isDefault': true,
+        },
       ],
       'authorable': false,
     };
   }
 
   @override
-  Future<Map<String, dynamic>> sessionModels(
-      {required String sessionId}) async {
+  Future<Map<String, dynamic>> sessionModels({
+    required String sessionId,
+  }) async {
     return const <String, dynamic>{
       'groups': [
         {
@@ -89,43 +97,56 @@ Future<ProviderContainer> _pump(
   addTearDown(container.dispose);
 
   PluginHost? host;
-  await tester.pumpWidget(UncontrolledProviderScope(
-    container: container,
-    child: Consumer(builder: (context, ref, _) {
-      host ??= buildAppHost(ref);
-      return const SizedBox.shrink();
-    }),
-  ));
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: Consumer(
+        builder: (context, ref, _) {
+          host ??= buildAppHost(ref);
+          return const SizedBox.shrink();
+        },
+      ),
+    ),
+  );
   await tester.pump();
   final PluginHost activeHost = host!;
   await activeHost.activateAll();
   addTearDown(activeHost.deactivateAll);
 
-  container.read(sessionsProvider.notifier).addSession(SessionSummary(
-        sessionId: const SessionId(qaSession),
-        updatedAt: 0,
-        running: false,
-        blank: blank,
-        title: 'Golden session',
-      ));
-  container.read(sessionsProvider.notifier).setCurrent(const SessionId(qaSession));
+  container
+      .read(sessionsProvider.notifier)
+      .addSession(
+        SessionSummary(
+          sessionId: const SessionId(qaSession),
+          updatedAt: 0,
+          running: false,
+          blank: blank,
+          title: 'Golden session',
+        ),
+      );
+  container
+      .read(sessionsProvider.notifier)
+      .setCurrent(const SessionId(qaSession));
   // Seed the permission projection so the composer tool row always has its
   // access chip (blank hero never appears without it). Without this the
   // `PermissionSeat` would show its placeholder and the golden would drift.
-  container.read(permissionSelectProvider(qaSession).notifier).state =
-      const PermissionSelect(
+  container
+      .read(permissionSelectProvider(qaSession).notifier)
+      .state = const PermissionSelect(
     options: [PresetOption(value: 'workspace-write', name: 'workspace-write')],
     currentValue: 'workspace-write',
   );
 
-  await tester.pumpWidget(UncontrolledProviderScope(
-    container: container,
-    child: MaterialApp(
-      theme: ThemeData.light(useMaterial3: true),
-      debugShowCheckedModeBanner: false,
-      home: const Scaffold(body: ConversationColumn(sessionId: qaSession)),
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: ThemeData.light(useMaterial3: true),
+        debugShowCheckedModeBanner: false,
+        home: const Scaffold(body: ConversationColumn(sessionId: qaSession)),
+      ),
     ),
-  ));
+  );
   await tester.pumpAndSettle();
   return container;
 }
@@ -147,14 +168,16 @@ void main() {
     );
   });
 
-  testWidgets('composer tool row with access + plan + model + send',
-      (tester) async {
+  testWidgets('composer tool row with access + plan + model + send', (
+    tester,
+  ) async {
     _setViewport(tester, const Size(1280, 800));
     final container = await _pump(tester, blank: false);
     // Surface both projection-fed seats.
     container.read(planProvider.notifier).enter();
-    container.read(permissionSelectProvider(qaSession).notifier).state =
-        const PermissionSelect(
+    container
+        .read(permissionSelectProvider(qaSession).notifier)
+        .state = const PermissionSelect(
       options: [PresetOption(value: 'default', name: 'Default')],
       currentValue: 'default',
     );
@@ -172,9 +195,7 @@ void main() {
     await tester.pump();
     // Menu candidates settle asynchronously (command.list round-trip);
     // bounded pumps keep this deterministic.
-    for (var i = 0;
-        i < 20 && find.text('plan').evaluate().isEmpty;
-        i++) {
+    for (var i = 0; i < 20 && find.text('plan').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(milliseconds: 25));
     }
     // The menu mounts in the ROOT Overlay (above the navigator), so the
@@ -192,7 +213,9 @@ void main() {
     // name; tap it to show the portal-anchored menu.
     final chipFinder = find.text('Standard mode');
     // Fallback to hero seat type if text not found due to locale timing.
-    final target = chipFinder.evaluate().isNotEmpty ? chipFinder : find.byType(ConversationColumn);
+    final target = chipFinder.evaluate().isNotEmpty
+        ? chipFinder
+        : find.byType(ConversationColumn);
     await tester.tap(target.first);
     await tester.pumpAndSettle();
     await expectLater(

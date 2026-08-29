@@ -20,7 +20,10 @@ void main() {
     addTearDown(host.deactivateAll);
 
     final opened = <SessionId>[];
-    final link = SubagentLink(selectSession: opened.add, refreshParent: (_) async {});
+    final link = SubagentLink(
+      selectSession: opened.add,
+      refreshParent: (_) async {},
+    );
     host.register(SubagentPlugin(link: link));
 
     await host.activateAll();
@@ -33,19 +36,26 @@ void main() {
     addTearDown(host.deactivateAll);
 
     declareHeaderActionsHole(host);
-    host.register(SubagentPlugin(
-      link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
-    ));
+    host.register(
+      SubagentPlugin(
+        link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
+      ),
+    );
 
     await host.activateAll();
 
-    final winners = host.slots.winnersOfSlot('conversation.session.header.actions');
+    final winners = host.slots.winnersOfSlot(
+      'conversation.session.header.actions',
+    );
     expect(winners, hasLength(1));
     expect(winners.single.options.id, kSubagentCatalogId);
     expect(winners.single.options.order, 10);
 
     host.deactivate(kSubagentPluginId);
-    expect(host.slots.winnersOfSlot('conversation.session.header.actions'), isEmpty);
+    expect(
+      host.slots.winnersOfSlot('conversation.session.header.actions'),
+      isEmpty,
+    );
   });
 
   test('activation registers the chat-node keyed renderer', () async {
@@ -53,9 +63,11 @@ void main() {
     addTearDown(host.deactivateAll);
 
     final controller = host.service<ConversationController>('conversation')!;
-    host.register(SubagentPlugin(
-      link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
-    ));
+    host.register(
+      SubagentPlugin(
+        link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
+      ),
+    );
 
     await host.activateAll();
 
@@ -68,9 +80,11 @@ void main() {
     addTearDown(host.deactivateAll);
 
     final locale = host.service<LocaleService>('locale')!;
-    host.register(SubagentPlugin(
-      link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
-    ));
+    host.register(
+      SubagentPlugin(
+        link: SubagentLink(selectSession: (_) {}, refreshParent: (_) async {}),
+      ),
+    );
     await host.activateAll();
 
     expect(locale.bind(kSubagentNamespace)('tree.aria'), '子代理会话');
@@ -84,96 +98,122 @@ void main() {
     expect(locale.bind(kSubagentNamespace)('tree.aria'), 'tree.aria');
   });
 
-  test('runtime link: openChild selects the child row in the shared sessions list', () async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+  test(
+    'runtime link: openChild selects the child row in the shared sessions list',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
 
-    const parent = SessionId('sess-parent');
-    const child = SessionId('sess-child');
-    final notifier = container.read(sessionsProvider.notifier);
-    notifier.addSession(_summary(parent));
-    notifier.addSession(_summary(child, parent: parent));
+      const parent = SessionId('sess-parent');
+      const child = SessionId('sess-child');
+      final notifier = container.read(sessionsProvider.notifier);
+      notifier.addSession(_summary(parent));
+      notifier.addSession(_summary(child, parent: parent));
 
-    final refreshed = <SessionId>[];
-    final link = SubagentLink(
-      selectSession: (id) => container.read(sessionsProvider.notifier).setCurrent(id),
-      refreshParent: (parent) async => refreshed.add(parent),
-    );
+      final refreshed = <SessionId>[];
+      final link = SubagentLink(
+        selectSession: (id) =>
+            container.read(sessionsProvider.notifier).setCurrent(id),
+        refreshParent: (parent) async => refreshed.add(parent),
+      );
 
-    expect(container.read(sessionsProvider).current, isNull);
-    await link.refresh(parent);
-    expect(refreshed, [parent]);
+      expect(container.read(sessionsProvider).current, isNull);
+      await link.refresh(parent);
+      expect(refreshed, [parent]);
 
-    link.openChild(SubagentAddress(parentSessionId: parent, childSessionId: child));
-    expect(container.read(sessionsProvider).current, child);
-  });
+      link.openChild(
+        SubagentAddress(parentSessionId: parent, childSessionId: child),
+      );
+      expect(container.read(sessionsProvider).current, child);
+    },
+  );
 
-  test('runtime link: unknown child ids are ignored by the controller guard', () {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+  test(
+    'runtime link: unknown child ids are ignored by the controller guard',
+    () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
 
-    const parent = SessionId('sess-parent');
-    container.read(sessionsProvider.notifier).addSession(_summary(parent));
+      const parent = SessionId('sess-parent');
+      container.read(sessionsProvider.notifier).addSession(_summary(parent));
 
-    final link = SubagentLink(
-      selectSession: (id) => container.read(sessionsProvider.notifier).setCurrent(id),
-      refreshParent: (_) async {},
-    );
-    link.openChild(
-        SubagentAddress(parentSessionId: parent, childSessionId: const SessionId('ghost')));
+      final link = SubagentLink(
+        selectSession: (id) =>
+            container.read(sessionsProvider.notifier).setCurrent(id),
+        refreshParent: (_) async {},
+      );
+      link.openChild(
+        SubagentAddress(
+          parentSessionId: parent,
+          childSessionId: const SessionId('ghost'),
+        ),
+      );
 
-    expect(container.read(sessionsProvider).current, isNull);
-  });
+      expect(container.read(sessionsProvider).current, isNull);
+    },
+  );
 
   test('runtime link: opening a child closes the originating catalog', () {
     const parent = SessionId('p');
     const child = SessionId('c');
-    final link = SubagentLink(selectSession: (_) {}, refreshParent: (_) async {});
+    final link = SubagentLink(
+      selectSession: (_) {},
+      refreshParent: (_) async {},
+    );
 
     link.setCatalogOpen(parent, true);
     expect(link.isCatalogOpen(parent), isTrue);
 
-    link.openChild(SubagentAddress(parentSessionId: parent, childSessionId: child));
+    link.openChild(
+      SubagentAddress(parentSessionId: parent, childSessionId: child),
+    );
     expect(link.isCatalogOpen(parent), isFalse);
   });
 
-  testWidgets('header catalog action: picking a child navigates through the link',
-      (tester) async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+  testWidgets(
+    'header catalog action: picking a child navigates through the link',
+    (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
 
-    const parent = SessionId('sess-parent');
-    const child = SessionId('sess-child');
-    container.read(sessionsProvider.notifier).addSession(_summary(parent));
-    container
-        .read(sessionsProvider.notifier)
-        .addSession(_summary(child, parent: parent));
-    container.read(sessionsProvider.notifier).setCurrent(parent);
+      const parent = SessionId('sess-parent');
+      const child = SessionId('sess-child');
+      container.read(sessionsProvider.notifier).addSession(_summary(parent));
+      container
+          .read(sessionsProvider.notifier)
+          .addSession(_summary(child, parent: parent));
+      container.read(sessionsProvider.notifier).setCurrent(parent);
 
-    final link = SubagentLink(
-      selectSession: (id) => container.read(sessionsProvider.notifier).setCurrent(id),
-      refreshParent: (_) async {},
-    );
+      final link = SubagentLink(
+        selectSession: (id) =>
+            container.read(sessionsProvider.notifier).setCurrent(id),
+        refreshParent: (_) async {},
+      );
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child:
-          MaterialApp(home: Scaffold(body: SubagentCatalogAction(link: link))),
-    ));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(body: SubagentCatalogAction(link: link)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    // Trigger shows the summary-derived count; untitled children fall back
-    // to their session id as the row label.
-    await tester.tap(find.text('1 subagent'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('sess-child'));
-    await tester.pumpAndSettle();
+      // Trigger shows the summary-derived count; untitled children fall back
+      // to their session id as the row label.
+      await tester.tap(find.text('1 subagent'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('sess-child'));
+      await tester.pumpAndSettle();
 
-    expect(container.read(sessionsProvider).current, child);
-  });
+      expect(container.read(sessionsProvider).current, child);
+    },
+  );
 
-  testWidgets('header catalog action hides without evidence of children',
-      (tester) async {
+  testWidgets('header catalog action hides without evidence of children', (
+    tester,
+  ) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -181,45 +221,63 @@ void main() {
     container.read(sessionsProvider.notifier).addSession(_summary(parent));
     container.read(sessionsProvider.notifier).setCurrent(parent);
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
           home: Scaffold(
-              body: SubagentCatalogAction(
-                  link: SubagentLink(
-                      selectSession: (_) {}, refreshParent: (_) async {})))),
-    ));
+            body: SubagentCatalogAction(
+              link: SubagentLink(
+                selectSession: (_) {},
+                refreshParent: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // React visibility rule: a childless session never shows the trigger.
     expect(find.byTooltip('Subagent sessions'), findsNothing);
   });
 
-  testWidgets('screen lists summary-derived children and never fixtures', (tester) async {
+  testWidgets('screen lists summary-derived children and never fixtures', (
+    tester,
+  ) async {
     const parent = SessionId('sess-parent');
     const childA = SessionId('sess-a');
     const childB = SessionId('sess-b');
-    SessionSummary childSummary(SessionId id, bool running, String title, int updated) =>
-        SessionSummary(
-          sessionId: id,
-          updatedAt: updated,
-          running: running,
+    SessionSummary childSummary(
+      SessionId id,
+      bool running,
+      String title,
+      int updated,
+    ) => SessionSummary(
+      sessionId: id,
+      updatedAt: updated,
+      running: running,
+      blank: false,
+      title: title,
+      parentSessionId: parent,
+      origin: 'subagent',
+    );
+    final state = SessionsState(
+      byId: {
+        parent: const SessionSummary(
+          sessionId: parent,
+          updatedAt: 900,
+          running: false,
           blank: false,
-          title: title,
-          parentSessionId: parent,
-          origin: 'subagent',
-        );
-    final state = SessionsState(byId: {
-      parent: const SessionSummary(
-          sessionId: parent, updatedAt: 900, running: false, blank: false),
-      childA: childSummary(childA, true, 'Research task', 1100),
-      childB: childSummary(childB, false, 'Fix lint', 1200),
-    });
+        ),
+        childA: childSummary(childA, true, 'Research task', 1100),
+        childB: childSummary(childB, false, 'Fix lint', 1200),
+      },
+    );
 
-    await tester.pumpWidget(_screenApp(
-      const SubagentScreen(sessionId: 'sess-parent'),
-      state: state,
-    ));
+    await tester.pumpWidget(
+      _screenApp(const SubagentScreen(sessionId: 'sess-parent'), state: state),
+    );
     await tester.pumpAndSettle();
 
     // Real summary-derived rows render with host titles and live states.
@@ -234,16 +292,25 @@ void main() {
     expect(find.text('Explore'), findsOneWidget);
   });
 
-  testWidgets('screen shows the empty state for a session without subagents',
-      (tester) async {
+  testWidgets('screen shows the empty state for a session without subagents', (
+    tester,
+  ) async {
     const parent = SessionId('sess-solo');
-    await tester.pumpWidget(_screenApp(
-      const SubagentScreen(sessionId: 'sess-solo'),
-      state: SessionsState(byId: {
-        parent: const SessionSummary(
-            sessionId: parent, updatedAt: 900, running: false, blank: false),
-      }),
-    ));
+    await tester.pumpWidget(
+      _screenApp(
+        const SubagentScreen(sessionId: 'sess-solo'),
+        state: SessionsState(
+          byId: {
+            parent: const SessionSummary(
+              sessionId: parent,
+              updatedAt: 900,
+              running: false,
+              blank: false,
+            ),
+          },
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('No subagents'), findsOneWidget);
@@ -253,31 +320,39 @@ void main() {
     final entries = [
       HistoryEntry(
         event: const SessionEvent(
-            type: 'user/message',
-            data: {'content': 'hello'},
-            seq: 1,
-            time: 1000),
+          type: 'user/message',
+          data: {'content': 'hello'},
+          seq: 1,
+          time: 1000,
+        ),
       ),
       HistoryEntry(
         event: const SessionEvent(
-            type: 'tool/call',
-            data: {'name': 'read'},
-            seq: 2,
-            time: 1100),
+          type: 'tool/call',
+          data: {'name': 'read'},
+          seq: 2,
+          time: 1100,
+        ),
       ),
       HistoryEntry(
         event: const SessionEvent(
-            type: 'assistant/message',
-            data: {
-              'content': [
-                {'type': 'text', 'text': 'done'},
-              ],
-            },
-            seq: 3,
-            time: 1200),
+          type: 'assistant/message',
+          data: {
+            'content': [
+              {'type': 'text', 'text': 'done'},
+            ],
+          },
+          seq: 3,
+          time: 1200,
+        ),
       ),
       HistoryEntry(
-        event: const SessionEvent(type: 'turn/start', data: {}, seq: 4, time: 1300),
+        event: const SessionEvent(
+          type: 'turn/start',
+          data: {},
+          seq: 4,
+          time: 1300,
+        ),
       ),
     ];
 
@@ -301,22 +376,29 @@ class _SeededSessions extends SessionsController {
 
 /// Screen harness: seeded sessions plus the transcript face stubbed at the
 /// provider seam (its fold rules are covered directly above).
-Widget _screenApp(Widget child, {required SessionsState state}) => ProviderScope(
+Widget _screenApp(Widget child, {required SessionsState state}) =>
+    ProviderScope(
       overrides: [
         sessionsProvider.overrideWith(() => _SeededSessions(state)),
-        subagentTranscriptProvider.overrideWith((ref, id) => Future.value(const [
-              SubagentTranscriptEntry(id: '1', role: 'user', content: 'Explore', time: 1000),
-            ]),
+        subagentTranscriptProvider.overrideWith(
+          (ref, id) => Future.value(const [
+            SubagentTranscriptEntry(
+              id: '1',
+              role: 'user',
+              content: 'Explore',
+              time: 1000,
+            ),
+          ]),
         ),
       ],
       child: MaterialApp(home: Scaffold(body: child)),
     );
 
 SessionSummary _summary(SessionId id, {SessionId? parent}) => SessionSummary(
-      sessionId: id,
-      updatedAt: 1000,
-      running: false,
-      blank: true,
-      parentSessionId: parent,
-      origin: parent != null ? 'subagent' : null,
-    );
+  sessionId: id,
+  updatedAt: 1000,
+  running: false,
+  blank: true,
+  parentSessionId: parent,
+  origin: parent != null ? 'subagent' : null,
+);

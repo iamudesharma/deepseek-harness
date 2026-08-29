@@ -15,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// Toast.tsx, TerminalBlock.tsx).
 void main() {
   group('Toast (Toast.tsx parity)', () {
-    testWidgets('holds at full opacity then fades before removal', (tester) async {
+    testWidgets('holds at full opacity then fades before removal', (
+      tester,
+    ) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final controller = container.read(toastProvider.notifier);
@@ -45,10 +47,16 @@ void main() {
       expect(find.text('saved'), findsNothing);
     });
 
-    testWidgets('bubble announces via live region (role=alert parity)', (tester) async {
+    testWidgets('bubble announces via live region (role=alert parity)', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: DsToast(data: DsToastData(id: 't1', message: 'hello'))),
+          home: Scaffold(
+            body: DsToast(
+              data: DsToastData(id: 't1', message: 'hello'),
+            ),
+          ),
         ),
       );
       final hasLiveRegion = tester
@@ -82,7 +90,9 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('mouse hover shows after zero delay; exit hides', (tester) async {
+    testWidgets('mouse hover shows after zero delay; exit hides', (
+      tester,
+    ) async {
       await pumpTooltip(tester);
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       addTearDown(gesture.removePointer);
@@ -100,7 +110,9 @@ void main() {
 
     testWidgets('disabled tooltip never shows', (tester) async {
       await pumpTooltip(tester, enabled: false);
-      final gesture = await tester.startGesture(tester.getCenter(find.byIcon(Icons.add)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byIcon(Icons.add)),
+      );
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.text('the tip'), findsNothing);
       await gesture.up();
@@ -115,8 +127,11 @@ void main() {
         await pumpTooltip(tester, side: side);
         await gesture.moveTo(tester.getCenter(find.byIcon(Icons.add)));
         await tester.pumpAndSettle();
-        expect(find.text('the tip'), findsOneWidget,
-            reason: 'side ${side.name} failed to render');
+        expect(
+          find.text('the tip'),
+          findsOneWidget,
+          reason: 'side ${side.name} failed to render',
+        );
         await gesture.moveTo(Offset.zero);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump();
@@ -124,65 +139,87 @@ void main() {
     });
   });
 
-  group('Menu (Menu.tsx parity: owner-controlled, Escape + outside dismiss)', () {
-    Widget harness({required ValueChanged<String> onSelect, required VoidCallback onClose}) {
-      return MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: _OwnedMenu(onSelect: onSelect, onClose: onClose),
-          ),
-        ),
-      );
-    }
-
-    testWidgets('selection reports id and closes', (tester) async {
-      String? picked;
-      var closed = false;
-      await tester.pumpWidget(harness(onSelect: (v) => picked = v, onClose: () => closed = true));
-
-      await tester.tap(find.byKey(const ValueKey('menu-trigger')));
-      await tester.pumpAndSettle();
-      expect(find.text('Alpha'), findsOneWidget);
-
-      await tester.tap(find.text('Alpha'));
-      await tester.pumpAndSettle();
-      expect(picked, 'a');
-      expect(closed, isTrue);
-      expect(find.text('Alpha'), findsNothing);
-    });
-  });
-
-  group('TerminalBlock (TerminalBlock.tsx parity)', () {
-    testWidgets('DEFAULT_TERMINAL_MAX_LINES caps the middle with head+tail kept', (tester) async {
-      const total = 60;
-      final output = List<String>.generate(total, (i) => 'line $i').join('\n');
-      await tester.pumpWidget(
-        MaterialApp(
+  group(
+    'Menu (Menu.tsx parity: owner-controlled, Escape + outside dismiss)',
+    () {
+      Widget harness({
+        required ValueChanged<String> onSelect,
+        required VoidCallback onClose,
+      }) {
+        return MaterialApp(
           home: Scaffold(
-            body: SingleChildScrollView(
-              child: DsTerminalBlock(command: 'make all', cwd: '/tmp/proj', output: output),
+            body: Center(
+              child: _OwnedMenu(onSelect: onSelect, onClose: onClose),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+      }
 
-      final rendered =
-          tester.widgetList<Text>(find.byType(Text)).map((t) => t.data ?? '').toList();
-      final lineTexts = rendered.where((l) => l.startsWith('line ')).toList();
+      testWidgets('selection reports id and closes', (tester) async {
+        String? picked;
+        var closed = false;
+        await tester.pumpWidget(
+          harness(onSelect: (v) => picked = v, onClose: () => closed = true),
+        );
 
-      final headLines = (defaultTerminalMaxLines / 2).ceil();
-      final tailLines = defaultTerminalMaxLines - headLines;
-      expect(lineTexts.length, headLines + tailLines);
-      expect(lineTexts.first, 'line 0');
-      expect(lineTexts.last, 'line ${total - 1}');
-      // The collapsed middle is absent.
-      expect(lineTexts.any((l) => l == 'line $headLines'), isFalse);
-      // Prompt line renders the shortened cwd + command.
-      expect(rendered.join('\n'), contains('proj \$ make all'));
-    });
+        await tester.tap(find.byKey(const ValueKey('menu-trigger')));
+        await tester.pumpAndSettle();
+        expect(find.text('Alpha'), findsOneWidget);
 
-    testWidgets('running state shows the prompt alone with running label', (tester) async {
+        await tester.tap(find.text('Alpha'));
+        await tester.pumpAndSettle();
+        expect(picked, 'a');
+        expect(closed, isTrue);
+        expect(find.text('Alpha'), findsNothing);
+      });
+    },
+  );
+
+  group('TerminalBlock (TerminalBlock.tsx parity)', () {
+    testWidgets(
+      'DEFAULT_TERMINAL_MAX_LINES caps the middle with head+tail kept',
+      (tester) async {
+        const total = 60;
+        final output = List<String>.generate(
+          total,
+          (i) => 'line $i',
+        ).join('\n');
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: DsTerminalBlock(
+                  command: 'make all',
+                  cwd: '/tmp/proj',
+                  output: output,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final rendered = tester
+            .widgetList<Text>(find.byType(Text))
+            .map((t) => t.data ?? '')
+            .toList();
+        final lineTexts = rendered.where((l) => l.startsWith('line ')).toList();
+
+        final headLines = (defaultTerminalMaxLines / 2).ceil();
+        final tailLines = defaultTerminalMaxLines - headLines;
+        expect(lineTexts.length, headLines + tailLines);
+        expect(lineTexts.first, 'line 0');
+        expect(lineTexts.last, 'line ${total - 1}');
+        // The collapsed middle is absent.
+        expect(lineTexts.any((l) => l == 'line $headLines'), isFalse);
+        // Prompt line renders the shortened cwd + command.
+        expect(rendered.join('\n'), contains('proj \$ make all'));
+      },
+    );
+
+    testWidgets('running state shows the prompt alone with running label', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(

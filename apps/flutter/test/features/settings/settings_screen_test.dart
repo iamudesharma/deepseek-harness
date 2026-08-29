@@ -51,24 +51,20 @@ class _FakeClient extends ConnectionClient {
 }
 
 Map<String, Object?> _settingsDocument() => {
-      'namespaces': [
-        {
-          'ns': 'locale',
-          'value': {'preference': 'en'},
-          'revision': 1,
-        },
-        {
-          'ns': 'conversation',
-          'value': {'busyEnter': 'queue'},
-          'revision': 1,
-        },
-        {
-          'ns': 'ui-theme',
-          'value': <String, dynamic>{},
-          'revision': 1,
-        },
-      ],
-    };
+  'namespaces': [
+    {
+      'ns': 'locale',
+      'value': {'preference': 'en'},
+      'revision': 1,
+    },
+    {
+      'ns': 'conversation',
+      'value': {'busyEnter': 'queue'},
+      'revision': 1,
+    },
+    {'ns': 'ui-theme', 'value': <String, dynamic>{}, 'revision': 1},
+  ],
+};
 
 Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
   final container = ProviderContainer(
@@ -83,16 +79,23 @@ Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
   locale.register(kSettingsNamespace, {'zh': kSettingsZh, 'en': kSettingsEn});
   locale.register(kModelsNamespace, {'zh': kModelsZh, 'en': kModelsEn});
   locale.register(kPluginsNamespace, {'zh': kPluginsZh, 'en': kPluginsEn});
-  locale.register(kInventoryNamespace, {'zh': kInventoryZh, 'en': kInventoryEn});
-  locale.register(
-      kConversationNamespace, {'zh': kConversationZh, 'en': kConversationEn});
+  locale.register(kInventoryNamespace, {
+    'zh': kInventoryZh,
+    'en': kInventoryEn,
+  });
+  locale.register(kConversationNamespace, {
+    'zh': kConversationZh,
+    'en': kConversationEn,
+  });
   locale.setLocale('en');
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
         theme: ThemeData(
-          extensions: const [DswThemeExtension(aliases: DswTokens.lightAliases)],
+          extensions: const [
+            DswThemeExtension(aliases: DswTokens.lightAliases),
+          ],
         ),
         home: const SettingsScreen(),
       ),
@@ -113,8 +116,9 @@ void main() {
     expect(find.text('Inventory'), findsWidgets);
   });
 
-  testWidgets('General tab renders the language row over the Host document',
-      (tester) async {
+  testWidgets('General tab renders the language row over the Host document', (
+    tester,
+  ) async {
     final client = _FakeClient()..describeAnswer = _settingsDocument();
     await _pumpScreen(tester, client);
 
@@ -127,8 +131,9 @@ void main() {
     expect(find.text('Queue'), findsOneWidget);
   });
 
-  testWidgets('General tab carries notifications and workspace sections',
-      (tester) async {
+  testWidgets('General tab carries notifications and workspace sections', (
+    tester,
+  ) async {
     await _pumpScreen(tester, _FakeClient());
 
     // Sections below the fold live in the tab's lazy ListView.
@@ -162,8 +167,12 @@ void main() {
     await tester.tap(find.text('Models').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Enter your API keys to use models from the following providers.'),
-        findsOneWidget);
+    expect(
+      find.text(
+        'Enter your API keys to use models from the following providers.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Plugins tab lists the plugin toggles', (tester) async {

@@ -1,0 +1,36 @@
+# Build outputs — never committed
+artifacts/
+build/
+.tmp/
+
+# Toolchain / fetched sources (when build repo clones pinned revisions externally)
+.sources/
+app/
+harness/
+
+# Credentials and secrets — MUST stay out of git
+*.p12
+*.mobileprovision
+*.jks
+*.keystore
+*.pem
+*.key
+*.crt
+*.p8
+*.json_key
+secrets/
+credentials/
+*.env
+.env.*
+!.env.example
+
+# Generated manifests that are published as release artifacts rather than
+# committed source (kept ignored so local `release-manifest.json` does not
+# leak into commits).
+artifacts/release-manifest.json
+artifacts/checksums/**
+
+# Local environment / IDE
+.DS_Store
+.idea/
+*.log

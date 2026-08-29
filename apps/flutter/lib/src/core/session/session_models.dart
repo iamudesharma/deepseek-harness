@@ -171,19 +171,19 @@ class SessionSummary {
 
   /// Copy with an explicit title value that may be `null` (projection refresh).
   SessionSummary withTitle(String? newTitle) => SessionSummary(
-        sessionId: sessionId,
-        updatedAt: updatedAt,
-        running: running,
-        blank: blank,
-        parentSessionId: parentSessionId,
-        origin: origin,
-        cwd: cwd,
-        agentPreset: agentPreset,
-        title: newTitle,
-        pendingInteraction: pendingInteraction,
-        completed: completed,
-        runningSubagentCount: runningSubagentCount,
-      );
+    sessionId: sessionId,
+    updatedAt: updatedAt,
+    running: running,
+    blank: blank,
+    parentSessionId: parentSessionId,
+    origin: origin,
+    cwd: cwd,
+    agentPreset: agentPreset,
+    title: newTitle,
+    pendingInteraction: pendingInteraction,
+    completed: completed,
+    runningSubagentCount: runningSubagentCount,
+  );
 
   /// Copy with an explicit pending-interaction marker that may be `null`
   /// (resolution/reconnect must clear the amber dot, not retain it).
@@ -220,7 +220,11 @@ class SessionSummary {
     title ??= json['title'] as String?;
     final pending = json['pendingInteraction'] as String?;
     final normalizedPending =
-        pending == 'approval' || pending == 'plan-review' || pending == 'question' ? pending : null;
+        pending == 'approval' ||
+            pending == 'plan-review' ||
+            pending == 'question'
+        ? pending
+        : null;
     return SessionSummary(
       sessionId: SessionId(json['sessionId'] as String),
       updatedAt: json['updatedAt'] as int,
@@ -235,25 +239,27 @@ class SessionSummary {
       title: title,
       pendingInteraction: normalizedPending,
       completed: json['completed'] == true,
-      runningSubagentCount: json['runningSubagentCount'] is int ? json['runningSubagentCount'] as int : 0,
+      runningSubagentCount: json['runningSubagentCount'] is int
+          ? json['runningSubagentCount'] as int
+          : 0,
     );
   }
 
   /// Encode to host JSON.
   Map<String, dynamic> toJson() => {
-        'sessionId': sessionId.value,
-        'updatedAt': updatedAt,
-        'running': running,
-        'blank': blank,
-        if (parentSessionId != null) 'parentSessionId': parentSessionId!.value,
-        if (origin != null) 'origin': origin,
-        if (cwd != null) 'cwd': cwd,
-        if (agentPreset != null) 'agentPreset': agentPreset,
-        if (title != null) 'title': title,
-        if (pendingInteraction != null) 'pendingInteraction': pendingInteraction,
-        if (completed) 'completed': true,
-        if (runningSubagentCount != 0) 'runningSubagentCount': runningSubagentCount,
-      };
+    'sessionId': sessionId.value,
+    'updatedAt': updatedAt,
+    'running': running,
+    'blank': blank,
+    if (parentSessionId != null) 'parentSessionId': parentSessionId!.value,
+    if (origin != null) 'origin': origin,
+    if (cwd != null) 'cwd': cwd,
+    if (agentPreset != null) 'agentPreset': agentPreset,
+    if (title != null) 'title': title,
+    if (pendingInteraction != null) 'pendingInteraction': pendingInteraction,
+    if (completed) 'completed': true,
+    if (runningSubagentCount != 0) 'runningSubagentCount': runningSubagentCount,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -274,19 +280,19 @@ class SessionSummary {
 
   @override
   int get hashCode => Object.hash(
-        sessionId,
-        updatedAt,
-        running,
-        blank,
-        parentSessionId,
-        origin,
-        cwd,
-        agentPreset,
-        title,
-        pendingInteraction,
-        completed,
-        runningSubagentCount,
-      );
+    sessionId,
+    updatedAt,
+    running,
+    blank,
+    parentSessionId,
+    origin,
+    cwd,
+    agentPreset,
+    title,
+    pendingInteraction,
+    completed,
+    runningSubagentCount,
+  );
 
   /// Human-facing title mirroring React `displayTitleOf` (title → cwd basename → id).
   String get displayTitle {
@@ -313,7 +319,10 @@ class SessionSummary {
         ? null
         : SessionStatus(
             state: 'ongoing',
-            label: runningSubagentCount == 1 ? '1 subagent running' : '$runningSubagentCount subagents running');
+            label: runningSubagentCount == 1
+                ? '1 subagent running'
+                : '$runningSubagentCount subagents running',
+          );
     switch (pendingInteraction) {
       case 'approval':
         {
@@ -391,12 +400,12 @@ class SessionEvent {
 
   /// Encode to JSON.
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'data': data,
-        'seq': seq,
-        'time': time,
-        if (ignorable) 'ignorable': true,
-      };
+    'type': type,
+    'data': data,
+    'seq': seq,
+    'time': time,
+    if (ignorable) 'ignorable': true,
+  };
 
   @override
   String toString() => 'SessionEvent(type: $type, seq: $seq)';
@@ -426,9 +435,9 @@ class HistoryEntry {
 
   /// Encode to JSON.
   Map<String, dynamic> toJson() => {
-        'event': event.toJson(),
-        if (view != null) 'view': view,
-      };
+    'event': event.toJson(),
+    if (view != null) 'view': view,
+  };
 }
 
 /// Workspace view (subset needed for chooser UI).
@@ -491,7 +500,12 @@ class WorkspaceView {
     }
     return WorkspaceView(
       workspaceId: WorkspaceId(json['workspaceId'] as String),
-      name: json['name'] as String? ?? title ?? json['title'] as String? ?? path ?? json['workspaceId'] as String,
+      name:
+          json['name'] as String? ??
+          title ??
+          json['title'] as String? ??
+          path ??
+          json['workspaceId'] as String,
       cwd: json['cwd'] as String? ?? path,
       sessionIds: (json['sessionIds'] as List<dynamic>? ?? [])
           .whereType<String>()
@@ -504,15 +518,20 @@ class WorkspaceView {
 
   /// Encode to JSON (host contract: `path`/`title` over `cwd`/`name`).
   Map<String, dynamic> toJson() => {
-        'workspaceId': workspaceId.value,
-        'name': name,
-        if (cwd != null) 'cwd': cwd,
-        if (cwd != null) 'path': cwd,
-        'title': name,
-        if (sessionIds.isNotEmpty) 'sessionIds': sessionIds.map((id) => id.value).toList(),
-        if (createdAt != null) 'createdAt': DateTime.fromMillisecondsSinceEpoch(createdAt!).toIso8601String(),
-        if (updatedAtMillis != null) 'updatedAt': DateTime.fromMillisecondsSinceEpoch(updatedAtMillis!).toIso8601String(),
-      };
+    'workspaceId': workspaceId.value,
+    'name': name,
+    if (cwd != null) 'cwd': cwd,
+    if (cwd != null) 'path': cwd,
+    'title': name,
+    if (sessionIds.isNotEmpty)
+      'sessionIds': sessionIds.map((id) => id.value).toList(),
+    if (createdAt != null)
+      'createdAt': DateTime.fromMillisecondsSinceEpoch(createdAt!)
+          .toIso8601String(),
+    if (updatedAtMillis != null)
+      'updatedAt': DateTime.fromMillisecondsSinceEpoch(updatedAtMillis!)
+          .toIso8601String(),
+  };
 
   @override
   String toString() => 'WorkspaceView($workspaceId, $name)';
@@ -538,11 +557,9 @@ class SessionProjectionsBlock {
   }
 
   /// Encode to JSON.
-  Map<String, dynamic> toJson() => {
-        'asOfSeq': asOfSeq,
-        'values': values,
-      };
+  Map<String, dynamic> toJson() => {'asOfSeq': asOfSeq, 'values': values};
 }
 
 /// Helper to pretty-print JSON for diagnostics.
-String prettyJson(Object? value) => const JsonEncoder.withIndent('  ').convert(value);
+String prettyJson(Object? value) =>
+    const JsonEncoder.withIndent('  ').convert(value);

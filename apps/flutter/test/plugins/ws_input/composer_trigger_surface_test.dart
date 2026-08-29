@@ -43,14 +43,19 @@ class FakeCommandSource extends InputTriggerSource {
 
   @override
   Future<List<InputTriggerCandidate>> candidates(
-      String sessionId, CandidateRequest request) async {
-    final all = candidatesOverride ??
+    String sessionId,
+    CandidateRequest request,
+  ) async {
+    final all =
+        candidatesOverride ??
         const [
           InputTriggerCandidate(name: 'plan', description: 'Plan mode'),
           InputTriggerCandidate(name: 'deploy', description: 'Deploy site'),
         ];
     final q = request.query.toLowerCase();
-    return all.where((c) => q.isEmpty || c.name.toLowerCase().startsWith(q)).toList();
+    return all
+        .where((c) => q.isEmpty || c.name.toLowerCase().startsWith(q))
+        .toList();
   }
 
   @override
@@ -70,18 +75,22 @@ class FakeReferenceSource extends InputTriggerSource {
 
   @override
   Future<List<InputTriggerCandidate>> candidates(
-      String sessionId, CandidateRequest request) async {
+    String sessionId,
+    CandidateRequest request,
+  ) async {
     return const [InputTriggerCandidate(name: 'Alpha session')];
   }
 
   @override
   PickOutcome? onPick(InputTriggerPick pick) {
-    return InsertOutcome(ReferenceInsert(
-      source: name,
-      ref: 'ref-1',
-      label: pick.candidate.name,
-      clipboardText: '@ref-1',
-    ));
+    return InsertOutcome(
+      ReferenceInsert(
+        source: name,
+        ref: 'ref-1',
+        label: pick.candidate.name,
+        clipboardText: '@ref-1',
+      ),
+    );
   }
 }
 
@@ -94,7 +103,10 @@ Widget _host({
       home: Scaffold(
         body: ConversationShortcuts(
           onSubmit: onSubmit,
-          child: ConversationComposer(sessionId: 's-trigger', controller: controller),
+          child: ConversationComposer(
+            sessionId: 's-trigger',
+            controller: controller,
+          ),
         ),
       ),
     ),
@@ -106,13 +118,17 @@ Widget _host({
 Future<void> seedCurrentSession(WidgetTester tester) async {
   final context = tester.element(find.byType(Scaffold));
   final container = ProviderScope.containerOf(context);
-  container.read(sessionsProvider.notifier).addSession(SessionSummary(
-        sessionId: const SessionId('s-trigger'),
-        updatedAt: 0,
-        running: false,
-        blank: false,
-        title: 'Trigger fixture',
-      ));
+  container
+      .read(sessionsProvider.notifier)
+      .addSession(
+        SessionSummary(
+          sessionId: const SessionId('s-trigger'),
+          updatedAt: 0,
+          running: false,
+          blank: false,
+          title: 'Trigger fixture',
+        ),
+      );
   container
       .read(sessionsProvider.notifier)
       .setCurrent(const SessionId('s-trigger'));
@@ -136,8 +152,7 @@ class _NoopFace implements SettingsFace {
     required String ns,
     required List<Map<String, Object?>> ops,
     int? expectedRevision,
-  }) async =>
-      const {};
+  }) async => const {};
 }
 
 void main() {
@@ -155,8 +170,10 @@ void main() {
     host.provide('workspaces', WorkspacesService(client));
     host.provide('locale', LocaleService());
     host.provide('remote', RemoteEventBus());
-    host.provide('settingsScope',
-        SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-conversation'));
+    host.provide(
+      'settingsScope',
+      SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-conversation'),
+    );
     // Shell declaration (AppShellPlugin's role): the layout-center cell the
     // conversation anchor waits on. Without it the composer-hole subtree
     // never installs and the trigger injection stays pending.
@@ -164,7 +181,10 @@ void main() {
       const RegistrationOptions(
         name: 'root',
         children: {
-          'layout.center': SlotSpec(kind: SlotKind.single, scope: SlotScope.root),
+          'layout.center': SlotSpec(
+            kind: SlotKind.single,
+            scope: SlotScope.root,
+          ),
         },
       ),
       (BuildContext context, dynamic props) => const SizedBox.shrink(),
@@ -183,16 +203,14 @@ void main() {
     VoidCallback? onSubmit,
   }) async {
     final VoidCallback submit = onSubmit ?? () {};
-    await tester.pumpWidget(_host(
-      controller: controller,
-      onSubmit: submit,
-    ));
+    await tester.pumpWidget(_host(controller: controller, onSubmit: submit));
     await tester.pumpAndSettle();
     await seedCurrentSession(tester);
   }
 
-  testWidgets('typing / opens the candidate menu above the composer',
-      (tester) async {
+  testWidgets('typing / opens the candidate menu above the composer', (
+    tester,
+  ) async {
     final controller = TextEditingController();
     await pumpComposer(tester, controller: controller);
     expect(find.text('plan'), findsNothing);
@@ -222,8 +240,9 @@ void main() {
     expect(find.text('deploy'), findsNothing);
   });
 
-  testWidgets('pointer pick splices the token span in the field',
-      (tester) async {
+  testWidgets('pointer pick splices the token span in the field', (
+    tester,
+  ) async {
     final controller = TextEditingController(text: '/');
     await pumpComposer(tester, controller: controller);
 
@@ -240,24 +259,29 @@ void main() {
     expect(find.text('command'), findsNothing);
   });
 
-  testWidgets('@ opens an inline reference group when a source registers',
-      (tester) async {
+  testWidgets('@ opens an inline reference group when a source registers', (
+    tester,
+  ) async {
     registry.registerSource(FakeReferenceSource());
     final controller = TextEditingController();
     await pumpComposer(tester, controller: controller);
 
-    await tester.enterText(
-        find.byType(TextField), 'look at @al');
+    await tester.enterText(find.byType(TextField), 'look at @al');
     await tester.pump();
-    for (var i = 0; i < 10 && find.text('Alpha session').evaluate().isEmpty; i++) {
+    for (
+      var i = 0;
+      i < 10 && find.text('Alpha session').evaluate().isEmpty;
+      i++
+    ) {
       await tester.pump(const Duration(milliseconds: 20));
     }
     expect(find.text('session'), findsOneWidget);
     expect(find.text('Alpha session'), findsOneWidget);
   });
 
-  testWidgets('Escape dismisses the menu without cancelling the turn',
-      (tester) async {
+  testWidgets('Escape dismisses the menu without cancelling the turn', (
+    tester,
+  ) async {
     var cancelled = false;
     final controller = TextEditingController();
     await pumpComposer(tester, controller: controller);
@@ -281,8 +305,9 @@ void main() {
     expect(controller.text, '/');
   });
 
-  testWidgets('ArrowDown highlights, Enter picks the highlight',
-      (tester) async {
+  testWidgets('ArrowDown highlights, Enter picks the highlight', (
+    tester,
+  ) async {
     final controller = TextEditingController();
     await pumpComposer(tester, controller: controller);
 
@@ -303,8 +328,9 @@ void main() {
     expect(controller.text, '/deploy ');
   });
 
-  testWidgets('Enter with no menu open submits through the shortcut seam',
-      (tester) async {
+  testWidgets('Enter with no menu open submits through the shortcut seam', (
+    tester,
+  ) async {
     var submitted = 0;
     final controller = TextEditingController();
     await pumpComposer(
@@ -323,8 +349,9 @@ void main() {
     expect(submitted, 1);
   });
 
-  testWidgets('Shift+Enter inserts a newline instead of submitting',
-      (tester) async {
+  testWidgets('Shift+Enter inserts a newline instead of submitting', (
+    tester,
+  ) async {
     var submitted = 0;
     final controller = TextEditingController();
     await pumpComposer(
@@ -346,8 +373,7 @@ void main() {
     expect(controller.text, contains('\n'));
   });
 
-  testWidgets('IME composing swallows menu navigation keys',
-      (tester) async {
+  testWidgets('IME composing swallows menu navigation keys', (tester) async {
     final controller = TextEditingController();
     await pumpComposer(tester, controller: controller);
 
@@ -372,17 +398,21 @@ void main() {
 
   testWidgets('composer state mirrors spliced text for submit', (tester) async {
     final controller = TextEditingController(text: '/');
-    await tester.pumpWidget(ProviderScope(
-      child: MaterialApp(
-        home: Scaffold(
-          body: ConversationShortcuts(
-            onSubmit: () {},
-            child: ConversationComposer(
-                sessionId: 's-trigger', controller: controller),
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ConversationShortcuts(
+              onSubmit: () {},
+              child: ConversationComposer(
+                sessionId: 's-trigger',
+                controller: controller,
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     await seedCurrentSession(tester);
 
