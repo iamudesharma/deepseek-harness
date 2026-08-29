@@ -1,0 +1,82 @@
+formatVersion: 1
+release:
+  version: 1.0.1
+  channel: stable
+  buildNumber: 1
+  prerelease: ''
+app:
+  repository: https://github.com/deepseek-ai/deepseek-harness
+  revision: 1c17813e1dc475e47217e006e754eda07b4f9241
+  path: apps/flutter
+  version: 1.0.1
+  buildNumber: 1
+harness:
+  repository: https://github.com/deepseek-ai/deepseek-harness
+  revision: 1c17813e1dc475e47217e006e754eda07b4f9241
+  path: .
+toolchain:
+  flutter:
+    channel: stable
+    version: 3.47.0
+    revision: 5f77625673
+  dart:
+    version: 3.13.0
+  node:
+    version: 22.23.2
+    range: ^22.19.0 || >=24.0.0
+  pnpm:
+    version: 11.7.0
+platforms:
+  web:
+    enabled: true
+    dartDefine:
+      DSH_HOST_URL: ''
+    requireNonLocalHost: false
+    renderer: null
+  macos:
+    enabled: true
+    bundleId: ai.deepseek.dshFlutter
+    displayName: DeepSeek Harness
+    archs:
+      - arm64
+      - x64
+    deploymentTarget: '10.15'
+    hardenedRuntime: true
+    appCategory: public.app-category.developer-tools
+  windows:
+    enabled: true
+    arch: x64
+    publisher: DeepSeek AI
+    displayName: DeepSeek Harness
+    protocol: null
+  linux:
+    enabled: true
+    arch: x64
+    maintainer: DeepSeek AI <support@deepseek.com>
+    displayName: DeepSeek Harness
+    categories: Development;Utility;
+  android:
+    enabled: true
+    applicationId: ai.deepseek.dshflutter
+    minSdk: 21
+    targetSdk: 34
+    signing:
+      requiredForRelease: true
+  ios:
+    enabled: true
+    bundleId: ai.deepseek.dshFlutter
+    displayName: DeepSeek Harness
+    deploymentTarget: '12.0'
+    exportMethod: development
+branding:
+  icons:
+    web: apps/flutter/web/icons
+    macos: apps/flutter/macos/Runner/Assets.xcassets/AppIcon.appiconset
+    ios: apps/flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset
+    android: apps/flutter/android/app/src/main/res
+artifacts:
+  dir: artifacts
+  webArchive: tar.gz
+update:
+  manifestUrl: https://releases.deepseek.com/dsh-flutter/release-manifest.json
+  minimumVersion: null

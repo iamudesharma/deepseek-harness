@@ -42,7 +42,10 @@ import '../../platform/drag_drop.dart' show ImageLimits;
 /// An authoritative `user/message` clears the blank bit — the React object
 /// layer does the same, so a replayed history stream never re-shows the
 /// blank-session hero over real conversation content.
-SessionSummary? applySessionEventToSummary(SessionSummary current, String eventType) {
+SessionSummary? applySessionEventToSummary(
+  SessionSummary current,
+  String eventType,
+) {
   switch (eventType) {
     case 'turn/start':
       return current.copyWith(running: true);
@@ -151,9 +154,12 @@ final liveSyncProvider = Provider<void>((ref) {
               event: SessionEvent.fromJson(event),
               view: view?.view as Map<String, dynamic>?,
             );
-            ref.read(liveHistoryProvider(sessionId.value).notifier).appendLive(entry);
+            ref
+                .read(liveHistoryProvider(sessionId.value).notifier)
+                .appendLive(entry);
           } catch (e) {
-            if (kDebugMode) debugPrint('[liveSync] failed to append session/event: $e');
+            if (kDebugMode)
+              debugPrint('[liveSync] failed to append session/event: $e');
             // Fallback to invalidation
             Future.microtask(() {
               try {
@@ -164,27 +170,51 @@ final liveSyncProvider = Provider<void>((ref) {
           // Also touch sessionsProvider to update updatedAt / running / blank.
           final eventType = event['type'] as String?;
           if (eventType != null) {
-            ref.read(sessionsProvider.notifier).updateSession(
+            ref
+                .read(sessionsProvider.notifier)
+                .updateSession(
                   sessionId,
                   (s) => applySessionEventToSummary(s, eventType) ?? s,
                 );
+            // Host-authoritative agent preset switch for blank sessions
+            // (React ui-agent-preset folds agent-preset/selected into the
+            // session row; Flutter hero chip reads session.agentPreset).
+            if (eventType == 'agent-preset/selected') {
+              final preset = (event['data'] as Map?)?['agentPreset'] as String?;
+              if (preset != null) {
+                ref
+                    .read(sessionsProvider.notifier)
+                    .updateSession(
+                      sessionId,
+                      (s) => s.copyWith(agentPreset: preset),
+                    );
+              }
+            }
             // A new turn supersedes any previous agent-level error banner.
             if (eventType == 'turn/start' || eventType == 'user/message') {
-              ref.read(agentErrorProvider(sessionId.value).notifier).state = null;
+              ref.read(agentErrorProvider(sessionId.value).notifier).state =
+                  null;
             }
             // Direct plan/mode log drives the chip when the projection frame
             // has not yet arrived (mirrors the projection derivation).
             if (eventType == 'plan/mode') {
-              final active = event['data'] is Map ? (event['data'] as Map)['active'] as bool? : null;
+              final active = event['data'] is Map
+                  ? (event['data'] as Map)['active'] as bool?
+                  : null;
               if (active != null) {
                 try {
-                  ref.read(planProvider.notifier).settle(active: active, error: null);
+                  ref
+                      .read(planProvider.notifier)
+                      .settle(active: active, error: null);
                 } catch (_) {}
               }
             }
           }
         case SessionSubscribedFrame(:final sessionId, :final lastSeq):
-          if (kDebugMode) debugPrint('[liveSync] session/subscribed ${sessionId.value} lastSeq $lastSeq');
+          if (kDebugMode)
+            debugPrint(
+              '[liveSync] session/subscribed ${sessionId.value} lastSeq $lastSeq',
+            );
           // On (re)subscribe, ensure live window is at least as fresh as
           // lastSeq. For now, trigger a re-fetch if live is empty.
           final live = ref.read(liveHistoryProvider(sessionId.value));
@@ -194,22 +224,47 @@ final liveSyncProvider = Provider<void>((ref) {
                 final client = ref.read(connectionClientProvider);
                 if (client.baseUrl.isEmpty) return;
                 final res = await client.getSessionHistory(sessionId);
-                ref.read(liveHistoryProvider(sessionId.value).notifier).replaceAll(res.entries);
+                ref
+                    .read(liveHistoryProvider(sessionId.value).notifier)
+                    .replaceAll(res.entries);
                 final publishable = publishableProjectionKeys(
-                    ref.read(sessionProjectionStores(sessionId.value)), res.projections);
+                  ref.read(sessionProjectionStores(sessionId.value)),
+                  res.projections,
+                );
                 if (publishable.contains('title')) {
                   final title = res.projections!.values['title'];
-                  ref.read(sessionsProvider.notifier).updateSession(sessionId, (s) => s.withTitle(title is String && title.isNotEmpty ? title : null));
+                  ref
+                      .read(sessionsProvider.notifier)
+                      .updateSession(
+                        sessionId,
+                        (s) => s.withTitle(
+                          title is String && title.isNotEmpty ? title : null,
+                        ),
+                      );
                 }
                 final perm = publishable.contains('permissions')
                     ? res.projections!.values['permissions']
                     : null;
                 if (perm is Map) {
                   try {
-                    final select = PermissionSelect.fromJson(perm.cast<String, dynamic>());
-                    ref.read(permissionSelectProvider(sessionId.value).notifier).state = select;
+                    final select = PermissionSelect.fromJson(
+                      perm.cast<String, dynamic>(),
+                    );
+                    ref
+                            .read(
+                              permissionSelectProvider(sessionId.value)
+                                  .notifier,
+                            )
+                            .state =
+                        select;
                   } catch (_) {
-                    ref.read(permissionSelectProvider(sessionId.value).notifier).state = null;
+                    ref
+                            .read(
+                              permissionSelectProvider(sessionId.value)
+                                  .notifier,
+                            )
+                            .state =
+                        null;
                   }
                 }
                 final imgLimits = publishable.contains('imageLimits')
@@ -220,12 +275,19 @@ final liveSyncProvider = Provider<void>((ref) {
                     final m = imgLimits is Map<String, dynamic>
                         ? imgLimits
                         : (imgLimits as Map).cast<String, dynamic>();
-                    final mediaTypes = (m['mediaTypes'] as List?)?.whereType<String>().toList();
+                    final mediaTypes = (m['mediaTypes'] as List?)
+                        ?.whereType<String>()
+                        .toList();
                     final maxImages = m['maxImagesPerMessage'] as int?;
                     final maxBytes = m['maxImageBytes'] as int?;
                     final maxTotal = m['maxMessageImageBytes'] as int?;
-                    if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
-                      ref.read(imageLimitsProvider.notifier).state = ImageLimits(
+                    if (mediaTypes != null &&
+                        maxImages != null &&
+                        maxBytes != null &&
+                        maxTotal != null) {
+                      ref
+                          .read(imageLimitsProvider.notifier)
+                          .state = ImageLimits(
                         mediaTypes: mediaTypes,
                         maxImagesPerMessage: maxImages,
                         maxImageBytes: maxBytes,
@@ -247,7 +309,8 @@ final liveSyncProvider = Provider<void>((ref) {
             } catch (_) {}
           });
         case StreamErrorFrame(:final error):
-          if (kDebugMode) debugPrint('[liveSync] mux stream/error: ${error.message}');
+          if (kDebugMode)
+            debugPrint('[liveSync] mux stream/error: ${error.message}');
         case SessionJobsFrame(:final sessionId, :final jobs):
           // Authoritative whole-snapshot job set → WS-Tasks jobs surface.
           ref.read(jobsProvider.notifier).replace(sessionId.value, jobs);
@@ -255,25 +318,43 @@ final liveSyncProvider = Provider<void>((ref) {
           // WS-Input: the pending question set; the envelope rpcId (stamped
           // by the transports) is the question's stable logical id.
           questionsCtrl.requested(
-                sessionId.value,
-                rpcId: frame['rpcId'] as String? ?? '',
-                questions:
-                    questions.map(QuestionItem.fromJson).toList(),
-              );
+            sessionId.value,
+            rpcId: frame['rpcId'] as String? ?? '',
+            questions: questions.map(QuestionItem.fromJson).toList(),
+          );
           reconcileSessionPendingStatus(
-              questionsCtrl, approvalsCtrl, sessionsCtrl, sessionId.value);
-        case QuestionResolvedFrame(:final sessionId, :final questionRpcId, :final outcome):
+            questionsCtrl,
+            approvalsCtrl,
+            sessionsCtrl,
+            sessionId.value,
+          );
+        case QuestionResolvedFrame(
+          :final sessionId,
+          :final questionRpcId,
+          :final outcome,
+        ):
           questionsCtrl.resolved(sessionId.value, questionRpcId.value, outcome);
           reconcileSessionPendingStatus(
-              questionsCtrl, approvalsCtrl, sessionsCtrl, sessionId.value);
-        case SessionProjectionFrame(:final sessionId, :final key, :final value, :final seq):
+            questionsCtrl,
+            approvalsCtrl,
+            sessionsCtrl,
+            sessionId.value,
+          );
+        case SessionProjectionFrame(
+          :final sessionId,
+          :final key,
+          :final value,
+          :final seq,
+        ):
           // Higher seq wins: a replayed or stale projection frame folds
           // nothing (projection_store.dart).
           final store = ref.read(sessionProjectionStores(sessionId.value));
           if (!store.offer(key, value, seq)) break;
           if (key == 'title') {
             final title = value is String && value.isNotEmpty ? value : null;
-            ref.read(sessionsProvider.notifier).updateSession(sessionId, (s) => s.withTitle(title));
+            ref
+                .read(sessionsProvider.notifier)
+                .updateSession(sessionId, (s) => s.withTitle(title));
           } else if (key == 'plan') {
             // Host `plan` projection: {active, pending}. Keep pending ? !active
             // target logic in the chip (plan.pending ? !active : active).
@@ -283,7 +364,9 @@ final liveSyncProvider = Provider<void>((ref) {
               if (active != null) {
                 try {
                   // ignore: avoid_dynamic_calls
-                  ref.read(planProvider.notifier).settle(active: active, error: null);
+                  ref
+                      .read(planProvider.notifier)
+                      .settle(active: active, error: null);
                   if (pending != null && pending) {
                     ref.read(planProvider.notifier).setPending();
                   }
@@ -295,31 +378,63 @@ final liveSyncProvider = Provider<void>((ref) {
             if (value is Map<String, dynamic>) {
               try {
                 final select = PermissionSelect.fromJson(value);
-                ref.read(permissionSelectProvider(sessionId.value).notifier).state = select;
+                ref
+                        .read(
+                          permissionSelectProvider(sessionId.value).notifier,
+                        )
+                        .state =
+                    select;
               } catch (_) {
-                ref.read(permissionSelectProvider(sessionId.value).notifier).state = null;
+                ref
+                        .read(
+                          permissionSelectProvider(sessionId.value).notifier,
+                        )
+                        .state =
+                    null;
               }
             } else if (value is Map) {
               try {
-                final select = PermissionSelect.fromJson(value.cast<String, dynamic>());
-                ref.read(permissionSelectProvider(sessionId.value).notifier).state = select;
+                final select = PermissionSelect.fromJson(
+                  value.cast<String, dynamic>(),
+                );
+                ref
+                        .read(
+                          permissionSelectProvider(sessionId.value).notifier,
+                        )
+                        .state =
+                    select;
               } catch (_) {
-                ref.read(permissionSelectProvider(sessionId.value).notifier).state = null;
+                ref
+                        .read(
+                          permissionSelectProvider(sessionId.value).notifier,
+                        )
+                        .state =
+                    null;
               }
             } else {
-              ref.read(permissionSelectProvider(sessionId.value).notifier).state = null;
+              ref
+                      .read(permissionSelectProvider(sessionId.value).notifier)
+                      .state =
+                  null;
             }
           } else if (key == 'imageLimits') {
             // Host `imageLimits` projection: {mediaTypes, maxImagesPerMessage, maxImageBytes, maxMessageImageBytes, ...}
             // Mirrors LocalAttachmentStore defaults; extra fields ignored.
             try {
               if (value is Map) {
-                final map = value is Map<String, dynamic> ? value : (value as Map).cast<String, dynamic>();
-                final mediaTypes = (map['mediaTypes'] as List?)?.whereType<String>().toList();
+                final map = value is Map<String, dynamic>
+                    ? value
+                    : (value as Map).cast<String, dynamic>();
+                final mediaTypes = (map['mediaTypes'] as List?)
+                    ?.whereType<String>()
+                    .toList();
                 final maxImages = map['maxImagesPerMessage'] as int?;
                 final maxBytes = map['maxImageBytes'] as int?;
                 final maxTotal = map['maxMessageImageBytes'] as int?;
-                if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                if (mediaTypes != null &&
+                    maxImages != null &&
+                    maxBytes != null &&
+                    maxTotal != null) {
                   ref.read(imageLimitsProvider.notifier).state = ImageLimits(
                     mediaTypes: mediaTypes,
                     maxImagesPerMessage: maxImages,
@@ -332,33 +447,42 @@ final liveSyncProvider = Provider<void>((ref) {
           }
           break;
         case ApprovalRequestedFrame(
-              :final sessionId,
-              :final approvalId,
-              :final toolName,
-              :final callId,
-              :final reason
-            ):
+          :final sessionId,
+          :final approvalId,
+          :final toolName,
+          :final callId,
+          :final reason,
+        ):
           // Answerable server-request: mint the wait keyed by the session;
           // the envelope rpcId backs the answering client-response.
           approvalsCtrl.requested(
-                sessionId.value,
-                rpcId: frame['rpcId'] as String? ?? '',
-                approvalId: approvalId,
-                toolName: toolName,
-                callId: callId,
-                reason: reason,
-              );
+            sessionId.value,
+            rpcId: frame['rpcId'] as String? ?? '',
+            approvalId: approvalId,
+            toolName: toolName,
+            callId: callId,
+            reason: reason,
+          );
           reconcileSessionPendingStatus(
-              questionsCtrl, approvalsCtrl, sessionsCtrl, sessionId.value);
+            questionsCtrl,
+            approvalsCtrl,
+            sessionsCtrl,
+            sessionId.value,
+          );
         case ApprovalResolvedFrame(:final sessionId, :final approvalId):
           // Authoritative settlement: drop the wait, then recompute the
           // summary marker (a sibling question keeps the dot with its kind).
           approvalsCtrl.resolved(sessionId.value, approvalId);
           reconcileSessionPendingStatus(
-              questionsCtrl, approvalsCtrl, sessionsCtrl, sessionId.value);
+            questionsCtrl,
+            approvalsCtrl,
+            sessionsCtrl,
+            sessionId.value,
+          );
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[liveSync] onMuxEnvelope error: $e frame=$frame');
+      if (kDebugMode)
+        debugPrint('[liveSync] onMuxEnvelope error: $e frame=$frame');
     }
   };
 
@@ -383,16 +507,22 @@ final liveSyncProvider = Provider<void>((ref) {
           questionsCtrl.clear(sessionId.value);
           approvalsCtrl.clear(sessionId.value);
         case SessionStatusFrame(:final sessionId, :final running):
-          ref.read(sessionsProvider.notifier).updateSession(sessionId, (s) => s.copyWith(running: running));
+          ref
+              .read(sessionsProvider.notifier)
+              .updateSession(sessionId, (s) => s.copyWith(running: running));
         case AgentErrorFrame(:final sessionId, :final message):
-          if (kDebugMode) debugPrint('[liveSync] host/agent-error ${sessionId.value}: $message');
+          if (kDebugMode)
+            debugPrint(
+              '[liveSync] host/agent-error ${sessionId.value}: $message',
+            );
           // Surface immediately in the conversation (mirrors web's agent-error
           // surface); cleared on the session's next turn/start.
-          ref.read(agentErrorProvider(sessionId.value).notifier).state = message;
+          ref.read(agentErrorProvider(sessionId.value).notifier).state =
+              message;
         case WorkspaceChangedFrame() ||
-        WorkspaceRemovedFrame() ||
-        WorkspaceOrderChangedFrame() ||
-        ArchivedSessionsChangedFrame():
+            WorkspaceRemovedFrame() ||
+            WorkspaceOrderChangedFrame() ||
+            ArchivedSessionsChangedFrame():
           // Workspace changes affect the sidebar grouping; re-fetching workspace
           // list is handled by workspace providers, but we can also re-fetch
           // sessions to keep workspace.sessionIds in sync. For now, just re-fetch
@@ -404,13 +534,28 @@ final liveSyncProvider = Provider<void>((ref) {
             } catch (_) {}
           });
         case RemoteEventFrame(event: final event, args: final args):
+          // Host-authoritative preset switch fanout (React ui-agent-preset
+          // folds agent-preset/selected into the session row; the hero chip
+          // reads session.agentPreset).
+          if (event == 'agent-preset/selected' &&
+              args.length >= 2 &&
+              args[0] is String &&
+              args[1] is String) {
+            final sid = SessionId(args[0] as String);
+            final preset = args[1] as String;
+            ref
+                .read(sessionsProvider.notifier)
+                .updateSession(sid, (s) => s.copyWith(agentPreset: preset));
+          }
           // Fan out forwarded host cordis events to subscribers ($on).
           ref.read(remoteBusProvider).dispatch(event, args);
         case HostStreamErrorFrame(:final error):
-          if (kDebugMode) debugPrint('[liveSync] host stream/error: ${error.message}');
+          if (kDebugMode)
+            debugPrint('[liveSync] host stream/error: ${error.message}');
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[liveSync] onHostEnvelope error: $e frame=$frame');
+      if (kDebugMode)
+        debugPrint('[liveSync] onHostEnvelope error: $e frame=$frame');
     }
   };
 
@@ -426,22 +571,41 @@ final liveSyncProvider = Provider<void>((ref) {
         if (current != null) {
           try {
             final res = await client.getSessionHistory(current);
-            ref.read(liveHistoryProvider(current.value).notifier).replaceAll(res.entries);
+            ref
+                .read(liveHistoryProvider(current.value).notifier)
+                .replaceAll(res.entries);
             final publishable = publishableProjectionKeys(
-                ref.read(sessionProjectionStores(current.value)), res.projections);
+              ref.read(sessionProjectionStores(current.value)),
+              res.projections,
+            );
             if (publishable.contains('title')) {
               final title = res.projections!.values['title'];
-              ref.read(sessionsProvider.notifier).updateSession(current, (s) => s.withTitle(title is String && title.isNotEmpty ? title : null));
+              ref
+                  .read(sessionsProvider.notifier)
+                  .updateSession(
+                    current,
+                    (s) => s.withTitle(
+                      title is String && title.isNotEmpty ? title : null,
+                    ),
+                  );
             }
             final perm = publishable.contains('permissions')
                 ? res.projections!.values['permissions']
                 : null;
             if (perm is Map) {
               try {
-                final select = PermissionSelect.fromJson(perm.cast<String, dynamic>());
-                ref.read(permissionSelectProvider(current.value).notifier).state = select;
+                final select = PermissionSelect.fromJson(
+                  perm.cast<String, dynamic>(),
+                );
+                ref
+                        .read(permissionSelectProvider(current.value).notifier)
+                        .state =
+                    select;
               } catch (_) {
-                ref.read(permissionSelectProvider(current.value).notifier).state = null;
+                ref
+                        .read(permissionSelectProvider(current.value).notifier)
+                        .state =
+                    null;
               }
             }
             final imgCurrent = publishable.contains('imageLimits')
@@ -452,11 +616,16 @@ final liveSyncProvider = Provider<void>((ref) {
                 final m = imgCurrent is Map<String, dynamic>
                     ? imgCurrent
                     : (imgCurrent as Map).cast<String, dynamic>();
-                final mediaTypes = (m['mediaTypes'] as List?)?.whereType<String>().toList();
+                final mediaTypes = (m['mediaTypes'] as List?)
+                    ?.whereType<String>()
+                    .toList();
                 final maxImages = m['maxImagesPerMessage'] as int?;
                 final maxBytes = m['maxImageBytes'] as int?;
                 final maxTotal = m['maxMessageImageBytes'] as int?;
-                if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                if (mediaTypes != null &&
+                    maxImages != null &&
+                    maxBytes != null &&
+                    maxTotal != null) {
                   ref.read(imageLimitsProvider.notifier).state = ImageLimits(
                     mediaTypes: mediaTypes,
                     maxImagesPerMessage: maxImages,
@@ -475,22 +644,47 @@ final liveSyncProvider = Provider<void>((ref) {
           for (final s in sessions) {
             try {
               final res = await client.getSessionHistory(s.sessionId);
-              ref.read(liveHistoryProvider(s.sessionId.value).notifier).replaceAll(res.entries);
+              ref
+                  .read(liveHistoryProvider(s.sessionId.value).notifier)
+                  .replaceAll(res.entries);
               final publishable = publishableProjectionKeys(
-                  ref.read(sessionProjectionStores(s.sessionId.value)), res.projections);
+                ref.read(sessionProjectionStores(s.sessionId.value)),
+                res.projections,
+              );
               if (publishable.contains('title')) {
                 final title = res.projections!.values['title'];
-                ref.read(sessionsProvider.notifier).updateSession(s.sessionId, (s2) => s2.withTitle(title is String && title.isNotEmpty ? title : null));
+                ref
+                    .read(sessionsProvider.notifier)
+                    .updateSession(
+                      s.sessionId,
+                      (s2) => s2.withTitle(
+                        title is String && title.isNotEmpty ? title : null,
+                      ),
+                    );
               }
               final perm = publishable.contains('permissions')
                   ? res.projections!.values['permissions']
                   : null;
               if (perm is Map) {
                 try {
-                  final select = PermissionSelect.fromJson(perm.cast<String, dynamic>());
-                  ref.read(permissionSelectProvider(s.sessionId.value).notifier).state = select;
+                  final select = PermissionSelect.fromJson(
+                    perm.cast<String, dynamic>(),
+                  );
+                  ref
+                          .read(
+                            permissionSelectProvider(s.sessionId.value)
+                                .notifier,
+                          )
+                          .state =
+                      select;
                 } catch (_) {
-                  ref.read(permissionSelectProvider(s.sessionId.value).notifier).state = null;
+                  ref
+                          .read(
+                            permissionSelectProvider(s.sessionId.value)
+                                .notifier,
+                          )
+                          .state =
+                      null;
                 }
               }
               final imgLoop = publishable.contains('imageLimits')
@@ -498,12 +692,19 @@ final liveSyncProvider = Provider<void>((ref) {
                   : null;
               if (imgLoop is Map) {
                 try {
-                  final m = imgLoop is Map<String, dynamic> ? imgLoop : (imgLoop as Map).cast<String, dynamic>();
-                  final mediaTypes = (m['mediaTypes'] as List?)?.whereType<String>().toList();
+                  final m = imgLoop is Map<String, dynamic>
+                      ? imgLoop
+                      : (imgLoop as Map).cast<String, dynamic>();
+                  final mediaTypes = (m['mediaTypes'] as List?)
+                      ?.whereType<String>()
+                      .toList();
                   final maxImages = m['maxImagesPerMessage'] as int?;
                   final maxBytes = m['maxImageBytes'] as int?;
                   final maxTotal = m['maxMessageImageBytes'] as int?;
-                  if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                  if (mediaTypes != null &&
+                      maxImages != null &&
+                      maxBytes != null &&
+                      maxTotal != null) {
                     ref.read(imageLimitsProvider.notifier).state = ImageLimits(
                       mediaTypes: mediaTypes,
                       maxImagesPerMessage: maxImages,
