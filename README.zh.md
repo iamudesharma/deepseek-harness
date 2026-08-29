@@ -36,6 +36,33 @@ pnpm dsh web
 
 `pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
 
+## Flutter 应用（开发者预览）
+
+位于 `apps/flutter` 的 Flutter 客户端是 Harness UI 的跨平台移植，覆盖 iOS、Android、macOS 与 Web。它与 `dsh web` 复用同一套宿主机协议与会话日志，原生渲染会话、设备配对与工作区界面。
+
+### 技术栈
+
+- **框架**：Flutter 3.13+ / Dart 3.13、Riverpod 2.6、`go_router` 路由与 `flutter_localizations` 国际化
+- **传输**：`http` + `web_socket_channel` 对接宿主机 mux/host 事件流；`flutter_secure_storage` 持久化远端 bearer token；`connectivity_plus` 感知网络可达性；`ConnectionClient.abortEventStreams` 在移动端挂起时回收被追踪的通道
+- **界面**：Material + `flutter_markdown` 渲染消息；`mobile_scanner` 扫码配对，`image_picker`/`file_picker`/`desktop_drop` 处理附件；`window_manager` 负责桌面窗口（通过条件导入，Web 构建保持干净）
+- **状态**：基于 Riverpod 的 `Connection`/`Session`/`Workspace`/`Projection` 运行时；`live_sync` 将 mux/host 帧折叠为 `SessionModels`/`ProjectionStore`/`TranscriptFold`/`ToolStream`，支持宿主机创建会话的接管与 approval/question 归并
+
+### 运行 Flutter 应用
+
+```sh
+cd apps/flutter
+flutter pub get
+flutter run -d macos        # or: chrome, ios, android
+flutter test                # unit + widget (goldens in test/goldens)
+flutter analyze             # dart analyze (strict)
+```
+
+在应用内「设置 → 连接」或通过 `ConnectionTarget` provider 覆盖来配置宿主机地址。远端配对为二维码握手（`remote.pair` → `remote.ws-ticket`/`remote.refresh`），由 `packages/host/remote-access`（`host-identity`、`device-registry`、`token-service`、`tls`）与 `packages/host/remote-notifications` 提供。
+
+### 架构
+
+`lib/src/core` 承载 `ConnectionClient`/`ConnectionController`/`ConnectionLifecycle`、`live_sync` + `sessions_controller` + `session_models`/`projection_store`/`transcript_fold` 以及 `slots`/`renderer` 接缝。`lib/src/plugins` 通过 `DshPlugin`/`SlotRegistry` 镜像 React 的 slot 图（`conversation`、`tool`、`trajectory`、`message_feedback`、`workspace`、`model_selection`、`directory_picker`、`input_trigger`、`attachment`、`brand_official`、`settings`、`jobs`/`workflow_run`/`deliverables`/`goal` 等），而非 Cordis。路由为 `go_router`（`lib/src/routing/app_router.dart`），`WelcomeScreen` hero 通过 `host_session_policy` 创建空白会话。完整目录、测试与构建说明见 `apps/flutter/README.md`。
+
 ## 社区与支持
 
 - 欢迎通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。

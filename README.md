@@ -36,6 +36,33 @@ pnpm dsh web
 
 `pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding.
 
+## Flutter app (developer preview)
+
+The Flutter client at `apps/flutter` is a cross-platform port of the harness UI for iOS, Android, macOS and Web. It shares the same host protocol and session log as `dsh web`, rendering conversation, device pairing, and workspace surfaces natively.
+
+### Tech stack
+
+- **Framework**: Flutter 3.13+ / Dart 3.13, Riverpod 2.6, `go_router` for navigation and `flutter_localizations` for i18n
+- **Transport**: `http` + `web_socket_channel` against the host mux/host event streams; `flutter_secure_storage` for remote bearer tokens; `connectivity_plus` for reachability; `ConnectionClient.abortEventStreams` tears down tracked channels on mobile suspend
+- **UI**: Material + `flutter_markdown` for message rendering; `mobile_scanner` for QR pair, `image_picker`/`file_picker`/`desktop_drop` for attachments; `window_manager` for desktop chrome (via conditional imports so Web stays clean)
+- **State**: Riverpod providers over `Connection`/`Session`/`Workspace`/`Projection` runtimes; `live_sync` folds mux/host frames into `SessionModels`/`ProjectionStore`/`TranscriptFold`/`ToolStream` with host-born session adoption and approval/question reconciliation
+
+### Run the Flutter app
+
+```sh
+cd apps/flutter
+flutter pub get
+flutter run -d macos        # or: chrome, ios, android
+flutter test                # unit + widget (goldens in test/goldens)
+flutter analyze             # dart analyze (strict)
+```
+
+Configure the host target via in-app Settings → Connection or a `ConnectionTarget` provider override. Remote pairing is a QR handshake (`remote.pair` → `remote.ws-ticket`/`remote.refresh`) backed by `packages/host/remote-access` (`host-identity`, `device-registry`, `token-service`, `tls`) and `packages/host/remote-notifications`.
+
+### Architecture
+
+`lib/src/core` owns `ConnectionClient`/`ConnectionController`/`ConnectionLifecycle`, `live_sync` + `sessions_controller` + `session_models`/`projection_store`/`transcript_fold`, and the `slots`/`renderer` seam. `lib/src/plugins` mirrors the React slot graph (`conversation`, `tool`, `trajectory`, `message_feedback`, `workspace`, `model_selection`, `directory_picker`, `input_trigger`, `attachment`, `brand_official`, `settings`, `jobs`/`workflow_run`/`deliverables`/`goal` etc.) through `DshPlugin`/`SlotRegistry` instead of Cordis. Routing is `go_router` (`lib/src/routing/app_router.dart`) with a `WelcomeScreen` hero that creates blank sessions via `host_session_policy`. See `apps/flutter/README.md` for full layout, testing, and build notes.
+
 ## Community and support
 
 - Feel free to submit feedback or bug reports through [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
