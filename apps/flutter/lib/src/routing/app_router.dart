@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/bootstrap/app_plugins.dart' show activeSlotsProvider;
 import '../core/connection/connection_client.dart';
+import '../platform/layout.dart' show isMobileShell;
 import '../core/renderer/slot_outlet.dart';
 import '../core/slots/slot_registry.dart';
 import '../core/session/session_models.dart';
@@ -24,6 +26,17 @@ import '../plugins/subagent/ui/subagent_screen.dart' as subagent_feature;
 import '../features/workspace/workspace_provider.dart'
     show selectedWorkspaceProvider;
 import '../features/workflow_run/workflow_screen.dart' as workflow_feature;
+import '../features/devices/devices_screen.dart';
+import '../features/devices/add_computer_screen.dart';
+import '../features/devices/manual_entry_screen.dart';
+import '../features/devices/host_confirm_screen.dart';
+import '../features/devices/pin_entry_screen.dart';
+import '../features/devices/approval_wait_screen.dart';
+import '../features/devices/pairing_success_screen.dart';
+import '../features/devices/qr_payload.dart';
+import '../features/devices/workspaces_mobile_screen.dart';
+import '../features/devices/sessions_mobile_screen.dart';
+import '../core/connection/connection_target.dart';
 import '../theme/app_theme.dart';
 import '../widgets/layout/app_frame.dart';
 import '../widgets/primitives/fish_logo.dart';
@@ -204,6 +217,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (BuildContext context, GoRouterState state, StatefulNavigationShell navigationShell) {
+          // Native mobile (Android/iOS) renders the bare navigation shell
+          // ONLY when width < 768 — a tablet/desktop-sized native window keeps
+          // the three-column AppFrame. macOS/Web never use the mobile shell.
+          // The check is width-aware via [isMobileShell] and respects
+          // debugDefaultTargetPlatformOverride through defaultTargetPlatform.
+          if (isMobileShell(context)) return navigationShell;
           return AppFrame(
             navigationShell: navigationShell,
             // Conversation hub renders through its own composition slot on
@@ -310,6 +329,65 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (BuildContext context, GoRouterState state) => const SettingsScreen(),
               ),
             ],
+          ),
+          // Branch 2: devices (independent shell branch, no session scope).
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/devices',
+                builder: (BuildContext context, GoRouterState state) => const DevicesScreen(),
+              ),
+              GoRoute(
+                path: '/workspaces',
+                builder: (BuildContext context, GoRouterState state) => const WorkspacesMobileScreen(),
+              ),
+              GoRoute(
+                path: '/sessions',
+                builder: (BuildContext context, GoRouterState state) {
+                  final wsId = state.uri.queryParameters['workspaceId'];
+                  return SessionsMobileScreen(workspaceId: wsId);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+      // Top-level (outside shell) device pairing flow — full-screen, no sidebar.
+      GoRoute(
+        path: '/devices/add',
+        builder: (BuildContext context, GoRouterState state) => const AddComputerScreen(),
+        routes: [
+          GoRoute(
+            path: 'manual',
+            builder: (BuildContext context, GoRouterState state) => const ManualEntryScreen(),
+          ),
+          GoRoute(
+            path: 'confirm',
+            builder: (BuildContext context, GoRouterState state) {
+              final payload = state.extra as QrPayload;
+              return HostConfirmScreen(payload: payload);
+            },
+          ),
+          GoRoute(
+            path: 'pin',
+            builder: (BuildContext context, GoRouterState state) {
+              final payload = state.extra as QrPayload;
+              return PinEntryScreen(payload: payload);
+            },
+          ),
+          GoRoute(
+            path: 'wait',
+            builder: (BuildContext context, GoRouterState state) {
+              final payload = state.extra as QrPayload;
+              return ApprovalWaitScreen(payload: payload);
+            },
+          ),
+          GoRoute(
+            path: 'success',
+            builder: (BuildContext context, GoRouterState state) {
+              final target = state.extra as RemoteTarget;
+              return PairingSuccessScreen(target: target);
+            },
           ),
         ],
       ),

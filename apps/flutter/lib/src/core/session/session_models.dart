@@ -28,6 +28,43 @@ extension type const WorkspaceId(String value) implements String {
   String get raw => value;
 }
 
+/// Branded message identifier for queued inbox items.
+///
+/// Mirrors `MessageId` from `@deepseek-ai/dsh-llm/brand`.
+extension type const MessageId(String value) implements String {
+  String get raw => value;
+  String toJson() => value;
+  static MessageId fromJson(String json) => MessageId(json);
+}
+
+/// Queue action for `session.updateQueue` — edit/remove/steer.
+///
+/// Mirrors `QueueAction` in `packages/host/apiproxy/src/api/sessions.ts`:
+/// `{kind:'edit', content}` | `{kind:'remove'}` | `{kind:'steer'}`.
+sealed class QueueAction {
+  const QueueAction();
+  Map<String, dynamic> toJson();
+}
+
+class QueueActionEdit extends QueueAction {
+  final List<Map<String, dynamic>> content;
+  const QueueActionEdit(this.content);
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'edit', 'content': content};
+}
+
+class QueueActionRemove extends QueueAction {
+  const QueueActionRemove();
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'remove'};
+}
+
+class QueueActionSteer extends QueueAction {
+  const QueueActionSteer();
+  @override
+  Map<String, dynamic> toJson() => {'kind': 'steer'};
+}
+
 /// Pending interaction status — mirrors
 /// `PendingInteractionStatus` in `packages/client/runtime/src/client/sessions/pending.ts`.
 ///

@@ -2840,18 +2840,25 @@ export function createApiProxy(ctx: Context, defaults: ApiProxyDefaults): ApiPro
       describe(request) {
         // TODO: version should read apps/cli's package.json; placeholder for now.
         const selection = defaults.defaultModelSelection()
+        // Optional service: strict store read — the property proxy throws
+        // when the reader plugin does not inject the foundation (it is
+        // absent entirely when remote-access is not composed).
+        const foundation = ctx.get('remoteAccessFoundation') as
+          | { hostIdentity?: { hostId: string }; tlsFingerprint?: string; isEnabled?: boolean }
+          | undefined
+        const hostId = foundation?.hostIdentity?.hostId
+        const remoteEnabled = foundation?.isEnabled ?? false
         return Promise.resolve(ok(request, {
           version: '0.0.1',
-          // Same source as session.create's fallback: the UI's default project
-          // must match where an unspecified-cwd session actually lands.
           cwd: defaults.cwd,
-          // Read live for the same reason: this is what the NEXT session will
-          // start from, so a saved default has to be what it reports.
           provider: selection.provider,
           model: selection.model,
           attachedSessions: ctx.agents.list().length,
           home: homedir(),
           canOpenPath: canOpenPaths(),
+          ...(hostId === undefined ? {} : { hostId }),
+          remoteEnabled,
+          ...(foundation?.tlsFingerprint === undefined ? {} : { remoteFingerprint: foundation.tlsFingerprint }),
         }))
       },
 

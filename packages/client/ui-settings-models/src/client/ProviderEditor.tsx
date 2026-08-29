@@ -349,6 +349,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const ownsIdentity = family === 'pi-ai' && props.declared === true
     const customModels = schema.getPath(draft, ['models'])
     const modelsOverridden = schema.hasPath(draft, ['models'])
+    // A catalog route with custom models also needs the API protocol field,
+    // because models not in the installed catalog require an explicit protocol.
+    const hasCustomModels = family === 'pi-ai' && modelsOverridden
+    const showProtocol = ownsIdentity || hasCustomModels
     const models = modelDrafts(modelsOverridden ? customModels : inheritedModels())
     const defaultContextWindow = schema.getPath(fallback, ['defaultContextWindow'])
     const defaultMaxTokens = schema.getPath(fallback, ['maxTokens'])
@@ -434,8 +438,10 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
               />
             </div>
             {/* The protocol sits beside the endpoint it describes, as it does
-                on the create card. */}
-            {ownsIdentity
+                on the create card. Shown for declared routes (hand-declared
+                providers) and for catalog routes with custom models (models not
+                in the installed catalog require an explicit protocol). */}
+            {showProtocol
               ? (
                 <div className={styles['field']}>
                   <span className={styles['fieldLabel']}>{t('customApi')}</span>
@@ -455,6 +461,11 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                     {probeApi === undefined ? <option value="">{t('customApiUnset')}</option> : null}
                     {protocols.map(choice => <option key={choice} value={choice}>{choice}</option>)}
                   </select>
+                  {/* Show a hint when the protocol field appears because of
+                      custom models (not because this is a declared route). */}
+                  {hasCustomModels
+                    ? <p className={styles['advancedHint']}>{t('protocolHint')}</p>
+                    : null}
                 </div>
               )
               : null}

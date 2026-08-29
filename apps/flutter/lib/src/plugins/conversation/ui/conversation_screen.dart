@@ -5,11 +5,13 @@ import '../../../core/session/session_models.dart';
 import '../../../core/session/session_provider.dart';
 import '../../../features/conversation/composer_controller.dart';
 import '../../../platform/drag_drop.dart';
+import '../../../platform/layout.dart' show isMobileShell;
 import '../../../theme/app_theme.dart';
 import '../../attachment/attachment_limits.dart';
 import '../../attachment/ui/document_drop_scope.dart';
 import 'column.dart';
 import 'composer.dart' show intakeComposerImages;
+import 'mobile_shell.dart';
 
 /// Conversation screen — composes [MessageList] + [ToolCallTree] + [ConversationComposer]
 /// in a [Column] with [SessionId] param. Handles empty / blank session guard
@@ -102,6 +104,8 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch limits so drop gate reconfigures when host projection lands.
+    ref.watch(imageLimitsProvider);
     final String sessionId = widget.sessionId;
     final SessionId id = SessionId(sessionId);
     final SessionSummary? summary = ref.watch(sessionByIdProvider(id));
@@ -130,12 +134,18 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
     final bool machineBusy = summary.running;
     _configureDropGate(true, machineBusy);
 
+    // Native mobile: the mobile shell (header + shared body) ONLY when
+    // width <768. Wider native windows keep the desktop column inside AppFrame.
+    final Widget conversation = isMobileShell(context)
+        ? MobileConversationShell(sessionId: sessionId)
+        : ConversationColumn(sessionId: sessionId);
+
     return Scaffold(
       body: SafeArea(
         child: DocumentDropScope(
           controller: _dropController,
           onAddImages: _dropController.onAddImages,
-          child: ConversationColumn(sessionId: sessionId),
+          child: conversation,
         ),
       ),
     );

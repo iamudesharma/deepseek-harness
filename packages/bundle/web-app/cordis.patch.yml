@@ -125,6 +125,22 @@
         host: !!js ctx.webStartup.host ?? '127.0.0.1'
         port: !!js ctx.webStartup.port ?? 3080
 
+    # Remote-access foundation: host identity, device registry, pairing, tokens.
+    # Enabled only via --remote. Disabled by default the host stays loopback-only.
+    - id: remote-access
+      name: '@deepseek-ai/dsh-host-remote-access'
+      inject: [webStartup]
+      config:
+        enabled: !!js ctx.webStartup.remote ?? false
+
+    # Remote notifications: push registration and dispatch for mobile wake-ups.
+    # Enabled only via --remote. Reuses the single device registry file.
+    - id: remote-notifications
+      name: '@deepseek-ai/dsh-host-remote-notifications'
+      inject: [webStartup]
+      config:
+        enabled: !!js ctx.webStartup.remote ?? false
+
     # Web glue owned by this bundle: resolves the built frontend dist (an
     # assembly fact of dsh-web-app, never user config), mounts the
     # frontend-static fallback owner, registers the web-surface prompt

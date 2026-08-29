@@ -3,7 +3,7 @@
 import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 
 /** Trust fence applied before a Host RPC channel reaches its handler. */
-export type ConnectionRpcAuthority = 'trusted-host' | 'loopback'
+export type ConnectionRpcAuthority = 'trusted-host' | 'loopback' | 'bearer'
 
 /** Registration policy for one logical RPC channel. */
 export interface ConnectionRpcHandlerOptions {

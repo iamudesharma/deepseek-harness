@@ -1264,6 +1264,11 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                     ),
                   ),
                 ),
+                IconButton(
+                  tooltip: 'Devices',
+                  icon: Icon(Icons.devices_outlined, size: 16, color: aliases.labelTertiary),
+                  onPressed: () => context.push('/devices'),
+                ),
                 TextButton(
                   onPressed: () => context.go('/settings'),
                   child: Text(

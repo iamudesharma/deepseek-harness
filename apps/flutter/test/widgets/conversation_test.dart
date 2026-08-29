@@ -6,6 +6,7 @@ import 'package:dsh_flutter/src/plugins/conversation/ui/conversation_screen.dart
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 import 'package:dsh_flutter/src/core/settings/settings_scope.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dsh_flutter/src/core/session/session_event_map.dart';
 import 'package:dsh_flutter/src/plugins/conversation/nodes/failure_display.dart';
@@ -60,6 +61,10 @@ void main() {
     });
 
     testWidgets('shows blank session guard with composer hint', (tester) async {
+      // Desktop contract under test: the strict header hides while blank.
+      // (The mobile shell intentionally keeps the title visible for
+      // orientation — covered by the mobile shell suite.)
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
       final sid = 'blank-1';
       final summary = _fakeSummary(sid, blank: true);
       final container = ProviderContainer(
@@ -114,6 +119,7 @@ void main() {
       expect(find.text('Into the Unknown'), findsOneWidget);
       expect(find.text('Preview'), findsOneWidget);
       expect(find.text('Ask anything…'), findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
     });
 
     testWidgets('renders message list empty state when no messages', (tester) async {

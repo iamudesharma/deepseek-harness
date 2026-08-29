@@ -147,7 +147,7 @@ void main() {
       expect(settled.partialToolCalls, isEmpty);
     });
 
-    test('text chunks keep their historical append behavior byte-for-byte',
+    test('reasoning-delta lands in its own buffer, text stays byte-for-byte',
         () {
       final folder = ConversationNodeFolder();
       folder.add(SessionEventEnvelope.fromJson(_chunkEvent(
@@ -161,7 +161,10 @@ void main() {
 
       final node = folder.snapshot().nodes.whereType<AssistantNode>()
           .singleWhere((n) => n.key == 'a-turn1-step1');
-      expect(node.text, 'Helwhy');
+      // Reasoning is kept separate for the Think row (React ReasoningRow
+      // parity); it must never leak into the visible text buffer.
+      expect(node.text, 'Hel');
+      expect(node.reasoning, 'why');
       expect(node.partialToolCalls, isEmpty);
     });
   });

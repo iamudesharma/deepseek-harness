@@ -1,0 +1,7 @@
+# Flutter locale rows — shared carrier, split targets — 2026-08-25
+
+Agent D (settings/branding remediation) corrected `form.locale`'s flutterTarget from the nonexistent `apps/flutter/lib/src/form/locale.dart` to `apps/flutter/lib/src/core/services/runtime_services.dart`, where `LocaleService` actually lives. `locale.service-dictionaries` (Audited, owner react-codebase-auditor, currently targeting the equally nonexistent `apps/flutter/lib/src/core/locale/locale_service.dart`) describes the same carrier: if it is repointed at `runtime_services.dart` too, `pnpm run verify-flutter-tracker` will fail with "flutterTarget claimed by multiple items".
+
+Resolution options for whoever lands `locale.service-dictionaries`: keep it on `form.locale`'s target only if that row is retired as a duplicate; or retarget it to a dictionary-side file such as one representative per-plugin `locales.dart` plus a note naming `runtime_services.dart` as the registry face; or split `LocaleService` out of `runtime_services.dart` into `core/locale/locale_service.dart` and keep both targets distinct. No code was changed in `core/services/runtime_services.dart` — this note is the only coordination artifact, per shared-file safety.
+
+Evidence context: `form.locale` is now Integrated with `test/services/runtime_services_test.dart` (register/bind fallback chain, unknown-id rejection, dispose revision) plus plugin-level registration coverage; details in `migration/parity-reports/2026-08-25-settings-branding.md`.

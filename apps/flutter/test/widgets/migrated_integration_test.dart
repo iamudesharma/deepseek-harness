@@ -1,7 +1,10 @@
+import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/features/sidebar/sidebar.dart';
 import 'package:dsh_flutter/src/plugins/trajectory/trajectory_provider.dart';
 import 'package:dsh_flutter/src/plugins/trajectory/ui/trajectory_screen.dart';
 import 'package:dsh_flutter/src/plugins/tool/tool_models.dart';
+import 'package:dsh_flutter/src/plugins/workspace/locales.dart'
+    show kWorkspaceEn, kWorkspaceNamespace, kWorkspaceZh;
 import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:dsh_flutter/src/widgets/primitives/ds_tooltip.dart';
 import 'package:dsh_flutter/src/widgets/primitives/json_tree.dart';
@@ -114,8 +117,27 @@ void main() {
     );
 
     Future<void> pumpRail(WidgetTester tester) async {
+      // The rail's DsTooltip plates resolve through the real LocaleService.
+      // Register the workspace dictionary and pin English so plate text is
+      // assertable (isolated scopes otherwise fall back to the raw key).
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final locale = container.read(localeServiceProvider);
+      locale.register(kWorkspaceNamespace, {
+        'zh': kWorkspaceZh,
+        'en': kWorkspaceEn,
+      });
+      locale.setLocale('en');
       await tester.pumpWidget(
-        _wrap(const SizedBox(width: 400, child: Sidebar(collapsed: true))),
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildLightTheme(),
+            home: Scaffold(
+              body: SizedBox(width: 400, child: Sidebar(collapsed: true)),
+            ),
+          ),
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -156,14 +178,14 @@ void main() {
       await gesture.moveTo(tester.getCenter(find.byIcon(Icons.add)));
       // Inside the delay window nothing shows yet.
       await tester.pump(const Duration(milliseconds: 200));
-      expect(find.text('New session'), findsNothing);
+      expect(find.text('New Session'), findsNothing);
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pumpAndSettle();
-      expect(find.text('New session'), findsOneWidget);
+      expect(find.text('New Session'), findsOneWidget);
 
       await gesture.moveTo(Offset.zero);
       await tester.pumpAndSettle();
-      expect(find.text('New session'), findsNothing);
+      expect(find.text('New Session'), findsNothing);
     });
   });
 }

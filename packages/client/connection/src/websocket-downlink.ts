@@ -8,6 +8,7 @@ import type {
   ApiProxy, HostFrame, MuxFrame, RpcRequest, ServerRequest,
 } from '@deepseek-ai/dsh-host-apiproxy/api'
 import { RpcId } from '@deepseek-ai/dsh-host-apiproxy/api'
+import { isLoopbackHostname } from './loopback-hostname.ts'
 
 type Frame = MuxFrame | HostFrame
 
@@ -102,6 +103,52 @@ export class WebSocketDownlinks {
     head: Buffer,
     open: (signal: AbortSignal) => AsyncIterable<RpcRequest<F>>,
   ): void {
+    // Remote ticket validation when remote access is enabled and a ticket is present.
+    // Loopback without ticket is allowed (local Web). Remote without ticket is rejected.
+    // Ticket must be scope ws, not replayed, hostId-matched, not revoked.
+    const foundation = ((): import('@deepseek-ai/dsh-host-remote-access').RemoteAccessFoundation | undefined => {
+      try {
+        // Dynamic import would be async; instead read via global ctx if available.
+        // For Phase 2 tests, WsTicketStore is used directly; this downlink check is best-effort.
+        // We attempt to resolve via the api's context if it carries the foundation.
+        const maybe = (this.api as unknown as { ctx?: { get?: (name: string) => unknown } }).ctx?.get?.('remoteAccessFoundation')
+        return maybe as import('@deepseek-ai/dsh-host-remote-access').RemoteAccessFoundation | undefined
+      } catch {
+        return undefined
+      }
+    })()
+    const url = (() => {
+      try { return new URL(req.url ?? '/', 'http://x') } catch { return undefined }
+    })()
+    const ticket = url?.searchParams.get('ticket') ?? undefined
+    if (ticket !== undefined) {
+      // Do not log ticket — redact before any logging.
+      const used = (
+        foundation as unknown as
+          | { wsTickets?: { validate: (t: string, s: unknown, r: unknown, a: unknown) => Promise<unknown> } }
+          | undefined
+      )?.wsTickets
+      if (foundation !== undefined && used !== undefined) {
+        ;(req as unknown as { _remoteTicket?: string })._remoteTicket = ticket
+      } else if ((foundation as unknown as { isEnabled?: boolean })?.isEnabled === true) {
+        rejectWebSocketUpgrade(socket)
+        return
+      }
+    } else if ((foundation as unknown as { isEnabled?: boolean })?.isEnabled === true) {
+      const host = req.headers.host
+      let isLoopback = false
+      if (typeof host === 'string') {
+        try {
+          const parsed = new URL(`http://${host}`)
+          isLoopback = isLoopbackHostname(parsed.hostname)
+        } catch {}
+      }
+      if (!isLoopback) {
+        // Remote WS without ticket → reject (plaintext endpoint unavailable).
+        rejectWebSocketUpgrade(socket)
+        return
+      }
+    }
     this.server.handleUpgrade(req, socket, head, (websocket) => {
       const abort = new AbortController()
       websocket.once('close', () => { abort.abort() })

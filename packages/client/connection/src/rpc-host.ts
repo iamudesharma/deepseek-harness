@@ -73,14 +73,56 @@ export class HostConnectionService extends Service implements HostConnectionHand
     fallback: FetchHandler,
   ): FetchHandler {
     return {
-      fetch: (request) => {
+      fetch: async (request) => {
         const endpoint = endpointFromPath(channel, new URL(request.url).pathname)
         const interceptor = this.interceptors.get(channel)
         if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
           return fallback.fetch(request)
         }
+        // Bearer-first: if the request carries a Bearer token, validate it
+        // before the trust fence. This gives REMOTE authority without weakening
+        // LOCAL (loopback) privilege — a bearer on loopback is still bearer,
+        // not loopback, for privileged-method checks.
+        const auth = request.headers.get('authorization')
+        if (auth !== null && /^Bearer\s+/i.test(auth)) {
+          const foundation = (this.ctx as unknown as { remoteAccessFoundation?: { tokenService: import('@deepseek-ai/dsh-host-remote-access').TokenService; devices: import('@deepseek-ai/dsh-host-remote-access').DeviceRegistry } }).remoteAccessFoundation
+          if (foundation === undefined) {
+            return new Response('unauthorized', { status: 401 })
+          }
+          const token = auth.replace(/^Bearer\s+/i, '').trim()
+          try {
+            const remoteAccess = await import('@deepseek-ai/dsh-host-remote-access')
+            const payload = await foundation.tokenService.verify(token, {
+              deviceLookup: async (deviceId: string) => {
+                const device = await foundation.devices.find(deviceId)
+                return device === undefined ? undefined : { revoked: device.revoked }
+              },
+            })
+            // Privileged remote check before dispatch: safe remote allowed with 'full', privileged denied.
+            const klass = remoteAccess.classifyRemoteMethod(endpoint)
+            if (klass === 'privileged' && !endpoint.startsWith('remote.')) {
+              if (!remoteAccess.isRemoteAuthorized(endpoint, 'bearer', payload.scope)) {
+                return new Response('forbidden', { status: 403 })
+              }
+            }
+            if (endpoint.startsWith('remote.')) {
+              if (!remoteAccess.isRemoteAuthorized(endpoint, 'bearer', payload.scope)) {
+                return new Response('forbidden', { status: 403 })
+              }
+            }
+            // Stash verified payload for downstream handlers (refresh, ws-ticket, etc.)
+            return remoteAccess.remoteAuthStorage.run(payload, () => interceptor.fetchHandler.fetch(request))
+          } catch (error) {
+            const code = (error as { code?: string })?.code
+            if (code === 'token-scope-mismatch') return new Response('forbidden', { status: 403 })
+            return new Response('unauthorized', { status: 401 })
+          }
+        }
         if (interceptor.options.authority === 'loopback' && !isTrustedApiRequest(request, [])) {
           return Promise.resolve(new Response('forbidden', { status: 403 }))
+        }
+        if (interceptor.options.authority === 'bearer') {
+          return new Response('unauthorized', { status: 401 })
         }
         return interceptor.fetchHandler.fetch(request)
       },

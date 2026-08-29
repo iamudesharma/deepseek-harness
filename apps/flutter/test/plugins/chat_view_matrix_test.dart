@@ -4,6 +4,7 @@ import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 import 'package:dsh_flutter/src/plugins/conversation/nodes/conversation_nodes.dart';
 import 'package:dsh_flutter/src/plugins/conversation/ui/chat_view.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -362,6 +363,14 @@ void main() {
 
   group('Session switch & prepend', () {
     testWidgets('O Session switch restores scroll position', (tester) async {
+      final TargetPlatform? prevPlatform = debugDefaultTargetPlatformOverride;
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() {
+        debugDefaultTargetPlatformOverride = prevPlatform;
+      });
+      // Ensure invariant check passes even if early failure — reset before callback returns.
+      // The binding's _verifyInvariants runs before tearDown, so we must clear at end.
+      try {
       const sidA = 'o-a';
       const sidB = 'o-b';
       final c = ProviderContainer();
@@ -378,12 +387,12 @@ void main() {
       ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
-      // Initially at bottom.
+      // Initially at bottom — no affordance.
       expect(find.byIcon(Icons.arrow_downward_rounded), findsNothing);
       await tester.drag(find.byType(ListView), const Offset(0, 400));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
-      // After scroll, back button should appear.
+      // After scroll away from bottom, back-to-bottom should appear.
       expect(find.byIcon(Icons.arrow_downward_rounded), findsOneWidget);
       await tester.pumpWidget(UncontrolledProviderScope(
         container: c,
@@ -392,7 +401,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
       expect(find.text('B 0'), findsOneWidget);
-      // B has few items, at bottom.
+      // B has few items, at bottom — no affordance.
       expect(find.byIcon(Icons.arrow_downward_rounded), findsNothing);
       await tester.pumpWidget(UncontrolledProviderScope(
         container: c,
@@ -400,8 +409,15 @@ void main() {
       ));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 150));
-      // Restored: A's content should be visible; scroll state away from bottom is best-effort.
-      expect(find.text('A 0').evaluate().isNotEmpty || find.text('A 29').evaluate().isNotEmpty, isTrue);
+      // Semantic restoration: A is back, still away-from-bottom, not incorrectly snapped to tail.
+      // At least one A message is visible, back-button remains, and we did not force bottom-follow.
+      expect(find.textContaining('A ').evaluate().isNotEmpty, isTrue, reason: 'restored A transcript visible');
+      expect(find.byIcon(Icons.arrow_downward_rounded), findsOneWidget, reason: 'restored position stays away from bottom');
+      // Ensure we are not at the very tail (best-effort: not showing last item exclusively at bottom without affordance).
+      // If we were incorrectly pinned to bottom, the affordance would be hidden.
+      } finally {
+        debugDefaultTargetPlatformOverride = prevPlatform;
+      }
     });
 
     testWidgets('P History prepend anchoring preserves visible anchor', (tester) async {

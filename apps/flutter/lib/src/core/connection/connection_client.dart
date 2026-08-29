@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../session/session_models.dart';
 import '../session/host_session_policy.dart' show sessionCreatePayload;
 import '../api/rpc_envelope.dart';
+import 'connection_target.dart';
+import 'secure_token_store.dart';
 import 'websocket_transport.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 export 'connection_controller.dart';
 
@@ -34,12 +37,30 @@ String newRpcId() {
       '${hex(b[10])}${hex(b[11])}${hex(b[12])}${hex(b[13])}${hex(b[14])}${hex(b[15])}';
 }
 
+/// Thrown when the host rejects a bearer token (401) or scope (403).
+///
+/// The controller maps 401 → [ConnectionState.needsReauth] (stop reconnect,
+/// prompt re-pair) and 403 → `needsReauth` as well (privileged denied).
+class RemoteAuthException implements Exception {
+  /// HTTP status (401 for missing/expired/revoked/unknown, 403 for scope).
+  final int statusCode;
+  /// Short reason (never includes the raw token).
+  final String message;
+  RemoteAuthException(this.statusCode, this.message);
+  @override
+  String toString() => 'RemoteAuthException($statusCode): $message';
+}
+
 /// Typed HTTP client for host RPC.
 ///
 /// Thin wrapper over the Typert RPC gateway exposed by the host's
 /// `dsh-host-webserver` / `api-gateway`. Each unary call mints its own
 /// `rpcId` (initiator-owned) and echoes it on the response; streaming calls
 /// are not wrapped here (they belong in a `ConnectionController`-like pump).
+///
+/// Transport-agnostic: the same client works for [LocalTarget] (loopback,
+/// `isTrustedApiRequest`) and [RemoteTarget] (bearer `Authorization` +
+/// `wss://…?ticket=`). Only [ConnectionTarget] + [SecureTokenStore] differ.
 ///
 /// Keep simple: pure Dart, no Cordis imports, invocable independently in
 /// tests via `ProviderContainer` overrides.
@@ -52,13 +73,64 @@ String newRpcId() {
 /// ```
 class ConnectionClient {
   /// Host base URL without trailing slash, e.g. `http://localhost:8787`.
+  /// When [target] is non-null, this is derived from `target.baseUri` and
+  /// the constructor's [baseUrl] is ignored (kept for backward compat).
   final String baseUrl;
+
+  /// Optional platform-independent endpoint. When `null`, behaves exactly as
+  /// before (LocalTarget/http, no bearer, no ticket). When a [RemoteTarget],
+  /// every unary POST carries `Authorization: Bearer <token>` and every
+  /// `events.mux/host` WebSocket is opened as `wss://…?ticket=<ws-ticket>`.
+  final ConnectionTarget? target;
+
+  /// Token store for [RemoteTarget] bearer tokens. `null` for [LocalTarget].
+  final SecureTokenStore? tokenStore;
 
   final http.Client _http;
 
+  /// Active WebSocket channels for event streams, tracked so [abortEventStreams]
+  /// can close sockets on mobile background suspend.
+  final Set<WebSocketChannel> _activeChannels = {};
+
+  /// Close all active event-stream sockets (mux/host). Used by
+  /// [FlutterConnectionController.suspend] to ensure backgrounded generations
+  /// do not keep sockets alive.
+  void abortEventStreams() {
+    for (final ch in _activeChannels.toList()) {
+      try {
+        ch.sink.close();
+      } catch (_) {}
+    }
+    _activeChannels.clear();
+  }
+
   /// Creates a typed host RPC client.
-  ConnectionClient({required this.baseUrl, http.Client? httpClient})
-      : _http = httpClient ?? http.Client();
+  ///
+  /// For backward compat, [baseUrl] is required. For new code, pass
+  /// `target` and `tokenStore`; `baseUrl` is then derived from the target.
+  ConnectionClient({
+    required this.baseUrl,
+    http.Client? httpClient,
+    this.target,
+    this.tokenStore,
+  })  : _http = httpClient ?? http.Client();
+
+  /// Create from a [ConnectionTarget] (preferred for Phase 3).
+  factory ConnectionClient.fromTarget(
+    ConnectionTarget target, {
+    http.Client? httpClient,
+    SecureTokenStore? tokenStore,
+  }) {
+    return ConnectionClient(
+      baseUrl: target.baseUri.toString(),
+      httpClient: httpClient,
+      target: target,
+      tokenStore: tokenStore,
+    );
+  }
+
+  /// Whether this client is remote (bearer).
+  bool get isRemote => target is RemoteTarget;
 
   /// Release the underlying HTTP client.
   void dispose() {
@@ -77,9 +149,21 @@ class ConnectionClient {
         'x-rpc-id': rpcId,
       };
 
+  /// Bearer token for the current [RemoteTarget], or `null` for [LocalTarget]
+  /// / missing token. Never logs the raw value.
+  Future<String?> _bearerToken() async {
+    final t = target;
+    if (t is! RemoteTarget) return null;
+    final store = tokenStore;
+    if (store == null) return null;
+    return store.read(t.deviceId);
+  }
+
   /// Low-level unary POST helper: POST `/api/<method>` with Typert envelope.
   ///
-  /// Returns the decoded JSON map (`RpcResponse`).
+  /// Returns the decoded JSON map (`RpcResponse`). On 401/403 throws
+  /// [RemoteAuthException] so the controller can enter `needsReauth` instead
+  /// of spinning reconnect.
   Future<Map<String, dynamic>> _postTypert(
     String method,
     Map<String, dynamic> payload, {
@@ -93,11 +177,17 @@ class ConnectionClient {
       'method': method,
       'payload': payload,
     };
+    final headers = _headers(id);
+    final bearer = await _bearerToken();
+    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
     final resp = await _http.post(
       uri,
-      headers: _headers(id),
+      headers: headers,
       body: jsonEncode(envelope),
     );
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw RemoteAuthException(resp.statusCode, 'POST /api/$method rejected: ${resp.statusCode}');
+    }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw http.ClientException('POST /api/$method failed: ${resp.statusCode} ${resp.body}', uri);
     }
@@ -120,11 +210,17 @@ class ConnectionClient {
     // Fallback: raw POST (used only by tests with fake server).
     final id = rpcId ?? newRpcId();
     final uri = _uri(path);
+    final headers = _headers(id);
+    final bearer = await _bearerToken();
+    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
     final resp = await _http.post(
       uri,
-      headers: _headers(id),
+      headers: headers,
       body: jsonEncode({'rpcId': id, ...payload}),
     );
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw RemoteAuthException(resp.statusCode, 'POST $path rejected: ${resp.statusCode}');
+    }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw http.ClientException('POST $path failed: ${resp.statusCode} ${resp.body}', uri);
     }
@@ -243,6 +339,38 @@ class ConnectionClient {
     await _postTypert('session.cancel', {'sessionId': sessionId.value});
   }
 
+  /// `session.updateQueue { sessionId, itemId, action }` — edit/remove/steer
+  /// one pending queued occurrence. Mirrors
+  /// `QueueAction` in `packages/host/apiproxy/src/api/sessions.ts`.
+  Future<void> updateQueue({
+    required SessionId sessionId,
+    required MessageId itemId,
+    required QueueAction action,
+  }) async {
+    await _postTypert('session.updateQueue', {
+      'sessionId': sessionId.value,
+      'itemId': itemId.value,
+      'action': action.toJson(),
+    });
+  }
+
+  /// Read one durable image attachment: `session.attachment {sessionId, attachmentId}`.
+  /// Returns the raw bytes decoded from the host's base64 `data` field.
+  Future<Uint8List> readAttachment(SessionId sessionId, String attachmentId) async {
+    final body = await _postTypert('session.attachment', {
+      'sessionId': sessionId.value,
+      'attachmentId': attachmentId,
+    });
+    dynamic cur = body;
+    if (cur is Map && cur.containsKey('result')) cur = cur['result'];
+    if (cur is Map && cur.containsKey('value')) cur = cur['value'];
+    if (cur is Map && cur['data'] is String) {
+      final String b64 = cur['data'] as String;
+      return base64Decode(b64);
+    }
+    throw FormatException('session.attachment: missing data in $body');
+  }
+
   /// Respond to one answerable server-request (`approval/requested` /
   /// `question/requested`): POST `/api/respond` with the full
   /// `client-response` message echoing the request's [rpcId] — the initiator
@@ -262,11 +390,17 @@ class ConnectionClient {
       'result': ok ? {'ok': true, 'value': value} : {'ok': false, 'error': error},
     };
     final uri = _uri('/api/respond');
+    final headers = _headers(rpcId.value);
+    final bearer = await _bearerToken();
+    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
     final resp = await _http.post(
       uri,
-      headers: _headers(rpcId.value),
+      headers: headers,
       body: jsonEncode(message),
     );
+    if (resp.statusCode == 401 || resp.statusCode == 403) {
+      throw RemoteAuthException(resp.statusCode, 'POST /api/respond rejected: ${resp.statusCode}');
+    }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw http.ClientException('POST /api/respond failed: ${resp.statusCode} ${resp.body}', uri);
     }
@@ -570,6 +704,49 @@ class ConnectionClient {
   }
 
   // ---------------------------------------------------------------------------
+  // Remote pairing + ws-ticket — Phase 3
+  // ---------------------------------------------------------------------------
+
+  /// `remote.pair {hostId, deviceId, displayName, devicePublicKey, nonce, pin?}`
+  /// — the only unauthenticated remote endpoint (pairing ceremony).
+  Future<Map<String, dynamic>> remotePair({
+    required String hostId,
+    required String deviceId,
+    required String displayName,
+    required String devicePublicKey,
+    required String nonce,
+    String? pin,
+  }) async {
+    final body = await _postTypert('remote.pair', {
+      'hostId': hostId,
+      'deviceId': deviceId,
+      'displayName': displayName,
+      'devicePublicKey': devicePublicKey,
+      'nonce': nonce,
+      if (pin != null) 'pin': pin,
+    });
+    return _unwrapValue(body, 'remote.pair');
+  }
+
+  /// `remote.ws-ticket` — bearer `full` required, returns ticket string.
+  Future<String> fetchWsTicket() async {
+    final body = await _postTypert('remote.ws-ticket', {});
+    final value = _unwrapValue(body, 'remote.ws-ticket');
+    final ticket = value['ticket'];
+    if (ticket is! String) throw FormatException('remote.ws-ticket: missing ticket');
+    return ticket;
+  }
+
+  /// `remote.refresh` — bearer `full` required, returns new token.
+  Future<String> remoteRefresh() async {
+    final body = await _postTypert('remote.refresh', {});
+    final value = _unwrapValue(body, 'remote.refresh');
+    final token = value['deviceToken'] as String? ?? value['token'] as String?;
+    if (token is! String || token.isEmpty) throw FormatException('remote.refresh: missing deviceToken');
+    return token;
+  }
+
+  // ---------------------------------------------------------------------------
   // Event streams — mirrors `IApiClient.events.mux/host` in
   // `packages/host/apiproxy/src/fetch/client.ts:AbstractApiClient`.
   //
@@ -604,20 +781,83 @@ class ConnectionClient {
   static const bool _useSse =
       const String.fromEnvironment('DSH_TRANSPORT') == 'sse';
 
-  Stream<Map<String, dynamic>> _openEvents(String path, {void Function()? onOpen}) {
+  Stream<Map<String, dynamic>> _openEvents(String path, {void Function()? onOpen}) async* {
     if (baseUrl.isEmpty) {
-      // No host configured (tests with file://). Yield nothing so callers
-      // can still `await for` without hanging on a bogus connection.
-      return const Stream.empty();
+      return;
     }
-    return _useSse ? _readSse(path, onOpen: onOpen) : _readWebSocket(path, onOpen: onOpen);
+    if (isRemote) {
+      // Remote: fetch a single-use ws ticket (bearer) then open wss://…?ticket=
+      // Never log the ticket value.
+      final String ticket;
+      try {
+        ticket = await fetchWsTicket();
+      } catch (e) {
+        // Propagate as stream error so the controller can map 401→needsReauth
+        throw e;
+      }
+      final uri = _wsUri(path, ticket: ticket);
+      yield* _trackedEventStream(uri, onOpen: onOpen);
+      return;
+    }
+    if (_useSse) {
+      yield* _readSse(path, onOpen: onOpen);
+    } else {
+      yield* _trackedEventStream(_wsUri(path), onOpen: onOpen);
+    }
   }
 
-  Uri _wsUri(String path) {
+  Stream<Map<String, dynamic>> _trackedEventStream(
+    Uri uri, {
+    void Function()? onOpen,
+  }) async* {
+    final channel = WebSocketChannel.connect(uri);
+    _activeChannels.add(channel);
+    try {
+      await channel.ready;
+      onOpen?.call();
+      await for (final message in channel.stream) {
+        final String data;
+        if (message is String) {
+          data = message;
+        } else if (message is List<int>) {
+          data = utf8.decode(message);
+        } else {
+          continue;
+        }
+        if (data.startsWith(':')) continue;
+        final trimmed = data.startsWith('data: ') ? data.substring(6) : data;
+        if (trimmed.isEmpty) continue;
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is! Map) continue;
+          final Map<String, dynamic> envelope =
+              decoded is Map<String, dynamic> ? decoded : decoded.cast<String, dynamic>();
+          final dynamic payload = envelope['payload'];
+          final Map<String, dynamic> frame = payload is Map
+              ? (payload is Map<String, dynamic> ? payload : payload.cast<String, dynamic>())
+              : envelope;
+          final envId = envelope['rpcId'];
+          if (envId is String && !frame.containsKey('rpcId')) frame['rpcId'] = envId;
+          yield frame;
+        } catch (_) {}
+      }
+    } finally {
+      _activeChannels.remove(channel);
+      try {
+        await channel.sink.close();
+      } catch (_) {}
+    }
+  }
+
+  Uri _wsUri(String path, {String? ticket}) {
     final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
     final source = Uri.parse(base);
     final scheme = source.scheme == 'https' ? 'wss' : 'ws';
-    return source.replace(scheme: scheme, path: path);
+    var uri = source.replace(scheme: scheme, path: path);
+    if (ticket != null) {
+      uri = uri.replace(queryParameters: {...uri.queryParameters, 'ticket': ticket});
+    }
+    return uri;
   }
 
   Stream<Map<String, dynamic>> _readWebSocket(String path, {void Function()? onOpen}) {

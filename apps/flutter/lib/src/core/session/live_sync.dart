@@ -18,6 +18,8 @@ import 'sessions_controller.dart';
 import '../../features/conversation/message_provider.dart';
 import '../../plugins/plan/ui/plan_provider.dart';
 import '../../plugins/permission_presets/permission_session_provider.dart';
+import '../../plugins/attachment/attachment_limits.dart';
+import '../../platform/drag_drop.dart' show ImageLimits;
 
 /// Live sync that wires the SSE mux/host streams to Riverpod state.
 ///
@@ -210,6 +212,28 @@ final liveSyncProvider = Provider<void>((ref) {
                     ref.read(permissionSelectProvider(sessionId.value).notifier).state = null;
                   }
                 }
+                final imgLimits = publishable.contains('imageLimits')
+                    ? res.projections!.values['imageLimits']
+                    : null;
+                if (imgLimits is Map) {
+                  try {
+                    final m = imgLimits is Map<String, dynamic>
+                        ? imgLimits
+                        : (imgLimits as Map).cast<String, dynamic>();
+                    final mediaTypes = (m['mediaTypes'] as List?)?.whereType<String>().toList();
+                    final maxImages = m['maxImagesPerMessage'] as int?;
+                    final maxBytes = m['maxImageBytes'] as int?;
+                    final maxTotal = m['maxMessageImageBytes'] as int?;
+                    if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                      ref.read(imageLimitsProvider.notifier).state = ImageLimits(
+                        mediaTypes: mediaTypes,
+                        maxImagesPerMessage: maxImages,
+                        maxImageBytes: maxBytes,
+                        maxMessageImageBytes: maxTotal,
+                      );
+                    }
+                  } catch (_) {}
+                }
               } catch (_) {}
             });
           }
@@ -285,6 +309,26 @@ final liveSyncProvider = Provider<void>((ref) {
             } else {
               ref.read(permissionSelectProvider(sessionId.value).notifier).state = null;
             }
+          } else if (key == 'imageLimits') {
+            // Host `imageLimits` projection: {mediaTypes, maxImagesPerMessage, maxImageBytes, maxMessageImageBytes, ...}
+            // Mirrors LocalAttachmentStore defaults; extra fields ignored.
+            try {
+              if (value is Map) {
+                final map = value is Map<String, dynamic> ? value : (value as Map).cast<String, dynamic>();
+                final mediaTypes = (map['mediaTypes'] as List?)?.whereType<String>().toList();
+                final maxImages = map['maxImagesPerMessage'] as int?;
+                final maxBytes = map['maxImageBytes'] as int?;
+                final maxTotal = map['maxMessageImageBytes'] as int?;
+                if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                  ref.read(imageLimitsProvider.notifier).state = ImageLimits(
+                    mediaTypes: mediaTypes,
+                    maxImagesPerMessage: maxImages,
+                    maxImageBytes: maxBytes,
+                    maxMessageImageBytes: maxTotal,
+                  );
+                }
+              }
+            } catch (_) {}
           }
           break;
         case ApprovalRequestedFrame(
@@ -400,6 +444,28 @@ final liveSyncProvider = Provider<void>((ref) {
                 ref.read(permissionSelectProvider(current.value).notifier).state = null;
               }
             }
+            final imgCurrent = publishable.contains('imageLimits')
+                ? res.projections!.values['imageLimits']
+                : null;
+            if (imgCurrent is Map) {
+              try {
+                final m = imgCurrent is Map<String, dynamic>
+                    ? imgCurrent
+                    : (imgCurrent as Map).cast<String, dynamic>();
+                final mediaTypes = (m['mediaTypes'] as List?)?.whereType<String>().toList();
+                final maxImages = m['maxImagesPerMessage'] as int?;
+                final maxBytes = m['maxImageBytes'] as int?;
+                final maxTotal = m['maxMessageImageBytes'] as int?;
+                if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                  ref.read(imageLimitsProvider.notifier).state = ImageLimits(
+                    mediaTypes: mediaTypes,
+                    maxImagesPerMessage: maxImages,
+                    maxImageBytes: maxBytes,
+                    maxMessageImageBytes: maxTotal,
+                  );
+                }
+              } catch (_) {}
+            }
           } catch (_) {
             try {
               ref.invalidate(messageListProvider(current.value));
@@ -426,6 +492,26 @@ final liveSyncProvider = Provider<void>((ref) {
                 } catch (_) {
                   ref.read(permissionSelectProvider(s.sessionId.value).notifier).state = null;
                 }
+              }
+              final imgLoop = publishable.contains('imageLimits')
+                  ? res.projections!.values['imageLimits']
+                  : null;
+              if (imgLoop is Map) {
+                try {
+                  final m = imgLoop is Map<String, dynamic> ? imgLoop : (imgLoop as Map).cast<String, dynamic>();
+                  final mediaTypes = (m['mediaTypes'] as List?)?.whereType<String>().toList();
+                  final maxImages = m['maxImagesPerMessage'] as int?;
+                  final maxBytes = m['maxImageBytes'] as int?;
+                  final maxTotal = m['maxMessageImageBytes'] as int?;
+                  if (mediaTypes != null && maxImages != null && maxBytes != null && maxTotal != null) {
+                    ref.read(imageLimitsProvider.notifier).state = ImageLimits(
+                      mediaTypes: mediaTypes,
+                      maxImagesPerMessage: maxImages,
+                      maxImageBytes: maxBytes,
+                      maxMessageImageBytes: maxTotal,
+                    );
+                  }
+                } catch (_) {}
               }
             } catch (_) {
               try {

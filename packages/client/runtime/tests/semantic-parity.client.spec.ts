@@ -214,7 +214,10 @@ describe('semantic parity vs Flutter ($semantic-parity-replay)', () => {
 
     const binding = bench.sessions.binding('s-200' as SessionId)
     if (binding === undefined) throw new Error('s-200 binding missing after session-added')
-    await binding.session.open()
+    // Surface entry point: the runtime owns open() (staging + history
+    // backfill); SessionFace intentionally excludes it.
+    bench.sessions.open('s-200' as SessionId)
+    for (let i = 0; i < 12; i++) await Promise.resolve()
 
     for (const line of frames) {
       if (line === added) continue
@@ -264,7 +267,8 @@ describe('semantic parity vs Flutter ($semantic-parity-replay)', () => {
     bench.sinks.onHostEnvelope?.({ rpcId: 'g0', payload: added.frame })
     for (let i = 0; i < 12; i++) await Promise.resolve()
     const binding = bench.sessions.binding('s-300' as SessionId)!
-    await binding.session.open()
+    bench.sessions.open('s-300' as SessionId)
+    for (let i = 0; i < 12; i++) await Promise.resolve()
 
     const push = (rpcId: string, frame: Record<string, unknown>) =>
       bench.sinks.onMuxEnvelope?.({ rpcId, payload: { sessionId: 's-300', event: frame } })

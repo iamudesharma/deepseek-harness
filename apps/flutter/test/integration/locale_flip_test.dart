@@ -36,6 +36,7 @@ import 'package:dsh_flutter/src/plugins/user_questions/locales.dart';
 import 'package:dsh_flutter/src/plugins/workflow_run/locales.dart';
 import 'package:dsh_flutter/src/plugins/workspace/locales.dart';
 import 'package:dsh_flutter/src/routing/app_router.dart' show appRouterProvider;
+import 'package:flutter/foundation.dart' show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart' show Size;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -95,72 +96,125 @@ void main() {
 
   testWidgets(
       'one setLocale publish flips hero chip, sidebar, and settings copy '
-      'immediately, and flips them back', (tester) async {
-    // Wide desktop surface so the expanded sidebar (with its labeled
-    // controls) is mounted rather than the collapsed icon rail.
-    tester.view.physicalSize = const Size(1440, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-    final client = WsInputRecordingClient();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [connectionClientProvider.overrideWithValue(client)],
-      child: const DshApp(),
-    ));
+      'immediately, and flips them back (desktop 1440)', (tester) async {
+    final TargetPlatform? prev = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = prev);
+    try {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final client = WsInputRecordingClient();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [connectionClientProvider.overrideWithValue(client)],
+        child: const DshApp(),
+      ));
 
-    final element = tester.element(find.byType(DshApp));
-    final container = ProviderScope.containerOf(element);
-    await tester.pump();
-    for (var i = 0; i < 40; i++) {
-      if (container.read(activeSlotsProvider) != null) break;
-      await tester.pump(const Duration(milliseconds: 10));
+      final element = tester.element(find.byType(DshApp));
+      final container = ProviderScope.containerOf(element);
+      await tester.pump();
+      for (var i = 0; i < 40; i++) {
+        if (container.read(activeSlotsProvider) != null) break;
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(container.read(activeSlotsProvider), isNotNull,
+          reason: 'host activation completed');
+
+      // Service default drives the whole shell before any preference lands.
+      expect(container.read(localeServiceProvider).locale, 'zh');
+
+      // Hero + sidebar render their dictionary copy.
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('工作区'), findsWidgets,
+          reason: 'hero picker chip label (workspace.section.workspaces)');
+      expect(find.text('新建会话'), findsOneWidget,
+          reason: 'New session button (sidebar.session.new.label)');
+
+      // Settings surface: same shell, other route — navigation rides the app's
+      // own router, like the sidebar's Settings link.
+      await _navigate(tester, container, '/settings');
+      expect(find.text('语言'), findsOneWidget,
+          reason: 'Language row title (settings.locale.language.title)');
+      expect(find.text('通用'), findsWidgets,
+          reason: 'General tab (settings.general.nav)');
+      expect(find.text('繁忙时 Enter 键行为'), findsOneWidget,
+          reason: 'Enter-behavior row (conversation.settings.enter.title)');
+
+      // THE FLIP — the exact publish path LanguageRow.setLocale uses:
+      // LocaleService.setLocale, no restart, no re-activation.
+      container.read(localeServiceProvider).setLocale('en');
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('Language'), findsOneWidget);
+      expect(find.text('General'), findsWidgets);
+      expect(find.text('Enter behavior while busy'), findsOneWidget);
+
+      // Back to the hero: chip + sidebar switched too.
+      await _navigate(tester, container, '/');
+      expect(find.text('Workspaces'), findsWidgets);
+      expect(find.text('New session'), findsOneWidget);
+
+      // FLIP BACK — restore matches the initial state.
+      container.read(localeServiceProvider).setLocale('zh');
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('工作区'), findsWidgets);
+      expect(find.text('新建会话'), findsOneWidget);
+
+      await _navigate(tester, container, '/settings');
+      expect(find.text('语言'), findsOneWidget);
+      expect(find.text('通用'), findsWidgets);
+    } finally {
+      debugDefaultTargetPlatformOverride = prev;
     }
-    expect(container.read(activeSlotsProvider), isNotNull,
-        reason: 'host activation completed');
+  });
 
-    // Service default drives the whole shell before any preference lands.
-    expect(container.read(localeServiceProvider).locale, 'zh');
+  testWidgets('locale flip also works in mobile shell (390 width)', (tester) async {
+    final TargetPlatform? prev = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = prev);
+    try {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      final client = WsInputRecordingClient();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [connectionClientProvider.overrideWithValue(client)],
+        child: const DshApp(),
+      ));
 
-    // Hero + sidebar render their dictionary copy.
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(find.text('工作区'), findsWidgets,
-        reason: 'hero picker chip label (workspace.section.workspaces)');
-    expect(find.text('新建会话'), findsOneWidget,
-        reason: 'New session button (sidebar.session.new.label)');
+      final element = tester.element(find.byType(DshApp));
+      final container = ProviderScope.containerOf(element);
+      await tester.pump();
+      for (var i = 0; i < 40; i++) {
+        if (container.read(activeSlotsProvider) != null) break;
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+      expect(container.read(activeSlotsProvider), isNotNull);
 
-    // Settings surface: same shell, other route — navigation rides the app's
-    // own router, like the sidebar's Settings link.
-    await _navigate(tester, container, '/settings');
-    expect(find.text('语言'), findsOneWidget,
-        reason: 'Language row title (settings.locale.language.title)');
-    expect(find.text('通用'), findsWidgets,
-        reason: 'General tab (settings.general.nav)');
-    expect(find.text('繁忙时 Enter 键行为'), findsOneWidget,
-        reason: 'Enter-behavior row (conversation.settings.enter.title)');
+      await tester.pump(const Duration(milliseconds: 50));
+      // Mobile: hero chip still locale-sensitive, sidebar button hidden behind mobile shell.
+      expect(find.text('工作区'), findsWidgets);
+      // Desktop-only sidebar element must NOT appear in mobile shell.
+      expect(find.text('新建会话'), findsNothing);
 
-    // THE FLIP — the exact publish path LanguageRow.setLocale uses:
-    // LocaleService.setLocale, no restart, no re-activation.
-    container.read(localeServiceProvider).setLocale('en');
-    await tester.pump(const Duration(milliseconds: 50));
+      container.read(localeServiceProvider).setLocale('en');
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('Workspaces'), findsWidgets);
+      expect(find.text('New session'), findsNothing);
 
-    expect(find.text('Language'), findsOneWidget);
-    expect(find.text('General'), findsWidgets);
-    expect(find.text('Enter behavior while busy'), findsOneWidget);
-
-    // Back to the hero: chip + sidebar switched too.
-    await _navigate(tester, container, '/');
-    expect(find.text('Workspaces'), findsWidgets);
-    expect(find.text('New session'), findsOneWidget);
-
-    // FLIP BACK — restore matches the initial state.
-    container.read(localeServiceProvider).setLocale('zh');
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(find.text('工作区'), findsWidgets);
-    expect(find.text('新建会话'), findsOneWidget);
-
-    await _navigate(tester, container, '/settings');
-    expect(find.text('语言'), findsOneWidget);
-    expect(find.text('通用'), findsWidgets);
+      container.read(localeServiceProvider).setLocale('zh');
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('工作区'), findsWidgets);
+    } finally {
+      debugDefaultTargetPlatformOverride = prev;
+    }
   });
 }
 
