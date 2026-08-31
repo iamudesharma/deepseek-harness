@@ -458,7 +458,7 @@ void main() {
     test('encodes png bytes to base64 image part', () async {
       final bytes = Uint8List.fromList([1, 2, 3, 4]);
       final att = ComposerAttachment(
-        id: 'a1',
+        id: DraftAttachmentId('a1'),
         name: 'shot.png',
         mimeType: 'image/png',
         size: bytes.length,
@@ -475,7 +475,7 @@ void main() {
 
     test('rejects unsupported media type', () async {
       const att = ComposerAttachment(
-        id: 'a1',
+        id: DraftAttachmentId('a1'),
         name: 'doc.pdf',
         mimeType: 'application/pdf',
         size: 10,
@@ -495,7 +495,7 @@ void main() {
 
     test('rejects when bytes missing and file cannot be read', () async {
       const att = ComposerAttachment(
-        id: 'a1',
+        id: DraftAttachmentId('a1'),
         name: 'shot.png',
         mimeType: 'image/png',
         size: 10,
@@ -535,7 +535,7 @@ void main() {
       final bytes = Uint8List.fromList([10, 20, 30]);
       notifier.addAttachments([
         ComposerAttachment(
-          id: 'a1',
+          id: DraftAttachmentId('a1'),
           name: 'a.png',
           mimeType: 'image/png',
           size: bytes.length,
@@ -571,7 +571,7 @@ void main() {
         // unsupported type -> serialize failure before host call
         notifier.addAttachments(const [
           ComposerAttachment(
-            id: 'a1',
+            id: DraftAttachmentId('a1'),
             name: 'bad.pdf',
             mimeType: 'application/pdf',
             size: 10,
@@ -606,7 +606,7 @@ void main() {
       final bytes = Uint8List.fromList([1, 2, 3]);
       notifier.addAttachments([
         ComposerAttachment(
-          id: 'a1',
+          id: DraftAttachmentId('a1'),
           name: 'a.png',
           mimeType: 'image/png',
           size: 3,

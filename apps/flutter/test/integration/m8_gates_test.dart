@@ -43,7 +43,14 @@ void main() {
   test('M8 gate: session.history succeeds for first listed session', () async {
     if (!await _hostReachable(client)) return;
     final sessions = await client.getSessions();
-    final events = await client.getSessionEvents(sessions.first.sessionId);
+    // History now requires authoritative throughSeq from session/follow.
+    // For this integration gate we verify the client can fetch with an
+    // explicit cursor; -1 is valid for empty, real sessions will be fetched
+    // via the live follow path in product code.
+    final events = await client.getSessionEvents(
+      sessions.first.sessionId,
+      throughSeq: -1,
+    );
     expect(events, isA<List>());
   });
 

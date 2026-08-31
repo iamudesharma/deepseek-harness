@@ -1,7 +1,9 @@
 CLAUDE.local.md
 .env
 node_modules/
-lib/
+# Generated package build outputs — not Flutter app source
+/packages/lib/
+packages/**/lib/
 *.tsbuildinfo
 pnpm-debug.log
 .pnpm-store/

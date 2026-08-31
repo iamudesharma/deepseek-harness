@@ -97,15 +97,26 @@ void main() {
             time: 1,
           ),
         );
-        // Direct delegation: the service adds no shaping of its own.
+        // Direct delegation: the service forwards the authoritative cursor.
         final delegated = _DelegatingHistoryClient(entries: [entry]);
         expect(
-          await SessionsService(delegated).history(id),
+          await SessionsService(delegated).history(id, throughSeq: 1),
           unorderedEquals([entry]),
         );
         expect(delegated.requested, [id]);
+        expect(delegated.lastThroughSeq, 1);
       },
     );
+
+    test('history requires authoritative throughSeq', () async {
+      const id = SessionId('sess-1');
+      final delegated = _DelegatingHistoryClient(entries: const []);
+      expect(
+        () => SessionsService(delegated).history(id, throughSeq: -1),
+        returnsNormally,
+      );
+      // Missing throughSeq is a compile-time error (required); runtime probe removed
+    });
   });
 
   group('WorkspacesService wire mapping', () {
@@ -188,14 +199,17 @@ class _DelegatingHistoryClient extends ConnectionClient {
 
   final List<HistoryEntry> entries;
   final List<SessionId> requested = [];
+  int? lastThroughSeq;
 
   @override
   Future<List<HistoryEntry>> getSessionEvents(
     SessionId id, {
+    required int throughSeq,
     int? beforeSeq,
     int? maxMessages,
   }) async {
     requested.add(id);
+    lastThroughSeq = throughSeq;
     return entries;
   }
 }

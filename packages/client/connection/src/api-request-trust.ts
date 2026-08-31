@@ -102,8 +102,28 @@ export function isTrustedApiRequest(request: ConnectionTrustRequest, trustedHost
   if (hostUrl === undefined) return false
   if (!isLoopbackHostname(hostUrl.hostname) && !isTrustedAuthority(hostUrl, trustedHosts)) return false
   // Cross-site fence: modern browsers label the initiator relationship on
-  // every fetch; an explicit cross-site marker is refused regardless of Origin.
-  if (header(request.headers, 'sec-fetch-site') === 'cross-site') return false
+  // every fetch; an explicit cross-site marker is refused regardless of Origin,
+  // but loopback → loopback (same-machine dev, different ports/hostnames like
+  // `localhost:63284` → `127.0.0.1:3080`) is allowed and deferred to the Origin
+  // fence — otherwise `flutter run -d web-server` on `localhost` would 403 on
+  // `127.0.0.1:3080` even though both are loopback.
+  if (header(request.headers, 'sec-fetch-site') === 'cross-site') {
+    const originForSite = header(request.headers, 'origin')
+    if (originForSite !== undefined) {
+      try {
+        const originUrlForSite = new URL(originForSite)
+        if (isLoopbackHostname(originUrlForSite.hostname) && isLoopbackHostname(hostUrl.hostname)) {
+          // loopback dev — let Origin fence decide
+        } else {
+          return false
+        }
+      } catch {
+        return false
+      }
+    } else {
+      return false
+    }
+  }
   // Origin fence: when a browser attaches an Origin it must be exactly this
   // authority (compared through the same normalization as the Host). Absent
   // Origin is fine — the Host fence above already bound the request. The
@@ -113,10 +133,11 @@ export function isTrustedApiRequest(request: ConnectionTrustRequest, trustedHost
   try {
     const originUrl = new URL(origin)
     // Cross-port loopback is same-machine dev (Flutter at :8321 → backend at :8787,
-    // macOS app, etc.). Require exact host otherwise, but for loopback-only
-    // pairs compare hostname only so different loopback ports still pass.
+    // macOS app, localhost vs 127.0.0.1, etc.). Require exact host otherwise,
+    // but for loopback-only pairs any loopback hostname matches any other
+    // loopback hostname so `localhost:xxxx` → `127.0.0.1:3080` dev still passes.
     if (isLoopbackHostname(originUrl.hostname) && isLoopbackHostname(hostUrl.hostname)) {
-      return originUrl.hostname.toLowerCase() === hostUrl.hostname.toLowerCase()
+      return true
     }
     return originUrl.host === hostUrl.host
   } catch {

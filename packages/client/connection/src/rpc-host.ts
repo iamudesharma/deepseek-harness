@@ -1,5 +1,6 @@
 /** Host registry and HTTP adapter for generic Connection RPC channels. */
 
+import { homedir } from 'node:os'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import {
@@ -121,6 +122,23 @@ export class HostConnectionService extends Service implements HostConnectionHand
         const pathname = new URL(request.url).pathname
         const route = this.fetchRoutes.get(pathname)
         if (route?.methods.has(request.method) === true) return route.fetch(request)
+        // Compat stub: `host.describe` was retired with ApiProxy (Aug 2026) but
+        // older Flutter/Web clients still POST it as part of the connection
+        // handshake (`packages/client/connection/src/rpc-host.ts:161` compat).
+        // The authoritative host facts now come from the `$events` `ready`
+        // `{ host: { home } }` frame. Serve a minimal stub here so the
+        // handshake does not 404 and wedge in `connecting`; Flutter also now
+        // treats the call as optional (see `connection_client.dart`).
+        // The stub still respects the Host/Origin fence + browser session, so
+        // unauthenticated callers still see 401/403 (covered by
+        // `node-half.host.spec.ts`).
+        if ((pathname === '/api/host.describe' || pathname === '/api/host/describe') && request.method === 'POST') {
+          const rejection = this.requestRejection(request as unknown as import('./rpc.ts').ConnectionTrustRequest)
+          if (rejection !== undefined) {
+            return Promise.resolve(new Response(rejection === 401 ? 'unauthorized' : 'forbidden', { status: rejection }))
+          }
+          return compatHostDescribe(request)
+        }
         const endpoint = endpointFromPath(channel, pathname)
         const interceptor = this.interceptors.get(channel)
         if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
@@ -274,6 +292,40 @@ function errorResponse(rpcId: RpcIdType, error: ConnectionRpcFailure): Response 
 function fullResponse(rpcId: RpcIdType, result: ConnectionRpcResult<unknown>): Response {
   const body: ConnectionServerResponse = { type: 'server-response', rpcId, result }
   return Response.json(body)
+}
+
+async function compatHostDescribe(request: Request): Promise<Response> {
+  let rpcId: RpcIdType = INVALID_REQUEST_RPC_ID
+  try {
+    const body: unknown = await request.json()
+    const raw = (body as { rpcId?: unknown } | null)?.rpcId
+    if (typeof raw === 'string') rpcId = RpcId(raw)
+  } catch {}
+  // Minimal stub: keep fields that existing clients read (home, cwd, version).
+  // `hostId` is omitted — RemoteTarget pinning (`hostId` mismatch →
+  // `needsReauth`) must not fire spuriously for loopback or for a compat
+  // stub that has no access to the real Ed25519 host identity (enforced by
+  // the bearer/pairing layer). The authoritative host facts now come from the
+  // `$events` `ready { host: { home } }` frame; Flutter also treats the call
+  // as optional (see `connection_client.dart`).
+  let home: string
+  try {
+    home = homedir()
+  } catch {
+    home = '/tmp'
+  }
+  return fullResponse(rpcId, {
+    ok: true,
+    value: {
+      home,
+      cwd: home,
+      version: '0.0.0',
+      canOpenPath: false,
+      provider: undefined,
+      model: undefined,
+      attachedSessions: 0,
+    },
+  })
 }
 
 function assertChannel(channel: string): void {

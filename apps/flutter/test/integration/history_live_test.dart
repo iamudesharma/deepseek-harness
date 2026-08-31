@@ -12,7 +12,7 @@ void main() {
       return;
     }
     final id = SessionId('session-d68d3474-b4e6-4172-9dbb-0c41ce7d8773');
-    final events = await client.getSessionEvents(id);
+    final events = await client.getSessionEvents(id, throughSeq: -1);
     print('events ${events.length}');
     for (final e in events.take(3)) {
       print('${e.event.type} ${e.event.data}');

@@ -37,6 +37,23 @@ extension type const MessageId(String value) implements String {
   static MessageId fromJson(String json) => MessageId(json);
 }
 
+/// Branded tool-call identifier — mirrors `ToolCallId` from `@deepseek-ai/dsh-llm`
+/// and `ToolCallId` in `packages/dsh-brand`. Use for every `tool/call` ↔
+/// `tool/result` correlation and for Code Dispatch `parentCallId`/`subCallId`.
+extension type const ToolCallId(String value) implements String {
+  String get raw => value;
+  String toJson() => value;
+  static ToolCallId fromJson(String json) => ToolCallId(json);
+}
+
+/// Branded draft-attachment identifier — mirrors `DraftAttachmentId`
+/// (`Branded<'DraftAttachmentId'>`) from `packages/client/ui-conversation`.
+extension type const DraftAttachmentId(String value) implements String {
+  String get raw => value;
+  String toJson() => value;
+  static DraftAttachmentId fromJson(String json) => DraftAttachmentId(json);
+}
+
 /// Queue action for `session.updateQueue` — edit/remove/steer.
 ///
 /// Mirrors `QueueAction` in `packages/host/apiproxy/src/api/sessions.ts`:
@@ -225,9 +242,20 @@ class SessionSummary {
             pending == 'question'
         ? pending
         : null;
+    final rawUpdatedAt = json['updatedAt'];
+    final int updatedAt;
+    if (rawUpdatedAt is int) {
+      updatedAt = rawUpdatedAt;
+    } else if (rawUpdatedAt is num) {
+      updatedAt = rawUpdatedAt.toInt();
+    } else if (rawUpdatedAt is String) {
+      updatedAt = int.tryParse(rawUpdatedAt) ?? 0;
+    } else {
+      updatedAt = 0;
+    }
     return SessionSummary(
       sessionId: SessionId(json['sessionId'] as String),
-      updatedAt: json['updatedAt'] as int,
+      updatedAt: updatedAt,
       running: json['running'] as bool,
       blank: json['blank'] as bool,
       parentSessionId: json['parentSessionId'] == null
@@ -241,7 +269,9 @@ class SessionSummary {
       completed: json['completed'] == true,
       runningSubagentCount: json['runningSubagentCount'] is int
           ? json['runningSubagentCount'] as int
-          : 0,
+          : json['runningSubagentCount'] is num
+              ? (json['runningSubagentCount'] as num).toInt()
+              : 0,
     );
   }
 
@@ -409,6 +439,21 @@ class SessionEvent {
 
   @override
   String toString() => 'SessionEvent(type: $type, seq: $seq)';
+
+  /// Branded accessors — mirrors `SessionEventMap` `ToolCallId`/`MessageId` brands.
+  /// Never bare `string` at call sites; use these getters so the brand is enforced
+  /// at the typed same-process boundary (validated at parser boundary in `fromJson`).
+  ToolCallId? get toolCallId {
+    final v = data['callId'];
+    if (v is String && v.isNotEmpty) return ToolCallId(v);
+    return null;
+  }
+
+  MessageId? get messageIdBrand {
+    final v = data['id'] ?? data['messageId'];
+    if (v is String && v.isNotEmpty) return MessageId(v);
+    return null;
+  }
 }
 
 /// History page entry: raw event plus optional host-computed view.

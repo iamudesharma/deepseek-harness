@@ -77,7 +77,8 @@ class ModelSeat extends ConsumerWidget {
         (theme.brightness == Brightness.dark
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
-    final current = state.current;
+    final liveSelection = ref.watch(modelSelectionProjectionProvider(sessionId));
+    final current = liveSelection ?? state.current;
 
     // Find the exact selected model object to read its advertised reasoning.
     ModelInfo? currentModel;

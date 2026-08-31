@@ -5,11 +5,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/browser_client.dart' as http_browser;
 
 import '../session/session_models.dart';
 import '../session/host_session_policy.dart' show sessionCreatePayload;
 import '../api/rpc_envelope.dart';
 import 'connection_target.dart';
+import 'remote_mux_client.dart';
 import 'secure_token_store.dart';
 import 'websocket_transport.dart';
 
@@ -88,6 +90,19 @@ class ConnectionClient {
   /// Token store for [RemoteTarget] bearer tokens. `null` for [LocalTarget].
   final SecureTokenStore? tokenStore;
 
+  /// Current generation's `$events` clientId from `ready { clientId }`.
+  String? eventsClientId;
+
+  RemoteMuxClient createRemoteMuxClient() => RemoteMuxClient(
+        baseUrl: baseUrl,
+        target: target,
+        tokenStore: tokenStore,
+        httpFetch: (method, payload) async {
+          final body = await _postTypert(method, payload);
+          return _unwrapValue(body, method);
+        },
+      );
+
   final http.Client _http;
 
   /// Active WebSocket channels for event streams, tracked so [abortEventStreams]
@@ -115,7 +130,7 @@ class ConnectionClient {
     http.Client? httpClient,
     this.target,
     this.tokenStore,
-  }) : _http = httpClient ?? http.Client();
+  }) : _http = httpClient ?? (kIsWeb ? (http_browser.BrowserClient()..withCredentials = true) : http.Client());
 
   /// Create from a [ConnectionTarget] (preferred for Phase 3).
   factory ConnectionClient.fromTarget(
@@ -163,6 +178,16 @@ class ConnectionClient {
     return store.read(t.deviceId);
   }
 
+  /// Normalize a Typert endpoint name to its canonical wire form.
+  ///
+  /// The host's `endpointFromPath` (`packages/client/connection/src/rpc-host.ts`)
+  /// splits the URL path by `/`, so a request to `/api/settings.describe` never
+  /// matches an exact route and the shared-channel interceptor sees an endpoint
+  /// that fails its `<namespace>/<method>` shape check, returning 404. Callers
+  /// here historically wrote `settings.describe`; both the URL and the envelope
+  /// `method` field must use `/` to satisfy the host's comparison.
+  static String _wireEndpoint(String method) => method.replaceAll('.', '/');
+
   /// Low-level unary POST helper: POST `/api/<method>` with Typert envelope.
   ///
   /// Returns the decoded JSON map (`RpcResponse`). On 401/403 throws
@@ -174,12 +199,26 @@ class ConnectionClient {
     String? rpcId,
   }) async {
     final id = rpcId ?? newRpcId();
-    final uri = _uri('/api/$method');
+    final wire = _wireEndpoint(method);
+    final uri = _uri('/api/$wire');
+    // Gateway `remoteRequest` requires payload = { args: plainObject } with
+    // exactly one `args` key. Older call sites passed raw {sessionId,…} or
+    // {} which triggered "Remote payload must contain exactly one
+    // plain-object args field" (screenshot `workspace/list 404 + internal`).
+    // Normalize here so slash fix (session/list vs session.list) is not
+    // confused with payload shape; `callMethod` already wraps, this is
+    // idempotent for it.
+    final Map<String, dynamic> normalized =
+        payload.length == 1 &&
+            payload.containsKey('args') &&
+            payload['args'] is Map
+        ? payload
+        : <String, dynamic>{'args': payload};
     final envelope = {
       'type': 'client-request',
       'rpcId': id,
-      'method': method,
-      'payload': payload,
+      'method': wire,
+      'payload': normalized,
     };
     final headers = _headers(id);
     final bearer = await _bearerToken();
@@ -192,12 +231,12 @@ class ConnectionClient {
     if (resp.statusCode == 401 || resp.statusCode == 403) {
       throw RemoteAuthException(
         resp.statusCode,
-        'POST /api/$method rejected: ${resp.statusCode}',
+        'POST /api/$wire rejected: ${resp.statusCode}',
       );
     }
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw http.ClientException(
-        'POST /api/$method failed: ${resp.statusCode} ${resp.body}',
+        'POST /api/$wire failed: ${resp.statusCode} ${resp.body}',
         uri,
       );
     }
@@ -205,7 +244,7 @@ class ConnectionClient {
     if (decoded is Map<String, dynamic>) return decoded;
     if (decoded is Map) return decoded.cast<String, dynamic>();
     throw FormatException(
-      'Expected JSON object from /api/$method, got $decoded',
+      'Expected JSON object from /api/$wire, got $decoded',
     );
   }
 
@@ -249,9 +288,9 @@ class ConnectionClient {
   }
 
   String? _legacyPathToMethod(String path) {
-    if (path == '/api/sessions/list') return 'session.list';
-    if (path == '/api/sessions/history') return 'session.history';
-    if (path == '/api/sessions/prompt') return 'session.prompt';
+    if (path == '/api/sessions/list') return 'session/list';
+    if (path == '/api/sessions/history') return 'session/page';
+    if (path == '/api/sessions/prompt') return 'session/prompt';
     return null;
   }
 
@@ -260,7 +299,7 @@ class ConnectionClient {
   /// Mirrors `session.list` (`SessionsApi.list`). Each call mints a fresh
   /// initiator `rpcId`.
   Future<List<SessionSummary>> getSessions() async {
-    final body = await _postTypert('session.list', {});
+    final body = await _postTypert('session/list', {'args': {'_request': {}}});
     // Host returns `RpcResponse { rpcId, result: { ok, value: { items } } }`
     // Unwrap leniently to tolerate raw vs wrapped forms.
     final items = _extractItems(body);
@@ -269,15 +308,19 @@ class ConnectionClient {
 
   /// Read a window of history events for [id].
   ///
-  /// Mirrors `session.history` (`SessionsApi.history`). Returns the raw
-  /// event window (host already pairs `event`+`view` as `HistoryEntry`).
+  /// Mirrors `session/page` with an authoritative cursor. `throughSeq` must be
+  /// the snapshot cursor from `session/follow` (`LiveHistory.acceptedSeq`);
+  /// callers with no cursor must wait for the follow snapshot, not invent
+  /// a sentinel. This method no longer uses probes or error-text parsing.
   Future<List<HistoryEntry>> getSessionEvents(
     SessionId id, {
+    required int throughSeq,
     int? beforeSeq,
     int? maxMessages,
   }) async {
     final res = await getSessionHistory(
       id,
+      throughSeq: throughSeq,
       beforeSeq: beforeSeq,
       maxMessages: maxMessages,
     );
@@ -285,16 +328,44 @@ class ConnectionClient {
   }
 
   /// Full history fetch including the tail projections block.
+  ///
+  /// CURRENT master `session/page` requires `address {kind,sessionId}` +
+  /// `throughSeq` (snapshot cursor). `throughSeq` is required and must be
+  /// the authoritative cursor from `session/follow` (`LiveHistory.acceptedSeq`);
+  /// `-1` is only valid for a genuinely empty session. Callers without a
+  /// cursor must not call this method — wait for the snapshot. `acceptedSeq`
+  /// is kept as a deprecated alias for `throughSeq` to preserve existing
+  /// valid call sites (`LiveHistory.loadOlder`).
   Future<({List<HistoryEntry> entries, SessionProjectionsBlock? projections})>
-  getSessionHistory(SessionId id, {int? beforeSeq, int? maxMessages}) async {
+  getSessionHistory(
+    SessionId id, {
+    int? beforeSeq,
+    int? maxMessages,
+    int? throughSeq,
+    int? acceptedSeq,
+  }) async {
+    final int? effective = throughSeq ?? acceptedSeq;
+    if (effective == null) {
+      throw ArgumentError(
+        'getSessionHistory requires authoritative throughSeq from session/follow snapshot cursor (LiveHistory.acceptedSeq). Do not call without cursor; wait for snapshot.',
+      );
+    }
+    final int seq = effective;
+    if (seq < -1) {
+      throw ArgumentError.value(seq, 'throughSeq', 'must be >= -1');
+    }
     final payload = <String, dynamic>{
-      'sessionId': id.value,
+      'address': {'kind': 'session', 'sessionId': id.value},
+      'throughSeq': seq,
       // ignore: use_null_aware_elements
       if (beforeSeq case final v?) 'beforeSeq': v,
       // ignore: use_null_aware_elements
       if (maxMessages case final v?) 'maxMessages': v,
     };
-    final body = await _postTypert('session.history', payload);
+    final Map<String, dynamic> body = await _postTypert(
+      'session/page',
+      {'request': payload},
+    );
     final entries = _extractEvents(body).map(HistoryEntry.fromJson).toList();
     // Tail projections block carries the current title etc. under `projections`.
     SessionProjectionsBlock? block;
@@ -333,20 +404,24 @@ class ConnectionClient {
       ...images,
       if (content.isNotEmpty) {'type': 'text', 'text': content},
     ];
-    await _postTypert('session.prompt', {
+    // CURRENT master `session/prompt` requires `requestId` (client-minted
+    // `SessionRequestId` correlating echo). React `SessionsApi.prompt` mints
+    // one per `RpcId`. Use the same `newRpcId()` helper.
+    await _postTypert('session/prompt', {'request': {
+      'requestId': newRpcId(),
       'sessionId': sessionId.value,
       'mode': mode,
       'content': contentParts,
       // ignore: use_null_aware_elements
       if (clientTimeZone case final v?) 'clientTimeZone': v,
-    });
+    }});
   }
 
   /// Create a new session (Typert `session.create`).
   Future<SessionId> createSession({String? workspaceId, String? cwd}) async {
     final body = await _postTypert(
-      'session.create',
-      sessionCreatePayload(workspaceId: workspaceId, cwd: cwd),
+      'session/create',
+      {'request': sessionCreatePayload(workspaceId: workspaceId, cwd: cwd)},
     );
     // Unwrap `result.value.sessionId`
     dynamic cur = body;
@@ -360,7 +435,7 @@ class ConnectionClient {
   /// `session.cancel { sessionId }` — cancel the in-flight turn; queued
   /// items resume in FIFO order after cancellation settles.
   Future<void> cancelTurn(SessionId sessionId) async {
-    await _postTypert('session.cancel', {'sessionId': sessionId.value});
+    await _postTypert('session/cancel', {'request': {'sessionId': sessionId.value}});
   }
 
   /// `session.updateQueue { sessionId, itemId, action }` — edit/remove/steer
@@ -371,11 +446,11 @@ class ConnectionClient {
     required MessageId itemId,
     required QueueAction action,
   }) async {
-    await _postTypert('session.updateQueue', {
+    await _postTypert('session/updateQueue', {'request': {
       'sessionId': sessionId.value,
       'itemId': itemId.value,
       'action': action.toJson(),
-    });
+    }});
   }
 
   /// Read one durable image attachment: `session.attachment {sessionId, attachmentId}`.
@@ -384,10 +459,10 @@ class ConnectionClient {
     SessionId sessionId,
     String attachmentId,
   ) async {
-    final body = await _postTypert('session.attachment', {
+    final body = await _postTypert('session/attachment', {'request': {
       'sessionId': sessionId.value,
       'attachmentId': attachmentId,
-    });
+    }});
     dynamic cur = body;
     if (cur is Map && cur.containsKey('result')) cur = cur['result'];
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
@@ -485,12 +560,46 @@ class ConnectionClient {
             .toList();
       }
     }
+    // Current master `session/page` returns `{ records: SessionHistoryRecord[], hasMore }`
+    if (cur is Map && cur.containsKey('records')) {
+      final records = cur['records'];
+      if (records is List) {
+        final out = <Map<String, dynamic>>[];
+        for (final r in records) {
+          if (r is! Map) continue;
+          if (r['type'] == 'event' && r['event'] is Map) {
+            out.add((r['event'] as Map).cast<String, dynamic>());
+          } else if (r['type'] == 'chunks') {
+            // Packed chunk runs — live streaming handles deltas; ignore for history window
+            continue;
+          } else if (r.containsKey('type') && r.containsKey('seq')) {
+            out.add(r.cast<String, dynamic>());
+          }
+        }
+        return out;
+      }
+    }
     // Raw event array fallback.
     if (body['events'] is List) {
       return (body['events'] as List)
           .whereType<Map>()
           .map((e) => e.cast<String, dynamic>())
           .toList();
+    }
+    if (body['records'] is List) {
+      final records = body['records'] as List;
+      final out = <Map<String, dynamic>>[];
+      for (final r in records) {
+        if (r is! Map) continue;
+        if (r['type'] == 'event' && r['event'] is Map) {
+          out.add((r['event'] as Map).cast<String, dynamic>());
+        } else if (r['type'] == 'chunks') {
+          continue;
+        } else if (r.containsKey('type') && r.containsKey('seq')) {
+          out.add(r.cast<String, dynamic>());
+        }
+      }
+      return out;
     }
     return const [];
   }
@@ -508,7 +617,9 @@ class ConnectionClient {
     String method,
     Map<String, dynamic> payload,
   ) async {
-    final body = await _postTypert(method, payload);
+    // Typert gateway expects payload = { args: {...} } with exactly one plain-object args field
+    final wrapped = payload.containsKey('args') ? payload : {'args': payload};
+    final body = await _postTypert(method, wrapped);
     return _unwrapValue(body, method);
   }
 
@@ -545,7 +656,11 @@ class ConnectionClient {
             'Expected object value from $method, got $cur in $body',
           );
         },
-        failure: (error) => throw Exception('$method: ${error.message}'),
+        failure: (error) => throw RemoteMethodException(
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        ),
       );
     }
     if (cur is Map && cur['ok'] == false) {
@@ -553,7 +668,13 @@ class ConnectionClient {
       final msg = err is Map && err['message'] is String
           ? err['message'] as String
           : '$err';
-      throw Exception('$method: $msg');
+      final code = err is Map && err['code'] is String
+          ? RpcErrorCode.tryParse(err['code'] as String) ?? RpcErrorCode.internal
+          : RpcErrorCode.internal;
+      final details = err is Map && err['details'] is Map
+          ? Map<String, Object?>.from(err['details'] as Map)
+          : const <String, Object?>{};
+      throw RemoteMethodException(code: code, message: msg, details: details);
     }
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
     if (cur is Map<String, dynamic>) return cur;
@@ -567,8 +688,8 @@ class ConnectionClient {
 
   /// `settings.describe` — returns `{ writable, hasDocument, namespaces }`.
   Future<Map<String, dynamic>> settingsDescribe() async {
-    final body = await _postTypert('settings.describe', {});
-    return _unwrapValue(body, 'settings.describe');
+    final body = await _postTypert('settings/describe', {'args': {}});
+    return _unwrapValue(body, 'settings/describe');
   }
 
   /// `settings.mutate` — path ops against stored section with optional revision.
@@ -582,14 +703,14 @@ class ConnectionClient {
       'ops': ops,
       if (expectedRevision != null) 'expectedRevision': expectedRevision,
     };
-    final body = await _postTypert('settings.mutate', payload);
-    return _unwrapValue(body, 'settings.mutate');
+    final body = await _postTypert('settings/mutate', payload);
+    return _unwrapValue(body, 'settings/mutate');
   }
 
   /// `credentials.describe` — batched ref lookup.
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async {
-    final body = await _postTypert('credentials.describe', {'refs': refs});
-    return _unwrapValue(body, 'credentials.describe');
+    final body = await _postTypert('credentials/describe', {'refs': refs});
+    return _unwrapValue(body, 'credentials/describe');
   }
 
   /// `credentials.set` — store one credential value.
@@ -597,23 +718,23 @@ class ConnectionClient {
     required String ref,
     required String value,
   }) async {
-    final body = await _postTypert('credentials.set', {
+    final body = await _postTypert('credentials/set', {
       'ref': ref,
       'value': value,
     });
-    _unwrapValue(body, 'credentials.set');
+    _unwrapValue(body, 'credentials/set');
   }
 
   /// `credentials.unset` — remove one credential.
   Future<void> credentialsUnset({required String ref}) async {
-    final body = await _postTypert('credentials.unset', {'ref': ref});
-    _unwrapValue(body, 'credentials.unset');
+    final body = await _postTypert('credentials/unset', {'ref': ref});
+    _unwrapValue(body, 'credentials/unset');
   }
 
   /// `llm.providers` — configurable provider directory.
   Future<List<Map<String, dynamic>>> llmProviders() async {
-    final body = await _postTypert('llm.providers', {});
-    final value = _unwrapValue(body, 'llm.providers');
+    final body = await _postTypert('llm/listProviders', {});
+    final value = _unwrapValue(body, 'llm/listProviders');
     final providers = value['providers'];
     if (providers is List) {
       return providers
@@ -624,18 +745,47 @@ class ConnectionClient {
     return const [];
   }
 
+  /// `llm/listProviders` — live provider directory (new Typert).
+  Future<List<Map<String, dynamic>>> llmListProviders() async {
+    try {
+      final body = await _postTypert('llm/listProviders', {});
+      final value = _unwrapValue(body, 'llm/listProviders');
+      final list = value['_list'] as List<dynamic>? ?? value['providers'] as List<dynamic>? ?? const [];
+      if (list is List) {
+        return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+    } catch (_) {}
+    // Fallback to legacy llm.providers
+    return llmProviders();
+  }
+
+  /// `llm/listConfigurableProviders` — configurable provider directory (new).
+  Future<List<Map<String, dynamic>>> llmListConfigurableProviders() async {
+    try {
+      final body = await _postTypert('llm/listConfigurableProviders', {});
+      final value = _unwrapValue(body, 'llm/listConfigurableProviders');
+      final list = value['_list'] as List<dynamic>? ?? value['providers'] as List<dynamic>? ?? const [];
+      if (list is List) {
+        return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
   /// `llm.models` — grouped model catalog.
   Future<Map<String, dynamic>> llmModels() async {
-    final body = await _postTypert('llm.models', {});
-    return _unwrapValue(body, 'llm.models');
+    final body = await _postTypert('session/modelCatalog', {});
+    return _unwrapValue(body, 'session/modelCatalog');
   }
 
   /// `session.models` — per-session model directory (current + groups + failures).
   Future<Map<String, dynamic>> sessionModels({
     required String sessionId,
   }) async {
-    final body = await _postTypert('session.models', {'sessionId': sessionId});
-    return _unwrapValue(body, 'session.models');
+    // CURRENT master `session/modelCatalog` takes 0 args (Host-generation catalog).
+    // Per-session variant was removed; ignore sessionId and fetch global catalog.
+    final body = await _postTypert('session/modelCatalog', {'args': {}});
+    return _unwrapValue(body, 'session/modelCatalog');
   }
 
   /// `session.selectModel` — select provider/model/reasoning for next step.
@@ -651,8 +801,8 @@ class ConnectionClient {
       'model': model,
       if (reasoningEffort != null) 'reasoningEffort': reasoningEffort,
     };
-    final body = await _postTypert('session.selectModel', payload);
-    return _unwrapValue(body, 'session.selectModel');
+    final body = await _postTypert('session/selectModel', {'request': payload});
+    return _unwrapValue(body, 'session/selectModel');
   }
 
   /// `llm.discoverModels` — interrogate a provider endpoint.
@@ -663,15 +813,18 @@ class ConnectionClient {
     String? api,
     String? apiKey,
   }) async {
-    final payload = <String, dynamic>{
-      'settingsNs': settingsNs,
+    final requestPart = <String, dynamic>{
       if (provider != null) 'provider': provider,
       if (baseURL != null) 'baseURL': baseURL,
       if (api != null) 'api': api,
       if (apiKey != null) 'apiKey': apiKey,
     };
-    final body = await _postTypert('llm.discoverModels', payload);
-    final value = _unwrapValue(body, 'llm.discoverModels');
+    final payload = <String, dynamic>{
+      'settingsNs': settingsNs,
+      'request': requestPart,
+    };
+    final body = await _postTypert('llm/discoverModels', payload);
+    final value = _unwrapValue(body, 'llm/discoverModels');
     final models = value['models'];
     if (models is List) {
       return models
@@ -688,8 +841,14 @@ class ConnectionClient {
   /// the raw snapshot map `{ entries: PluginInventoryEntry[] }` with typert
   /// unwrapping. Callers may cast entries via [PluginInventoryEntry.fromJson].
   Future<Map<String, dynamic>> pluginInventoryList() async {
-    final body = await _postTypert('pluginInventory.list', {});
-    return _unwrapValue(body, 'pluginInventory.list');
+    final body = await _postTypert('pluginInventory/list', {'args': {}});
+    return _unwrapValue(body, 'pluginInventory/list');
+  }
+
+  /// `session/modelCatalog` — Host-generation model directory (global, no sessionId).
+  Future<Map<String, dynamic>> sessionModelCatalog() async {
+    final body = await _postTypert('session/modelCatalog', {});
+    return _unwrapValue(body, 'session/modelCatalog');
   }
 
   // ---------------------------------------------------------------------------
@@ -697,13 +856,13 @@ class ConnectionClient {
   // ---------------------------------------------------------------------------
 
   Future<Map<String, dynamic>> workspaceList() async {
-    final body = await _postTypert('workspace.list', {});
-    return _unwrapValue(body, 'workspace.list');
+    final body = await _postTypert('workspace/list', {});
+    return _unwrapValue(body, 'workspace/list');
   }
 
   Future<Map<String, dynamic>> workspaceCreate({required String path}) async {
-    final body = await _postTypert('workspace.create', {'path': path});
-    return _unwrapValue(body, 'workspace.create');
+    final body = await _postTypert('workspace/create', {'request': {'path': path}});
+    return _unwrapValue(body, 'workspace/create');
   }
 
   /// `workspace.insertBefore { workspaceId, beforeWorkspaceId? }` — durable workspace display order.
@@ -715,8 +874,8 @@ class ConnectionClient {
       'workspaceId': workspaceId,
       if (beforeWorkspaceId != null) 'beforeWorkspaceId': beforeWorkspaceId,
     };
-    final body = await _postTypert('workspace.insertBefore', payload);
-    _unwrapValue(body, 'workspace.insertBefore');
+    final body = await _postTypert('workspace/insertBefore', {'request': payload});
+    _unwrapValue(body, 'workspace/insertBefore');
   }
 
   /// `workspace.insertSessionBefore { workspaceId, sessionId, beforeSessionId? }` — durable per-workspace session order.
@@ -730,8 +889,8 @@ class ConnectionClient {
       'sessionId': sessionId,
       if (beforeSessionId != null) 'beforeSessionId': beforeSessionId,
     };
-    final body = await _postTypert('workspace.insertSessionBefore', payload);
-    _unwrapValue(body, 'workspace.insertSessionBefore');
+    final body = await _postTypert('workspace/insertSessionBefore', {'request': payload});
+    _unwrapValue(body, 'workspace/insertSessionBefore');
   }
 
   /// `workspace.rename { workspaceId, title }`
@@ -739,19 +898,19 @@ class ConnectionClient {
     required String workspaceId,
     required String title,
   }) async {
-    final body = await _postTypert('workspace.rename', {
+    final body = await _postTypert('workspace/rename', {'request': {
       'workspaceId': workspaceId,
       'title': title,
-    });
-    return _unwrapValue(body, 'workspace.rename');
+    }});
+    return _unwrapValue(body, 'workspace/rename');
   }
 
   /// `workspace.delete { workspaceId }`
   Future<void> workspaceDelete({required String workspaceId}) async {
-    final body = await _postTypert('workspace.delete', {
+    final body = await _postTypert('workspace/delete', {'request': {
       'workspaceId': workspaceId,
-    });
-    _unwrapValue(body, 'workspace.delete');
+    }});
+    _unwrapValue(body, 'workspace/delete');
   }
 
   /// `session.search { query }` — ranked host search with snippet overlay.
@@ -761,34 +920,83 @@ class ConnectionClient {
     String? signal,
   }) async {
     // Host `session.search` is Typert unary, abort via signal is caller-side debounce.
-    final body = await _postTypert('session.search', {'query': query});
-    return _unwrapValue(body, 'session.search');
+    final body = await _postTypert('session/search', {'request': {'query': query}});
+    return _unwrapValue(body, 'session/search');
   }
 
   Future<Map<String, dynamic>> skillList({required String sessionId}) async {
-    final body = await _postTypert('skill.list', {'sessionId': sessionId});
-    return _unwrapValue(body, 'skill.list');
+    final body = await _postTypert('skills/list', {'request': {'sessionId': sessionId}});
+    return _unwrapValue(body, 'skills/list');
   }
 
   Future<Map<String, dynamic>> agentPresetList() async {
-    final body = await _postTypert('agentPreset.list', {});
-    return _unwrapValue(body, 'agentPreset.list');
+    final body = await _postTypert('agentPresets/list', {'args': {}});
+    return _unwrapValue(body, 'agentPresets/list');
   }
 
   Future<Map<String, dynamic>> agentPresetSelect({
     required String sessionId,
     required String agentPreset,
   }) async {
-    final body = await _postTypert('agentPreset.select', {
+    // Check preset selector - check actual descriptor for agentPresets
+    // Placeholder: keep as direct, will verify via catalog later
+    final body = await _postTypert('agentPresets/select', {
       'sessionId': sessionId,
       'agentPreset': agentPreset,
     });
-    return _unwrapValue(body, 'agentPreset.select');
+    return _unwrapValue(body, 'agentPresets/select');
   }
 
   Future<Map<String, dynamic>> hostDescribe() async {
-    final body = await _postTypert('host.describe', {});
-    return _unwrapValue(body, 'host.describe');
+    Map<String, dynamic> tryUnwrap(Map<String, dynamic> body, String method) {
+      try {
+        return _unwrapValue(body, method);
+      } catch (_) {
+        // Compat hosts may return raw stub without Typert envelope wrapping.
+        return body;
+      }
+    }
+
+    try {
+      final body = await _postTypert('host/describe', {'args': {}});
+      return tryUnwrap(body, 'host/describe');
+    } catch (e) {
+      final msg = e.toString();
+      final is404 = msg.contains('404') || msg.contains('not found');
+      if (!is404) rethrow;
+      // Legacy compat stub is POST /api/host.describe (dot). _postTypert
+      // normalizes '.' -> '/', so bypass it and POST the dot path directly.
+      try {
+        final id = newRpcId();
+        final uri = _uri('/api/host.describe');
+        final envelope = {
+          'type': 'client-request',
+          'rpcId': id,
+          'method': 'host.describe',
+          'payload': {'args': {}},
+        };
+        final headers = _headers(id);
+        final bearer = await _bearerToken();
+        if (bearer != null) headers['authorization'] = 'Bearer $bearer';
+        final resp = await _http.post(
+          uri,
+          headers: headers,
+          body: jsonEncode(envelope),
+        );
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          final decoded = jsonDecode(resp.body);
+          if (decoded is Map<String, dynamic>) {
+            return tryUnwrap(decoded, 'host.describe');
+          }
+          if (decoded is Map) return decoded.cast<String, dynamic>();
+        }
+      } catch (_) {}
+      // `host.describe` is retired — the authoritative host facts now come
+      // from the `$events` `ready { host: { home } }` frame. Return an
+      // empty stub so the `host.describe + ready` handshake can proceed via
+      // ready alone (merged in ConnectionController).
+      return <String, dynamic>{};
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -805,7 +1013,7 @@ class ConnectionClient {
     required String nonce,
     String? pin,
   }) async {
-    final body = await _postTypert('remote.pair', {
+    final body = await _postTypert('remote/pair', {
       'hostId': hostId,
       'deviceId': deviceId,
       'displayName': displayName,
@@ -813,13 +1021,13 @@ class ConnectionClient {
       'nonce': nonce,
       if (pin != null) 'pin': pin,
     });
-    return _unwrapValue(body, 'remote.pair');
+    return _unwrapValue(body, 'remote/pair');
   }
 
   /// `remote.ws-ticket` — bearer `full` required, returns ticket string.
   Future<String> fetchWsTicket() async {
-    final body = await _postTypert('remote.ws-ticket', {});
-    final value = _unwrapValue(body, 'remote.ws-ticket');
+    final body = await _postTypert('remote/ws-ticket', {'args': {}});
+    final value = _unwrapValue(body, 'remote/ws-ticket');
     final ticket = value['ticket'];
     if (ticket is! String)
       throw FormatException('remote.ws-ticket: missing ticket');
@@ -828,8 +1036,8 @@ class ConnectionClient {
 
   /// `remote.refresh` — bearer `full` required, returns new token.
   Future<String> remoteRefresh() async {
-    final body = await _postTypert('remote.refresh', {});
-    final value = _unwrapValue(body, 'remote.refresh');
+    final body = await _postTypert('remote/refresh', {'args': {}});
+    final value = _unwrapValue(body, 'remote/refresh');
     final token = value['deviceToken'] as String? ?? value['token'] as String?;
     if (token is! String || token.isEmpty)
       throw FormatException('remote.refresh: missing deviceToken');

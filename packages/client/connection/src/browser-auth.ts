@@ -119,7 +119,16 @@ function cookieValue(headerValue: string, name: string): string | undefined {
 
 /** Serialize the fixed browser-session attributes; generated names and values are cookie-safe base64url. */
 function sessionCookie(name: string, value: string, expiresAt: number, maxAgeSeconds: number): string {
-  return `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Strict`
+  // `SameSite=Lax` (not `Strict`) so `http://127.0.0.1:xxxx` (flutter run) → `127.0.0.1:3080`
+  // same-site fetch (same host, different port) still sends the cookie. `Strict`
+  // would also work for same-host different-port (site excludes port), but `Lax`
+  // is more permissive for top-level `localhost` → `127.0.0.1` dev where the
+  // browser treats them as same-site? Actually `localhost` vs `127.0.0.1` are
+  // different sites, so even `Lax` won't send cross-site POST — the dev must
+  // run `flutter run --web-hostname 127.0.0.1` so Origin `127.0.0.1:xxxx` is
+  // same-site as `127.0.0.1:3080` (port excluded from site, `Lax`/`Strict` both
+  // allow). `None` would require `Secure` (HTTPS) which loopback `http` lacks.
+  return `${name}=${value}; Max-Age=${String(maxAgeSeconds)}; Path=/; Expires=${new Date(expiresAt).toUTCString()}; HttpOnly; SameSite=Lax`
 }
 
 function signature(secret: Buffer, body: string): Buffer {

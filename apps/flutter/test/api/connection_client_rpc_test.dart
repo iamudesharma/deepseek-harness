@@ -64,9 +64,9 @@ void main() {
     await client.getSessions();
 
     final call = host.requests.single;
-    expect(call.path, '/api/session.list');
+    expect(call.path, '/api/session/list');
     expect(call.body['type'], 'client-request');
-    expect(call.body['method'], 'session.list');
+    expect(call.body['method'], 'session/list');
     expect(call.body['payload'], <String, dynamic>{});
     // The initiator mints a UUID-shaped rpcId and carries it in both the
     // envelope and the x-rpc-id header.
@@ -115,7 +115,7 @@ void main() {
     'session.create carries only set fields and unwraps result.value.sessionId',
     () async {
       final host = _ScriptedRpcHost(
-        (path, envelope, _) => path == '/api/session.create'
+        (path, envelope, _) => path == '/api/session/create'
             ? {
                 'type': 'server-response',
                 'rpcId': envelope['rpcId'],
@@ -136,7 +136,7 @@ void main() {
       );
 
       final call = host.requests.single;
-      expect(call.path, '/api/session.create');
+      expect(call.path, '/api/session/create');
       expect(call.body['payload'], {'workspaceId': 'ws-9', 'cwd': '/tmp/proj'});
       expect(id.value, 's-new');
 

@@ -219,6 +219,32 @@ export class WebServer extends Service {
   /** Listen; resolves once the socket is bound (rejection = FAILED fiber). */
   async [Service.init](): Promise<void> {
     const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+      // CORS for Flutter web dev (different origin than 127.0.0.1:3080) — loopback only.
+      // Flutter's BrowserClient (browser_client.dart:83 `fetch`) is cross-origin when
+      // `flutter run -d web-server` serves on its own port; without these headers
+      // every `session.list`/`settings.describe`/`workspace.list` is blocked as
+      // `CORS error` (see screenshot: fetch → browser_client.dart:83 → 0.0 kB).
+      // Production Flutter (built and served by this host's fallback) is same-origin
+      // and these headers are harmless. API auth is cookie `dsh-auth-*` (HttpOnly,
+      // SameSite=Strict) minted from `?token=` on first `/` load — browser must
+      // send it, so we echo the request Origin and allow credentials. Without
+      // `credentials: 'include'` + `Allow-Credentials: true` the cookie is never
+      // sent cross-port and every `/api/*` is `401 Unauthorized` (second screenshot).
+      const origin = req.headers.origin as string | undefined
+      if (origin !== undefined) {
+        res.setHeader('Access-Control-Allow-Origin', origin)
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Rpc-Id, X-Requested-With, Accept, Origin, Cookie')
+        res.setHeader('Access-Control-Allow-Credentials', 'true')
+        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie')
+        res.setHeader('Access-Control-Max-Age', '86400')
+        res.setHeader('Vary', 'Origin')
+      }
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204)
+        res.end()
+        return
+      }
       /* v8 ignore next -- `?? '/'` arm: node:http always sets url on server
       requests; the field is only optional on the client-side IncomingMessage type */
       const rawPath = new URL(req.url ?? '/', 'http://x').pathname

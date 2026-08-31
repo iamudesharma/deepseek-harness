@@ -813,9 +813,9 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                                             ).notifier,
                                           )
                                           .removeAttachmentById(
-                                            att.id.isNotEmpty
+                                            att.id.value.isNotEmpty
                                                 ? att.id
-                                                : att.name,
+                                                : DraftAttachmentId(att.name),
                                           )
                                     : null,
                               ),
@@ -1236,14 +1236,18 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
     final ModelDirectoryState dirState = ref.watch(
       modelDirectoryProvider(widget.sessionId),
     );
+    final ModelSelection? liveSelection = ref.watch(
+      modelSelectionProjectionProvider(widget.sessionId),
+    );
+    final ModelSelection? effectiveCurrent = liveSelection ?? dirState.current;
     final (ModelProviderGroup?, ModelInfo?) resolved = _resolveCurrent(
       dirState.groups,
-      dirState.current,
+      effectiveCurrent,
     );
     final ModelInfo? currentModel = resolved.$2;
     final ModelReasoning? reasoning = currentModel?.reasoning;
     final String? effectiveEffort =
-        dirState.current?.reasoningEffort ?? reasoning?.defaultEffort;
+        effectiveCurrent?.reasoningEffort ?? reasoning?.defaultEffort;
     String? effortLabel;
     if (reasoning != null) {
       if (effectiveEffort == null) {
@@ -1256,7 +1260,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
       }
     }
     final String modelLabel =
-        currentModel?.name ?? dirState.current?.model ?? 'Select model';
+        currentModel?.name ?? effectiveCurrent?.model ?? 'Select model';
 
     return OverlayPortal(
       controller: _portal,
@@ -1298,6 +1302,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
                       ),
                       child: _buildMenuBody(
                         dirState,
+                        effectiveCurrent,
                         currentModel,
                         reasoning,
                         effectiveEffort,
@@ -1388,6 +1393,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
 
   Widget _buildMenuBody(
     ModelDirectoryState dirState,
+    ModelSelection? effectiveCurrent,
     ModelInfo? currentModel,
     ModelReasoning? reasoning,
     String? effectiveEffort,
@@ -1506,6 +1512,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
               else
                 ..._paneChildren(
                   dirState,
+                  effectiveCurrent,
                   reasoning,
                   effectiveEffort,
                   busy,
@@ -1532,6 +1539,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
   ///   (`chooseEffort`).
   List<Widget> _paneChildren(
     ModelDirectoryState dirState,
+    ModelSelection? effectiveCurrent,
     ModelReasoning? reasoning,
     String? effectiveEffort,
     bool busy,
@@ -1585,8 +1593,8 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
                 title: m.name,
                 subtitle: m.description,
                 selected:
-                    dirState.current?.provider == group.id &&
-                    dirState.current?.model == m.id,
+                    effectiveCurrent?.provider == group.id &&
+                    effectiveCurrent?.model == m.id,
                 enabled: widget.enabled && !busy && dirState.routable != false,
                 onPick: () => _select(
                   ModelSelection(
@@ -1602,7 +1610,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
           ],
         ];
       case _ModelPane.effort:
-        final ModelSelection? current = dirState.current;
+        final ModelSelection? current = effectiveCurrent;
         return [
           if (reasoning == null || current == null)
             Padding(

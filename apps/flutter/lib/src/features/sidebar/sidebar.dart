@@ -27,7 +27,6 @@ import '../../plugins/workspace/locales.dart'
         workspaceTimeLabel;
 import '../../theme/app_theme.dart';
 import '../../utils/abbreviate_home_path.dart';
-import '../../utils/workspace_labels.dart';
 import '../../widgets/primitives/hover_card.dart';
 import '../../widgets/primitives/state_dot.dart';
 import '../../platform/clipboard.dart';
@@ -39,6 +38,35 @@ import 'workspace_view_store.dart';
 import '../../plugins/directory_picker/directory_picker_plugin.dart'
     show activatedPickDirectory;
 import '../../plugins/permission_presets/permission_session_provider.dart';
+
+// Device clock that ticks every 30s so "5m" → "6m" without rebuild.
+// Mirrors `client/ui-primitives` `relativeTime` contract which injects `now`.
+final deviceClockProvider = StreamProvider<int>((ref) async* {
+  while (true) {
+    yield DateTime.now().millisecondsSinceEpoch;
+    await Future<void>.delayed(const Duration(seconds: 30));
+  }
+});
+
+/// Host-synced `now` for `timeLabel`/`hoverTimeLabel`.
+///
+/// `relativeTime` does `Math.max(0, now-at)` → future `updatedAt` clamps to
+/// "now" (`workspace_labels:25` mirrors `client/ui-primitives/src/relative-time:29`).
+/// Host `updatedAt` comes from host clock; device clock may lag (e.g. host
+/// ahead by minutes) → every row shows "now" (your 53 Ungrouped screenshot).
+/// Use host max as reference when host is ahead: `hostNow = max(maxUpdatedAt, deviceNow)`.
+/// This keeps bucketing correct without changing the pure `relativeTime` fn.
+final hostSyncedNowProvider = Provider<int>((ref) {
+  final deviceNow = ref.watch(deviceClockProvider).valueOrNull ?? DateTime.now().millisecondsSinceEpoch;
+  final sessions = ref.watch(sessionsProvider);
+  final items = sessions.byId.values;
+  if (items.isEmpty) return deviceNow;
+  final maxUpdatedAt = items.map((s) => s.updatedAt).reduce((a, b) => a > b ? a : b);
+  // Host ahead → use host time as "now" so most recent is "now" and older shows "5m"/"2h" etc.
+  // Host behind or equal → device time is fine (future clamp still "now" per spec).
+  if (maxUpdatedAt > deviceNow) return maxUpdatedAt;
+  return deviceNow;
+});
 
 // Keep simple provider for backward compat.
 final sidebarSearchProvider = StateProvider<String>((ref) => '');
@@ -110,23 +138,9 @@ Future<void> _handleNewSession(WidgetRef ref, BuildContext context) async {
         rethrow;
       }
     }
-    // Seed the permission projection immediately so the composer chip never
-    // flickers hidden on a blank session — the history tail already carries
-    // `permissions` at creation (host_session_policy + live_sync's
-    // SessionProjectionFrame both do this, but the new-session navigation races
-    // the mux push; a direct history pull guarantees the seat is visible on
-    // first frame, mirroring the active-session posture).
-    try {
-      final res = await client.getSessionHistory(newId);
-      final perm = res.projections?.values['permissions'];
-      if (perm is Map) {
-        ref.read(permissionSelectProvider(newId.value).notifier).state =
-            PermissionSelect.fromJson(perm.cast<String, dynamic>());
-      }
-    } catch (_) {
-      // Live SessionProjectionFrame remains the authority; a failed re-pull
-      // keeps the seat hidden until the push lands (the pre-existing posture).
-    }
+    // Permission projection is now authoritative via `session/follow`
+    // snapshot and `session/projection` live frames; no `session/page`
+    // history pull is needed for a blank new session (cursor -1).
     // Project the host-born session before the confirming list pull lands
     // (host_session_policy.dart): the returned id is immediately addressable.
     ref.read(sessionsProvider.notifier).addSession(adoptHostBornSession(newId));
@@ -211,6 +225,18 @@ class WorkspaceGroup {
   final List<SessionSummary> sessions;
 }
 
+/// Visible check mirrors `tree.ts:sessionVisible`.
+bool _sessionVisible(
+  SessionSummary s,
+  SessionId? current,
+  Set<SessionId> archived,
+) {
+  if (s.origin == 'subagent') return false;
+  if (archived.contains(s.sessionId)) return false;
+  if (s.blank && s.sessionId != current) return false;
+  return true;
+}
+
 List<WorkspaceGroup> deriveWorkspaceGroups(
   List<SessionSummary> sessions,
   List<WorkspaceView> workspaces,
@@ -218,6 +244,7 @@ List<WorkspaceGroup> deriveWorkspaceGroups(
   Set<String> expandedKeys,
   String query, {
   String ungroupedLabel = 'Ungrouped',
+  Set<SessionId> archivedIds = const {},
 }) {
   final filtered = query.isEmpty
       ? sessions
@@ -228,80 +255,76 @@ List<WorkspaceGroup> deriveWorkspaceGroups(
           final q = query.toLowerCase();
           return title.contains(q) || id.contains(q) || cwd.contains(q);
         }).toList();
+  // Build lookup for current-group detection and membership.
   final byId = {for (final s in filtered) s.sessionId: s};
-  final accounted = <SessionId>{};
-  // Precompute session-to-workspace ownership for current key and grouping.
-  final bool hasSessionIdsLocal = workspaces.any(
-    (w) => w.sessionIds.isNotEmpty,
-  );
+  // Authoritative membership: workspace.sessionIds is the sole truth (tree.ts:groupByWorkspace).
+  // Do not derive from cwd; only `labelOf` for search uses cwd fallback.
+  final Set<SessionId> accounted = {};
+  final Map<String, List<SessionSummary>> byWorkspace = {};
   final Map<SessionId, String> ownerForKey = {};
-  if (hasSessionIdsLocal) {
-    for (final w in workspaces) {
-      for (final sid in w.sessionIds) {
-        ownerForKey.putIfAbsent(sid, () => w.workspaceId.value);
-      }
+  for (final w in workspaces) {
+    for (final sid in w.sessionIds) {
+      ownerForKey.putIfAbsent(sid, () => w.workspaceId.value);
     }
   }
-  final String? currentKey = current == null
-      ? null
-      : (() {
-          final key = ownerForKey[current];
-          if (key != null) return key;
-          final cur = byId[current];
-          if (cur?.cwd != null) {
-            for (final w in workspaces) {
-              final cwd = w.cwd;
-              if (cwd != null && cur!.cwd!.startsWith(cwd))
-                return w.workspaceId.value;
-            }
-          }
-          return _kUngroupedKey;
-        })();
-  // Determine mapping: prefer host-provided sessionIds membership (workspace.list), fallback to cwd prefix.
-  Map<String, List<SessionSummary>> byWorkspace = {};
+  // currentKey: which workspace contains the current session (or Ungrouped).
+  String currentKey = _kUngroupedKey;
+  if (current != null) {
+    final direct = ownerForKey[current];
+    if (direct != null) {
+      currentKey = direct;
+    } else {
+      // Not in any workspace account → Ungrouped (React: `workspaces.find(...includes(current)) ?? UNGROUPED_KEY`).
+      currentKey = _kUngroupedKey;
+    }
+  }
+  // Build workspace groups in host order, preserving account order (sessionIds order), not recency.
+  for (final w in workspaces) {
+    final members = <SessionSummary>[];
+    for (final sid in w.sessionIds) {
+      final summary = byId[sid];
+      if (summary == null) {
+        // Account may lead the list pull; row appears when summary lands (tree.ts: accounted.add even if undefined).
+        // Still mark accounted so stray does not duplicate.
+        // For filtered case, if not in filtered (query filtered out), we still consider accounted but not visible.
+        // We need to know if sid exists in original sessions but filtered out by query? For simplicity, use filtered byId.
+        // If not in byId, we still want to mark accounted if it exists in original sessions list but was filtered.
+        // Check original sessions map for existence.
+        final existsInOriginal = sessions.any((s) => s.sessionId == sid);
+        if (existsInOriginal) accounted.add(sid);
+        continue;
+      }
+      accounted.add(sid);
+      if (!_sessionVisible(summary, current, archivedIds)) continue;
+      members.add(summary);
+    }
+    byWorkspace[w.workspaceId.value] = members;
+  }
+  // Stray (Ungrouped): sessions not accounted and visible, in filtered order.
+  // For parity with tree.ts `list.ids` order, we use filtered's original order filtered by visibility.
   final List<SessionSummary> ungrouped = [];
-  if (hasSessionIdsLocal) {
-    for (final s in filtered) {
-      if (s.origin == 'subagent') continue;
-      if (s.blank && s.sessionId != current) continue;
-      final ownerKey = ownerForKey[s.sessionId];
-      if (ownerKey != null) {
-        accounted.add(s.sessionId);
-        byWorkspace.putIfAbsent(ownerKey, () => []).add(s);
-      } else {
-        ungrouped.add(s);
-      }
-    }
-  } else {
-    for (final s in filtered) {
-      if (s.origin == 'subagent') continue;
-      if (s.blank && s.sessionId != current) continue;
-      WorkspaceView? matched;
-      for (final w in workspaces) {
-        if (w.cwd != null &&
-            s.cwd != null &&
-            (s.cwd == w.cwd || s.cwd!.startsWith('${w.cwd}/'))) {
-          matched = w;
-          break;
-        }
-      }
-      if (matched != null) {
-        accounted.add(s.sessionId);
-        byWorkspace.putIfAbsent(matched.workspaceId.value, () => []).add(s);
-      } else {
-        ungrouped.add(s);
-      }
-    }
+  for (final s in filtered) {
+    if (accounted.contains(s.sessionId)) continue;
+    if (!_sessionVisible(s, current, archivedIds)) continue;
+    ungrouped.add(s);
   }
-  // If no cwd match but synthetic workspaces (default/project-a) used, distribute round-robin for visual grouping.
-  // Fallback: if ungrouped == all and workspaces non-empty, keep ungrouped as separate bucket.
+  // Ungrouped ordering: recency (newest first) when no stored order; else stored order.
+  // Flutter's simple recency matches tree.ts `orderedUngrouped` fallback.
+  // If a stored order exists (workspaceSessionOrderProvider for ''), callers handle it outside;
+  // here we provide recency baseline.
+  ungrouped.sort((a, b) {
+    if (b.updatedAt != a.updatedAt) return b.updatedAt.compareTo(a.updatedAt);
+    return a.sessionId.value.compareTo(b.sessionId.value);
+  });
+
   final List<WorkspaceGroup> groups = [];
   for (final w in workspaces) {
     final list = byWorkspace[w.workspaceId.value] ?? [];
-    // Sort by updatedAt descending (like host session.list order).
-    list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    // Preserve account order (sessionIds order) — do NOT sort by updatedAt.
+    // React's buildGroup with order 'account' keeps sessionIds order.
     final key = w.workspaceId.value;
     final expanded = expandedKeys.contains(key);
+    final containsCurrent = currentKey == key;
     groups.add(
       WorkspaceGroup(
         key: key,
@@ -310,17 +333,15 @@ List<WorkspaceGroup> deriveWorkspaceGroups(
         cwd: w.cwd,
         createdAt: w.createdAt,
         sessionCount: list.length,
-        expanded: expanded || expandedKeys.isEmpty && groups.isEmpty,
-        containsCurrent: currentKey == key,
+        expanded: expanded || (expandedKeys.isEmpty && groups.isEmpty),
+        containsCurrent: containsCurrent,
         sessions: expanded || expandedKeys.contains(key) || expandedKeys.isEmpty
             ? list
             : [],
       ),
     );
   }
-  // For truly ungrouped, push after real workspaces if any remain.
   if (ungrouped.isNotEmpty) {
-    ungrouped.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     final expanded =
         expandedKeys.contains(_kUngroupedKey) || expandedKeys.isEmpty;
     groups.add(
@@ -337,7 +358,6 @@ List<WorkspaceGroup> deriveWorkspaceGroups(
       ),
     );
   }
-  // If collapsed group, show only first N but caller caps.
   return groups;
 }
 
@@ -1213,20 +1233,9 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                         final newId = await client.createSession(
                           workspaceId: wsId.value,
                         );
-                        try {
-                          final res = await client.getSessionHistory(newId);
-                          final perm = res.projections?.values['permissions'];
-                          if (perm is Map) {
-                            ref
-                                .read(
-                                  permissionSelectProvider(newId.value)
-                                      .notifier,
-                                )
-                                .state = PermissionSelect.fromJson(
-                              perm.cast<String, dynamic>(),
-                            );
-                          }
-                        } catch (_) {}
+                        // Permission projection is authoritative via
+                        // `session/follow` snapshot; no `session/page` pull
+                        // for blank sessions.
                         // Project the host-born session before the confirming
                         // list pull lands (host_session_policy.dart).
                         ref
@@ -1381,6 +1390,7 @@ class _WorkspaceTree extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Translate tw = ref.bindLocale(kWorkspaceNamespace);
+    final archived = ref.watch(workspaceArchivedIdsProvider);
     final groups = deriveWorkspaceGroups(
       sessions,
       workspaces,
@@ -1388,6 +1398,7 @@ class _WorkspaceTree extends ConsumerWidget {
       expandedKeys,
       query,
       ungroupedLabel: tw('group.ungrouped'),
+      archivedIds: archived,
     );
     if (groups.isEmpty)
       return _EmptyState(aliases: aliases, hasQuery: query.isNotEmpty);
@@ -1837,14 +1848,15 @@ class _SessionRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: DswTokens.spaceSm),
-                Text(
-                  workspaceTimeLabel(
-                    summary.updatedAt,
-                    DateTime.now().millisecondsSinceEpoch,
-                    tw,
+                if (!summary.blank)
+                  Text(
+                    workspaceTimeLabel(
+                      summary.updatedAt,
+                      ref.watch(hostSyncedNowProvider),
+                      tw,
+                    ),
+                    style: TextStyle(fontSize: 11, color: aliases.labelCaption),
                   ),
-                  style: TextStyle(fontSize: 11, color: aliases.labelCaption),
-                ),
                 // Row actions menu — React SessionNodeItem menu: rename/fork/archive.
                 PopupMenuButton<String>(
                   tooltip: formatWorkspaceNamed(
@@ -2246,7 +2258,7 @@ class _SessionHoverContent extends ConsumerWidget {
     final Translate tw = ref.bindLocale(kWorkspaceNamespace);
     final statuses = summary.sessionStatuses();
     final title = summary.blank ? tw('session.new') : summary.displayTitle;
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = ref.watch(hostSyncedNowProvider);
     // Same fixed dark-surface contract as _WorkspaceHoverContent; status dots
     // reuse the shared StateDot primitive exactly as Rows.tsx does.
     return Column(

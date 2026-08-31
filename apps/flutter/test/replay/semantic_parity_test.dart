@@ -33,6 +33,7 @@ class _ScriptedHistoryClient extends ConnectionClient {
   @override
   Future<List<HistoryEntry>> getSessionEvents(
     SessionId id, {
+    required int throughSeq,
     int? beforeSeq,
     int? maxMessages,
   }) => _scriptedEvents(id);

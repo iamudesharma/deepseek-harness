@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dsh_flutter/src/core/session/session_event_map.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
+import 'package:dsh_flutter/src/core/session/session_models.dart' show ToolCallId;
 import 'package:dsh_flutter/src/plugins/conversation/nodes/conversation_nodes.dart';
 import 'package:dsh_flutter/src/plugins/conversation/ui/chat_view.dart';
 import 'package:dsh_flutter/src/plugins/conversation/ui/composer.dart';
@@ -45,7 +46,7 @@ void main() {
         final tool = ToolNode(
           key: 't1',
           sourceSeqs: [1, 2],
-          callId: 'c1',
+          callId: ToolCallId('c1'),
           name: 'bash',
           status: ToolNodeStatus.success,
           result: 'hello\nworld',

@@ -127,7 +127,8 @@ class _LifecycleHost {
         await request.response.close();
         return;
       }
-      if (request.method == 'POST' && path == '/api/session.history') {
+      if (request.method == 'POST' &&
+          (path == '/api/session.history' || path == '/api/session/page')) {
         final body = await utf8.decoder.bind(request).join();
         final req = jsonDecode(body) as Map<String, dynamic>;
         final resp = {
@@ -137,6 +138,15 @@ class _LifecycleHost {
             'ok': true,
             'value': {
               'events': history,
+              // Also provide `records` for current master `session/page` shape
+              'records': [
+                for (final h in history)
+                  {
+                    'type': 'event',
+                    'event': (h as Map)['event'],
+                    if ((h as Map).containsKey('view')) 'view': h['view'],
+                  },
+              ],
               'hasMore': false,
               'projections': {'asOfSeq': -1, 'values': {}},
             },
@@ -739,7 +749,10 @@ void main() {
         final client = ConnectionClient(baseUrl: baseUrl);
         final sessions = await client.getSessions();
         expect(sessions.first.running, isTrue);
-        final hist = await client.getSessionEvents(SessionId('tool-sess'));
+        final hist = await client.getSessionEvents(
+          SessionId('tool-sess'),
+          throughSeq: 0,
+        );
         expect(hist.first.event.type, 'tool/call');
         // After resume, re-fetch should still be authoritative
         final sessions2 = await client.getSessions();
@@ -1363,8 +1376,11 @@ void main() {
       // 4. refresh session list
       final sessions = await client.getSessions();
       expect(sessions, hasLength(1));
-      // 5. refresh session history and rebuild
-      final history = await client.getSessionEvents(SessionId('sess-1'));
+      // 5. refresh session history and rebuild — through cursor 1 (last seq)
+      final history = await client.getSessionEvents(
+        SessionId('sess-1'),
+        throughSeq: 1,
+      );
       expect(history, hasLength(2));
       controller.stop();
       client.dispose();

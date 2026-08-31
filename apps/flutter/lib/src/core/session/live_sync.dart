@@ -12,14 +12,18 @@ import '../../plugins/user_questions/questions_state.dart';
 import '../../plugins/user_questions/question_models.dart' show QuestionItem;
 import '../services/runtime_services.dart';
 import '../connection/connection_client.dart';
+import '../connection/remote_mux_client.dart';
 import 'projection_store.dart';
 import 'session_models.dart';
 import 'sessions_controller.dart';
+import 'session_provider.dart';
 import '../../features/conversation/message_provider.dart';
 import '../../plugins/plan/ui/plan_provider.dart';
 import '../../plugins/permission_presets/permission_session_provider.dart';
 import '../../plugins/attachment/attachment_limits.dart';
 import '../../platform/drag_drop.dart' show ImageLimits;
+import '../../features/model_selection/model_directory.dart'
+    show modelSelectionProjectionProvider, ModelSelection;
 
 /// Live sync that wires the SSE mux/host streams to Riverpod state.
 ///
@@ -125,6 +129,54 @@ void installPendingInteractionResync(
   });
 }
 
+ModelSelection? _parseLiveModelSelection(Map<String, dynamic> json) {
+  Map<String, dynamic>? pick(Map<String, dynamic>? node) {
+    if (node == null) return null;
+    final p = node['provider'] as String?;
+    final m = node['model'] as String?;
+    if (p == null || p.isEmpty || m == null || m.isEmpty) return null;
+    return {
+      'provider': p,
+      'model': m,
+      if (node['reasoningEffort'] is String) 'reasoningEffort': node['reasoningEffort'],
+    };
+  }
+
+  final next = pick(json['next'] as Map<String, dynamic>?);
+  if (next != null) {
+    return ModelSelection(
+      provider: next['provider'] as String,
+      model: next['model'] as String,
+      reasoningEffort: next['reasoningEffort'] as String?,
+    );
+  }
+  final last = pick(json['lastUsed'] as Map<String, dynamic>?);
+  if (last != null) {
+    return ModelSelection(
+      provider: last['provider'] as String,
+      model: last['model'] as String,
+      reasoningEffort: last['reasoningEffort'] as String?,
+    );
+  }
+  final direct = pick(json);
+  if (direct != null) {
+    return ModelSelection(
+      provider: direct['provider'] as String,
+      model: direct['model'] as String,
+      reasoningEffort: direct['reasoningEffort'] as String?,
+    );
+  }
+  return null;
+}
+
+/// Mirrors the controller's `RemoteMuxClient` as a Riverpod provider so the
+/// follow-stream opener can re-evaluate when the mux itself becomes
+/// available — independent of `currentSession` or `ConnectionState` change
+/// orders during startup.
+final remoteMuxProvider = Provider<RemoteMuxClient?>((ref) {
+  return ref.watch(flutterConnectionProvider).remoteMux;
+});
+
 final liveSyncProvider = Provider<void>((ref) {
   final client = ref.watch(connectionClientProvider);
   if (client.baseUrl.isEmpty) return;
@@ -211,103 +263,24 @@ final liveSyncProvider = Provider<void>((ref) {
             }
           }
         case SessionSubscribedFrame(:final sessionId, :final lastSeq):
-          if (kDebugMode)
+          // Deprecated: legacy `MuxFrame session/subscribed` path. New master uses
+          // `session/follow` snapshot via `openFollowFor → replaceAll` (0 HTTP).
+          // Keep decode for backward-compat with old host frames, but do not HTTP
+          // `session/page` here — that storm was 1× `page` per subscribed event
+          // and contributed to the 25-pending screenshot.
+          if (kDebugMode) {
             debugPrint(
-              '[liveSync] session/subscribed ${sessionId.value} lastSeq $lastSeq',
+              '[liveSync] session/subscribed (legacy, no page) ${sessionId.value} lastSeq $lastSeq',
             );
-          // On (re)subscribe, ensure live window is at least as fresh as
-          // lastSeq. For now, trigger a re-fetch if live is empty.
-          final live = ref.read(liveHistoryProvider(sessionId.value));
-          if (live.isEmpty) {
-            Future.microtask(() async {
-              try {
-                final client = ref.read(connectionClientProvider);
-                if (client.baseUrl.isEmpty) return;
-                final res = await client.getSessionHistory(sessionId);
-                ref
-                    .read(liveHistoryProvider(sessionId.value).notifier)
-                    .replaceAll(res.entries);
-                final publishable = publishableProjectionKeys(
-                  ref.read(sessionProjectionStores(sessionId.value)),
-                  res.projections,
-                );
-                if (publishable.contains('title')) {
-                  final title = res.projections!.values['title'];
-                  ref
-                      .read(sessionsProvider.notifier)
-                      .updateSession(
-                        sessionId,
-                        (s) => s.withTitle(
-                          title is String && title.isNotEmpty ? title : null,
-                        ),
-                      );
-                }
-                final perm = publishable.contains('permissions')
-                    ? res.projections!.values['permissions']
-                    : null;
-                if (perm is Map) {
-                  try {
-                    final select = PermissionSelect.fromJson(
-                      perm.cast<String, dynamic>(),
-                    );
-                    ref
-                            .read(
-                              permissionSelectProvider(sessionId.value)
-                                  .notifier,
-                            )
-                            .state =
-                        select;
-                  } catch (_) {
-                    ref
-                            .read(
-                              permissionSelectProvider(sessionId.value)
-                                  .notifier,
-                            )
-                            .state =
-                        null;
-                  }
-                }
-                final imgLimits = publishable.contains('imageLimits')
-                    ? res.projections!.values['imageLimits']
-                    : null;
-                if (imgLimits is Map) {
-                  try {
-                    final m = imgLimits is Map<String, dynamic>
-                        ? imgLimits
-                        : (imgLimits as Map).cast<String, dynamic>();
-                    final mediaTypes = (m['mediaTypes'] as List?)
-                        ?.whereType<String>()
-                        .toList();
-                    final maxImages = m['maxImagesPerMessage'] as int?;
-                    final maxBytes = m['maxImageBytes'] as int?;
-                    final maxTotal = m['maxMessageImageBytes'] as int?;
-                    if (mediaTypes != null &&
-                        maxImages != null &&
-                        maxBytes != null &&
-                        maxTotal != null) {
-                      ref
-                          .read(imageLimitsProvider.notifier)
-                          .state = ImageLimits(
-                        mediaTypes: mediaTypes,
-                        maxImagesPerMessage: maxImages,
-                        maxImageBytes: maxBytes,
-                        maxMessageImageBytes: maxTotal,
-                      );
-                    }
-                  } catch (_) {}
-                }
-              } catch (_) {}
-            });
           }
+          // No `getSessionHistory` — follow snapshot owns the window.
         case SessionQueueFrame(:final sessionId, :final items):
-          // Authoritative whole-snapshot inbox: store for the queue dock and
-          // invalidate the derived message list as before.
+          // Authoritative whole-snapshot inbox: store for the queue dock.
+          // No `messageListProvider` invalidation — that provider is now a pure
+          // view of `liveHistory` (React parity: queue does not page history).
+          // Previously `invalidate(messageListProvider)` → 1× `session/page` per
+          // queue update → storm when queue ticks during streaming.
           ref.read(queueProvider.notifier).replace(sessionId.value, items);
-          Future.microtask(() {
-            try {
-              ref.invalidate(messageListProvider(sessionId.value));
-            } catch (_) {}
-          });
         case StreamErrorFrame(:final error):
           if (kDebugMode)
             debugPrint('[liveSync] mux stream/error: ${error.message}');
@@ -444,6 +417,23 @@ final liveSyncProvider = Provider<void>((ref) {
                 }
               }
             } catch (_) {}
+          } else if (key == 'modelSelection') {
+            try {
+              if (value is Map) {
+                final sel = _parseLiveModelSelection(
+                  (value is Map<String, dynamic>
+                          ? value
+                          : (value as Map).cast<String, dynamic>()),
+                );
+                ref
+                    .read(modelSelectionProjectionProvider(sessionId.value).notifier)
+                    .state = sel;
+              } else {
+                ref
+                    .read(modelSelectionProjectionProvider(sessionId.value).notifier)
+                    .state = null;
+              }
+            } catch (_) {}
           }
           break;
         case ApprovalRequestedFrame(
@@ -561,166 +551,15 @@ final liveSyncProvider = Provider<void>((ref) {
 
   controller.onConnected = (Map<String, dynamic> desc) {
     if (kDebugMode) debugPrint('[liveSync] onConnected host.describe: $desc');
-    // Re-sync after reconnect: re-fetch session list and current session history
-    // to repair any gap the liveBuffer missed (mirrors Session.repairGap).
+    // Re-sync after reconnect: single `session/list` refresh. History is
+    // repaired solely by the follow snapshot (`openFollowFor → replaceAll`).
+    // Previously this invalidated every `messageListProvider` (N× `session/page`
+    // → storm) — removed. React only re-opens `session/follow` on Generation
+    // reset, 0× `page` if contiguous (`journal-stream.ts:149`).
     Future.microtask(() async {
       try {
         final sessions = await client.getSessions();
         ref.read(sessionsProvider.notifier).setAll(sessions);
-        final current = ref.read(sessionsProvider).current;
-        if (current != null) {
-          try {
-            final res = await client.getSessionHistory(current);
-            ref
-                .read(liveHistoryProvider(current.value).notifier)
-                .replaceAll(res.entries);
-            final publishable = publishableProjectionKeys(
-              ref.read(sessionProjectionStores(current.value)),
-              res.projections,
-            );
-            if (publishable.contains('title')) {
-              final title = res.projections!.values['title'];
-              ref
-                  .read(sessionsProvider.notifier)
-                  .updateSession(
-                    current,
-                    (s) => s.withTitle(
-                      title is String && title.isNotEmpty ? title : null,
-                    ),
-                  );
-            }
-            final perm = publishable.contains('permissions')
-                ? res.projections!.values['permissions']
-                : null;
-            if (perm is Map) {
-              try {
-                final select = PermissionSelect.fromJson(
-                  perm.cast<String, dynamic>(),
-                );
-                ref
-                        .read(permissionSelectProvider(current.value).notifier)
-                        .state =
-                    select;
-              } catch (_) {
-                ref
-                        .read(permissionSelectProvider(current.value).notifier)
-                        .state =
-                    null;
-              }
-            }
-            final imgCurrent = publishable.contains('imageLimits')
-                ? res.projections!.values['imageLimits']
-                : null;
-            if (imgCurrent is Map) {
-              try {
-                final m = imgCurrent is Map<String, dynamic>
-                    ? imgCurrent
-                    : (imgCurrent as Map).cast<String, dynamic>();
-                final mediaTypes = (m['mediaTypes'] as List?)
-                    ?.whereType<String>()
-                    .toList();
-                final maxImages = m['maxImagesPerMessage'] as int?;
-                final maxBytes = m['maxImageBytes'] as int?;
-                final maxTotal = m['maxMessageImageBytes'] as int?;
-                if (mediaTypes != null &&
-                    maxImages != null &&
-                    maxBytes != null &&
-                    maxTotal != null) {
-                  ref.read(imageLimitsProvider.notifier).state = ImageLimits(
-                    mediaTypes: mediaTypes,
-                    maxImagesPerMessage: maxImages,
-                    maxImageBytes: maxBytes,
-                    maxMessageImageBytes: maxTotal,
-                  );
-                }
-              } catch (_) {}
-            }
-          } catch (_) {
-            try {
-              ref.invalidate(messageListProvider(current.value));
-            } catch (_) {}
-          }
-        } else {
-          for (final s in sessions) {
-            try {
-              final res = await client.getSessionHistory(s.sessionId);
-              ref
-                  .read(liveHistoryProvider(s.sessionId.value).notifier)
-                  .replaceAll(res.entries);
-              final publishable = publishableProjectionKeys(
-                ref.read(sessionProjectionStores(s.sessionId.value)),
-                res.projections,
-              );
-              if (publishable.contains('title')) {
-                final title = res.projections!.values['title'];
-                ref
-                    .read(sessionsProvider.notifier)
-                    .updateSession(
-                      s.sessionId,
-                      (s2) => s2.withTitle(
-                        title is String && title.isNotEmpty ? title : null,
-                      ),
-                    );
-              }
-              final perm = publishable.contains('permissions')
-                  ? res.projections!.values['permissions']
-                  : null;
-              if (perm is Map) {
-                try {
-                  final select = PermissionSelect.fromJson(
-                    perm.cast<String, dynamic>(),
-                  );
-                  ref
-                          .read(
-                            permissionSelectProvider(s.sessionId.value)
-                                .notifier,
-                          )
-                          .state =
-                      select;
-                } catch (_) {
-                  ref
-                          .read(
-                            permissionSelectProvider(s.sessionId.value)
-                                .notifier,
-                          )
-                          .state =
-                      null;
-                }
-              }
-              final imgLoop = publishable.contains('imageLimits')
-                  ? res.projections!.values['imageLimits']
-                  : null;
-              if (imgLoop is Map) {
-                try {
-                  final m = imgLoop is Map<String, dynamic>
-                      ? imgLoop
-                      : (imgLoop as Map).cast<String, dynamic>();
-                  final mediaTypes = (m['mediaTypes'] as List?)
-                      ?.whereType<String>()
-                      .toList();
-                  final maxImages = m['maxImagesPerMessage'] as int?;
-                  final maxBytes = m['maxImageBytes'] as int?;
-                  final maxTotal = m['maxMessageImageBytes'] as int?;
-                  if (mediaTypes != null &&
-                      maxImages != null &&
-                      maxBytes != null &&
-                      maxTotal != null) {
-                    ref.read(imageLimitsProvider.notifier).state = ImageLimits(
-                      mediaTypes: mediaTypes,
-                      maxImagesPerMessage: maxImages,
-                      maxImageBytes: maxBytes,
-                      maxMessageImageBytes: maxTotal,
-                    );
-                  }
-                } catch (_) {}
-              }
-            } catch (_) {
-              try {
-                ref.invalidate(messageListProvider(s.sessionId.value));
-              } catch (_) {}
-            }
-          }
-        }
       } catch (_) {}
     });
   };
@@ -735,11 +574,172 @@ final liveSyncProvider = Provider<void>((ref) {
     sessions: sessionsCtrl,
   );
 
+  // Domain streams over remote.mux: session/follow for current session,
+  // session/control and workspace/follow are handled in connection_controller
+  // via synthetic queue/jobs/projection frames. Per-session follow streaming
+  // is wired here for the current session; it uses the shared RemoteMuxClient
+  // from the controller so one physical WSS carries all logical streams.
+  StreamSubscription<Map<String, dynamic>>? followSub;
+  SessionId? followSessionId;
+  int? followGen;
+  void openFollowFor(SessionId sid, int gen, RemoteMuxClient mux) {
+    followSub?.cancel();
+    followSessionId = sid;
+    followGen = gen;
+    final stream = mux.openSessionFollow(sid.value, maxMessages: 50);
+    followSub = stream.listen(
+      (raw) {
+        if (followGen != gen || followSessionId != sid) return;
+        final type = raw['type'] as String?;
+        if (type == 'snapshot') {
+          try {
+            final records = (raw['records'] as List? ?? const [])
+                .whereType<Map>()
+                .map((m) => m.cast<String, dynamic>())
+                .toList();
+            final entries = <HistoryEntry>[];
+            for (final r in records) {
+              if (r['type'] == 'event' && r['event'] is Map) {
+                try {
+                  entries.add(HistoryEntry(
+                    event: SessionEvent.fromJson((r['event'] as Map).cast<String, dynamic>()),
+                    view: (r['view'] as Map?)?.cast<String, dynamic>(),
+                  ));
+                } catch (_) {}
+              } else if (r['type'] == 'chunks') {
+                // Chunk rows are packed assistant deltas; live streaming handles
+                // them via 'event' type 'assistant/chunk' etc, ignore for history
+              } else if (r.containsKey('type') && r.containsKey('seq')) {
+                try {
+                  entries.add(HistoryEntry(event: SessionEvent.fromJson(r), view: null));
+                } catch (_) {}
+              }
+            }
+            final int cursor = (raw['cursor'] as int?) ?? (entries.isEmpty ? -1 : entries.last.event.seq);
+            final bool hasMore = raw['hasMore'] as bool? ?? false;
+            // Use cursor-aware replace to fence live events <= cursor per master sequence rule.
+            try {
+              ref
+                  .read(liveHistoryProvider(sid.value).notifier)
+                  .replaceAllWithCursorAndHasMore(entries, cursor, hasMore);
+            } catch (_) {
+              try {
+                ref.read(liveHistoryProvider(sid.value).notifier).replaceAllWithCursor(entries, cursor);
+                ref.read(liveHistoryProvider(sid.value).notifier).setHasMore(hasMore);
+              } catch (_) {
+                ref.read(liveHistoryProvider(sid.value).notifier).replaceAll(entries);
+              }
+            }
+            final proj = raw['projections'] as Map?;
+            if (proj != null) {
+              try {
+                final block = SessionProjectionsBlock.fromJson(proj.cast<String, dynamic>());
+                final publishable = publishableProjectionKeys(
+                  ref.read(sessionProjectionStores(sid.value)),
+                  block,
+                );
+                if (publishable.contains('title')) {
+                  final title = block.values['title'];
+                  ref.read(sessionsProvider.notifier).updateSession(
+                        sid,
+                        (s) => s.withTitle(title is String && title.isNotEmpty ? title : null),
+                      );
+                }
+                if (publishable.contains('modelSelection')) {
+                  final rawMs = block.values['modelSelection'];
+                  if (rawMs is Map) {
+                    try {
+                      final sel = _parseLiveModelSelection(
+                        rawMs.cast<String, dynamic>(),
+                      );
+                      ref
+                          .read(
+                            modelSelectionProjectionProvider(sid.value).notifier,
+                          )
+                          .state = sel;
+                    } catch (_) {}
+                  } else {
+                    ref
+                        .read(modelSelectionProjectionProvider(sid.value).notifier)
+                        .state = null;
+                  }
+                }
+              } catch (_) {}
+            }
+          } catch (_) {}
+        } else if (type == 'event') {
+          final ev = raw['event'] as Map?;
+          if (ev == null) return;
+          try {
+            final entry = HistoryEntry(
+              event: SessionEvent.fromJson(ev.cast<String, dynamic>()),
+              view: (raw['view'] as Map?)?.cast<String, dynamic>(),
+            );
+            ref.read(liveHistoryProvider(sid.value).notifier).appendLive(entry);
+            final eventType = ev['type'] as String?;
+            if (eventType != null) {
+              ref.read(sessionsProvider.notifier).updateSession(
+                    sid,
+                    (s) => applySessionEventToSummary(s, eventType) ?? s,
+                  );
+            }
+          } catch (_) {}
+        }
+      },
+      onError: (_) {},
+    );
+  }
+
+  // State-driven follow-stream opening. Three signals feed the same effect:
+  // current session selection, remote-mux availability on the controller, and
+  // connection-state transitions. Any one of them may arrive first depending
+  // on startup order; the previous per-listener guards bailed silently when a
+  // dependency was not yet ready and never re-fired, so `session/follow` could
+  // stay closed even though both sides were healthy.
+  void closeFollow() {
+    followSub?.cancel();
+    followSub = null;
+    followSessionId = null;
+    followGen = null;
+  }
+
+  void maybeOpenFollow() {
+    final cur = ref.read(currentSessionProvider);
+    final mux = controller.remoteMux;
+    final gen = controller.generation;
+    final sid = cur?.sessionId;
+    if (sid == null || mux == null) return;
+    if (followSessionId == sid && followGen == gen) return;
+    openFollowFor(sid, gen, mux);
+  }
+
+  ref.listen<SessionSummary?>(currentSessionProvider, (prev, next) {
+    maybeOpenFollow();
+  });
+  ref.listen<RemoteMuxClient?>(remoteMuxProvider, (prev, next) {
+    maybeOpenFollow();
+  });
+  ref.listen<ConnectionState>(connectionStateProvider, (prev, next) {
+    if (next == ConnectionState.connected) {
+      maybeOpenFollow();
+    } else if (next == ConnectionState.reconnecting ||
+        next == ConnectionState.disconnected) {
+      // Generation will be invalidated; follow will be reopened on next connected
+      closeFollow();
+    }
+  });
+  // Eagerly attempt to open follow if both session and mux are already
+  // available at provider init (otherwise the three listeners above would
+  // never fire and the selected session would stay "No messages yet"
+  // even though host has history — React's Session.open is eager).
+  scheduleMicrotask(maybeOpenFollow);
+
   // Ensure the controller is running (idempotent). Deferred via microtask:
   // the pump loop mutates connectionStateProvider synchronously on start,
   // which is a Riverpod initialization violation during this provider's build.
   scheduleMicrotask(controller.start);
   ref.onDispose(() {
+    followSub?.cancel();
     // Do not stop the controller on dispose of this provider alone; the
     // controller is scoped to the ProviderContainer lifetime. If this provider
     // is disposed (e.g., hot reload), we keep the controller running.
