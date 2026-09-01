@@ -476,7 +476,7 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
     <HoverCard
       anchor={ownRow}
       content={<SessionHoverContent node={node} now={now} t={t} />}
-      disabled={menuOpen || drag?.active === true || (currentId !== undefined && currentId !== node.id)}
+      disabled={menuOpen || drag?.active === true || currentId !== undefined}
       copyText={row.blank ? undefined : row.title}
       copyLabel={t('copy')}
       copiedLabel={t('hover.copied')}

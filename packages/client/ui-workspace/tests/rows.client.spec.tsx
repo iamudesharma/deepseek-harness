@@ -381,9 +381,21 @@ describe('workspace browser rows', () => {
       // The placeholder has no content yet: no row verbs, no "now" stamp.
       expect(screen.queryByRole('button', { name: /会话.*的操作/ })).toBeNull()
       expect(screen.queryByText('刚刚')).toBeNull()
-      // The hover card keeps title + status but drops the timestamp line.
+      // Hover is suppressed when any session is selected (currentId defined) — the
+      // conversation view already shows the blank session's state, so the preview
+      // card is not needed and would obscure the main panel.
       const wrapper = screen.getByRole('treeitem').parentElement as HTMLElement
       fireEvent.pointerEnter(wrapper)
+      act(() => { vi.advanceTimersByTime(500) })
+      expect(screen.queryByText('空闲')).toBeNull()
+      expect(screen.getAllByText('新会话')).toHaveLength(1)
+      // When nothing is selected, the blank row's hover shows title+status but
+      // drops the timestamp and copy affordance.
+      cleanup()
+      render(<SessionNodeItem node={node} currentId={undefined} now={0} onOpen={vi.fn()}
+        onRename={vi.fn()} onFork={vi.fn()} onArchive={vi.fn()} t={t} />)
+      const wrapper2 = screen.getByRole('treeitem').parentElement as HTMLElement
+      fireEvent.pointerEnter(wrapper2)
       act(() => { vi.advanceTimersByTime(500) })
       expect(screen.getAllByText('新会话').length).toBeGreaterThanOrEqual(2)
       expect(screen.getByText('空闲')).toBeTruthy()
