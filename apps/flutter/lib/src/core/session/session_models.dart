@@ -135,6 +135,11 @@ class SessionSummary {
   /// Derived via `indexSubagentDescendants` (see tree.ts / session_models search).
   final int runningSubagentCount;
 
+  /// Raw projection block as sent by the host (`projections.asOfSeq` +
+  /// `projections.values`), preserved for `title`/`agentPreset`/`modelSelection`
+  /// consumers and for `current_master_regression_test` parity.
+  final SessionProjectionsBlock? projections;
+
   /// Creates a session summary.
   const SessionSummary({
     required this.sessionId,
@@ -149,7 +154,17 @@ class SessionSummary {
     this.pendingInteraction,
     this.completed = false,
     this.runningSubagentCount = 0,
+    this.projections,
   });
+
+  /// Model-selection projection slice (`projections.values['modelSelection']`),
+  /// mirroring `ModelSelectionProjection` used by the model seat.
+  Map<String, dynamic>? get modelSelectionProjection {
+    final v = projections?.values['modelSelection'];
+    if (v is Map<String, dynamic>) return v;
+    if (v is Map) return v.cast<String, dynamic>();
+    return null;
+  }
 
   /// Creates a copy with selected fields replaced.
   ///
@@ -169,6 +184,7 @@ class SessionSummary {
     PendingInteractionStatus? pendingInteraction,
     bool? completed,
     int? runningSubagentCount,
+    SessionProjectionsBlock? projections,
   }) {
     return SessionSummary(
       sessionId: sessionId ?? this.sessionId,
@@ -183,6 +199,7 @@ class SessionSummary {
       pendingInteraction: pendingInteraction ?? this.pendingInteraction,
       completed: completed ?? this.completed,
       runningSubagentCount: runningSubagentCount ?? this.runningSubagentCount,
+      projections: projections ?? this.projections,
     );
   }
 
@@ -200,6 +217,7 @@ class SessionSummary {
     pendingInteraction: pendingInteraction,
     completed: completed,
     runningSubagentCount: runningSubagentCount,
+    projections: projections,
   );
 
   /// Copy with an explicit pending-interaction marker that may be `null`
@@ -218,23 +236,46 @@ class SessionSummary {
         pendingInteraction: status,
         completed: completed,
         runningSubagentCount: runningSubagentCount,
+        projections: projections,
       );
 
   /// Decode from host JSON — title lives under `projections.values['title']`
   /// per `session.title` projection (`null` before first title lands).
   factory SessionSummary.fromJson(Map<String, dynamic> json) {
-    // Title is a projection, not a top-level field.
+    // Title and agentPreset are projections, not top-level fields.
     String? title;
-    final projections = json['projections'];
-    if (projections is Map) {
-      final values = projections['values'];
+    String? agentPreset;
+    SessionProjectionsBlock? projectionsBlock;
+    final projectionsRaw = json['projections'];
+    if (projectionsRaw is Map) {
+      try {
+        projectionsBlock = SessionProjectionsBlock.fromJson(
+          (projectionsRaw as Map).cast<String, dynamic>(),
+        );
+      } catch (_) {
+        // Fall through to manual extraction
+      }
+      final values = projectionsRaw['values'];
       if (values is Map) {
         final t = values['title'];
         if (t is String && t.isNotEmpty) title = t;
+        final p = values['agentPreset'];
+        if (p is String && p.isNotEmpty) agentPreset = p;
       }
+      // Ensure projectionsBlock is at least captured even if typed decode failed
+      projectionsBlock ??= (() {
+        try {
+          return SessionProjectionsBlock.fromJson(
+            (projectionsRaw as Map).cast<String, dynamic>(),
+          );
+        } catch (_) {
+          return null;
+        }
+      })();
     }
-    // Fallback for test fixtures / legacy payloads that still carry top-level title.
+    // Fallback for test fixtures / legacy payloads that still carry top-level fields.
     title ??= json['title'] as String?;
+    agentPreset ??= json['agentPreset'] as String?;
     final pending = json['pendingInteraction'] as String?;
     final normalizedPending =
         pending == 'approval' ||
@@ -263,7 +304,7 @@ class SessionSummary {
           : SessionId(json['parentSessionId'] as String),
       origin: json['origin'] as String?,
       cwd: json['cwd'] as String?,
-      agentPreset: json['agentPreset'] as String?,
+      agentPreset: agentPreset,
       title: title,
       pendingInteraction: normalizedPending,
       completed: json['completed'] == true,
@@ -272,6 +313,7 @@ class SessionSummary {
           : json['runningSubagentCount'] is num
               ? (json['runningSubagentCount'] as num).toInt()
               : 0,
+      projections: projectionsBlock,
     );
   }
 
@@ -289,6 +331,7 @@ class SessionSummary {
     if (pendingInteraction != null) 'pendingInteraction': pendingInteraction,
     if (completed) 'completed': true,
     if (runningSubagentCount != 0) 'runningSubagentCount': runningSubagentCount,
+    if (projections != null) 'projections': projections!.toJson(),
   };
 
   @override
@@ -306,7 +349,8 @@ class SessionSummary {
           title == other.title &&
           pendingInteraction == other.pendingInteraction &&
           completed == other.completed &&
-          runningSubagentCount == other.runningSubagentCount;
+          runningSubagentCount == other.runningSubagentCount &&
+          projections == other.projections;
 
   @override
   int get hashCode => Object.hash(
@@ -322,6 +366,7 @@ class SessionSummary {
     pendingInteraction,
     completed,
     runningSubagentCount,
+    projections,
   );
 
   /// Human-facing title mirroring React `displayTitleOf` (title → cwd basename → id).
@@ -603,6 +648,31 @@ class SessionProjectionsBlock {
 
   /// Encode to JSON.
   Map<String, dynamic> toJson() => {'asOfSeq': asOfSeq, 'values': values};
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SessionProjectionsBlock &&
+          asOfSeq == other.asOfSeq &&
+          _mapsEqual(values, other.values);
+
+  @override
+  int get hashCode => Object.hash(
+        asOfSeq,
+        Object.hashAllUnordered(
+          values.entries.map((e) => Object.hash(e.key, e.value)),
+        ),
+      );
+
+  static bool _mapsEqual(Map<String, dynamic> a, Map<String, dynamic> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key)) return false;
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
 }
 
 /// Helper to pretty-print JSON for diagnostics.

@@ -656,6 +656,16 @@ class ConnectionClient {
             // list for callers that expect it.
             return {'_list': cur};
           }
+          if (cur is String) {
+            // `agentPresets/select` returns `RemoteResult<string>` (the selected
+            // preset id); wrap as `{value, agentPreset}` so callers can read
+            // `result['agentPreset'] ?? result['value'] ?? id`.
+            return {
+              'value': cur,
+              '_value': cur,
+              'agentPreset': cur,
+            };
+          }
           if (cur is Map<String, dynamic>) return cur;
           if (cur is Map) return Map<String, dynamic>.from(cur);
           // For void responses (e.g. credentials.set returns {}), tolerate empty.
@@ -685,6 +695,13 @@ class ConnectionClient {
       throw RemoteMethodException(code: code, message: msg, details: details);
     }
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
+    if (cur is String) {
+      return {
+        'value': cur,
+        '_value': cur,
+        'agentPreset': cur,
+      };
+    }
     if (cur is Map<String, dynamic>) return cur;
     if (cur is Map) return cur.cast<String, dynamic>();
     // For void responses (e.g. credentials.set returns {}), tolerate empty.
@@ -946,10 +963,8 @@ class ConnectionClient {
     required String sessionId,
     required String agentPreset,
   }) async {
-    // Check preset selector - check actual descriptor for agentPresets
-    // Placeholder: keep as direct, will verify via catalog later
     final body = await _postTypert('agentPresets/select', {
-      'sessionId': sessionId,
+      'agentId': sessionId,
       'agentPreset': agentPreset,
     });
     return _unwrapValue(body, 'agentPresets/select');
