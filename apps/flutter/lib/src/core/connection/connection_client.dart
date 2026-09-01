@@ -5,7 +5,21 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/browser_client.dart' as http_browser;
+
+import 'http_client.dart'
+    if (dart.library.io) 'http_client_io.dart'
+    if (dart.library.js_interop) 'http_client_web.dart'
+    as http_client_factory;
+
+import 'browser_cookie.dart'
+    if (dart.library.io) 'browser_cookie_io.dart'
+    if (dart.library.js_interop) 'browser_cookie_web.dart'
+    as browser_cookie;
+
+import 'websocket_helper.dart'
+    if (dart.library.io) 'websocket_helper_io.dart'
+    if (dart.library.js_interop) 'websocket_helper_web.dart'
+    as ws_helper;
 
 import '../session/session_models.dart';
 import '../session/host_session_policy.dart' show sessionCreatePayload;
@@ -130,7 +144,7 @@ class ConnectionClient {
     http.Client? httpClient,
     this.target,
     this.tokenStore,
-  }) : _http = httpClient ?? (kIsWeb ? (http_browser.BrowserClient()..withCredentials = true) : http.Client());
+  }) : _http = httpClient ?? http_client_factory.createHttpClient();
 
   /// Create from a [ConnectionTarget] (preferred for Phase 3).
   factory ConnectionClient.fromTarget(
@@ -175,6 +189,23 @@ class ConnectionClient {
     'content-type': 'application/json',
     'x-rpc-id': rpcId,
   };
+
+  /// Build headers for an RPC request, including the browser `dsh-auth-*`
+  /// cookie on native when `baseUrl` carries `?token=` and the bearer token
+  /// for [RemoteTarget].
+  Future<Map<String, String>> _headersWithAuth(String rpcId) async {
+    final headers = _headers(rpcId);
+    // Native: replay the browser cookie obtained via `GET /?token=` so
+    // `BrowserAuth.isAuthenticated` passes for loopback. Web is handled
+    // automatically via `BrowserClient.withCredentials`.
+    try {
+      final cookie = await browser_cookie.getBrowserCookie(baseUrl);
+      if (cookie != null) headers['cookie'] = cookie;
+    } catch (_) {}
+    final bearer = await _bearerToken();
+    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
+    return headers;
+  }
 
   /// Bearer token for the current [RemoteTarget], or `null` for [LocalTarget]
   /// / missing token. Never logs the raw value.
@@ -228,9 +259,7 @@ class ConnectionClient {
       'method': wire,
       'payload': normalized,
     };
-    final headers = _headers(id);
-    final bearer = await _bearerToken();
-    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
+    final headers = await _headersWithAuth(id);
     final resp = await _http.post(
       uri,
       headers: headers,
@@ -269,9 +298,7 @@ class ConnectionClient {
     // Fallback: raw POST (used only by tests with fake server).
     final id = rpcId ?? newRpcId();
     final uri = _uri(path);
-    final headers = _headers(id);
-    final bearer = await _bearerToken();
-    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
+    final headers = await _headersWithAuth(id);
     final resp = await _http.post(
       uri,
       headers: headers,
@@ -504,9 +531,7 @@ class ConnectionClient {
           : {'ok': false, 'error': error},
     };
     final uri = _uri('/api/respond');
-    final headers = _headers(rpcId.value);
-    final bearer = await _bearerToken();
-    if (bearer != null) headers['authorization'] = 'Bearer $bearer';
+    final headers = await _headersWithAuth(rpcId.value);
     final resp = await _http.post(
       uri,
       headers: headers,
@@ -1000,9 +1025,7 @@ class ConnectionClient {
           'method': 'host.describe',
           'payload': {'args': {}},
         };
-        final headers = _headers(id);
-        final bearer = await _bearerToken();
-        if (bearer != null) headers['authorization'] = 'Bearer $bearer';
+        final headers = await _headersWithAuth(id);
         final resp = await _http.post(
           uri,
           headers: headers,
@@ -1136,7 +1159,7 @@ class ConnectionClient {
     Uri uri, {
     void Function()? onOpen,
   }) async* {
-    final channel = WebSocketChannel.connect(uri);
+    final channel = await ws_helper.connectWebSocket(uri, baseUrl);
     _activeChannels.add(channel);
     try {
       await channel.ready;
@@ -1209,6 +1232,13 @@ class ConnectionClient {
     final req = http.Request('GET', uri);
     req.headers['accept'] = 'text/event-stream';
     req.headers['cache-control'] = 'no-cache';
+    // Native: include the browser cookie and bearer for the SSE upgrade.
+    try {
+      final cookie = await browser_cookie.getBrowserCookie(baseUrl);
+      if (cookie != null) req.headers['cookie'] = cookie;
+    } catch (_) {}
+    final bearer = await _bearerToken();
+    if (bearer != null) req.headers['authorization'] = 'Bearer $bearer';
     final streamed = await _http.send(req);
     if (streamed.statusCode < 200 || streamed.statusCode >= 300) {
       throw http.ClientException(

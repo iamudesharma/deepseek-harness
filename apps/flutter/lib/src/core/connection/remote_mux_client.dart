@@ -20,6 +20,11 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'connection_target.dart';
 import 'secure_token_store.dart';
 
+import 'websocket_helper.dart'
+    if (dart.library.io) 'websocket_helper_io.dart'
+    if (dart.library.js_interop) 'websocket_helper_web.dart'
+    as ws_helper;
+
 /// Failure from the host's `error` frame (business/gateway logical failure).
 class RemoteStreamError implements Exception {
   final String code;
@@ -195,7 +200,7 @@ class RemoteMuxClient {
     } else {
       uri = _muxUri();
     }
-    final channel = WebSocketChannel.connect(uri);
+    final channel = await ws_helper.connectWebSocket(uri, baseUrl);
     await channel.ready;
     if (_disposed || !_running) {
       await channel.sink.close();
