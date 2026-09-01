@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/rpc_envelope.dart';
 import '../../core/connection/connection_client.dart';
 import '../../core/connection/connection_controller.dart' as conn;
+import '../../core/session/host_session_policy.dart'
+    show adoptHostBornSession, isWorkspaceAttachFailure;
 import '../../core/session/session_models.dart';
 import '../../core/session/sessions_controller.dart';
 import '../../features/workspace/workspace_provider.dart';
@@ -263,19 +266,68 @@ class _SessionsMobileScreenState extends ConsumerState<SessionsMobileScreen> {
   ) async {
     final client = ref.read(connectionClientProvider);
     final messenger = ScaffoldMessenger.of(context);
+    // Resolve cwd for synthetic workspaces (workspace_provider
+    // `_synthesizedFromSessions` ids `synth-*` are not on host).
+    String? fallbackCwd;
+    if (wsId != null) {
+      final workspacesAsync = ref.read(workspaceListProvider);
+      final List<WorkspaceView> workspaces =
+          workspacesAsync.valueOrNull ?? const <WorkspaceView>[];
+      fallbackCwd = workspaces
+          .where((w) => w.workspaceId == wsId)
+          .firstOrNull
+          ?.cwd;
+    }
+    SessionId newId;
     try {
-      final SessionId newId;
       if (wsId != null) {
-        newId = await client.createSession(workspaceId: wsId.value);
+        try {
+          newId = await client.createSession(workspaceId: wsId.value);
+        } on RemoteMethodException catch (e) {
+          if (e.code == RpcErrorCode.workspaceNotFound ||
+              e.code == RpcErrorCode.workspaceAttachFailed) {
+            final published = e.details['sessionId'];
+            if (published is String) {
+              newId = SessionId(published);
+            } else if (fallbackCwd != null && fallbackCwd.isNotEmpty) {
+              newId = await client.createSession(cwd: fallbackCwd);
+            } else {
+              newId = await client.createSession();
+            }
+          } else {
+            rethrow;
+          }
+        } catch (e) {
+          if (isWorkspaceAttachFailure(e)) {
+            if (fallbackCwd != null && fallbackCwd.isNotEmpty) {
+              newId = await client.createSession(cwd: fallbackCwd);
+            } else {
+              newId = await client.createSession();
+            }
+          } else {
+            rethrow;
+          }
+        }
       } else {
         newId = await client.createSession();
       }
-      // Host-confirmed session id — do not navigate until confirmed.
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to create session: $e')),
+      );
+      return;
+    }
+    try {
+      // Project the blank host-born session before the confirming list pull
+      // so the id is synchronously addressable.
+      ref.read(sessionsProvider.notifier).addSession(adoptHostBornSession(newId));
       final sessions = await client.getSessions();
       ref.read(sessionsProvider.notifier).setAll(sessions);
-      // If the new session is addressable, select it; otherwise fall back to first.
       final exists = sessions.any((s) => s.sessionId == newId);
       if (exists) {
+        ref.read(sessionsProvider.notifier).setCurrent(newId);
+      } else {
+        // Adopted id not yet in list pull; keep local projection.
         ref.read(sessionsProvider.notifier).setCurrent(newId);
       }
       unawaited(persistSelectedSessionId(newId.value));

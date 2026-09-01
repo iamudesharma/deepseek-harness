@@ -137,12 +137,20 @@ void main() {
 
       final call = host.requests.single;
       expect(call.path, '/api/session/create');
-      expect(call.body['payload'], {'workspaceId': 'ws-9', 'cwd': '/tmp/proj'});
+      // Typert gateway wraps as {args: {request: {...}}}; the business
+      // payload is inside args.request.
+      final payload = call.body['payload'] as Map<String, dynamic>;
+      final args = payload['args'] as Map<String, dynamic>? ?? payload;
+      final request = args['request'] as Map<String, dynamic>? ?? args;
+      expect(request, {'workspaceId': 'ws-9', 'cwd': '/tmp/proj'});
       expect(id.value, 's-new');
 
       await client.createSession();
+      final lastPayload = host.requests.last.body['payload'] as Map<String, dynamic>;
+      final lastArgs = lastPayload['args'] as Map<String, dynamic>? ?? lastPayload;
+      final lastRequest = lastArgs['request'] as Map<String, dynamic>? ?? lastArgs;
       expect(
-        host.requests.last.body['payload'],
+        lastRequest,
         <String, dynamic>{},
         reason: 'unset workspace/cwd stay off the wire',
       );

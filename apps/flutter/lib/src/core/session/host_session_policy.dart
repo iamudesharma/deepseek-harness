@@ -15,6 +15,7 @@
 /// failing the whole flow.
 library;
 
+import '../api/rpc_envelope.dart';
 import 'session_models.dart';
 
 /// Builds the `session.create` wire payload: the workspace binding travels
@@ -28,14 +29,24 @@ Map<String, dynamic> sessionCreatePayload({String? workspaceId, String? cwd}) {
   };
 }
 
-/// Whether a `session.create` failure is the workspace-attach rejection —
-/// the single retryable case, retried without the workspace binding.
+/// Whether a `session.create` failure is the workspace-binding rejection —
+/// the single retryable case, retried without the workspace binding (or
+/// with a `cwd` fallback for synthetic workspaces).
 ///
-/// The host's typed code is `workspace-not-found`
-/// (`RpcErrorCode.workspaceNotFound`); the carriers see transport-level
-/// errors whose message carries the wire literal, hence the substring match.
-bool isWorkspaceAttachFailure(Object error) =>
-    error.toString().contains('workspace-not-found');
+/// The host's typed codes are `workspace-not-found` (pre-create, no
+/// session) and `workspace-attach-failed` (post-create with
+/// `details.sessionId`). Carriers may see them as typed
+/// [RemoteMethodException] or, for compat, as transport strings that embed
+/// the wire literal.
+bool isWorkspaceAttachFailure(Object error) {
+  if (error is RemoteMethodException) {
+    return error.code == RpcErrorCode.workspaceNotFound ||
+        error.code == RpcErrorCode.workspaceAttachFailed;
+  }
+  final msg = error.toString();
+  return msg.contains('workspace-not-found') ||
+      msg.contains('workspace-attach-failed');
+}
 
 /// The summary projected at adoption time: a created session exists with an
 /// empty log — running false, blank true (manager.ts create arm:

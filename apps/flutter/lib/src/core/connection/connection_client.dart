@@ -426,17 +426,19 @@ class ConnectionClient {
   }
 
   /// Create a new session (Typert `session.create`).
+  ///
+  /// Success unwraps `result.value.sessionId`. Business failures (e.g.
+  /// `workspace-not-found`, `workspace-attach-failed`) throw a typed
+  /// [RemoteMethodException] via [_unwrapValue] so callers can classify
+  /// retryable workspace-binding rejections without parsing strings.
   Future<SessionId> createSession({String? workspaceId, String? cwd}) async {
     final body = await _postTypert(
       'session/create',
       {'request': sessionCreatePayload(workspaceId: workspaceId, cwd: cwd)},
     );
-    // Unwrap `result.value.sessionId`
-    dynamic cur = body;
-    if (cur is Map && cur.containsKey('result')) cur = cur['result'];
-    if (cur is Map && cur.containsKey('value')) cur = cur['value'];
-    if (cur is Map && cur['sessionId'] is String)
-      return SessionId(cur['sessionId'] as String);
+    final value = _unwrapValue(body, 'session/create');
+    final sid = value['sessionId'];
+    if (sid is String) return SessionId(sid);
     throw FormatException('session.create: missing sessionId in $body');
   }
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/rpc_envelope.dart';
 import '../../core/connection/connection_client.dart';
 import '../../core/services/runtime_services.dart';
 import '../../core/session/host_session_policy.dart'
@@ -128,16 +129,9 @@ Future<void> _handleNewSession(WidgetRef ref, BuildContext context) async {
   final scaffold = ScaffoldMessenger.of(context);
   try {
     final client = ref.read(connectionClientProvider);
-    SessionId newId;
-    try {
-      newId = await client.createSession();
-    } catch (e) {
-      if (isWorkspaceAttachFailure(e)) {
-        newId = await client.createSession();
-      } else {
-        rethrow;
-      }
-    }
+    // Global `+` has no workspace binding; keep the dead retry only for
+    // compat with misclassified transport strings.
+    final SessionId newId = await client.createSession();
     // Permission projection is now authoritative via `session/follow`
     // snapshot and `session/projection` live frames; no `session/page`
     // history pull is needed for a blank new session (cursor -1).
@@ -1260,10 +1254,56 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                     },
                     onCreateIn: (wsId) async {
                       final client = ref.read(connectionClientProvider);
+                      // Resolve cwd for synthetic workspaces: `workspace/follow`
+                      // may not have landed, so the sidebar shows synth ids
+                      // (workspace_provider.dart `_synthesizedFromSessions`).
+                      // The host rejects unknown synth ids with
+                      // `workspace-not-found`; retry once with `cwd`.
+                      final fallbackCwd = workspaces
+                          .where((w) => w.workspaceId == wsId)
+                          .firstOrNull
+                          ?.cwd;
+                      SessionId newId;
                       try {
-                        final newId = await client.createSession(
-                          workspaceId: wsId.value,
-                        );
+                        try {
+                          newId = await client.createSession(
+                            workspaceId: wsId.value,
+                          );
+                        } on RemoteMethodException catch (e) {
+                          if (e.code == RpcErrorCode.workspaceNotFound ||
+                              e.code == RpcErrorCode.workspaceAttachFailed) {
+                            final published = e.details['sessionId'];
+                            if (published is String) {
+                              newId = SessionId(published);
+                            } else if (fallbackCwd != null &&
+                                fallbackCwd.isNotEmpty) {
+                              newId = await client.createSession(cwd: fallbackCwd);
+                            } else {
+                              newId = await client.createSession();
+                            }
+                          } else {
+                            rethrow;
+                          }
+                        } catch (e) {
+                          if (isWorkspaceAttachFailure(e)) {
+                            if (fallbackCwd != null && fallbackCwd.isNotEmpty) {
+                              newId = await client.createSession(cwd: fallbackCwd);
+                            } else {
+                              newId = await client.createSession();
+                            }
+                          } else {
+                            rethrow;
+                          }
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Failed: $e')),
+                          );
+                        }
+                        return;
+                      }
+                      try {
                         // Permission projection is authoritative via
                         // `session/follow` snapshot; no `session/page` pull
                         // for blank sessions.
@@ -1724,6 +1764,7 @@ class _ProjectSection extends ConsumerWidget {
                   onCopy: group.cwd == null
                       ? null
                       : () => copyToClipboard(group.cwd!),
+                  enabled: current == null,
                 );
               return headerRow;
             },
@@ -2004,6 +2045,8 @@ class _SessionRow extends ConsumerWidget {
         ),
       ),
     );
+    final SessionId? currentSelection =
+        ref.watch(sessionsProvider.select((SessionsState state) => state.current));
     return DsHoverCard(
       trigger: row,
       content: _SessionHoverContent(summary: summary),
@@ -2011,7 +2054,7 @@ class _SessionRow extends ConsumerWidget {
       onCopy: summary.blank
           ? null
           : () => copyToClipboard(summary.displayTitle),
-      enabled: true,
+      enabled: currentSelection == null,
     );
   }
 

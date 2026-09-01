@@ -10,6 +10,7 @@ import '../core/renderer/slot_outlet.dart';
 import '../core/slots/slot_registry.dart';
 import '../core/session/session_models.dart';
 import '../core/session/sessions_controller.dart';
+import '../core/api/rpc_envelope.dart';
 import '../core/session/host_session_policy.dart'
     show adoptHostBornSession, isWorkspaceAttachFailure;
 import '../features/layout/layout_controller.dart';
@@ -26,7 +27,7 @@ import '../features/input_trigger/input_trigger_screen.dart'
 import '../features/reference/reference_screen.dart' as reference_feature;
 import '../plugins/subagent/ui/subagent_screen.dart' as subagent_feature;
 import '../features/workspace/workspace_provider.dart'
-    show selectedWorkspaceProvider;
+    show selectedWorkspaceProvider, workspaceListProvider;
 import '../features/workflow_run/workflow_screen.dart' as workflow_feature;
 import '../features/devices/devices_screen.dart';
 import '../features/devices/add_computer_screen.dart';
@@ -93,22 +94,47 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     setState(() => _creating = true);
     try {
       final ConnectionClient client = ref.read(connectionClientProvider);
+      // Resolve cwd for synthetic workspaces (synth-* ids are client-only).
+      String? fallbackCwd;
+      try {
+        final workspacesAsync = ref.read(workspaceListProvider);
+        final ws = workspacesAsync.valueOrNull
+            ?.where((w) => w.workspaceId == workspaceId)
+            .firstOrNull;
+        fallbackCwd = ws?.cwd;
+      } catch (_) {}
       SessionId newId;
       try {
         newId = await client.createSession(workspaceId: workspaceId.value);
+      } on RemoteMethodException catch (e) {
+        if (e.code == RpcErrorCode.workspaceNotFound ||
+            e.code == RpcErrorCode.workspaceAttachFailed) {
+          final published = e.details['sessionId'];
+          if (published is String) {
+            newId = SessionId(published);
+          } else if (fallbackCwd != null && fallbackCwd.isNotEmpty) {
+            newId = await client.createSession(cwd: fallbackCwd);
+          } else {
+            newId = await client.createSession();
+          }
+        } else {
+          rethrow;
+        }
       } catch (e) {
         if (isWorkspaceAttachFailure(e)) {
-          newId = await client.createSession();
+          if (fallbackCwd != null && fallbackCwd.isNotEmpty) {
+            newId = await client.createSession(cwd: fallbackCwd);
+          } else {
+            newId = await client.createSession();
+          }
         } else {
           rethrow;
         }
       }
       // Project the host-born session before the confirming list pull lands
-      // (host_session_policy.dart); setAll immediately confirms it.
+      // (host_session_policy.dart) so the id is synchronously addressable.
+      ref.read(sessionsProvider.notifier).addSession(adoptHostBornSession(newId));
       final List<SessionSummary> sessions = await client.getSessions();
-      ref
-          .read(sessionsProvider.notifier)
-          .addSession(adoptHostBornSession(newId));
       ref.read(sessionsProvider.notifier).setAll(sessions);
       ref.read(sessionsProvider.notifier).setCurrent(newId);
       if (mounted && context.mounted) context.go('/sessions/${newId.value}');
