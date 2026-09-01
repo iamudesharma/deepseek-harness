@@ -94,7 +94,7 @@ bool _mapEquals(
 /// mirroring `Notifier.markDirty`. Single writes notify immediately (visible).
 class SessionsController extends Notifier<SessionsState> {
   bool _batchScheduled = false;
-  SessionsState? _batched;
+  Map<SessionId, SessionSummary>? _pendingNextById;
 
   @override
   SessionsState build() => const SessionsState();
@@ -106,11 +106,18 @@ class SessionsController extends Notifier<SessionsState> {
   ///
   /// If [id] is non-null but absent from [SessionsState.byId], the selection
   /// is ignored (mirrors manager's `select` unknown-session guard without
-  /// throwing in the UI layer).
+  /// throwing in the UI layer). When a bulk `setAll` is pending, the pending
+  /// batch is also updated so the microtask does not overwrite the new
+  /// selection.
   void setCurrent(SessionId? id) {
     if (id == null) {
       if (state.current == null) return;
       state = state.copyWith(clearCurrent: true);
+      // Keep pending batch in sync so the microtask does not restore old current.
+      if (_pendingNextById != null && _batchScheduled) {
+        // No change to pending byId, current will be resolved at flush time
+        // against the latest state.current (now null).
+      }
       return;
     }
     if (!state.byId.containsKey(id)) return;
@@ -121,26 +128,27 @@ class SessionsController extends Notifier<SessionsState> {
   /// Insert or replace one session summary.
   ///
   /// If the session is new, it is inserted; existing ids are replaced.
+  /// When a bulk `setAll` is pending, the pending map is also updated so the
+  /// optimistic session is not lost when the batch flushes.
   void addSession(SessionSummary summary) {
     final next = Map<SessionId, SessionSummary>.from(state.byId);
     next[summary.sessionId] = summary;
     state = state.copyWith(byId: Map.unmodifiable(next));
+    if (_pendingNextById != null) {
+      _pendingNextById![summary.sessionId] = summary;
+    }
   }
 
   /// Bulk replace from a fresh `session.list` pull.
   ///
   /// Batches via microtask so a burst of `session.list` + projection frames
-  /// surfaces as one frame.
+  /// surfaces as one frame. Optimistic blank sessions (host-born, not yet in
+  /// the host list) are preserved until the host confirms them.
   void setAll(List<SessionSummary> summaries) {
     final next = <SessionId, SessionSummary>{
       for (final s in summaries) s.sessionId: s,
     };
-    _scheduleBatched(
-      SessionsState(
-        byId: Map.unmodifiable(next),
-        current: _resolveCurrent(next, state.current),
-      ),
-    );
+    _scheduleBatched(next);
   }
 
   /// Apply a partial update to one session if present.
@@ -182,16 +190,52 @@ class SessionsController extends Notifier<SessionsState> {
     return nextById.containsKey(current) ? current : null;
   }
 
-  void _scheduleBatched(SessionsState next) {
-    _batched = next;
+  void _scheduleBatched(Map<SessionId, SessionSummary> nextById) {
+    if (_pendingNextById == null) {
+      _pendingNextById = Map<SessionId, SessionSummary>.from(nextById);
+    } else {
+      // Coalesce: merge latest host list into pending, preserving any
+      // optimistic blank entries already in pending.
+      for (final entry in nextById.entries) {
+        _pendingNextById![entry.key] = entry.value;
+      }
+      // Remove entries that host no longer lists and are not optimistic blanks.
+      final toRemove = <SessionId>[];
+      for (final key in _pendingNextById!.keys) {
+        if (!nextById.containsKey(key)) {
+          final existing = _pendingNextById![key];
+          if (existing == null || !existing.blank) {
+            // Check if it's still optimistic blank in current state
+            final currentEntry = state.byId[key];
+            if (currentEntry == null || !currentEntry.blank) {
+              toRemove.add(key);
+            }
+          }
+        }
+      }
+      for (final key in toRemove) {
+        _pendingNextById!.remove(key);
+      }
+    }
     if (_batchScheduled) return;
     _batchScheduled = true;
     Future.microtask(() {
       _batchScheduled = false;
-      final batched = _batched;
-      _batched = null;
-      if (batched != null) {
-        state = batched;
+      final pending = _pendingNextById;
+      _pendingNextById = null;
+      if (pending != null) {
+        // Preserve any optimistic blank sessions from current state that host
+        // hasn't yet confirmed (host-born invariant).
+        final merged = Map<SessionId, SessionSummary>.from(pending);
+        for (final entry in state.byId.entries) {
+          if (!merged.containsKey(entry.key) && entry.value.blank) {
+            merged[entry.key] = entry.value;
+          }
+        }
+        state = SessionsState(
+          byId: Map.unmodifiable(merged),
+          current: _resolveCurrent(merged, state.current),
+        );
       }
     });
   }

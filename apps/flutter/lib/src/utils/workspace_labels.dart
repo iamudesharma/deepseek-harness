@@ -22,7 +22,9 @@ RelativeTime relativeTime(int updatedAt, int now) {
   const int min = 60000;
   const int hour = 3600000;
   const int day = 86400000;
-  final int diff = (now - updatedAt).clamp(0, 1 << 62);
+  final int rawDiff = now - updatedAt;
+  // Use 2^53-1 (max safe integer for JS) instead of 1<<62 which overflows to 0 on web (32-bit shift).
+  final int diff = rawDiff < 0 ? 0 : rawDiff;
   if (diff < min) return const RelativeTime(unit: 'now', n: 0);
   if (diff < hour) return RelativeTime(unit: 'minutes', n: diff ~/ min);
   if (diff < day) return RelativeTime(unit: 'hours', n: diff ~/ hour);

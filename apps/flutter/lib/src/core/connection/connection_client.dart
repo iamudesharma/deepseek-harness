@@ -155,12 +155,20 @@ class ConnectionClient {
   }
 
   Uri _uri(String path, [Map<String, String>? query]) {
-    final base = baseUrl.endsWith('/')
-        ? baseUrl.substring(0, baseUrl.length - 1)
-        : baseUrl;
-    final uri = Uri.parse('$base$path');
-    if (query == null || query.isEmpty) return uri;
-    return uri.replace(queryParameters: {...uri.queryParameters, ...query});
+    // Preserve query (e.g. ?token=…) when baseUrl already carries it — the old
+    // `Uri.parse('$base$path')` produced `http://host?token=…/api/…` (405).
+    // Use Uri.replace so `http://host?token=abc` + `/api/list` → `/api/list?token=abc`.
+    final baseUri = Uri.parse(
+      baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl,
+    );
+    final mergedQuery = <String, String>{
+      ...baseUri.queryParameters,
+      if (query != null) ...query,
+    };
+    return baseUri.replace(
+      path: path,
+      queryParameters: mergedQuery.isEmpty ? null : mergedQuery,
+    );
   }
 
   Map<String, String> _headers(String rpcId) => {

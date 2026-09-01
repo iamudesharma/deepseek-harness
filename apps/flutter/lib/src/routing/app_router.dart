@@ -62,6 +62,7 @@ class WelcomeScreen extends ConsumerStatefulWidget {
 
 class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   bool _creating = false;
+  WorkspaceId? _lastHandledWorkspace;
 
   @override
   void initState() {
@@ -69,19 +70,26 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     // React `selectWorkspace`: picking a hero workspace opens that
     // workspace's blank session. The chip publishes the pick through the
     // shared selection state; this screen completes it host-side.
+    // Listen immediately (not in post-frame) so a pick before first frame
+    // is not missed — the provider may already hold a selection from a
+    // restored hero.
+    ref.listenManual<WorkspaceId?>(selectedWorkspaceProvider, (
+      WorkspaceId? prev,
+      WorkspaceId? next,
+    ) {
+      if (next != null && next != prev) _createSessionIn(next);
+    });
+    // Handle already-selected workspace at mount (e.g. restored state).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.listenManual<WorkspaceId?>(selectedWorkspaceProvider, (
-        WorkspaceId? prev,
-        WorkspaceId? next,
-      ) {
-        if (next != null && next != prev) _createSessionIn(next);
-      });
+      final current = ref.read(selectedWorkspaceProvider);
+      if (current != null) _createSessionIn(current);
     });
   }
 
   Future<void> _createSessionIn(WorkspaceId workspaceId) async {
-    if (_creating) return;
+    if (_creating || _lastHandledWorkspace == workspaceId) return;
+    _lastHandledWorkspace = workspaceId;
     setState(() => _creating = true);
     try {
       final ConnectionClient client = ref.read(connectionClientProvider);

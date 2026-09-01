@@ -594,6 +594,7 @@ class _ModelsTab extends ConsumerWidget {
               ),
               const SizedBox(height: DswTokens.spaceMd),
               DropdownButtonFormField<String>(
+                key: ValueKey<String?>(currentModel),
                 initialValue: currentModel,
                 hint: Text(
                   'Select a model',

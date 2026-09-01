@@ -237,6 +237,31 @@ bool _sessionVisible(
   return true;
 }
 
+/// Mirrors `tree.ts:orderedUngrouped` — preserve stored Ungrouped order and
+/// append newly loose sessions by recency. Used when `workspaceSessionOrderProvider['']`
+/// has a persisted order (parity with `tree.ts:groupByWorkspace`).
+List<SessionSummary> _orderedUngrouped(
+  List<SessionSummary> members,
+  List<String> stored,
+) {
+  final byId = {for (final s in members) s.sessionId.value: s};
+  final included = <String>{};
+  final ordered = <SessionSummary>[];
+  for (final key in stored) {
+    final s = byId[key];
+    if (s == null || included.contains(key)) continue;
+    ordered.add(s);
+    included.add(key);
+  }
+  final remaining = members.where((s) => !included.contains(s.sessionId.value)).toList()
+    ..sort((a, b) {
+      if (b.updatedAt != a.updatedAt) return b.updatedAt.compareTo(a.updatedAt);
+      return a.sessionId.value.compareTo(b.sessionId.value);
+    });
+  ordered.addAll(remaining);
+  return ordered;
+}
+
 List<WorkspaceGroup> deriveWorkspaceGroups(
   List<SessionSummary> sessions,
   List<WorkspaceView> workspaces,
@@ -245,6 +270,7 @@ List<WorkspaceGroup> deriveWorkspaceGroups(
   String query, {
   String ungroupedLabel = 'Ungrouped',
   Set<SessionId> archivedIds = const {},
+  List<String>? ungroupedOrder,
 }) {
   final filtered = query.isEmpty
       ? sessions
@@ -308,14 +334,19 @@ List<WorkspaceGroup> deriveWorkspaceGroups(
     if (!_sessionVisible(s, current, archivedIds)) continue;
     ungrouped.add(s);
   }
-  // Ungrouped ordering: recency (newest first) when no stored order; else stored order.
-  // Flutter's simple recency matches tree.ts `orderedUngrouped` fallback.
-  // If a stored order exists (workspaceSessionOrderProvider for ''), callers handle it outside;
-  // here we provide recency baseline.
-  ungrouped.sort((a, b) {
-    if (b.updatedAt != a.updatedAt) return b.updatedAt.compareTo(a.updatedAt);
-    return a.sessionId.value.compareTo(b.sessionId.value);
-  });
+  // Ungrouped ordering: recency baseline or persisted `orderedUngrouped` when
+  // `workspaceSessionOrderProvider['']` is present — mirrors `tree.ts:orderedUngrouped`.
+  if (ungroupedOrder != null) {
+    final ordered = _orderedUngrouped(ungrouped, ungroupedOrder);
+    ungrouped
+      ..clear()
+      ..addAll(ordered);
+  } else {
+    ungrouped.sort((a, b) {
+      if (b.updatedAt != a.updatedAt) return b.updatedAt.compareTo(a.updatedAt);
+      return a.sessionId.value.compareTo(b.sessionId.value);
+    });
+  }
 
   final List<WorkspaceGroup> groups = [];
   for (final w in workspaces) {
@@ -1276,6 +1307,8 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                       ),
                       filtered.length,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: DswTokens.fontSizeXxs12,
                       color: aliases.labelCaption,
@@ -1391,6 +1424,7 @@ class _WorkspaceTree extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final Translate tw = ref.bindLocale(kWorkspaceNamespace);
     final archived = ref.watch(workspaceArchivedIdsProvider);
+    final ungroupedOrder = ref.watch(workspaceSessionOrderProvider)[''];
     final groups = deriveWorkspaceGroups(
       sessions,
       workspaces,
@@ -1399,6 +1433,7 @@ class _WorkspaceTree extends ConsumerWidget {
       query,
       ungroupedLabel: tw('group.ungrouped'),
       archivedIds: archived,
+      ungroupedOrder: ungroupedOrder,
     );
     if (groups.isEmpty)
       return _EmptyState(aliases: aliases, hasQuery: query.isNotEmpty);
