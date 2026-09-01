@@ -108,7 +108,7 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
-export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, t }: {
+export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, currentId, t }: {
   group: GroupNode
   onToggle: () => void
   onCreate: () => void
@@ -118,6 +118,8 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
   drag?: WorkspaceRowDragProps | undefined
   /** Host account home; POSIX home-rooted hover paths display as `~`. */
   home?: string | undefined
+  /** Currently selected session id: when present, workspace hover previews are suppressed to keep the conversation view unobscured. */
+  currentId?: string | undefined
   t: RowTranslate
 }) {
   const row = group
@@ -205,7 +207,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home,
         createdAt={row.createdAt}
         t={t}
       />}
-      disabled={menuOpen}
+      disabled={menuOpen || currentId !== undefined}
       copyText={row.cwd}
       copyLabel={t('copy')}
       copiedLabel={t('hover.copied')}
@@ -474,7 +476,7 @@ export function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork
     <HoverCard
       anchor={ownRow}
       content={<SessionHoverContent node={node} now={now} t={t} />}
-      disabled={menuOpen || drag?.active === true}
+      disabled={menuOpen || drag?.active === true || (currentId !== undefined && currentId !== node.id)}
       copyText={row.blank ? undefined : row.title}
       copyLabel={t('copy')}
       copiedLabel={t('hover.copied')}

@@ -498,6 +498,7 @@ function SessionTree({
               <ProjectRowItem
                 group={group}
                 home={home}
+                currentId={current}
                 t={t}
                 onToggle={() => {
                   if (group.expanded) {
