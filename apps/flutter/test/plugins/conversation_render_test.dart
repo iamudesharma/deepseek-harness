@@ -24,6 +24,62 @@ void main() {
       expect(span.children, hasLength(2));
       expect(span.children![0].style!.fontWeight, FontWeight.bold);
     });
+
+    test('italic, underline and strike map to decorations', () {
+      final span = ansiToSpan('\x1B[3mitalic\x1B[0m \x1B[4munder\x1B[0m \x1B[9mstrike\x1B[0m');
+      final children = span.children!;
+      expect(children[0].style!.fontStyle, FontStyle.italic);
+      expect(children[1].style!.fontStyle, isNull);
+      // The third colored run is at index 2? Actually pattern splits: italic run, plain space, under run, etc.
+      // We check underline and strike via decoration.
+      final under = children[2];
+      expect(under.style!.decoration, TextDecoration.underline);
+      final strike = children[4];
+      expect(strike.style!.decoration, TextDecoration.lineThrough);
+    });
+
+    test('dim with color applies 0.7 alpha and hidden is transparent', () {
+      final dimSpan = ansiToSpan('\x1B[2m\x1B[31mdimRed\x1B[0m');
+      final dimColor = dimSpan.children![0].style!.color!;
+      expect(dimColor.alpha, closeTo(0.7 * 255, 2));
+      final hidden = ansiToSpan('\x1B[8msecret\x1B[0m plain');
+      expect(hidden.children![0].style!.color, const Color(0x00000000));
+    });
+
+    test('background colors via 44 and 104 produce backgroundColor', () {
+      final span = ansiToSpan('\x1B[44mblueBg\x1B[49m plain');
+      expect(span.children![0].style!.backgroundColor, const Color(0xFF2563EB));
+      expect(span.children![1].style!.backgroundColor, isNull);
+    });
+
+    test('39 resets foreground to fallback while 49 resets background', () {
+      final span = ansiToSpan('\x1B[31mred\x1B[39m plain', fallbackColor: const Color(0xFFCCCCCC));
+      expect(span.children![0].style!.color, const Color(0xFFDC2626));
+      expect(span.children![1].style!.color, const Color(0xFFCCCCCC));
+    });
+
+    test('256 and truecolor via 38;5;N and 38;2;R;G;B', () {
+      final c256 = ansiToSpan('\x1B[38;5;208m256\x1B[0m');
+      // 208 in xterm is orange ~ 255,135,0 => 0xFFFF8700
+      expect(c256.children![0].style!.color!.value, isNot(0));
+      final truecolor = ansiToSpan('\x1B[38;2;10;20;30mtrue\x1B[0m');
+      expect(truecolor.children![0].style!.color, const Color.fromARGB(0xFF, 10, 20, 30));
+      final bg256 = ansiToSpan('\x1B[48;5;196mredBg\x1B[0m');
+      expect(bg256.children![0].style!.backgroundColor!.value, isNot(0));
+    });
+
+    test('OSC and non-CSI escapes are stripped without leaking text', () {
+      final osc = ansiToSpan('hi\x1B]0;window title\x07 there');
+      expect((osc.children!.first as TextSpan).text, 'hi there');
+      final inert = ansiToSpan('a\x07b\x1B(Bc');
+      // \x07 and \x1B(B are stripped by sanitize
+      expect((inert.children!.first as TextSpan).text, 'abc');
+    });
+
+    test('CSI erase-in-line K is stripped', () {
+      final span = ansiToSpan('foo\x1B[2Kbar');
+      expect((span.children!.first as TextSpan).text, 'foobar');
+    });
   });
 
   group('ConversationShortcuts', () {
