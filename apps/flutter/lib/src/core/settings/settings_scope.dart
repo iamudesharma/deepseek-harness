@@ -12,7 +12,6 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../connection/connection_client.dart';
 
@@ -146,7 +145,16 @@ class SettingsScope<T> {
   int? _pendingRevision;
   bool _disposed = false;
 
+  String get namespace => _namespace;
+
   SettingsScopeSnapshot<T> get snapshot => _snapshot;
+
+  /// Batch mutate with revision fence (for subagent card's atomic two-field write).
+  Future<void> mutateBatch(
+    List<Map<String, Object?>> ops, {
+    int? expectedRevision,
+  }) =>
+      _write(ops, expectedRevision: expectedRevision);
 
   /// Observes snapshot replacements; returns an unsubscriber.
   VoidCallback subscribe(void Function(SettingsScopeSnapshot<T>) listener) {
@@ -169,9 +177,23 @@ class SettingsScope<T> {
   Future<void> _refreshNow() async {
     try {
       final doc = await _face.describe();
-      final sections = (doc['namespaces'] as Map?) ?? doc;
-      final section = sections[_namespace];
-      if (section is! Map) {
+      Map<String, Object?>? section;
+      final dynamic namespacesRaw = doc['namespaces'];
+      if (namespacesRaw is List) {
+        for (final item in namespacesRaw) {
+          if (item is Map && item['ns'] == _namespace) {
+            section = Map<String, Object?>.from(item);
+            break;
+          }
+        }
+      } else if (namespacesRaw is Map) {
+        final dynamic sec = namespacesRaw[_namespace];
+        if (sec is Map) section = Map<String, Object?>.from(sec);
+      } else {
+        final dynamic sec = doc[_namespace];
+        if (sec is Map) section = Map<String, Object?>.from(sec);
+      }
+      if (section == null) {
         _publish(
           SettingsScopeSnapshot<T>(
             status: SettingsScopeStatus.unavailable,
@@ -181,7 +203,16 @@ class SettingsScope<T> {
         );
         return;
       }
-      _publish(_derive(section.cast<String, Object?>()));
+      // Host `namespaceView` omits per-namespace `writable`; fallback to doc's top-level.
+      if (!section.containsKey('writable') && doc['writable'] is bool) {
+        section = {...section, 'writable': doc['writable']};
+      }
+      // Also propagate top-level `writable` if section's writable is not true/false but doc is.
+      // Ensure at least the global writable is considered.
+      if (section['writable'] == null && doc['writable'] == true) {
+        section = {...section, 'writable': true};
+      }
+      _publish(_derive(section));
     } catch (_) {
       if (!_disposed) {
         _publish(
@@ -198,7 +229,7 @@ class SettingsScope<T> {
   SettingsScopeSnapshot<T> _derive(Map<String, Object?> section) {
     final rawValue = (section['value'] ?? section['user']) ?? section['base'];
     final decoded = _decode != null && rawValue is Map
-        ? _decode!(rawValue.cast<String, Object?>())
+        ? _decode(rawValue.cast<String, Object?>())
         : rawValue as T?;
     final schemaRaw = section['schema'];
     final schemaMap = schemaRaw is Map
@@ -236,10 +267,13 @@ class SettingsScope<T> {
     },
   ]);
 
-  Future<void> _write(List<Map<String, Object?>> ops) {
+  Future<void> _write(
+    List<Map<String, Object?>> ops, {
+    int? expectedRevision,
+  }) {
     return _enqueue(() async {
       final generation = ++_generation;
-      final revision = _pendingRevision ?? _snapshot.revision;
+      final revision = expectedRevision ?? _pendingRevision ?? _snapshot.revision;
       try {
         final result = await _face.mutate(
           ns: _namespace,

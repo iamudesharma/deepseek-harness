@@ -25,6 +25,7 @@ class _FakeClient extends ConnectionClient {
 
   final List<String> calls = [];
   Map<String, Object?> describeAnswer = const <String, dynamic>{};
+  List<Map<String, dynamic>> inventoryEntries = const [];
 
   @override
   Future<Map<String, dynamic>> settingsDescribe() async {
@@ -39,7 +40,23 @@ class _FakeClient extends ConnectionClient {
     int? expectedRevision,
   }) async {
     calls.add('settings.mutate');
-    return const <String, dynamic>{};
+    // Echo back the namespace as writable ready to keep form available.
+    return <String, dynamic>{
+      'namespace': {
+        'ns': ns,
+        'value': <String, dynamic>{for (final op in ops) if (op['path'] is List && (op['path'] as List).isNotEmpty) (op['path'] as List).first as String: op['value']},
+        'base': <String, dynamic>{},
+        'user': <String, dynamic>{for (final op in ops) if (op['op'] == 'set') (op['path'] as List).first as String: op['value']},
+        'revision': 2,
+        'writable': true,
+      },
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> pluginInventoryList() async {
+    calls.add('pluginInventory.list');
+    return <String, dynamic>{'entries': inventoryEntries};
   }
 
   @override
@@ -48,6 +65,12 @@ class _FakeClient extends ConnectionClient {
   @override
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async =>
       const <String, dynamic>{};
+
+  @override
+  Future<Map<String, dynamic>> sessionModelCatalog() async {
+    calls.add('session/modelCatalog');
+    return <String, dynamic>{'groups': [], 'failures': []};
+  }
 }
 
 Map<String, Object?> _settingsDocument() => {
@@ -63,8 +86,18 @@ Map<String, Object?> _settingsDocument() => {
       'revision': 1,
     },
     {'ns': 'ui-theme', 'value': <String, dynamic>{}, 'revision': 1},
+    {'ns': 'shell', 'value': <String, dynamic>{}, 'revision': 1, 'writable': true},
+    {'ns': 'agent-loop', 'value': <String, dynamic>{}, 'revision': 1, 'writable': true},
+    {'ns': 'subagent-model-selection', 'value': <String, dynamic>{'enabled': false}, 'revision': 1, 'writable': true},
+    {'ns': 'web-search-deepseek', 'value': <String, dynamic>{}, 'revision': 1, 'writable': true},
   ],
 };
+
+List<Map<String, dynamic>> _inventorySnapshot() => [
+  {'entryId': 'readfile', 'moduleName': 'ReadFile', 'enabled': true, 'fiberPhase': 'active'},
+  {'entryId': 'bash', 'moduleName': 'Bash', 'enabled': true, 'fiberPhase': 'active'},
+  {'entryId': 'webfetch', 'moduleName': 'WebFetch', 'enabled': true, 'fiberPhase': 'active'},
+];
 
 Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
   final container = ProviderContainer(
@@ -175,24 +208,33 @@ void main() {
     );
   });
 
-  testWidgets('Plugins tab lists the plugin toggles', (tester) async {
-    await _pumpScreen(tester, _FakeClient());
+  testWidgets('Plugins tab lists the plugin cards (parity with React)', (tester) async {
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
 
     await tester.tap(find.text('Plugins').first);
     await tester.pumpAndSettle();
 
+    // Live cards: Shell, Agent loop, Subagent, Web search — Filesystem/LSP etc are not separate settings cards.
     expect(find.text('Shell'), findsOneWidget);
-    expect(find.text('Filesystem'), findsOneWidget);
-    expect(find.text('Web'), findsOneWidget);
+    expect(find.text('Agent loop'), findsOneWidget);
+    expect(find.text('Subagent'), findsOneWidget);
+    expect(find.text('Web search'), findsOneWidget);
+    // Intro copy mirrors React.
+    expect(find.text('Configure and inspect the plugins installed in this deployment.'), findsWidgets);
   });
 
-  testWidgets('Inventory tab renders the inventory table', (tester) async {
-    await _pumpScreen(tester, _FakeClient());
+  testWidgets('Inventory tab renders the grid inventory', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = _settingsDocument()
+      ..inventoryEntries = _inventorySnapshot();
+    await _pumpScreen(tester, client);
 
     await tester.tap(find.text('Inventory').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Name'), findsOneWidget);
+    expect(find.text('Plugin list'), findsWidgets);
+    expect(find.text('Search plugins'), findsOneWidget);
     expect(find.text('ReadFile'), findsOneWidget);
     expect(find.text('Bash'), findsOneWidget);
   });

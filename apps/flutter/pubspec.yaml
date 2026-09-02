@@ -26,7 +26,10 @@ dependencies:
   # window_manager is desktop-only; consume via conditional import
   # (e.g. import 'stub.dart' if (dart.library.io) 'package:window_manager/window_manager.dart')
   # to keep Flutter Web builds clean
-  window_manager: ^0.4.0
+  # 0.5.x migrates macOS to Swift Package Manager (fixes Flutter 3.35+ warning:
+  # "This will become an error in a future version of Flutter. Please contact
+  # the plugin maintainers to request Swift Package Manager adoption.")
+  window_manager: ^0.5.0
   shared_preferences: ^2.3.2
   markdown: ^7.3.0
   flutter_markdown: ^0.7.4

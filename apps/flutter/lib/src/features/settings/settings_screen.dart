@@ -21,6 +21,8 @@ import '../../plugins/settings/children/plugins/plugins_settings_plugin.dart'
 import '../../plugins/settings/children/plugin_inventory/plugin_inventory_plugin.dart'
     show kInventoryNamespace;
 import '../../plugins/conversation/locales.dart' show kConversationNamespace;
+import 'inventory_tab.dart' show InventoryTab;
+import 'plugins_tab.dart' show PluginsTab;
 
 /// Settings language preference (stub, mirrors web `Appearance` language row).
 enum AppLanguage { system, english, chinese }
@@ -804,321 +806,24 @@ class _ModelsTab extends ConsumerWidget {
   }
 }
 
-/// Plugins tab — plugin list with enable / disable toggles.
+/// Plugins tab — live plugin configuration (parity with React).
 class _PluginsTab extends ConsumerWidget {
   const _PluginsTab({required this.aliases});
 
   final DswAliases aliases;
 
-  static const List<_PluginInfo> _plugins = [
-    _PluginInfo(
-      id: 'shell',
-      name: 'Shell',
-      description: 'Bash capability + local/pwsh providers.',
-      enabled: true,
-    ),
-    _PluginInfo(
-      id: 'fs',
-      name: 'Filesystem',
-      description: 'FS capability + policy enforcement.',
-      enabled: true,
-    ),
-    _PluginInfo(
-      id: 'lsp',
-      name: 'Language Server',
-      description: 'LSP capability for code intelligence.',
-      enabled: true,
-    ),
-    _PluginInfo(
-      id: 'web',
-      name: 'Web',
-      description: 'Web search + fetch providers.',
-      enabled: true,
-    ),
-    _PluginInfo(
-      id: 'skill',
-      name: 'Skill',
-      description: 'Skill registry + local loader.',
-      enabled: false,
-    ),
-    _PluginInfo(
-      id: 'e2b',
-      name: 'E2B Sandbox',
-      description: 'Sandbox + FS/subprocess adapters (POC).',
-      enabled: false,
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      padding: const EdgeInsets.all(DswTokens.spaceLg),
-      children: [
-        _SectionHeader(title: 'Plugins', aliases: aliases),
-        const SizedBox(height: 4),
-        Text(
-          '${_plugins.where((p) => p.enabled).length} of ${_plugins.length} enabled — toggles are local stubs.',
-          style: TextStyle(
-            fontSize: DswTokens.fontSizeXxs12,
-            color: aliases.labelCaption,
-          ),
-        ),
-        const SizedBox(height: DswTokens.spaceMd),
-        for (final plugin in _plugins)
-          Padding(
-            padding: const EdgeInsets.only(bottom: DswTokens.spaceSm),
-            child: _PluginCard(plugin: plugin, aliases: aliases),
-          ),
-        const SizedBox(height: DswTokens.spaceLg),
-        _CardShell(
-          aliases: aliases,
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, size: 16, color: aliases.labelTertiary),
-              const SizedBox(width: DswTokens.spaceSm),
-              Expanded(
-                child: Text(
-                  'Plugins are contributed via ctx.effect / cordis.yml. Toggle states here are UI-only and do not mutate the runtime.',
-                  style: TextStyle(fontSize: 11, color: aliases.labelCaption),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => PluginsTab(aliases: aliases);
 }
 
-/// Inventory tab — skill / tool inventory placeholder table.
+/// Inventory tab — live Host Loader inventory.
 class _InventoryTab extends ConsumerWidget {
   const _InventoryTab({required this.aliases});
 
   final DswAliases aliases;
 
-  static const List<_InventoryItem> _items = [
-    _InventoryItem(
-      name: 'ReadFile',
-      kind: 'Tool',
-      provider: 'fs/local',
-      status: 'Available',
-    ),
-    _InventoryItem(
-      name: 'Bash',
-      kind: 'Tool',
-      provider: 'shell/local',
-      status: 'Available',
-    ),
-    _InventoryItem(
-      name: 'WebFetch',
-      kind: 'Tool',
-      provider: 'web/fetch',
-      status: 'Available',
-    ),
-    _InventoryItem(
-      name: 'Plan',
-      kind: 'Skill',
-      provider: 'skill/local',
-      status: 'Installed',
-    ),
-    _InventoryItem(
-      name: 'Trajectory',
-      kind: 'Capability',
-      provider: 'compaction/basic',
-      status: 'Available',
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ListView(
-      padding: const EdgeInsets.all(DswTokens.spaceLg),
-      children: [
-        _SectionHeader(title: 'Inventory', aliases: aliases),
-        const SizedBox(height: DswTokens.spaceMd),
-        _CardShell(
-          aliases: aliases,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Table header.
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: DswTokens.spaceSm,
-                  vertical: DswTokens.spaceSm,
-                ),
-                decoration: BoxDecoration(
-                  color: aliases.bgOverlay,
-                  borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        'Name',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Kind',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Provider',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 90,
-                      child: Text(
-                        'Status',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: DswTokens.spaceSm),
-              for (final item in _items) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: DswTokens.spaceSm,
-                    vertical: DswTokens.spaceSm,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: Row(
-                          children: [
-                            Icon(
-                              _iconForKind(item.kind),
-                              size: 14,
-                              color: aliases.labelTertiary,
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                item.name,
-                                style: TextStyle(
-                                  fontSize: DswTokens.fontSizeS14,
-                                  color: aliases.labelPrimary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          item.kind,
-                          style: TextStyle(
-                            fontSize: DswTokens.fontSizeXxs12,
-                            color: aliases.labelSecondary,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          item.provider,
-                          style: TextStyle(
-                            fontSize: DswTokens.fontSizeXxs12,
-                            color: aliases.labelSecondary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(
-                        width: 90,
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: item.status == 'Available'
-                                  ? aliases.stateSuccessTertiary
-                                  : aliases.bgOverlay,
-                              borderRadius: BorderRadius.circular(
-                                DswTokens.radiusFull,
-                              ),
-                            ),
-                            child: Text(
-                              item.status,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: item.status == 'Available'
-                                    ? aliases.stateSuccessPrimary
-                                    : aliases.labelTertiary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (item != _items.last)
-                  Divider(height: 1, color: aliases.borderL1),
-              ],
-              if (_items.isEmpty)
-                _EmptyListHint(label: 'Inventory empty', aliases: aliases),
-            ],
-          ),
-        ),
-        const SizedBox(height: DswTokens.spaceLg),
-        _CardShell(
-          aliases: aliases,
-          child: Row(
-            children: [
-              Icon(
-                Icons.inventory_2_outlined,
-                size: 16,
-                color: aliases.labelTertiary,
-              ),
-              const SizedBox(width: DswTokens.spaceSm),
-              Expanded(
-                child: Text(
-                  '${_items.length} items · Tools, skills, and capabilities contributed by installed plugins.',
-                  style: TextStyle(fontSize: 11, color: aliases.labelCaption),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  IconData _iconForKind(String kind) => switch (kind) {
-    'Tool' => Icons.build_outlined,
-    'Skill' => Icons.auto_awesome_outlined,
-    'Capability' => Icons.extension_outlined,
-    _ => Icons.category_outlined,
-  };
+  Widget build(BuildContext context, WidgetRef ref) => InventoryTab(aliases: aliases);
 }
 
 // Shared primitives.
@@ -1280,81 +985,6 @@ class _ProviderStatusRow extends StatelessWidget {
   }
 }
 
-class _PluginCard extends StatefulWidget {
-  const _PluginCard({required this.plugin, required this.aliases});
-
-  final _PluginInfo plugin;
-  final DswAliases aliases;
-
-  @override
-  State<_PluginCard> createState() => _PluginCardState();
-}
-
-class _PluginCardState extends State<_PluginCard> {
-  late bool _enabled;
-
-  @override
-  void initState() {
-    super.initState();
-    _enabled = widget.plugin.enabled;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _CardShell(
-      aliases: widget.aliases,
-      child: Row(
-        children: [
-          Icon(
-            _enabled ? Icons.extension : Icons.extension_outlined,
-            size: 18,
-            color: _enabled
-                ? widget.aliases.stateBusinessPrimary
-                : widget.aliases.labelCaption,
-          ),
-          const SizedBox(width: DswTokens.spaceMd),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.plugin.name,
-                  style: TextStyle(
-                    fontSize: DswTokens.fontSizeS14,
-                    fontWeight: FontWeight.w600,
-                    color: widget.aliases.labelPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.plugin.description,
-                  style: TextStyle(
-                    fontSize: DswTokens.fontSizeXxs12,
-                    color: widget.aliases.labelSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'id: ${widget.plugin.id}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: widget.aliases.labelCaption,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _enabled,
-            activeThumbColor: widget.aliases.stateBusinessPrimary,
-            onChanged: (bool v) => setState(() => _enabled = v),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _EmptyListHint extends StatelessWidget {
   const _EmptyListHint({required this.label, required this.aliases});
 
@@ -1376,32 +1006,4 @@ class _EmptyListHint extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PluginInfo {
-  const _PluginInfo({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.enabled,
-  });
-
-  final String id;
-  final String name;
-  final String description;
-  final bool enabled;
-}
-
-class _InventoryItem {
-  const _InventoryItem({
-    required this.name,
-    required this.kind,
-    required this.provider,
-    required this.status,
-  });
-
-  final String name;
-  final String kind;
-  final String provider;
-  final String status;
 }
