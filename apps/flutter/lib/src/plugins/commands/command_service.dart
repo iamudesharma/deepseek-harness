@@ -218,23 +218,39 @@ typedef CommandExecutor = Future<CommandExecutionOutcome> Function(
   String line,
 );
 
-/// Builds the default executor over [client]: `session.prompt` with a single
-/// text block starting with '/'. Mapping (mirrors plan_control.dart):
-/// an ok response carrying the `command` slot is an admitted execution; an ok
-/// without it means the line was delivered as an ordinary prompt; an RPC
-/// failure maps `unknown-command` to the plan-matching unknown line and every
-/// other code to `'message (code)'`.
+/// Builds the default executor over [client]: `commands/execute` with the
+/// session's agentId, line, and empty images. Mapping mirrors
+/// `PlanControl.execute` and React `CommandUiRuntime.execute`:
+/// the Host `commands/execute` returns `CommandExecution {commandId,result}`
+/// or `undefined` (no value) for unknown syntax; `result.kind:'error'`
+/// maps to the displayed error text, `undefined` maps to the
+/// `unknown command: $line` line, and transport failures surface as
+/// `'message (code)'` / raw message (never silent).
 CommandExecutor defaultCommandExecutor(ConnectionClient client) {
   return (sessionId, line) async {
     try {
-      final value = await client.callMethod('session/prompt', {
-        'requestId': newRpcId(),
-        'sessionId': sessionId.value,
-        'mode': 'queue',
-        'content': [
-          {'type': 'text', 'text': line},
-        ],
+      final value = await client.callMethod('commands/execute', {
+        'agentId': sessionId.value,
+        'line': line,
+        'images': const [],
       });
+      // Host `commands/execute` returns `CommandExecution|undefined`. The
+      // Typert unwrapping in `ConnectionClient._unwrapValue` yields `{}` for
+      // `undefined` (no value). Treat a missing `result` as unknown command.
+      final result = value['result'];
+      if (result is Map) {
+        final kind = result['kind'];
+        if (kind == 'success') {
+          final text = result['text'];
+          return CommandExecutionOutcome.success(text is String ? text : null);
+        }
+        final errText = result['text'];
+        return CommandExecutionOutcome.error(
+          errText is String ? errText : '$line failed',
+        );
+      }
+      // Some hosts may return the legacy `command` slot (session/prompt path);
+      // keep the fallback so an older host still maps correctly.
       if (value['command'] is Map) {
         final command = value['command'] as Map;
         final kind = command['kind'];
@@ -247,12 +263,12 @@ CommandExecutor defaultCommandExecutor(ConnectionClient client) {
           errText is String ? errText : '/$line failed',
         );
       }
-      // plan_control's mapping: an ok response without the admission slot
-      // maps to the unknown-command line.
       return CommandExecutionOutcome.error('unknown command: $line');
     } on Exception catch (error) {
       final message = error.toString();
-      if (message.contains('unknown-command')) {
+      if (message.contains('unknown-command') ||
+          message.contains('not found') ||
+          message.contains('UNKNOWN')) {
         return CommandExecutionOutcome.error('unknown command: $line');
       }
       return CommandExecutionOutcome.error(message);
