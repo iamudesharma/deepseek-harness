@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-02T11:33:52.632Z",
+  "generatedAt": "2026-09-02T14:42:58.338Z",
   "oldSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
   "newSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
   "total": 813,
@@ -21,7 +21,7 @@
         "packages/subagent/subagent/src/index.ts"
       ],
       "affectedFlutterFiles": [],
-      "description": "[API pluralization] Namespace pluralization: subagent/interruptByParent \u2192 subagents/interruptByParent -> Ignored: no Flutter consumer."
+      "description": "[API pluralization] Namespace pluralization: subagent/interruptByParent \u2192 subagents/interruptByParent"
     },
     {
       "id": "CR-0002",
@@ -40,7 +40,7 @@
         "packages/subagent/subagent/src/index.ts"
       ],
       "affectedFlutterFiles": [],
-      "description": "[API pluralization] Namespace pluralization: subagent/list \u2192 subagents/list -> Ignored: no Flutter consumer."
+      "description": "[API pluralization] Namespace pluralization: subagent/list \u2192 subagents/list"
     },
     {
       "id": "CR-0003",
@@ -59,7 +59,7 @@
         "packages/subagent/subagent/src/index.ts"
       ],
       "affectedFlutterFiles": [],
-      "description": "[API pluralization] Namespace pluralization: subagent/prompt \u2192 subagents/prompt -> Ignored: no Flutter consumer."
+      "description": "[API pluralization] Namespace pluralization: subagent/prompt \u2192 subagents/prompt"
     },
     {
       "id": "CR-0004",
