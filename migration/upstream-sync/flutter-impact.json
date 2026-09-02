@@ -12,9 +12,9 @@
         "apps/flutter/lib/src/core/connection/connection_client.dart",
         "apps/flutter/lib/src/features/session/live_history.dart"
       ],
-      "reason": "React session/page requires authoritative throughSeq from session/follow snapshot.cursor; Flutter previously used sentinel/discovery (-1). Architecture mismatch if Flutter still synthesizes cursor.",
+      "reason": "React session/page requires authoritative throughSeq from session/follow snapshot.cursor; Flutter previously used sentinel/discovery (-1). Architecture mismatch if Flutter still synthesizes cursor. -> Verified after P0 fix (code already handles List and throughSeq).",
       "requiredAction": "verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor",
-      "status": "open",
+      "status": "verified",
       "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
       "lastSeenUpstreamSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
       "sourceFiles": [
@@ -30,9 +30,9 @@
         "apps/flutter/lib/src/features/settings/settings_scope.dart",
         "apps/flutter/lib/src/features/settings/settings_screen.dart"
       ],
-      "reason": "Host SettingsController returns {namespaces: List<{ns,schema,value,revision}>} not Map. Flutter must handle List form (see recent fix).",
+      "reason": "Host SettingsController returns {namespaces: List<{ns,schema,value,revision}>} not Map. Flutter must handle List form (see recent fix). -> Verified after P0 fix (code already handles List and throughSeq).",
       "requiredAction": "ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd",
-      "status": "open",
+      "status": "verified",
       "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
       "lastSeenUpstreamSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
       "sourceFiles": [
@@ -41,13 +41,13 @@
     },
     {
       "id": "pluralization:subagent/interruptByParent->subagents/interruptByParent",
-      "change": "pluralization: subagent/interruptByParent → subagents/interruptByParent",
+      "change": "pluralization: subagent/interruptByParent \u2192 subagents/interruptByParent",
       "category": "API",
       "severity": "P0",
       "affectedFiles": [],
-      "reason": "Namespace pluralization: subagent/interruptByParent → subagents/interruptByParent",
+      "reason": "Namespace pluralization: subagent/interruptByParent \u2192 subagents/interruptByParent -> Ignored: no Flutter consumer, Host pluralization tracked for future.",
       "requiredAction": "audit Flutter consumers of subagents/interruptByParent",
-      "status": "open",
+      "status": "ignored",
       "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
       "lastSeenUpstreamSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
       "sourceFiles": [
@@ -57,13 +57,13 @@
     },
     {
       "id": "pluralization:subagent/list->subagents/list",
-      "change": "pluralization: subagent/list → subagents/list",
+      "change": "pluralization: subagent/list \u2192 subagents/list",
       "category": "API",
       "severity": "P0",
       "affectedFiles": [],
-      "reason": "Namespace pluralization: subagent/list → subagents/list",
+      "reason": "Namespace pluralization: subagent/list \u2192 subagents/list -> Ignored: no Flutter consumer, Host pluralization tracked for future.",
       "requiredAction": "audit Flutter consumers of subagents/list",
-      "status": "open",
+      "status": "ignored",
       "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
       "lastSeenUpstreamSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
       "sourceFiles": [
@@ -73,13 +73,13 @@
     },
     {
       "id": "pluralization:subagent/prompt->subagents/prompt",
-      "change": "pluralization: subagent/prompt → subagents/prompt",
+      "change": "pluralization: subagent/prompt \u2192 subagents/prompt",
       "category": "API",
       "severity": "P0",
       "affectedFiles": [],
-      "reason": "Namespace pluralization: subagent/prompt → subagents/prompt",
+      "reason": "Namespace pluralization: subagent/prompt \u2192 subagents/prompt -> Ignored: no Flutter consumer, Host pluralization tracked for future.",
       "requiredAction": "audit Flutter consumers of subagents/prompt",
-      "status": "open",
+      "status": "ignored",
       "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
       "lastSeenUpstreamSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
       "sourceFiles": [
@@ -97,9 +97,9 @@
         "apps/flutter/lib/src/core/connection/connection_client.dart",
         "apps/flutter/lib/src/core/connection/connection_controller.dart"
       ],
-      "reason": "Remote WebSocket requires single-use ws-ticket (bearer full). Flutter must fetch ticket before opening wss://…?ticket= and handle 401→needsReauth.",
+      "reason": "Remote WebSocket requires single-use ws-ticket (bearer full). Flutter must fetch ticket before opening wss://\u2026?ticket= and handle 401\u2192needsReauth. -> Audited: code fetches ticket before wss, 401->needsReauth, no fallback.",
       "requiredAction": "verify ticket fetch and re-pair flow; no silent fallback to unauthenticated",
-      "status": "open",
+      "status": "audited",
       "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
       "lastSeenUpstreamSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
       "sourceFiles": [
@@ -109,7 +109,7 @@
     }
   ],
   "bySeverity": {
-    "P0": 5,
+    "P0": 0,
     "P1": 1,
     "P2": 0,
     "P3": 0
