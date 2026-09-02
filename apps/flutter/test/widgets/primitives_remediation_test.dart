@@ -36,11 +36,26 @@ void main() {
       expect(find.text('Connecting'), findsNothing);
       expect(find.text('Reconnecting'), findsNothing);
       expect(find.text('Disconnected'), findsNothing);
+      expect(find.text('Needs re-auth'), findsNothing);
 
       await tester.pumpWidget(
         _wrap(const DsConnectionBanner(state: conn.ConnectionState.idle)),
       );
       expect(find.text('Connecting'), findsNothing);
+      expect(find.text('Needs re-auth'), findsNothing);
+    });
+
+    testWidgets('connecting shows busy spinner with establishing copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const DsConnectionBanner(state: conn.ConnectionState.connecting),
+        ),
+      );
+      expect(find.text('Connecting'), findsOneWidget);
+      expect(find.text('Establishing connection…'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
     testWidgets('reconnecting shows busy spinner and retry copy', (
@@ -67,6 +82,18 @@ void main() {
       expect(find.text('Disconnected'), findsOneWidget);
       expect(find.text('No active connection.'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('needsReauth shows lock icon without spinner', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const DsConnectionBanner(state: conn.ConnectionState.needsReauth),
+        ),
+      );
+      expect(find.text('Needs re-auth'), findsOneWidget);
+      expect(find.text('Session expired — please re-pair.'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
     });
   });
 
