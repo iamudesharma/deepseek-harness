@@ -2,14 +2,26 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Sanitizes [url] to only http/https/mailto, matching the React
 /// `sanitizeUrl` allowlist in `packages/client/ui-primitives/src/markdown/render.tsx`.
+///
+/// Trims surrounding whitespace and rejects relative or unparsable URLs so
+/// fragment anchors and bare paths never reach the launcher (React's `new
+/// URL(url)` throws for them).
 String? sanitizeUrl(String url) {
+  final String trimmed = url.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
   try {
-    final uri = Uri.parse(url);
-    switch (uri.scheme) {
+    final uri = Uri.parse(trimmed);
+    // `Uri.parse` lower-cases the scheme; compare case-insensitively for
+    // parity with React's `new URL(url).protocol` check.
+    switch (uri.scheme.toLowerCase()) {
       case 'http':
       case 'https':
       case 'mailto':
-        return url;
+        // Keep original trimmed casing for mailto case preservation while
+        // still validating the scheme.
+        return trimmed;
       default:
         return null;
     }

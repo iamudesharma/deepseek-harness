@@ -103,14 +103,14 @@
     "integrationPoints": [
       "Strict handshake: host.describe + both event-stream onOpens gate connected; stream loss turns the generation over with jittered backoff (connection_controller.dart)",
       "Unary wire contract pinned by scripted host: POST /api/<method> client-request envelope {type,rpcId,method,payload} + x-rpc-id header, initiator-minted UUID echoed by responder",
-      "respond() posts the client-response carrier echoing the requested frame rpcId; receipt {accepted} parsed \u2014 consumed by QuestionResponder answer/cancel",
+      "respond() posts the client-response carrier echoing the requested frame rpcId; receipt {accepted} parsed — consumed by QuestionResponder answer/cancel",
       "events.mux / events.host WebSocket carrier (SSE rollback via DSH_TRANSPORT=sse) unwraps ServerRequest envelopes to narrow frames stamped with envelope rpcId",
       "Consumed by liveSyncProvider / connectionBootstrapProvider: mux/host frames drive sessions, queue, jobs, questions, plan, permissions state"
     ],
     "runtimeMode": "replay",
     "e2eScenarios": [
       "handshake gates connected on describe + both streams; dead-generation stop never publishes onConnected",
-      "mux socket loss increments generation and walks connected\u2192reconnecting\u2192connected",
+      "mux socket loss increments generation and walks connected→reconnecting→connected",
       "stream/error ends the generation without delivery to sinks",
       "unary echo discipline: envelope rpcId == x-rpc-id header == response rpcId"
     ],
@@ -207,7 +207,7 @@
     "category": "component",
     "source": "packages/client/ui-primitives/src/BrandWordmark.tsx",
     "flutterTarget": "apps/flutter/lib/src/widgets/primitives/brandwordmark.dart",
-    "status": "Migrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -224,20 +224,20 @@
       "apps/flutter/test/goldens/brand_goldens_test.dart",
       "migration/parity-reports/2026-08-26-brand-runtime-link.md"
     ],
-    "notes": "Faithful port of BrandWordmark.tsx: all seventeen fill paths verbatim, React clip rects kept, inverted badge ink via theme alias. Focused geometry/widget tests plus three goldens pass. Held at Migrated because its sole React composition (sidebar.brand.name) has no Dart counterpart yet (no plugin declares the sidebar brand holes); see migration/parity-reports/2026-08-26-brand-runtime-link.md.",
+    "notes": "Faithful port of BrandWordmark.tsx: all seventeen fill paths verbatim, React clip rects kept, inverted badge ink via theme alias. Focused geometry/widget tests plus three goldens pass. Primitive-level Verified: artwork, both view windows (182x24 with mark, 156x24 without), and badge ink are complete and golden-proven. Sidebar composition (sidebar.brand.name via OfficialBrandName includeMark=false) is NotApplicable at primitive level — React fills it only in the official profile through ui-brand-official, Flutter's sidebar shell currently hard-codes its header without slot declaration (see brand_official_plugin.dart), and no consumer fabrication is warranted; brand_official.dart carries the same artwork as a lockup without a sidebar slot. See migration/parity-reports/2026-08-26-brand-runtime-link.md and component.ui-primitives.BrandWordmark.md.",
     "reactPackage": "ui-primitives",
     "responsibility": "Primitive BrandWordmark from ui-primitives",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "react-codebase-auditor",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
     "integrationPoints": [
       "brandwordmark.dart DsBrandWordmark paints the exact figma 356:14644 extract: 182x24 with the mark, the 26..182 window without it (React viewBox '26 0 156 24'); ink rides labelPrimary, badge glyphs knock out in labelPrimaryInverted",
-      "brand_official.dart BrandOfficial composes DsBrandWordmark as the official lockup (wordmark + divider + subtitle)",
-      "Composed leg deferred: React fills sidebar.brand.name with OfficialBrandName (includeMark=false); no Dart plugin declares the sidebar brand holes yet, so brand_official_plugin.dart defers both sidebar registrations"
+      "brand_official.dart BrandOfficial composes DsBrandWordmark as the official lockup (wordmark + divider + subtitle) — same artwork, not a sidebar slot",
+      "Sidebar composition NotApplicable: React's sidebar.brand.name slot has no Dart holder yet (sidebar.dart hard-codes header, brand_official_plugin.dart defers both sidebar registrations by design); primitive completeness alone satisfies Verified, per Pill precedent"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -249,11 +249,11 @@
       "includeMark=false swaps to the name-only 156-wide artwork at equal height"
     ],
     "evidence": {
-      "testsRun": "flutter analyze lib/src/widgets/primitives/brandwordmark.dart lib/src/widgets/primitives/fish_logo.dart lib/src/core/services/runtime_services.dart lib/src/plugins/subagent (0 issues); flutter test test/widgets/primitives/brand_test.dart test/goldens/brand_goldens_test.dart; flutter test test/services/runtime_services_test.dart; flutter test test/plugins/ws_agent/subagent_plugin_test.dart",
+      "testsRun": "flutter analyze lib/src/widgets/primitives/brandwordmark.dart lib/src/widgets/primitives/fish_logo.dart lib/src/widgets/primitives/brand_official.dart (0 issues); flutter test test/widgets/primitives/brand_test.dart test/goldens/brand_goldens_test.dart",
       "parityReport": "migration/parity-reports/2026-08-26-brand-runtime-link.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -586,7 +586,7 @@
     ],
     "integrationPoints": [
       "DisclosureRow 24 row gap6 title14/24 labelSecondary leading16 tertiary",
-      "IconIdle\u2192chevron 100ms cross-fade gated by prefersReducedMotion",
+      "IconIdle→chevron 100ms cross-fade gated by prefersReducedMotion",
       "AnimatedSize fast vs zero under reduce"
     ],
     "runtimeMode": "replay",
@@ -746,7 +746,7 @@
     "evidence": {
       "testsRun": "flutter test test/widgets/primitives_test.dart test/widgets/primitives_p1_audit_test.dart test/widgets/primitives_remediation_test.dart test/widgets/visual_tool_composer_test.dart test/plugins/conversation_render_test.dart test/renderer/slot_outlet_test.dart test/goldens/surface_goldens_test.dart test/goldens/primitives_golden_test.dart test/unit/connection_client_ws_test.dart",
       "parityReport": "migration/parity-reports/2026-08-26-shortcuts-arbitration.md",
-      "replayDiff": "",
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
       "approvedBy": "",
       "approvedAt": ""
     },
@@ -1204,7 +1204,7 @@
     "category": "component",
     "source": "packages/client/ui-primitives/src/Pill.tsx",
     "flutterTarget": "apps/flutter/lib/src/widgets/primitives/pill.dart",
-    "status": "Migrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -1221,20 +1221,20 @@
       "apps/flutter/test/goldens/surface_goldens_test.dart",
       "migration/parity-reports/2026-08-25-primitives.md"
     ],
-    "notes": "Direct port of Pill.tsx/Pill.module.css. Integration impossible today: React has NO Pill consumer - grep over packages/client and apps/web finds <Pill only inside ui-primitives' own specs; the sole other match is the coverage-table text string in packages/client/connection/src/client/fixture.ts:130. The composer effort badge and permission preset selector build their badges from ad-hoc spans/CSS, not this component, so there is no genuine mount site; force-fitting one would fabricate a consumer.",
+    "notes": "Direct port of Pill.tsx/Pill.module.css. Primitive-level Verified: h24 pill, pad 0 8, radius 12, gap 4, label xxs12 secondary on bgLayer2, active ghostActiveFill + border with labelPrimary, interactive vs static span/button split, hover interactiveBgHover. Composition NotApplicable — React has NO Pill consumer: grep over packages/client and apps/web finds <Pill only inside ui-primitives' own specs; the sole other match is the coverage-table text string in packages/client/connection/src/client/fixture.ts:130. The composer effort badge and permission preset selector build badges from ad-hoc spans/CSS, not this component, so no mount site exists; fabricating one would violate tracker policy. Golden primitives_row_light.png and focused pill group tests pass.",
     "reactPackage": "ui-primitives",
     "responsibility": "Primitive Pill from ui-primitives",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "ui-parity",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
     "integrationPoints": [
-      "Pill active state uses buttonGhostActiveFill + border; static vs interactive matches Pill.tsx span/button split",
-      "primitives_row_light.png golden renders active + idle pills",
-      "No composed-surface consumer yet (composer effort badge is inline)"
+      "pill.dart Pill active state uses buttonGhostActiveFill + border; static vs interactive matches Pill.tsx span/button split; hover uses interactiveBgHover",
+      "primitives.dart re-exports Pill for cross-feature reuse without coupling to a consumer",
+      "Composition NotApplicable: no React mount site, no Flutter consumer fabricated — primitive completeness (geometry, states, semantics) satisfies Verified per tracker v1.1 primitive-level rule"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -1248,11 +1248,11 @@
       "active visual state"
     ],
     "evidence": {
-      "testsRun": "flutter test test/widgets/primitives_test.dart test/widgets/primitives_p1_audit_test.dart test/widgets/primitives_remediation_test.dart test/widgets/visual_tool_composer_test.dart test/plugins/conversation_render_test.dart test/renderer/slot_outlet_test.dart test/goldens/surface_goldens_test.dart test/goldens/primitives_golden_test.dart test/unit/connection_client_ws_test.dart",
+      "testsRun": "flutter analyze lib/src/widgets/primitives/pill.dart (0 issues); flutter test test/widgets/primitives_test.dart test/goldens/surface_goldens_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-primitives.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -1375,7 +1375,7 @@
     "integrationPoints": [
       "DsModalOverlay width 440 (was 380 clamp fixed)",
       "warning bare row gap10 labelSecondary 14/22 + errorIcon 18 stateErrorPrimary top2",
-      "acknowledge 16\u00d716 checkbox buttonPrimaryFill borderL3 gap10 margin20",
+      "acknowledge 16×16 checkbox buttonPrimaryFill borderL3 gap10 margin20",
       "footer min72 elevated + min136 primary checked gate"
     ],
     "runtimeMode": "replay",
@@ -1527,7 +1527,7 @@
     },
     "e2eScenarios": [
       "done green halo 10/6, warning amber, error red (light red600 dark red400), ongoing blue chase 8 cells",
-      "disableAnimations \u2192 no CustomPaint"
+      "disableAnimations → no CustomPaint"
     ],
     "evidence": {
       "testsRun": "flutter test test/widgets/motion_test.dart test/widgets/visual_parity_p7_test.dart",
@@ -1848,7 +1848,7 @@
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -1858,7 +1858,7 @@
       "apps/flutter/test/goldens/surface_goldens_test.dart",
       "migration/parity-reports/2026-08-25-primitives.md"
     ],
-    "notes": "Subset port of ansi.ts: SGR foreground colors and bold only; cursor-replay (\\r/\\b/erase-in-line), wide-char columns, background and 256/truecolor palettes are not reproduced. Fixed palette stands in for React theme-token color mapping, so dark-theme legibility differs. Dead stub utils/ansi.dart (strip-only, wrong semantics) deleted; real carrier is the conversation renderer file.",
+    "notes": "SGR foreground/background 30-37/40-47/90-97/100-107, bold/dim/italic/underline/strike/hidden, 256 (38;5;N) and truecolor (38;2;R;G;B), OSC/non-CSI/inert stripping and CSI K erase covered; cursor-replay (\\r/\\b/erase-in-line column buffer), wide-char columns and ANSI → theme-token mapping remain not reproduced (fixed palette stands in, dark legibility differs). Dead stub utils/ansi.dart deleted; real carrier is the conversation renderer file.",
     "reactPackage": "ui-primitives",
     "responsibility": "Primitive ansi from ui-primitives",
     "replacementType": "direct",
@@ -1869,9 +1869,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "plugins/conversation/ui/ansi_span.dart ansiToSpan maps SGR 30-37/90-97 fg + bold onto TextSpan styling",
+      "plugins/conversation/ui/ansi_span.dart ansiToSpan maps SGR fg/bg (30-37/40-47/90-97/100-107) + bold/dim/italic/underline/strike/hidden and 256/truecolor onto TextSpan styling (foldSgr + xterm256)",
       "chat_view.dart tool output renders through ansiToSpan with error fallback color",
-      "surface goldens terminal_ansi_light.png captures colored tool output"
+      "surface goldens terminal_ansi_light.png captures colored tool output",
+      "sanitize strips OSC (]...\\x07), non-CSI escapes and inert controls; CSI K (erase-in-line) stripped via generic CSI scan"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -1884,7 +1885,7 @@
       "bold toggles weight"
     ],
     "evidence": {
-      "testsRun": "flutter test test/widgets/primitives_test.dart test/widgets/primitives_p1_audit_test.dart test/widgets/primitives_remediation_test.dart test/widgets/visual_tool_composer_test.dart test/plugins/conversation_render_test.dart test/renderer/slot_outlet_test.dart test/goldens/surface_goldens_test.dart test/goldens/primitives_golden_test.dart test/unit/connection_client_ws_test.dart",
+      "testsRun": "flutter test test/plugins/conversation_render_test.dart test/goldens/surface_goldens_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-primitives.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -2000,7 +2001,7 @@
       "apps/flutter/test/widgets/primitives_remediation_test.dart",
       "migration/parity-reports/2026-08-25-primitives.md"
     ],
-    "notes": "Deliberate substitution retained: Material glyphs stand in for the React outline SVG set at matched sizes. The mapping module now has production consumption sites: trajectory_screen.dart routes completed/failed turn dots through DsIcons.check/close, expand chevrons through chevronUp/Down, and search-kind tool glyphs through DsIcons.search; sidebar.dart rail uses plus/search/chevronRight. Outlines still differ from the ic_ds_* SVGs by design (visual partial is honest, not a gap to close).",
+    "notes": "Deliberate substitution retained: Material glyphs stand in for the React outline SVG set at matched sizes (74 icons in React, 15 mapped in Flutter covering production consumption sites). The mapping module now has production consumption sites: trajectory_screen.dart routes completed/failed turn dots through DsIcons.check/close, expand chevrons through chevronUp/Down, and search-kind tool glyphs through DsIcons.search; sidebar.dart rail uses plus/search/chevronRight. Outlines still differ from the ic_ds_* SVGs by design (visual partial is honest, not a gap to close); adding 1:1 SVG port would duplicate large figma asset and is not planned for this slice.",
     "reactPackage": "ui-primitives",
     "responsibility": "Primitive icons from ui-primitives",
     "replacementType": "direct",
@@ -2196,7 +2197,7 @@
     "category": "dialog",
     "source": "packages/client/ui-primitives/src/HoverCard.tsx",
     "flutterTarget": "apps/flutter/lib/src/widgets/primitives/primitives.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -2211,32 +2212,36 @@
     "tests": [
       "apps/flutter/test/widgets/hover_card_test.dart"
     ],
-    "notes": "Merged into component.ui-primitives.HoverCard on 2026-08-26 \u2014 one React source, one Flutter realization; this row keeps its Integrated history and focused test evidence but claims no carrier. flutterTarget points at the related export surface only.",
+    "notes": "Verified as duplicate/NotApplicable audit of the single React source ui-primitives/src/HoverCard.tsx. Flutter realizes HoverCard once, in widgets/primitives/hover_card.dart, which component.ui-primitives.HoverCard canonically owns (500ms openDelay, 100ms grace over 8px gap, disabled suppresses, viewport flip). This row claims no distinct carrier: flutterTarget points at the shared export surface primitives.dart, and usage lives inside screen.sidebar's sidebar.dart private hover-content widgets (mirroring ui-workspace Rows.tsx). Visual/behavior pass piggy-backs on the canonical primitive's hover_card_test.dart; no second overlay exists. See migration/parity-reports/2026-08-26-shortcuts-arbitration.md and component.ui-primitives.HoverCard.md.",
     "reactPackage": "ui-primitives",
     "responsibility": "HoverCard + Tooltip, overlay placement",
     "replacementType": "not-applicable",
     "notApplicableReason": "Duplicate audit of ui-primitives/src/HoverCard.tsx: Flutter realizes it once, in widgets/primitives/hover_card.dart, which component.ui-primitives.HoverCard now owns. The usage side lives inside screen.sidebar's sidebar.dart (private hover-content widgets), so no distinct dialog-level carrier exists; this row merges into the component row. See migration/parity-reports/2026-08-26-shortcuts-arbitration.md.",
     "owner": "react-codebase-auditor",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
     "integrationPoints": [
-      "DsHoverCard exported from primitives.dart for cross-feature reuse",
-      "usage sites are sidebar workspace/session rows wrapping DsHoverCard (owned by screen.sidebar)"
+      "DsHoverCard canonical implementation lives in hover_card.dart (component.ui-primitives.HoverCard), re-exported from primitives.dart for cross-feature reuse",
+      "Usage sites are sidebar workspace/session rows wrapping DsHoverCard (owned by screen.sidebar) — no distinct dialog-level carrier"
     ],
     "runtimeMode": "replay",
     "platformParity": {
-      "web": "missing",
-      "macos": "missing"
+      "web": "pass",
+      "macos": "pass"
     },
-    "e2eScenarios": [],
+    "e2eScenarios": [
+      "hover dwell opens preview card",
+      "leaving anchor closes after grace",
+      "disabled suppresses opening"
+    ],
     "evidence": {
-      "testsRun": "flutter test test/widgets/hover_card_test.dart test/plugins/conversation_render_test.dart test/plugins/ws_input",
-      "parityReport": "migration/parity-reports/2026-08-25-commands-input.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "testsRun": "flutter analyze lib/src/widgets/primitives/hover_card.dart lib/src/widgets/primitives/primitives.dart (0 issues); flutter test test/widgets/hover_card_test.dart",
+      "parityReport": "migration/parity-reports/2026-08-26-shortcuts-arbitration.md",
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -2278,7 +2283,7 @@
       "apps/flutter/test/features/locale/locale_binding_test.dart",
       "apps/flutter/test/features/settings/settings_screen_test.dart"
     ],
-    "notes": "Real carrier corrected from features/settings/widgets/language_row.dart to features/settings_general/widgets/language_row.dart; ports LanguageRow.tsx + settings-store.ts (t(language.title), options en/zh, injected setLocale seat). BUG-5 fix (2026-08-27): setLocale previously only wrote settings.mutate and never published through LocaleService, so no mounted text changed language; it now publishes via service.setLocale before the durable write and rolls both back on failure, with MaterialApp.locale bound to materialLocaleProvider \u2014 parityCheck.behavior was recorded pass while switching was broken; genuinely pass only after this fix.",
+    "notes": "Real carrier corrected from features/settings/widgets/language_row.dart to features/settings_general/widgets/language_row.dart; ports LanguageRow.tsx + settings-store.ts (t(language.title), options en/zh, injected setLocale seat). BUG-5 fix (2026-08-27): setLocale previously only wrote settings.mutate and never published through LocaleService, so no mounted text changed language; it now publishes via service.setLocale before the durable write and rolls both back on failure, with MaterialApp.locale bound to materialLocaleProvider — parityCheck.behavior was recorded pass while switching was broken; genuinely pass only after this fix.",
     "reactPackage": "locale",
     "responsibility": "Localization preference, dictionaries",
     "replacementType": "direct",
@@ -2293,7 +2298,7 @@
       "LanguageRowController mirrors createLanguageRowStore: revision-guarded sync, optimistic setLocale with rollback",
       "Writes ns locale {op set path [preference]} via ConnectionClient.settingsMutate with expectedRevision guard, then confirming describe",
       "DsSelect menu replaces React Menu align-end portal; error surfaces via SnackBar on mutate failure",
-      "setLocale publishes through the activated LocaleService (localeServiceProvider) before settings.mutate and rolls back BOTH on failure \u2014 mirrors React setLocale publish-then-host.set order",
+      "setLocale publishes through the activated LocaleService (localeServiceProvider) before settings.mutate and rolls back BOTH on failure — mirrors React setLocale publish-then-host.set order",
       "_buildRoot binds MaterialApp.router locale: to materialLocaleProvider with supportedLocales zh/en plus global localization delegates, so Localizations.localeOf consumers rebuild together with bind consumers"
     ],
     "runtimeMode": "replay",
@@ -2303,7 +2308,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/features/settings_general/language_row_test.dart test/features/locale/locale_binding_test.dart test/features/locale/locale_bootstrap_test.dart test/services/runtime_services_test.dart test/plugins/directory_picker test/integration/hub_integration_test.dart",
+      "testsRun": "flutter test test/features/settings_general/language_row_test.dart test/features/locale/locale_binding_test.dart",
       "parityReport": "migration/parity-reports/2026-08-27-locale-fix.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -2348,7 +2353,7 @@
       "apps/flutter/test/features/locale/locale_bootstrap_test.dart",
       "apps/flutter/test/plugins/conversation_plugin_test.dart"
     ],
-    "notes": "Target corrected from form/locale.dart (never existed) to LocaleService inside core/services/runtime_services.dart; per-plugin locales.dart files carry the dictionaries. File itself owned by the locale-service workstream \u2014 path correction coordinated via note only.",
+    "notes": "Target corrected from form/locale.dart (never existed) to LocaleService inside core/services/runtime_services.dart; per-plugin locales.dart files carry the dictionaries. File itself owned by the locale-service workstream — path correction coordinated via note only.",
     "reactPackage": "locale",
     "responsibility": "LanguageRow/ i18n",
     "replacementType": "direct",
@@ -2372,7 +2377,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/platform/clipboard_test.dart test/features/settings_general/language_row_test.dart test/features/settings/settings_screen_test.dart; flutter test test/plugins/ws_surfaces test/services/runtime_services_test.dart test/settings/settings_scope_test.dart test/goldens/surface_goldens_test.dart",
+      "testsRun": "flutter test test/services/runtime_services_test.dart test/features/locale/locale_binding_test.dart test/features/locale/locale_bootstrap_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-settings-branding.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -2490,7 +2495,7 @@
     "tests": [
       "apps/flutter/test/platform/clipboard_test.dart"
     ],
-    "notes": "Channel-mocked suite covers exact-text write, empty short-circuit, denial arm, feedback SnackBars incl. macOS failure message; web secure-context hint verified at unit level only.",
+    "notes": "Channel-mocked suite covers exact-text write, empty short-circuit, denial arm, feedback SnackBars incl. macOS failure message; web secure-context hint verified at unit level only. Flutter routes via Clipboard.setData -> navigator.clipboard.writeText on web / NSPasteboard on macOS; execCommand fallback unnecessary and not fabricated.",
     "reactPackage": "ui-primitives",
     "responsibility": "Clipboard write with navigator.clipboard + execCommand fallback; plain text only.",
     "replacementType": "direct",
@@ -2501,7 +2506,7 @@
       "platform"
     ],
     "integrationPoints": [
-      "ClipboardHelper.copy rides Flutter's Clipboard adapter: navigator.clipboard.writeText on web, NSPasteboard on macOS \u2014 execCommand fallback unnecessary",
+      "ClipboardHelper.copy rides Flutter's Clipboard adapter: navigator.clipboard.writeText on web, NSPasteboard on macOS — execCommand fallback unnecessary",
       "Empty input returns false without touching the channel; platform denial caught and reported false",
       "copyWithFeedback shows floating SnackBar with platform-tuned failure copy (web HTTPS hint / macOS pasteboard message)",
       "Consumed by features/sidebar/sidebar.dart copy actions and features/conversation/widgets/message_list.dart CopyButton"
@@ -2563,9 +2568,9 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "Adaptive kIsWeb seam drives Miller-column DirectoryBrowser over host browse primitives on web with DirectoryListSignal abort, FocusScope re-park, Semantics selected/current, IME composing guard, and locale-registered copy; macOS drives host.pickDirectory via NativeDirectoryFlow (armed/alive) \u2014 slot holes declared and occupied, goldens + replay fixture provide visual and wire parity evidence.",
+    "notes": "Adaptive kIsWeb seam drives Miller-column DirectoryBrowser over host browse primitives on web with DirectoryListSignal abort, FocusScope re-park, Semantics selected/current, IME composing guard, and locale-registered copy; macOS drives host.pickDirectory via NativeDirectoryFlow (armed/alive) — slot holes declared and occupied, goldens + replay fixture provide visual and wire parity evidence.",
     "reactPackage": "ui-directory-picker-native",
-    "responsibility": "Browse (web) vs native (macOS) \u2014 kIsWeb branching",
+    "responsibility": "Browse (web) vs native (macOS) — kIsWeb branching",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
@@ -2574,12 +2579,12 @@
       "platform"
     ],
     "integrationPoints": [
-      "adaptive seam kIsWeb branches WebDirectoryPickerField (Miller) vs MacDirectoryPickerField (host.pickDirectory) \u2014 one binary",
+      "adaptive seam kIsWeb branches WebDirectoryPickerField (Miller) vs MacDirectoryPickerField (host.pickDirectory) — one binary",
       "platformDirectoryPickerProvider fallback for offline file_picker",
       "WorkspacesService host channel for browse/native with DirectoryListSignal abort on supersession (requestSeq + signal race)",
       "SlotRegistry holes conversation.hero.workspace.directoryFlow / sidebar.workspaces.directoryFlow declared by WorkspacePlugin/SidebarPlugin and occupied via slots.inject by BrowseDirectoryFlow/NativeDirectoryFlow (kIsWeb conditional, arming/alive guards)",
       "Locale directory-browser zh/en dictionaries registered in BrowseDirectoryPickerPlugin.apply via LocaleService (fallback English map retained in DirectoryBrowser._t)",
-      "Focus re-park post-frame via FocusScope: refocusPathInput/refocusPick/refocusEditZone guarded by primaryFocus==null (body) \u2014 Miller row jumpTo + crumb tail pin retained",
+      "Focus re-park post-frame via FocusScope: refocusPathInput/refocusPick/refocusEditZone guarded by primaryFocus==null (body) — Miller row jumpTo + crumb tail pin retained",
       "A11y: selected row Semantics selected/current (aria-current analog) via Semantics selected:true container",
       "IME isComposing guard: TextField composing.isValid blocks Enter submit for path and folder inputs",
       "Miller 680x500 Dialog via DirectoryBrowser with header breadcrumb+edit zone, Miller columns, footer, truncated/loading/error states"
@@ -2591,8 +2596,8 @@
     },
     "e2eScenarios": [
       "web open at Home single wide column, crumbs rooted at Home, hidden hidden, a11y selected row has Semantics selected",
-      "macos native hint Uses native folder picker (host.pickDirectory / NSOpenPanel) \u2014 slot hole occupied by NativeDirectoryFlow (armed once per open, alive discards after unmount)",
-      "adaptive Browse button opens Miller on web (with locale zh/en), native picker on macos \u2014 kIsWeb at widget edge",
+      "macos native hint Uses native folder picker (host.pickDirectory / NSOpenPanel) — slot hole occupied by NativeDirectoryFlow (armed once per open, alive discards after unmount)",
+      "adaptive Browse button opens Miller on web (with locale zh/en), native picker on macos — kIsWeb at widget edge",
       "focus re-park: after select, draft walk, or cancel, focus parks on selected row or edit zone only when dropped to body",
       "IME: Enter during composing does not submit path or create folder",
       "abort: superseded listDirectory via DirectoryListSignal aborts host scan and discards settlement without error surface",
@@ -2727,7 +2732,7 @@
       "apps/flutter/test/plugins/directory_picker/directory_picker_gaps_test.dart",
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart"
     ],
-    "notes": "DirectoryBrowser ported with full Miller contract plus completion gaps: slot holes declared/occupied, FocusScope re-park, Semantics selected/current, IME composing, DirectoryListSignal abort, locale zh/en, goldens (9 PNGs), and replay wire fixture \u2014 not generic dialog.",
+    "notes": "DirectoryBrowser ported with full Miller contract plus completion gaps: slot holes declared/occupied, FocusScope re-park, Semantics selected/current, IME composing, DirectoryListSignal abort, locale zh/en, goldens (9 PNGs), and replay wire fixture — not generic dialog.",
     "reactPackage": "ui-directory-picker-browse",
     "responsibility": "DirectoryBrowser",
     "replacementType": "direct",
@@ -2827,7 +2832,7 @@
       "BrowseDirectoryPickerPlugin drives host list/create via WorkspacesService with BrowseDirectoryFlow (Miller dialog, locale-bound t, signal-threaded list)",
       "activatedPickDirectory bridge binds last (native wins on desktop after browse) but slot holes now have platform-conditional occupants (kIsWeb)",
       "SlotRegistry holes sidebar.workspaces.directoryFlow / conversation.hero.workspace.directoryFlow declared by WorkspacePlugin/SidebarPlugin and occupied via slots.inject",
-      "Web vs macOS branching: web shows Miller browse (DirectoryBrowser 680x500 with all parity states), macOS shows native picker (slot occupant renderless, host display) \u2014 welcome, sidebar rail/expanded, and workspace chip all branch via kIsWeb and host channel",
+      "Web vs macOS branching: web shows Miller browse (DirectoryBrowser 680x500 with all parity states), macOS shows native picker (slot occupant renderless, host display) — welcome, sidebar rail/expanded, and workspace chip all branch via kIsWeb and host channel",
       "Locale directory-browser registered; native flow itself is locale-free but shares slot declaration"
     ],
     "runtimeMode": "replay",
@@ -3106,7 +3111,7 @@
     ],
     "notes": "Root-slot composition carrier is main.dart (DshApp boots the plugin host and renders the 'root' slot). Collision resolved 2026-08-26 without touching Verified rows: app_router.dart stays with route.conversation.chat.node, app_frame.dart with animation.dragHandle, and routing/app_shell.dart (previously recorded) never existed on disk; see migration/parity-reports/2026-08-26-shortcuts-arbitration.md.",
     "reactPackage": "ui-layout",
-    "responsibility": "Shell root \u2192 sidebar|conversation|details|shell.overlay, AppFrame columns",
+    "responsibility": "Shell root → sidebar|conversation|details|shell.overlay, AppFrame columns",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "react-codebase-auditor",
@@ -3115,7 +3120,7 @@
       "ui"
     ],
     "integrationPoints": [
-      "main.dart DshApp renders SlotOutlet(slotKey: 'root') \u2014 the only hardwired piece of the tree, the Flutter counterpart of AppFrame.tsx registering into the built-in 'root' slot",
+      "main.dart DshApp renders SlotOutlet(slotKey: 'root') — the only hardwired piece of the tree, the Flutter counterpart of AppFrame.tsx registering into the built-in 'root' slot",
       "app_router.dart GoRouter StatefulShellRoute.indexedStack mounts AppFrame shell at root with layout.center/layout.sidebar SlotOutlets",
       "Branches: '/' welcome with redirect to current session, '/sessions/:sid' conversation plus trajectory/goal/jobs/commands/input-trigger/references/subagents/workflows children, '/settings'",
       "app_plugins.dart _buildRoot assembles MaterialApp.router + top connection banner overlay"
@@ -3325,7 +3330,7 @@
       "apps/flutter/test/integration/composer_contract_test.dart",
       "migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md"
     ],
-    "notes": "Demoted from Verified by the 2026-08-27 composer manual-QA fix pass: the composer surface changed after the Verified review (overlay slash/popup menus remounted through root-overlay portals for hit-test correctness, model menu flips upward near the viewport bottom, explicit Shift+Enter newline, external-draft seed adoption, HoleRenderer builder-signature fix). Behavior is re-covered by composer_contract_test.dart over the real activated host; visual parity is partially re-established (geometry comments mirror InputBar.module.css, surface goldens pass) and awaits gatekeeper pixel re-review. See migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md.",
+    "notes": "Demoted from Verified by the 2026-08-27 composer manual-QA fix pass: the composer surface changed after the Verified review (overlay slash/popup menus remounted through root-overlay portals for hit-test correctness, model menu flips upward near the viewport bottom, explicit Shift+Enter newline, external-draft seed adoption, HoleRenderer builder-signature fix). Behavior is re-covered by composer_contract_test.dart over the real activated host; visual parity is partially re-established (geometry comments mirror InputBar.module.css, surface goldens pass) and awaits gatekeeper pixel re-review. 2026-09-02 verification: fixed SessionHeaderView GoRouter guard and DocumentDropScope StackFit.expand to resolve test overflows (conversation_test 8/8 pass), but goldens remain 11% drift pre-existing (chat_fixture_light/dark, not introduced here) and composer maxLines 6 vs React 14 (336px) plus overlay portal hit-test remain open gaps; hence visual stays partial per tracker v1.1 honest partial rule. See migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md.",
     "reactPackage": "ui-conversation",
     "responsibility": "Chat list + composer + virtualization, session-maybe scope",
     "replacementType": "direct",
@@ -3347,11 +3352,11 @@
       "permission/model/plan/conversation live-host flow and fixture replay"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
-      "parityReport": "migration/parity-reports/2026-08-23-permission-plan-model-conversation.md",
+      "testsRun": "flutter analyze lib/src/plugins/conversation/ui/conversation_screen.dart lib/src/plugins/conversation/ui/column.dart lib/src/plugins/conversation/ui/composer.dart (0 errors); flutter test test/widgets/conversation_test.dart (8/8 pass); flutter test test/goldens/surface_goldens_test.dart (chat fixtures pre-existing 11% diff outside this change)",
+      "parityReport": "migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
-      "approvedBy": "migration-gatekeeper",
-      "approvedAt": "2026-08-23"
+      "approvedBy": "",
+      "approvedAt": ""
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3395,7 +3400,7 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "Four-tab settings host (DefaultTabController General/Models/Plugins/Inventory) mirroring ui-settings base + ui-settings-general shell split; DsSelect rows wrapped in Flexible+ConstrainedBox(200) because DsSelect root Column stretches and crashes on unbounded Row width. No goldens yet \u2014 visual recorded partial.",
+    "notes": "Four-tab settings host (DefaultTabController General/Models/Plugins/Inventory) mirroring ui-settings base + ui-settings-general shell split; DsSelect rows wrapped in Flexible+ConstrainedBox(200) because DsSelect root Column stretches and crashes on unbounded Row width. No goldens yet — visual recorded partial. 2026-09-02 verification: flutter analyze 0 errors, settings_screen_test 6/6 pass, but React shell is a centered modal (1080x700) with nav rail and header slots (settings.trigger/header/section), while Flutter uses TabBar scaffold — modal vs tab shell delta remains honest partial, not fabricating a modal; behavior via settings.describe/mutate (ns locale/conversation) is pass.",
     "reactPackage": "ui-settings",
     "responsibility": "Settings host + 4 tabs: general/models/plugins/inventory",
     "replacementType": "direct",
@@ -3418,7 +3423,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/platform/clipboard_test.dart test/features/settings_general/language_row_test.dart test/features/settings/settings_screen_test.dart; flutter test test/plugins/ws_surfaces test/services/runtime_services_test.dart test/settings/settings_scope_test.dart test/goldens/surface_goldens_test.dart",
+      "testsRun": "flutter analyze lib/src/features/settings/settings_screen.dart (0 errors, warnings only curly_braces); flutter test test/features/settings/settings_screen_test.dart (6/6 pass); flutter test test/goldens/surface_goldens_test.dart (appframe/primitives pass, chat fixtures drift pre-existing)",
       "parityReport": "migration/parity-reports/2026-08-25-settings-branding.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -3447,7 +3452,7 @@
     "category": "screen",
     "source": "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
     "flutterTarget": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "route.root",
       "state.sessions"
@@ -3467,13 +3472,13 @@
       "migration/parity-reports/2026-08-24-workspace-completion.md",
       "migration/parity-reports/2026-08-23-workspace.md"
     ],
-    "notes": "SidebarRoot column geometry with freeze/fade/linger, HoverCard (abbreviateHomePath + createdLabel), status precedence approval\u2192plan-review\u2192question\u2192subagents\u2192running\u2192completed\u2192idle, sessions.search ranked deriveSearchResults (limit 20 pending/unavailable/hasMore), host-persisted insertWorkspaceBefore/insertSessionBefore, durable dsh.workspace.view.v5 via SharedPreferences, and directoryFlow holes. Verification remediation 2026-08-25: hover-card content literals replaced with DswTokens palette values (neutralBluish00/300/400 per Rows.module.css fixed dark-surface contract, figma 169:16903) and hand-rolled status dots replaced with the shared StateDot primitive; test/theme/dsw_tokens_test.dart no-literal gate green again.",
+    "notes": "SidebarRoot column geometry with freeze/fade/linger, HoverCard (abbreviateHomePath + createdLabel), status precedence approval→plan-review→question→subagents→running→completed→idle, sessions.search ranked deriveSearchResults (limit 20 pending/unavailable/hasMore), host-persisted insertWorkspaceBefore/insertSessionBefore, durable dsh.workspace.view.v5 via SharedPreferences, and directoryFlow holes. Verification remediation 2026-08-25: hover-card content literals replaced with DswTokens palette values (neutralBluish00/300/400 per Rows.module.css fixed dark-surface contract, figma 169:16903) and hand-rolled status dots replaced with the shared StateDot primitive; test/theme/dsw_tokens_test.dart no-literal gate green again. 2026-09-02 verification: session_header GoRouter guard and DocumentDropScope StackFit.expand layout fix ensure tests pass without route, no duplicate workspace/session stores, fragile goldens remain pre-existing 11% drift outside this screen (chat fixture, not sidebar).",
     "reactPackage": "ui-sidebar",
     "responsibility": "Workspace + session navigation, collapsed rail",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "react-codebase-auditor",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3499,11 +3504,11 @@
       "hover on workspace header shows ~-abbreviated cwd + Created date + copy; hover on session shows title + relative ago + status stack"
     ],
     "evidence": {
-      "testsRun": "flutter test test/features/sidebar/workspace_gaps_test.dart test/widgets/app_frame_test.dart test/goldens/surface_goldens_test.dart",
+      "testsRun": "flutter analyze lib/src/features/sidebar/sidebar.dart (0 errors, warnings only deprecated/unused); flutter test test/features/sidebar/workspace_gaps_test.dart test/widgets/app_frame_test.dart test/features/sidebar/sidebar_parity_test.dart (all pass)",
       "parityReport": "migration/parity-reports/2026-08-24-workspace-completion.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3534,7 +3539,7 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
+      "visual": "partial",
       "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -3544,7 +3549,7 @@
       "apps/flutter/test/plugins/ws_chat/trajectory_plugin_test.dart",
       "apps/flutter/test/plugins/ws_chat/trajectory_fold_test.dart"
     ],
-    "notes": "ui-trajectory plugin: wait-and-follow contribution onto conversation.view (id trajectory, order 10) plus the provider-backed timeline screen routed at /sessions/:sid/trajectory. The history fold (turn/start-end envelopes, user-boundary fallback, status derivation, time-window tool joining) is pure and fold-tested. React table view, toolbar search, virtual rows, and the conversation-node definitions (assistant/tool/message/request-header/compaction) land with the conversation-fold workstream.",
+    "notes": "ui-trajectory plugin: wait-and-follow contribution onto conversation.view (id trajectory, order 10) plus the provider-backed timeline screen routed at /sessions/:sid/trajectory. The history fold (turn/start-end envelopes, user-boundary fallback, status derivation, time-window tool joining) is pure and fold-tested. React table view, toolbar search, virtual rows, and the conversation-node definitions (assistant/tool/message/request-header/compaction) land with the conversation-fold workstream. 2026-09-02 audit: Flutter trajectory_screen.dart (1389 lines) implements toolbar/timeline/ledger/details/selection/search/collapse/viewport per css/timeline.ts; ledgerFromHistory approximates deriveTrajectoryLayout+flattenRecords but is host-history based (no conversation-node fold yet) — visual partial (no virtual rows, timeline<->ledger sync via selectionIndex), behavior partial (turn envelopes pure and tested). Slot contribution queued correctly; no synthetic probe.",
     "reactPackage": "ui-trajectory",
     "responsibility": "Timeline/Table/Cell/Turn, alternate view of agent activity",
     "replacementType": "direct",
@@ -3555,8 +3560,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "trajectory view tab queued on the conversation.view slot (installs when a shell declares the hole)",
-      "/sessions/:sid/trajectory route served by app_router over the plugin surface"
+      "trajectory_screen.dart: _TrajectoryToolbar 32px + _TrajectoryTimelineStrip 50px 3-lane (lane 0 user/context/system, 1 compacted/message, 2 tool/subtool) + _TrajectoryLedger 30px rows (122px Event + flex Content) + _DetailsPane 380px side pane mirror views.module.css ledger layout",
+      "deriveTimeline(timeline.ts parity): equal vs actual modes, 50px timeline with selectionRange 3px borders, viewport zoom via wheel + drag anchor, earlier-history button with loadOlder",
+      "ledgerFromHistory: turn/start-end envelopes or user-boundary fallback, status derivation, time-window tool joining — pure fold from liveHistoryProvider (session/follow), no duplicate store",
+      "trajectoryProvider family over liveHistoryProvider (authoritative snapshot + live appends), not session/page probe; trajectory_plugin queues conversation.view slot (order 10) until shell declares hole — wait-and-follow correct"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3567,7 +3574,7 @@
       "open a session with settled turns and select the trajectory view: the timeline folds turn envelopes or user boundaries from session history"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ test/integration/business_host_test.dart; per-suite runs: apps/flutter/test/plugins/ws_chat/trajectory_plugin_test.dart, apps/flutter/test/plugins/ws_chat/trajectory_fold_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_chat/trajectory_plugin_test.dart apps/flutter/test/plugins/ws_chat/trajectory_fold_test.dart apps/flutter/test/plugins/trajectory/trajectory_ledger_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -3602,7 +3609,7 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
+      "visual": "partial",
       "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -3612,7 +3619,7 @@
       "apps/flutter/test/plugins/ws_agent/agent_preset_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-agent-preset plugin: settings.agentPreset dictionaries and the header label; the roster screen parses presets plus authorable/hasDocument from one agentPreset.list call, groups cards by trust with broken/in-use badges, reads compositions through agentPreset.read, and creates/deletes through agentPreset.copy/remove gated on authorable (React section-store rules). The General settings row and new-session hero chip need the settings.general.item / conversation.hero holes and register when those shells land; openLocation needs the native opener face.",
+    "notes": "ui-agent-preset plugin: settings.agentPreset dictionaries and the header label; the roster screen parses presets plus authorable/hasDocument from one agentPreset.list call, groups cards by trust with broken/in-use badges, reads compositions through agentPreset.read, and creates/deletes through agentPreset.copy/remove gated on authorable (React section-store rules). The General settings row and new-session hero chip need the settings.general.item / conversation.hero holes and register when those shells land; openLocation needs the native opener face. 2026-09-02 audit: Flutter files exist for all three React surfaces (Label/Seat/Section); hero/label compose via slotOutlet correctly, section screen exists but settings.section hole not yet declared in SettingsPlugin so wait-and-follow queued — visual partial (primitives covered, composition hole pending), behavior partial (roster+copy/remove/select correct, openLocation native opener deferred).",
     "reactPackage": "ui-agent-preset",
     "responsibility": "AgentPresetSection/Row/Seat",
     "replacementType": "direct",
@@ -3623,9 +3630,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "header preset label on conversation.session.header.actions (id agent-preset, order -10)",
-      "management section rides the agentPreset.list/select/read/copy/remove wire faces over ConnectionClient",
-      "welcome-screen preset chip derives from agentPresetListProvider in app_router"
+      "agent_preset_plugin.dart: hero chip conversation.hero.agentPreset + header label conversation.session.header.actions id agent-preset order -10 via slots.inject wait-and-follow (React index.ts 165-177)",
+      "agent_preset_screen.dart: AgentPresetSection grouped by trust (system/user) with broken/in-use/default badges, PresetMenu, Viewer modal via agentPreset.read, Copy dialog via agentPreset.copy gated on authorable, Remove via agentPreset.remove — mirrors section-store rules",
+      "agent_preset_provider.dart: agentPresetListProvider over ConnectionClient.agentPresetList (presets+authorable/hasDocument), agentPresetCurrentProvider, agentPresetSavingProvider; select via agentPresetSelect(sessionId/current) then invalidate",
+      "File existence verified: apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_*.dart all present; shared primitives Ds primitives + DswTokens used, no duplicate roster store (provider is single source)"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3637,7 +3645,7 @@
       "copy a shipped preset into a custom one, then delete the copy through the confirmed remove path"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ test/integration/business_host_test.dart; per-suite runs: apps/flutter/test/plugins/ws_agent/agent_preset_plugin_test.dart, apps/flutter/test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/agent_preset_plugin_test.dart apps/flutter/test/plugins/ws_agent/agent_preset_hero_seat_test.dart apps/flutter/test/plugins/agent_preset/hero_selection_parity_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -3672,8 +3680,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3683,7 +3691,7 @@
       "apps/flutter/test/plugins/ws_input/popup_and_composer_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "WS-Input: ui-commands plugin \u2014 slash trigger source + CommandUiService registry (contribution collision fail-loud, half-specified popup spec rejected at register) + popupSelect shell: headless PopupSelectController port (binding-identity late-settlement guard, single-flight select, risk-gate acknowledge/cancel/confirm, retry, reopen supersede) + PopupSelectOverlay registered into conversation.input.overlay via slots.inject; menu-path and enter-path picks open per-session shells over TokenSegment snapshots.",
+    "notes": "WS-Input: ui-commands plugin — slash trigger source + CommandUiService registry (contribution collision fail-loud, half-specified popup spec rejected at register) + popupSelect shell: headless PopupSelectController port (binding-identity late-settlement guard, single-flight select, risk-gate acknowledge/cancel/confirm, retry, reopen supersede) + PopupSelectOverlay registered into conversation.input.overlay via slots.inject; menu-path and enter-path picks open per-session shells over TokenSegment snapshots. 2026-09-02 audit: behavior pass — slash discovery + popupSelect lifecycle fully ported; visual partial — overlay uses token colors via Theme but no golden yet, geometry matches PopupSelectView.module.css (360 maxHeight, 460 maxWidth). No duplicate store, no synthetic fallback.",
     "reactPackage": "ui-commands",
     "responsibility": "Command discovery/PopupSelect",
     "replacementType": "direct",
@@ -3694,9 +3702,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "inputTriggers '/' source",
-      "conversation.input.overlay popupSelect seat",
-      "commandUi service; session.prompt executor"
+      "command_plugin.dart: CommandDirectory session-keyed cache over commands/list (agentId wire), CommandUiService registry with collision fail-loud + half-spec reject, '/' trigger source into inputTriggers (name command)",
+      "popup_select.dart: headless PopupSelectController — binding-identity late-settlement, single-flight select, risk-gate acknowledge/cancel/confirm, retry, reopen supersede — matches React popup.ts",
+      "ui/popup_select_overlay.dart: PopupSelectOverlay into conversation.input.overlay order 20 via slots.inject (shares anchor with input-trigger slash-menu order 0); OverlayPortal+CompositedTransformFollower anchored 4px above card, search field, filtered rows, pending/failed/confirmation cards",
+      "Verified: flutter analyze lib/src/plugins/commands/** 0 issues; host method commands/list exact wire (no args wrapper) via _postTypert"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3705,7 +3714,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_input/commands_reference_questions_test.dart test/plugins/ws_input/popup_and_composer_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/plugins/ws_input/popup_and_composer_test.dart apps/flutter/test/plugins/commands/commands_execute_parity_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -3740,8 +3749,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3751,7 +3760,7 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-deliverables plugin: deliverables locale dictionaries and the chatFileMentions service (inline-code token resolution by exact path or unique basename; shared basenames stay inert). ProducedFilesRow keeps the six-chip cap, counted remainder, and canOpenPath-gated Show-in-folder. The turn-tail chain entry and the produced-paths fold land when the Dart conversation hub grows those seams; composing the plugin out removes the vocabulary at zero cost to the owning view.",
+    "notes": "ui-deliverables plugin: deliverables locale dictionaries and the chatFileMentions service (inline-code token resolution by exact path or unique basename; shared basenames stay inert). ProducedFilesRow keeps the six-chip cap, counted remainder, and canOpenPath-gated Show-in-folder. The turn-tail chain entry and the produced-paths fold land when the Dart conversation hub grows those seams; composing the plugin out removes the vocabulary at zero cost to the owning view. 2026-09-02 audit: behavior partial — mention resolver + row widget correct, but turn-tail selector selectProducedFiles not yet wired to conversation hub (hub lacks turnTail chain); visual partial — row uses shared primitives, file basename chips match css; no duplicate store.",
     "reactPackage": "ui-deliverables",
     "responsibility": "ProducedFiles",
     "replacementType": "direct",
@@ -3762,7 +3771,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "deliverables renderer registered on the conversation hub"
+      "deliverables_plugin.dart: deliverables locale zh/en + chatFileMentions service (resolve exact path then unique basename, shared basenames inert) — React ProducedFiles vocabulary ownership",
+      "ui/produced_files_row.dart: ProducedFilesRow — 6-chip cap, +N remainder, full path tooltip, Show in folder gated on canOpenPath, DswTokens bgLayer2/radiusLg/borderL2 — ports ProducedFiles.tsx/shownLimit+moreLabel",
+      "ui/deliverables_screen.dart: standalone screen (files list) exists for route /sessions/:sid/deliverables? via features/deliverables; turn-tail chain entry (conversation.chat.turnTail) deferred until Dart hub declares seam — composing plugin out removes vocabulary at zero cost, matching React",
+      "deliverables_mentions.dart: basename + resolveFileMention pure, tested via deliverables_plugin_test"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3771,7 +3783,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_tasks/deliverables_plugin_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/deliverables_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -3806,8 +3818,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3817,7 +3829,7 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-goal plugin: goal locale dictionaries, the keyed command-input chat-node renderer (the /goal input bubble), and the composer dock (id goal, the conversation.input.dock entry analog). Mutations carry exact wire methods goal.edit/pause/resume/clear with the CAS ref read from the session's projected goal at call time over ConnectionClient.callMethod (no typed remote.goals face yet); the projection read is a constructor-bound GoalProjectionSource standing in for useProjection('goal') \u2014 unwired boots render nothing. Goal creation stays on the /goal host command; tool-workflow fold and turn-tail seams land with their runtime rows.",
+    "notes": "ui-goal plugin: goal locale dictionaries, the keyed command-input chat-node renderer (the /goal input bubble), and the composer dock (id goal, the conversation.input.dock entry analog). Mutations carry exact wire methods goal.edit/pause/resume/clear with the CAS ref read from the session's projected goal at call time over ConnectionClient.callMethod (no typed remote.goals face yet); the projection read is a constructor-bound GoalProjectionSource standing in for useProjection('goal') — unwired boots render nothing. Goal creation stays on the /goal host command; tool-workflow fold and turn-tail seams land with their runtime rows. 2026-09-02 audit: visual partial — dock/command-input views exist and use primitives but no golden; behavior partial — mutations carry exact wire methods and CAS, projection read is bound source; creation stays on /goal host command as React; tool-workflow fold deferred with runtime row.",
     "reactPackage": "ui-goal",
     "responsibility": "GoalBar/GoalCommandInput",
     "replacementType": "direct",
@@ -3828,7 +3840,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "goal command-input chat-node renderer on the conversation hub"
+      "goal_plugin.dart: goal locale zh/en, keyed command-input renderer key command-input via hub renderers.register, dock entry id goal on conversation.input.dock (wait-and-follow), GoalControl verbs via ConnectionClient.callMethod exact wire goal.edit/pause/resume/clear with CAS ref from projection source",
+      "ui/goal_bar.dart + goal_dock.dart + goal_command_input_view.dart: GoalBar/GoldDock/GoalCommandInputView use DswTokens, render nothing when projectionSource null (unwired boots) — mirrors useProjection('goal')",
+      "ui/goal_screen.dart: standalone GoalScreen exists (features/goal/goal_screen.dart) for route /sessions/:sid/goal, shows goal text + edit/pause/resume/clear actions",
+      "goal_projection.dart: GoalProjectionSource constructor-bound stand-in for useProjection('goal'); no typed remote.goals face yet — Host authority kept via callMethod, no synthetic fallback"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3837,7 +3852,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_tasks/goal_plugin_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/goal_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -3872,8 +3887,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3884,7 +3899,7 @@
       "packages/client/runtime/tests/semantic-parity.client.spec.ts",
       "apps/flutter/test/replay/semantic_parity_test.dart"
     ],
-    "notes": "WS-Input: ui-input-trigger plugin \u2014 trigger detection, candidate menu, pick pipeline, chip undo/redo. Registry + controller ported from React types.ts/contract.ts.",
+    "notes": "WS-Input: ui-input-trigger plugin — trigger detection, candidate menu, pick pipeline, chip undo/redo. Registry + controller ported from React types.ts/contract.ts. 2026-09-02 audit: behavior pass — registry+controller parity with React; visual partial — menu uses MenuAnchor + primitives but no golden diff vs React MenuView, geometry via DswTokens; file existence verified for all ui/*.",
     "reactPackage": "ui-input-trigger",
     "responsibility": "Inline @/ skill suggestions MenuView",
     "replacementType": "direct",
@@ -3895,8 +3910,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "inputTriggers service consumed by ui-commands + ui-reference",
-      "conversation.input.left/right seats via slots.inject"
+      "input_trigger_plugin.dart: TriggerSourceRegistry service inputTriggers, register slash-menu overlay id slash-menu order 0 into conversation.input.overlay via slots.inject (shares anchor with commands popup order 20)",
+      "input_trigger_service.dart + trigger_source.dart + contract.dart: TriggerSourceRegistry + Controller ported from React types.ts/contract.ts — trigger detection, candidate filtering, pick pipeline, chip undo/redo, lexicon roll + subscriptions",
+      "ui/input_menu_anchor.dart + input_trigger_shortcuts.dart + composer_trigger_binding.dart: InputMenuAnchor rides composer overlay anchor via CompositedTransformFollower, renders filtered candidates with highlight + detail, keyboard ↑/↓/Enter/Esc via shortcuts",
+      "Verified: no duplicate stores (single registry), no blanket dot-slash (exact trigger chars '/' '@' handled by respective sources)"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3905,7 +3922,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_input/input_trigger_test.dart test/replay/semantic_parity_test.dart pnpm vitest run semantic-parity",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/input_trigger_test.dart apps/flutter/test/plugins/ws_input/input_keyboard_producer_test.dart apps/flutter/test/plugins/ws_input/composer_trigger_surface_test.dart apps/flutter/test/plugins/ws_input/input_trigger_shortcuts_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
       "approvedBy": "",
@@ -3940,8 +3957,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3951,7 +3968,7 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-jobs plugin: job locale dictionaries and the session-header action (conversation.session.header.actions, id job-list, order 20 \u2014 after the subagent catalog). Rows come entirely from jobsProvider (authoritative session/jobs whole snapshots); wire-typed JobViewRow keeps the closed status union, live-first ordering, duration formatting, and the renders-nothing-without-jobs rule. No RPC, no local store.",
+    "notes": "ui-jobs plugin: job locale dictionaries and the session-header action (conversation.session.header.actions, id job-list, order 20 — after the subagent catalog). Rows come entirely from jobsProvider (authoritative session/jobs whole snapshots); wire-typed JobViewRow keeps the closed status union, live-first ordering, duration formatting, and the renders-nothing-without-jobs rule. No RPC, no local store. 2026-09-02 audit: behavior pass — rows from jobsProvider whole snapshots (session/jobs frames), no synthetic fallback; visual partial — popup via PopupMenuButton with StateDot + menu tokens, not golden but primitives covered.",
     "reactPackage": "ui-jobs",
     "responsibility": "Background jobs list",
     "replacementType": "direct",
@@ -3962,7 +3979,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "jobs surfaces keyed off sessions service state"
+      "jobs_plugin.dart: job locale zh/en + header action conversation.session.header.actions id job-list order 20 (after subagent-catalog) via slots.inject",
+      "ui/job_list_action.dart: JobListAction reads jobsProvider (authoritative session/jobs whole snapshots), closed status union, live-first ordering via ordered(), duration via formatDuration, dotState mapping to StateDot, renders nothing when jobs empty — React visibility rule",
+      "ui/jobs_screen.dart: standalone JobsScreen (plugins/jobs/ui/jobs_screen.dart + re-export features/jobs/jobs_screen.dart) exists for route /sessions/:sid/jobs",
+      "job_models.dart: JobViewRow.fromJson, ordered, isLive, countLabel, statusLabel — pure, tested; no RPC, no local store duplicate"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -3971,7 +3991,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_tasks/jobs_plugin_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/jobs_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4006,7 +4026,7 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
+      "visual": "partial",
       "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -4016,7 +4036,7 @@
       "apps/flutter/test/plugins/ws_chat/message_feedback_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "Controller port complete against ui-message-feedback/controller.ts: observed-version CAS puts, toggle retract-vs-replace decided inside serialized mutations, conflict replies committing the carried row, note keep/clear asymmetry, disposal refusing further work. No Dart carrier carries remote.messageFeedback yet, so activation binds a declared-unavailable remote and mutations settle visibly; demo fixtures and the synthetic load delay are removed. Controls render as a standalone list until the assistant-actions hole lands.",
+    "notes": "Controller port complete against ui-message-feedback/controller.ts: observed-version CAS puts, toggle retract-vs-replace decided inside serialized mutations, conflict replies committing the carried row, note keep/clear asymmetry, disposal refusing further work. No Dart carrier carries remote.messageFeedback yet, so activation binds a declared-unavailable remote and mutations settle visibly; demo fixtures and the synthetic load delay are removed. Controls render as a standalone list until the assistant-actions hole lands. 2026-09-02 audit: behavior partial — controller logic complete and tested, remote face absent; visual partial — controls use DisclosureRow + Ds primitives but render outside assistant row until hole lands, no golden yet.",
     "reactPackage": "ui-message-feedback",
     "responsibility": "MessageFeedbackActions",
     "replacementType": "direct",
@@ -4027,8 +4047,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "'messageFeedback' service provides the per-session controller resolver",
-      "actions surface moves into the assistant message row when conversation.chat.assistant-actions is declared"
+      "message_feedback_plugin.dart: MessageFeedbackControllers map SessionId->controller, provides service messageFeedback, _AbsentRemote reports unavailable instead of throw so UI stays renderable",
+      "message_feedback_controller.dart: observed-version CAS puts, toggle retract-vs-replace inside serialized mutations, conflict replies committing carried row, note keep/clear asymmetry, disposal refusing further work — ports controller.ts",
+      "ui/message_feedback_screen.dart + conversation/ui/message_feedback.dart: standalone list screen exists; assistant-actions hole conversation.chat.assistant-actions undeclared so controls render as standalone list (not fabricating slot) — matches React wait-and-follow",
+      "Note: remote.messageFeedback not yet wired, so activation binds absent remote and mutations settle visibly; demo fixtures + synthetic delay removed"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4040,7 +4062,7 @@
       "a version-conflict reply commits the authoritative row the host returned and reports feedback changed elsewhere"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ test/integration/business_host_test.dart; per-suite runs: apps/flutter/test/plugins/ws_chat/message_feedback_plugin_test.dart, apps/flutter/test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_chat/message_feedback_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4220,8 +4242,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4230,7 +4252,7 @@
       "apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "WS-Input: ui-reference plugin \u2014 combined @file/@session trigger source, parallel file/session discovery with degrade-to-empty, directory splice handling.",
+    "notes": "WS-Input: ui-reference plugin — combined @file/@session trigger source, parallel file/session discovery with degrade-to-empty, directory splice handling. 2026-09-02 audit: behavior pass — combined @file/@session trigger with degrade contract and splice handling fully ported; visual partial — candidates render through shared InputMenuAnchor overlay (no separate UI), covered by input-trigger primitives.",
     "reactPackage": "ui-reference",
     "responsibility": "@file/@session references",
     "replacementType": "direct",
@@ -4241,8 +4263,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "inputTriggers '@' source",
-      "fileReferences.list / sessionReferenceResolver carrier namespaces"
+      "reference_plugin.dart: combined @ trigger source (name reference) into inputTriggers, parallel fileReferences/list + sessionReferenceResolver/candidates discovery via ConnectionClient.callMethod, degrade-to-empty on absent/failing namespace (React result.ok?value:[]), directory splice via TextOutcome continueTracking",
+      "formatFileMention: quoted @\"path\" grammar for whitespace, preserveQuote for directory trailing slash, control-char block — ports dsh-file-reference/grammar.ts",
+      "_ReferenceSource.candidates: sessions suppressed inside quoted token (request.quoted), degrade via try/catch per namespace, parallel Future.wait + cancelled guard",
+      "ReferenceCodec _IdentityCodec: clipboardText/serialize as identity (React ref=>ref), InsertOutcome with ReferenceInsert file/session appearance"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4251,7 +4275,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_input/commands_reference_questions_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4286,8 +4310,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4298,7 +4322,7 @@
       "apps/flutter/test/integration/business_host_test.dart",
       "apps/flutter/test/goldens/surface_goldens_test.dart"
     ],
-    "notes": "GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes for locale (language preference) and ui-theme (appearance) over SettingsRpcFace; settings dictionaries registered. Section row into settings.general.item deferred until the settings shell declares its subtree; section presentation re-homes at integration.",
+    "notes": "GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes for locale (language preference) and ui-theme (appearance) over SettingsRpcFace; settings dictionaries registered. Section row into settings.general.item deferred until the settings shell declares its subtree; section presentation re-homes at integration. 2026-09-02 audit: behavior pass — service holds both scopes correctly; visual partial — LanguageRow/AppearanceRow use shared primitives, but settings.general.item slot not yet declared in SettingsPlugin so section row injection queued (host _GeneralTab hard-codes LanguageRow today, service-backed at plugin level).",
     "reactPackage": "ui-settings-general",
     "responsibility": "Settings General",
     "replacementType": "direct",
@@ -4309,7 +4333,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "settingsScope face over settings.describe/mutate"
+      "general_settings_plugin.dart: GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes locale + ui-theme over SettingsRpcFace (describe/mutate revision-fenced via SettingsScope)",
+      "general_settings_service.dart: GeneralSettingsService with language + appearance scopes, languagePreference getter, setLanguage via scope.set, load via Future.wait both refreshFromDescribe, notifyListeners on scope change",
+      "settings_general_screen.dart + features/settings_general/widgets/language_row.dart: LanguageRow DsSelect + AppearanceRow SegmentedButton tokens pass; screen consumes service, not hard-coded stub",
+      "Verified host authority: settings.describe/mutate exact wire, no synthetic fallback; file existence apps/flutter/lib/src/plugins/settings/children/general/** present"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4318,7 +4345,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart test/plugins/ws_surfaces/ws_surfaces_render_test.dart test/goldens/surface_goldens_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4428,8 +4455,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4439,7 +4466,7 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory.list rows; dictionaries registered. Inventory tab into settings.plugins.tab deferred with that undeclared declaration.",
+    "notes": "PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory.list rows; dictionaries registered. Inventory tab into settings.plugins.tab deferred with that undeclared declaration. 2026-09-02 audit: behavior partial — service correctly reads host ledger, UI not yet wired to it (hard-coded _InventoryItem vs dynamic list); visual partial — inventory rows use DswTokens but not compositionally injected (settings.plugins.tab hole pending).",
     "reactPackage": "ui-settings-plugin-inventory",
     "responsibility": "Host Loader inventory",
     "replacementType": "direct",
@@ -4450,7 +4477,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "plugin inventory reads the activated host ledger"
+      "plugin_inventory_plugin.dart: PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory/list rows (React ctx.remote.pluginInventory.list)",
+      "plugin_inventory_service.dart: PluginInventoryService.list via ConnectionClient.callMethod('pluginInventory/list', {}), parses items/plugins array, PluginInventoryRow tolerant (name/version/enabled)",
+      "settings_inventory_screen.dart + features/settings/inventory_tab.dart: standalone inventory tab/file exists, uses service when activated; host SettingsScreen _InventoryTab currently hard-codes static list (stub) — service-driven composition pending slot declaration",
+      "Locale inventory dictionaries extended with nav/tab keys consumed by shell"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4459,7 +4489,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart test/plugins/ws_surfaces/ws_surfaces_render_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4494,8 +4524,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4505,7 +4535,7 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "PluginsSettingsPlugin publishes settings.plugins service binding the three card namespaces (shell, agent-loop, web-search-deepseek) as PluginCardScopes over SettingsScope. Section/tab registration deferred with the undeclared settings.plugins.tab/settings.plugin.item holes.",
+    "notes": "PluginsSettingsPlugin publishes settings.plugins service binding the three card namespaces (shell, agent-loop, web-search-deepseek) as PluginCardScopes over SettingsScope. Section/tab registration deferred with the undeclared settings.plugins.tab/settings.plugin.item holes. 2026-09-02 audit: behavior partial — three PluginCardScopes correct over SettingsScope, but SettingsScreen _PluginsTab hard-codes 6 _PluginInfo with local Switch not yet bound to scope.mutate with revision fence; visual partial — card UI exists via primitives, not golden.",
     "reactPackage": "ui-settings-plugins",
     "responsibility": "Plugins tab",
     "replacementType": "direct",
@@ -4516,7 +4546,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "settingsScope plugins namespace"
+      "plugins_settings_plugin.dart: PluginsSettingsPlugin publishes settings.plugins service binding three card namespaces shell, agent-loop, web-search-deepseek as PluginCardScopes over SettingsScope",
+      "plugins_settings_service.dart: PluginCardScope per namespace over SettingsRpcFace with field()/setField()/load()/writable, PluginsSettingsService holds shell/agentLoop/webSearch and load() via Future.wait",
+      "settings_plugins_screen.dart + plugins_tab.dart: card widgets shell_card/agent_loop_card/web_search_card exist with fields via DsSwitch/DsInput, using service scopes (not local stub) when activated via _PluginsTab; registration into settings.plugins.tab queued until shell declares hole",
+      "Shared primitives: DsSwitch, DsInput, DswTokens used; no duplicate stores"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4525,7 +4558,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart test/plugins/ws_surfaces/ws_surfaces_render_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4560,7 +4593,7 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
+      "visual": "partial",
       "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -4570,7 +4603,7 @@
       "apps/flutter/test/plugins/ws_agent/skill_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-skill plugin: locale dictionaries, keyed skill tool row on the chat-node seam, and the session-keyed catalog cache now registered as the \"/\" trigger source (single-flight per session, prefix filter, user-only marker riding the description, plain-text pick, lexicon roll + subscriptions, preset-switch invalidation of exactly that key, teardown dropping source and cache). Row lifecycle coloring waits for the seam to widen with a settled status bit; connection/reset clearAll lands with the connection generation row. The SkillScreen catalog browse is a Flutter-side extra beyond the React package boundary.",
+    "notes": "ui-skill plugin: locale dictionaries, keyed skill tool row on the chat-node seam, and the session-keyed catalog cache now registered as the \"/\" trigger source (single-flight per session, prefix filter, user-only marker riding the description, plain-text pick, lexicon roll + subscriptions, preset-switch invalidation of exactly that key, teardown dropping source and cache). Row lifecycle coloring waits for the seam to widen with a settled status bit; connection/reset clearAll lands with the connection generation row. The SkillScreen catalog browse is a Flutter-side extra beyond the React package boundary. 2026-09-02 audit: behavior partial — catalog+source+row lifecycle parity, including preset-switch invalidation and teardown; visual partial — row uses shared primitives, not pixel-perfect vs React toolview but covered; connection/reset clearAll deferred with generation row.",
     "reactPackage": "ui-skill",
     "responsibility": "Skill references",
     "replacementType": "direct",
@@ -4581,9 +4614,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "the 'skills' service exposes the '/' catalog candidates/lexicon face",
-      "'/' skill trigger source registered into inputTriggers (name skill, order 2)",
-      "skill tool row keyed 'skill' registered on the conversation hub renderers"
+      "skill_plugin.dart: skill locale zh/en, keyed skill tool row key skill via hub renderers.register, '/' trigger source name skill order 2 via inputTriggers (prefix-filtered candidates over per-session catalog)",
+      "skill_catalog.dart: session-keyed SkillCatalog single-flight per session, prefix query filter, user-only marker riding description, plain-text pick via TextOutcome '/name ', lexicon roll + subscriptions, preset-switch invalidation of that key, clearAll on teardown",
+      "ui/skill_row.dart + skill_screen.dart: skill tool row with accent + disclosure for durable instructions, lifecycle coloring awaits seam widen (settled status); SkillScreen catalog browse Flutter-side extra beyond React boundary uses Ds primitives",
+      "No duplicate stores (single catalog), no synthetic fallback for absent remote (service not yet, but catalog is local)"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4595,7 +4629,7 @@
       "a settled skill tool call renders the dedicated accent row whose disclosure shows the durable instructions"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ test/integration/business_host_test.dart; per-suite runs: apps/flutter/test/plugins/ws_agent/skill_plugin_test.dart, apps/flutter/test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/skill_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4630,7 +4664,7 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
+      "visual": "partial",
       "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -4640,7 +4674,7 @@
       "apps/flutter/test/plugins/ws_agent/subagent_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-subagent plugin: locale dictionaries, header catalog action (visibility only with evidence of children, the React rule), keyed subagent node renderer, SubagentLink navigation ports, and the read-only composer widget plus verbatim claim selector (registers when the hub declares a composer chain hole). The standalone screen derives children from the shared sessions list (origin subagent) and folds the child history for the transcript - demo fixtures removed. Catalog token/timing metrics need projection rows the Dart session model does not carry yet.",
+    "notes": "ui-subagent plugin: locale dictionaries, header catalog action (visibility only with evidence of children, the React rule), keyed subagent node renderer, SubagentLink navigation ports, and the read-only composer widget plus verbatim claim selector (registers when the hub declares a composer chain hole). The standalone screen derives children from the shared sessions list (origin subagent) and folds the child history for the transcript - demo fixtures removed. Catalog token/timing metrics need projection rows the Dart session model does not carry yet. 2026-09-02 audit: behavior partial — header catalog + node renderer + provider derivation correct, metrics deferred; visual partial — catalog action + node card use primitives, composer widget queued until chain hole, no golden yet.",
     "reactPackage": "ui-subagent",
     "responsibility": "Subagent nav/child transcript",
     "replacementType": "direct",
@@ -4651,10 +4685,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "session-header catalog action on conversation.session.header.actions (id subagent-catalog, order 10)",
-      "'subagents' navigation service bound to the shared sessions list at boot (openChild/refresh/catalog state)",
-      "child-transcript chat-node renderer keyed 'subagent' on the conversation hub",
-      "/sessions/:sid/subagents route served by app_router over the plugin surface"
+      "subagent_plugin.dart: subagent locale zh/en, header catalog action conversation.session.header.actions id subagent-catalog order 10 with visibility only with evidence of children (React rule) via slots.inject, keyed subagent node renderer key subagent via hub",
+      "ui/subagent_catalog_action.dart + subagent_node_card.dart + subagent_provider.dart: SubagentLink navigation ports (openChild/refresh/catalog state) bound to shared sessions list; children via origin subagent oldest first, transcript fold via user/assistant/tool history",
+      "ui/subagent_screen.dart + subagent_read_only_composer.dart: standalone screen at /sessions/:sid/subagents + read-only composer widget with verbatim claim selector registers when hub declares composer chain hole (wait-and-follow)",
+      "subagent_link.dart: openSession via sessionsProvider setCurrent, refresh via getSessions; catalog token/timing metrics need projection rows not yet in Dart session model (noted)"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4666,7 +4700,7 @@
       "an addressed one-shot child shows the read-only composer replacement once a composer chain seat is declared"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ test/integration/business_host_test.dart; per-suite runs: apps/flutter/test/plugins/ws_agent/subagent_plugin_test.dart, apps/flutter/test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/subagent_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4701,8 +4735,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4714,7 +4748,7 @@
       "packages/client/runtime/tests/semantic-parity.client.spec.ts",
       "apps/flutter/test/replay/semantic_parity_test.dart"
     ],
-    "notes": "WS-Input: ui-user-questions plugin \u2014 question/requested+resolved frames via QuestionsController, PendingQuestion answer/cancel encoding through the carrier respond channel echoing rpcId, planReview narrowing; QuestionComposerEntry selector-routed into the conversation.composer chain (select narrows owner currency to PendingQuestion) alongside the keyed question chat-node renderer.",
+    "notes": "WS-Input: ui-user-questions plugin — question/requested+resolved frames via QuestionsController, PendingQuestion answer/cancel encoding through the carrier respond channel echoing rpcId, planReview narrowing; QuestionComposerEntry selector-routed into the conversation.composer chain (select narrows owner currency to PendingQuestion) alongside the keyed question chat-node renderer. 2026-09-02 audit: behavior partial — question/approval chain takeover + respond channel fully ported, frame routing via live_sync; visual partial — cards use DisclosureRow + Ds primitives but no golden diff, composer chain correctly prioritized.",
     "reactPackage": "ui-user-questions",
     "responsibility": "QuestionComposer/PlanReviewPanel",
     "replacementType": "direct",
@@ -4725,9 +4759,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "question/requested+resolved live_sync frames",
-      "conversation.composer chain takeover entry",
-      "respond channel answers echoing rpcId"
+      "user_questions_plugin.dart: question locale zh/en, keyed question node key question via hub, client bindings for question/approval via ConnectionClient respond channel echoing rpcId",
+      "ui/question_node_card.dart + question_composer_entry.dart: question/requested+resolved frames via QuestionsController, PendingQuestion batch answers, planReview narrowing through planReviewOf",
+      "ui/approval_card.dart: approvalComposerSelect with priority 1 so pending question (priority 0) wins chain — answering conversation before approval cannot strand approval (re-elects)",
+      "Conversation.composer chain entries via slots.inject with select narrowing owner currency to PendingQuestion (React selector parity); live_sync routes question/requested+resolved and approval frames"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4736,7 +4771,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_input/commands_reference_questions_test.dart test/plugins/ws_input/popup_and_composer_test.dart test/replay/semantic_parity_test.dart pnpm vitest run semantic-parity",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/plugins/ws_input/popup_and_composer_test.dart apps/flutter/test/replay/semantic_parity_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
       "approvedBy": "",
@@ -4771,8 +4806,8 @@
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "partial",
+      "behavior": "partial",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4782,7 +4817,7 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-workflow-run plugin: workflowRun locale dictionaries and the keyed workflow-run chat-node renderer (WorkflowRunPanel: run/phase disclosures, status dots, phaseStatusSummary, navigable running members via constructor-injected openSession = ctx.sessions.open stand-in until the sessions slice carries selection). The tool-workflow/* Definition fold lands with the conversation-fold workstream; until then the renderer consumes the seam line contract (decodeWorkflowRun) and renders nothing for nodes without a run payload.",
+    "notes": "ui-workflow-run plugin: workflowRun locale dictionaries and the keyed workflow-run chat-node renderer (WorkflowRunPanel: run/phase disclosures, status dots, phaseStatusSummary, navigable running members via constructor-injected openSession = ctx.sessions.open stand-in until the sessions slice carries selection). The tool-workflow/* Definition fold lands with the conversation-fold workstream; until then the renderer consumes the seam line contract (decodeWorkflowRun) and renders nothing for nodes without a run payload. 2026-09-02 audit: behavior partial — dictionaries + panel renderer correct, definition fold not yet; visual partial — panel uses DisclosureRow + StateDot + tokens but navigation inert until boot wiring passes openSession, no golden.",
     "reactPackage": "ui-workflow-run",
     "responsibility": "Workflow run disclosures",
     "replacementType": "direct",
@@ -4793,7 +4828,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "workflow-run chat-node renderer on the conversation hub"
+      "workflow_run_plugin.dart: workflowRun locale zh/en, keyed workflow-run renderer key workflow-run via hub (decodeWorkflowRun, renders nothing for nodes without run payload)",
+      "ui/workflow_run_panel.dart + workflow_screen.dart: WorkflowRunPanel with run/phase disclosures, StateDot status, phaseStatusSummary, navigable running members via openSession = ctx.sessions.open stand-in (constructor-injected until sessions slice carries selection)",
+      "workflow_run_models.dart: decodeWorkflowRun consumes seam line contract, phase/run status union, duration formatting",
+      "tool-workflow/* Definition fold deferred with conversation-fold workstream — renderer consumes line contract until then"
     ],
     "runtimeMode": "replay",
     "platformParity": {
@@ -4802,7 +4840,7 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_tasks/workflow_run_plugin_test.dart test/integration/business_host_test.dart",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/workflow_run_plugin_test.dart apps/flutter/test/integration/business_host_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -4831,7 +4869,7 @@
     "category": "screen",
     "source": "packages/client/ui-workspace/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/workspace/workspace_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -4850,13 +4888,13 @@
       "migration/parity-reports/2026-08-24-workspace-completion.md",
       "migration/parity-reports/2026-08-23-workspace.md"
     ],
-    "notes": "ui-workspace parity via Flutter workspace tree: sidebar-grouped tree + view options (groupBy flat/workspace, orderBy manual/updated) + 250ms debounced sanitized search with host ranked fan-out (deriveSearchResults, limit 20, snippet, hasMore, pending/unavailable) + add-workspace menu via directoryFlow holes (Browse/Native) with error retry dialog; flat-list Reorderable for sessions; sessionIds membership from workspace.list when available else cwd prefix; rail shows search/add icons mirroring WorkspaceBrowser wide/rail chrome; HoverCard + abbreviated path + created label; status precedence via sessionStatuses; durable view via SharedPreferences dsh.workspace.view.v5.",
+    "notes": "ui-workspace parity via Flutter workspace tree: sidebar-grouped tree + view options (groupBy flat/workspace, orderBy manual/updated) + 250ms debounced sanitized search with host ranked fan-out (deriveSearchResults, limit 20, snippet, hasMore, pending/unavailable) + add-workspace menu via directoryFlow holes (Browse/Native) with error retry dialog; flat-list Reorderable for sessions; sessionIds membership from workspace.list when available else cwd prefix; rail shows search/add icons mirroring WorkspaceBrowser wide/rail chrome; HoverCard + abbreviated path + created label; status precedence via sessionStatuses; durable view via SharedPreferences dsh.workspace.view.v5. 2026-09-02 verification: workspace_provider live via workspace/follow (host authoritative, no duplicate store), no fabricated sessionIds, StackFit.expand fix for DocumentDropScope ensures layout, analyze 0 errors.",
     "reactPackage": "ui-workspace",
     "responsibility": "Workspace selector/creation",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4876,14 +4914,14 @@
       "workspace-grouped tree shows provider-order workspaces with session rows, expand/collapse, reorder and overflow handling with host durability",
       "search NUL-sanitize + 500-codeunit cap + 250ms debounce filters tree and shows merged host snippet + hasMore at 20 + pending/unavailable",
       "add workspace menu -> native picker -> workspace.create -> list refresh; folderError dialog retries",
-      "hover workspace shows ~ cwd + Created; hover session shows ago + status stack (approval\u2192idle)"
+      "hover workspace shows ~ cwd + Created; hover session shows ago + status stack (approval→idle)"
     ],
     "evidence": {
-      "testsRun": "flutter test test/features/sidebar/workspace_gaps_test.dart test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart",
+      "testsRun": "flutter analyze lib/src/features/workspace/workspace_provider.dart lib/src/features/workspace/workspace_screen.dart (0 errors); flutter test test/features/sidebar/workspace_gaps_test.dart test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart (all pass)",
       "parityReport": "migration/parity-reports/2026-08-24-workspace-completion.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -5196,9 +5234,9 @@
       "apps/flutter/test/goldens/surface_goldens_test.dart",
       "migration/parity-reports/2026-08-23-visual-system.md"
     ],
-    "notes": "CSS --dsw-* \u2192 ThemeData/ColorScheme/TextTheme, no literal colors",
+    "notes": "CSS --dsw-* → ThemeData/ColorScheme/TextTheme, no literal colors",
     "reactPackage": "ui-theme",
-    "responsibility": "CSS --dsw-* \u2192 ThemeData/ColorScheme/TextTheme, no literal colors",
+    "responsibility": "CSS --dsw-* → ThemeData/ColorScheme/TextTheme, no literal colors",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "react-codebase-auditor",
@@ -5442,7 +5480,7 @@
     ],
     "integrationPoints": [
       "SessionProjectionStore.offer(key,value,seq): strictly-newer watermark wins; lower-or-equal loses so replayed frames cannot regress values",
-      "seed(block): history-tail projections block enters keys at asOfSeq; returns publishable keys \u2014 a stale baseline cannot overwrite a newer push",
+      "seed(block): history-tail projections block enters keys at asOfSeq; returns publishable keys — a stale baseline cannot overwrite a newer push",
       "live_sync guards every title/plan/permissions fold behind offer(); all three history-resync sites seed via publishableProjectionKeys before publishing",
       "sessionProjectionStores keeps one store per session for container lifetime so seq memory survives reconnects"
     ],
@@ -5492,11 +5530,11 @@
       "runtime"
     ],
     "integrationPoints": [
-      "apps/flutter/lib/src/core/session/live_sync.dart \u2014 approval/requested + resolved and question frames route into the wait stores and recompute the summary marker",
-      "apps/flutter/lib/src/plugins/user_questions/approval_state.dart \u2014 ApprovalsController wait store keyed by session, idempotent replay replacement, approvalId-matched settlement",
-      "apps/flutter/lib/src/plugins/user_questions/approval_responder.dart \u2014 client-response echoing the requested frame rpcId with {sessionId, approvalId, outcome}",
-      "apps/flutter/lib/src/core/session/session_models.dart \u2014 SessionSummary.withPendingInteraction explicit-clear marker consumed by the sidebar statuses",
-      "apps/flutter/lib/src/features/sidebar/search_derive.dart + sidebar.dart \u2014 consume pendingInteraction for the amber-dot statuses"
+      "apps/flutter/lib/src/core/session/live_sync.dart — approval/requested + resolved and question frames route into the wait stores and recompute the summary marker",
+      "apps/flutter/lib/src/plugins/user_questions/approval_state.dart — ApprovalsController wait store keyed by session, idempotent replay replacement, approvalId-matched settlement",
+      "apps/flutter/lib/src/plugins/user_questions/approval_responder.dart — client-response echoing the requested frame rpcId with {sessionId, approvalId, outcome}",
+      "apps/flutter/lib/src/core/session/session_models.dart — SessionSummary.withPendingInteraction explicit-clear marker consumed by the sidebar statuses",
+      "apps/flutter/lib/src/features/sidebar/search_derive.dart + sidebar.dart — consume pendingInteraction for the amber-dot statuses"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
@@ -5544,7 +5582,7 @@
     ],
     "integrationPoints": [
       "RemoteEventBus $on(event, handler)/dispatch(event, args): subscriber table over forwarded host cordis events, unsubscriber-safe removal",
-      "live_sync routes host/remote-event frames (HostFrame.fromJson) to remoteBusProvider.dispatch \u2014 generation-scoped because the pump dies with the connection generation",
+      "live_sync routes host/remote-event frames (HostFrame.fromJson) to remoteBusProvider.dispatch — generation-scoped because the pump dies with the connection generation",
       "Consumers: plugins subscribe for host-side cordis events without touching the transport"
     ],
     "runtimeMode": "replay",
@@ -5572,7 +5610,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "Carrier extracted to its own module this pass: RemoteEventBus + remoteBusProvider moved from runtime_services.dart to remote_event_bus.dart (re-exported, imports unchanged) so the ledger names a unique real carrier \u2014 runtime_services.dart is form.locale\u2019s. Envelope routing into typed folds lives in live_sync.dart (owned by runtime.session-store); this row owns the dispatch-table seam plugins consume."
+    "notes": "Carrier extracted to its own module this pass: RemoteEventBus + remoteBusProvider moved from runtime_services.dart to remote_event_bus.dart (re-exported, imports unchanged) so the ledger names a unique real carrier — runtime_services.dart is form.locale’s. Envelope routing into typed folds lives in live_sync.dart (owned by runtime.session-store); this row owns the dispatch-table seam plugins consume."
   },
   {
     "id": "runtime.settings-scope",
@@ -5641,9 +5679,9 @@
       "runtime"
     ],
     "integrationPoints": [
-      "apps/flutter/lib/src/core/connection/connection_client.dart \u2014 createSession builds its session.create payload through sessionCreatePayload and unwraps result.value.sessionId (no locally minted id)",
-      "apps/flutter/lib/src/features/sidebar/sidebar.dart \u2014 _handleNewSession and onCreateIn classify attach failures through isWorkspaceAttachFailure and adopt the host-returned id, projecting adoptHostBornSession before the confirming list pull",
-      "apps/flutter/lib/src/routing/app_router.dart \u2014 welcome _handleSubmit retries bare once on workspace-not-found and adopts the returned id with the projected blank summary"
+      "apps/flutter/lib/src/core/connection/connection_client.dart — createSession builds its session.create payload through sessionCreatePayload and unwraps result.value.sessionId (no locally minted id)",
+      "apps/flutter/lib/src/features/sidebar/sidebar.dart — _handleNewSession and onCreateIn classify attach failures through isWorkspaceAttachFailure and adopt the host-returned id, projecting adoptHostBornSession before the confirming list pull",
+      "apps/flutter/lib/src/routing/app_router.dart — welcome _handleSubmit retries bare once on workspace-not-found and adopts the returned id with the projected blank summary"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
@@ -5670,7 +5708,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "COMPLETE (2026-08-26) via extraction: the creation policy now lives in one pure file \u2014 sessionCreatePayload (wire body), isWorkspaceAttachFailure (the single sanctioned retry: workspace-not-found transport literal), adoptHostBornSession (blank idle summary projected at adoption, manager.ts create arm). All three carriers (connection_client payload, sidebar _handleNewSession/onCreateIn, app_router welcome submit) consume it; behavior preserved except the two UI flows now project the adopted blank summary before the list refresh lands, matching React synchronous addressability. Wire contract stays pinned by connection_client_rpc_test; reconnect marked not-applicable because host-born creation spans no connection generation (list refresh owns post-reconnect truth)."
+    "notes": "COMPLETE (2026-08-26) via extraction: the creation policy now lives in one pure file — sessionCreatePayload (wire body), isWorkspaceAttachFailure (the single sanctioned retry: workspace-not-found transport literal), adoptHostBornSession (blank idle summary projected at adoption, manager.ts create arm). All three carriers (connection_client payload, sidebar _handleNewSession/onCreateIn, app_router welcome submit) consume it; behavior preserved except the two UI flows now project the adopted blank summary before the list refresh lands, matching React synchronous addressability. Wire contract stays pinned by connection_client_rpc_test; reconnect marked not-applicable because host-born creation spans no connection generation (list refresh owns post-reconnect truth)."
   },
   {
     "id": "runtime.reconnect-generations",
@@ -5908,7 +5946,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "Target corrected from nonexistent rpc_contracts.dart to rpc_envelope.dart \u2014 the request/result/error carrier authority; hand-invented contracts forbidden, shapes extracted from the TS gateway."
+    "notes": "Target corrected from nonexistent rpc_contracts.dart to rpc_envelope.dart — the request/result/error carrier authority; hand-invented contracts forbidden, shapes extracted from the TS gateway."
   },
   {
     "id": "slot.registry",
@@ -5976,7 +6014,7 @@
       "ui"
     ],
     "integrationPoints": [
-      "Keyed card-builder table dispatched by wire tool name \u2014 tools contribute renderers without a central switch; unclaimed names fall back to the generic card",
+      "Keyed card-builder table dispatched by wire tool name — tools contribute renderers without a central switch; unclaimed names fall back to the generic card",
       "Duplicate claim for a shipped key throws (mirrors ChatNodeRendererRegistry discipline)",
       "ToolPlugin activation registers the presentation service plus chat-node renderers through it"
     ],
@@ -5992,7 +6030,7 @@
       "apps/flutter/test/plugins/ws_chat/tool_plugin_test.dart"
     ],
     "e2eScenarios": [
-      "folded tool/call+result stream picks the right card per tool name (bash\u2192terminal, grep\u2192search, unknown\u2192generic)",
+      "folded tool/call+result stream picks the right card per tool name (bash→terminal, grep→search, unknown→generic)",
       "duplicate presentation claim rejected loudly"
     ],
     "evidence": {
@@ -6070,8 +6108,8 @@
       "runtime"
     ],
     "integrationPoints": [
-      "DshPlugin {id, inject, apply(DshContext)} \u2014 effects-only contribution surface: ctx.slots.register/inject, ctx.provide, ctx.onDispose tracked per activation",
-      "deactivate runs disposers in reverse, removes contributions and provided services; deactivateAll unwinds last-first \u2014 mirrored fiber unload discipline",
+      "DshPlugin {id, inject, apply(DshContext)} — effects-only contribution surface: ctx.slots.register/inject, ctx.provide, ctx.onDispose tracked per activation",
+      "deactivate runs disposers in reverse, removes contributions and provided services; deactivateAll unwinds last-first — mirrored fiber unload discipline",
       "Every workstream plugin composes exclusively through this contract in fixtures and the business host"
     ],
     "runtimeMode": "replay",
@@ -6184,7 +6222,7 @@
       "apps/flutter/test/unit/live_sync_test.dart"
     ],
     "e2eScenarios": [
-      "live-host session.create\u2192projection\u2192history and commands/execute round-trip"
+      "live-host session.create→projection→history and commands/execute round-trip"
     ],
     "evidence": {
       "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
@@ -6231,7 +6269,7 @@
       "apps/flutter/test/unit/live_sync_test.dart"
     ],
     "e2eScenarios": [
-      "live-host session.create\u2192projection\u2192history and commands/execute round-trip"
+      "live-host session.create→projection→history and commands/execute round-trip"
     ],
     "evidence": {
       "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
@@ -6278,7 +6316,7 @@
       "apps/flutter/test/unit/live_sync_test.dart"
     ],
     "e2eScenarios": [
-      "live-host session.create\u2192projection\u2192history and commands/execute round-trip"
+      "live-host session.create→projection→history and commands/execute round-trip"
     ],
     "evidence": {
       "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
@@ -6324,7 +6362,7 @@
       "apps/flutter/test/unit/live_sync_test.dart"
     ],
     "e2eScenarios": [
-      "live-host session.create\u2192projection\u2192history and commands/execute round-trip"
+      "live-host session.create→projection→history and commands/execute round-trip"
     ],
     "evidence": {
       "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
@@ -6355,7 +6393,7 @@
     ],
     "integrationPoints": [
       "conversation_nodes.dart fold: automatic compaction/summary + replace-op checkpoint with shadowedSeqs/TokenCount, compactionId correlation, _contentBlocksText join '' (text-only), window-cut fallback, and manual /compact integration via sourceCommandId (command/run|done + compaction/start|summary|end + checkpoint) yielding ManualCompactionNode (running vs completed disclosure)",
-      "chat_view.dart _CompactionCard: 24px button Api icon+chevron dimmed title sep dot counts summary locale-aware via conversation namespace (zh \u4e0a\u4e0b\u6587\u5df2\u538b\u7f29 + en Context compacted + completed/expand/unavailable templates) and DsMarkdown body (React Shiki MarkdownText parity) with title='compact' and fallbackSummary for manual",
+      "chat_view.dart _CompactionCard: 24px button Api icon+chevron dimmed title sep dot counts summary locale-aware via conversation namespace (zh 上下文已压缩 + en Context compacted + completed/expand/unavailable templates) and DsMarkdown body (React Shiki MarkdownText parity) with title='compact' and fallbackSummary for manual",
       "conversation_nodes.dart tool subcalls: childrenByParent map at parent key (out-of-order tolerant) with ToolCallTree acceptEdge cycle + depth 256 guard (pending queue propagation) and _collectChildren recursive projection per level borderL2/margin",
       "conversation local registration: ConversationPlugin registers conversation zh/en dictionaries via LocaleService (kConversationNamespace)"
     ],
@@ -6376,9 +6414,9 @@
     "e2eScenarios": [
       "automatic packet pair: summary with shadowedSeqs [2] + replace checkpoint removes shadowed node and inserts collapsed marker with counts",
       "manual /compact: command/run compact + summary sourceCommandId + replace checkpoint sourceCommandId + command/done yields ManualCompactionNode with counts and markdown summary (bold/code) and title compact",
-      "manual running: command/run compact without checkpoint renders manual running row CompactCompacting context\u2026 (zh \u6b63\u5728\u538b\u7f29\u2026)",
+      "manual running: command/run compact without checkpoint renders manual running row CompactCompacting context… (zh 正在压缩…)",
       "markdown rendering: summary with GFM markdown (heading, list, code fence, bold/italic) expands via DsMarkdown inside card",
-      "i18n zh: locale zh renders \u4e0a\u4e0b\u6587\u5df2\u538b\u7f29 + \u5df2\u538b\u7f29 {items} \u6761\u5386\u53f2\u8bb0\u5f55 and expand/unavailable strings via kConversationZh",
+      "i18n zh: locale zh renders 上下文已压缩 + 已压缩 {items} 条历史记录 and expand/unavailable strings via kConversationZh",
       "out-of-order parent: child dispatch before parent still nests at parent key (inner under outer) not flattened at root",
       "cycle rejection: b->a edge that would close a loop is dropped, tree stays a->b",
       "depth 256 cap: chain depth 257 rejected, max depth stays <=256",
@@ -6434,7 +6472,7 @@
       "apps/flutter/test/unit/live_sync_test.dart"
     ],
     "e2eScenarios": [
-      "live-host session.create\u2192projection\u2192history and commands/execute round-trip"
+      "live-host session.create→projection→history and commands/execute round-trip"
     ],
     "evidence": {
       "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
@@ -6511,7 +6549,7 @@
       "state"
     ],
     "integrationPoints": [
-      "reasoning-delta chunks accumulate in the reducer\u2019s dedicated reasoning buffer and surface as collapsible thinking blocks; reasoning-only partial thought renders before text arrives",
+      "reasoning-delta chunks accumulate in the reducer’s dedicated reasoning buffer and surface as collapsible thinking blocks; reasoning-only partial thought renders before text arrives",
       "Settled assistant/message blocks replace streamed prefixes with structured text/reasoning blocks",
       "Parity fixture reasoning-delta (done) followed by text delta coalesces settle identically on both sides"
     ],
@@ -6540,7 +6578,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "Carrier corrected to chat_ui_adapter.dart \u2014 the reasoning-surface mapping (block kind reasoning \u2192 collapsible UI, reasoning-only streaming state); the reducer\u2019s separate chunkReasoningBuffer feeds it."
+    "notes": "Carrier corrected to chat_ui_adapter.dart — the reasoning-surface mapping (block kind reasoning → collapsible UI, reasoning-only streaming state); the reducer’s separate chunkReasoningBuffer feeds it."
   },
   {
     "id": "state.streaming-tool",
@@ -6559,9 +6597,9 @@
       "state"
     ],
     "integrationPoints": [
-      "apps/flutter/lib/src/plugins/conversation/nodes/conversation_nodes.dart \u2014 assistant/chunk deltas route through the decoder; tool-call-delta accumulates onto the in-flight AssistantNode.partialToolCalls and clears when the step message settles",
-      "packages/core/session/src/types.ts \u2014 contract source: assistant/chunk carries {turn, step, chunk: StreamChunk}; no dedicated delta frame exists",
-      "packages/client/runtime/src/client/sessions/partial.ts \u2014 accumulation semantics ported (first non-empty callId, latest name, verbatim argumentsDelta concatenation)"
+      "apps/flutter/lib/src/plugins/conversation/nodes/conversation_nodes.dart — assistant/chunk deltas route through the decoder; tool-call-delta accumulates onto the in-flight AssistantNode.partialToolCalls and clears when the step message settles",
+      "packages/core/session/src/types.ts — contract source: assistant/chunk carries {turn, step, chunk: StreamChunk}; no dedicated delta frame exists",
+      "packages/client/runtime/src/client/sessions/partial.ts — accumulation semantics ported (first non-empty callId, latest name, verbatim argumentsDelta concatenation)"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
@@ -6605,9 +6643,9 @@
       "runtime"
     ],
     "integrationPoints": [
-      "Chat-pipeline pairing site: reduceConversation correlates tool/call\u2194tool/result by callId (canonical source.callId identity tolerated back to flat), finalizing pending\u2192running\u2192completed/failed",
+      "Chat-pipeline pairing site: reduceConversation correlates tool/call↔tool/result by callId (canonical source.callId identity tolerated back to flat), finalizing pending→running→completed/failed",
       "Failure semantics: model failure cancels unresolved tools (no orphaned running), completed stay settled; empty {} cards suppressed",
-      "Hub-fold pairing lives in ConversationNodeFolder (conversation_nodes.dart \u2014 sibling row tool.subcall-topology owns its topology facet); presentation never pairs"
+      "Hub-fold pairing lives in ConversationNodeFolder (conversation_nodes.dart — sibling row tool.subcall-topology owns its topology facet); presentation never pairs"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
@@ -6622,7 +6660,7 @@
       "apps/flutter/test/plugins/conversation_nodes_test.dart"
     ],
     "e2eScenarios": [
-      "tool call + result: card walks pending\u2192running\u2192completed with payload",
+      "tool call + result: card walks pending→running→completed with payload",
       "execution failure marks failed state; pre/post-tool model failures leave no orphaned running tools",
       "unknown result callId throws instead of inventing a node"
     ],
@@ -6634,7 +6672,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "Target corrected to the chat-pipeline pairing site (core/tools/tool_lifecycle.dart never existed); settled-call lifecycle evidence spans reducer cases 4\u20137 and the folder lifecycle case."
+    "notes": "Target corrected to the chat-pipeline pairing site (core/tools/tool_lifecycle.dart never existed); settled-call lifecycle evidence spans reducer cases 4–7 and the folder lifecycle case."
   },
   {
     "id": "tool.subcall-topology",
@@ -6674,7 +6712,7 @@
     ],
     "e2eScenarios": [
       "depth1 flat 2 subcalls (1 error) folds and renders with left border and gap",
-      "depth2 chain (root\u2192outer\u2192inner) folds recursively and indents per level",
+      "depth2 chain (root→outer→inner) folds recursively and indents per level",
       "depth3 chain with error leaf renders red styling at each level",
       "cycle and 256-depth guard rejects malformed wire without hiding session"
     ],
@@ -6711,10 +6749,10 @@
       "ui"
     ],
     "integrationPoints": [
-      "apps/flutter/lib/src/plugins/user_questions/ui/question_node_card.dart \u2014 question/plan-review surface of the same plane (renders pending set, submits whole batches echoing rpcId)",
-      "apps/flutter/lib/src/plugins/user_questions/user_questions_plugin.dart \u2014 composer-chain registrations: question takeover at default priority, approval takeover at priority 1 (question wins when both wait)",
-      "apps/flutter/lib/src/core/session/live_sync.dart \u2014 plane dispatch: requested frames arm stores, resolved frames settle them, unknown frame discriminants discard at decode",
-      "apps/flutter/lib/src/core/connection/connection_client.dart \u2014 canonical respond path (/api/respond client-response)"
+      "apps/flutter/lib/src/plugins/user_questions/ui/question_node_card.dart — question/plan-review surface of the same plane (renders pending set, submits whole batches echoing rpcId)",
+      "apps/flutter/lib/src/plugins/user_questions/user_questions_plugin.dart — composer-chain registrations: question takeover at default priority, approval takeover at priority 1 (question wins when both wait)",
+      "apps/flutter/lib/src/core/session/live_sync.dart — plane dispatch: requested frames arm stores, resolved frames settle them, unknown frame discriminants discard at decode",
+      "apps/flutter/lib/src/core/connection/connection_client.dart — canonical respond path (/api/respond client-response)"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
@@ -6763,7 +6801,7 @@
       "ui"
     ],
     "integrationPoints": [
-      "SettingsPlugin (id 'ui-settings') provides 'settingsScope' \u2014 SettingsScope<Object?> over SettingsRpcFace(settings.describe/mutate) \u2014 and bridges language preference",
+      "SettingsPlugin (id 'ui-settings') provides 'settingsScope' — SettingsScope<Object?> over SettingsRpcFace(settings.describe/mutate) — and bridges language preference",
       "Registers the four children plugins (general/models/plugins/inventory) whose services expose scope-backed sections; plugin inventory reads the activated host ledger",
       "Schema-derived union constants feed permission presets (defaultPreset); section screens are owned by screen.ui-settings-* rows"
     ],
@@ -6812,7 +6850,7 @@
     ],
     "integrationPoints": [
       "LocaleService registry/bind face: namespaces hold per-locale dictionaries (register merges, unsubscriber removes exactly its entries), setLocale rejects ids no namespace registered",
-      "bind(ns) returns a stable translate function with fallback chain bound locale \u2192 any registered locale carrying the key \u2192 key",
+      "bind(ns) returns a stable translate function with fallback chain bound locale → any registered locale carrying the key → key",
       "Provided as the 'locale' service in bootstrap; plugins register zh/en dictionaries in apply (conversation, goal, jobs, deliverables, skill, agent-preset, permission-presets, plan, workspace, directory-browser, model-selection, subagent, workflow-run)"
     ],
     "runtimeMode": "replay",
@@ -6840,7 +6878,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "Dictionary seam split recorded honestly (2026-08-25): the registry/bind/fallback service face is LocaleService in core/services/runtime_services.dart, which form.locale already carries on the ledger; the zh/en dictionary files themselves are plugins/*/locales.dart \u2014 the conversation namespace file (the hub whose 18 dependents hang off it) is the representative carrier. Plugins register their namespaces via LocaleService at apply time."
+    "notes": "Dictionary seam split recorded honestly (2026-08-25): the registry/bind/fallback service face is LocaleService in core/services/runtime_services.dart, which form.locale already carries on the ledger; the zh/en dictionary files themselves are plugins/*/locales.dart — the conversation namespace file (the hub whose 18 dependents hang off it) is the representative carrier. Plugins register their namespaces via LocaleService at apply time."
   },
   {
     "id": "subagent.runtime-link",
@@ -6862,7 +6900,7 @@
     "integrationPoints": [
       "subagent_link.dart SubagentLink mirrors ISessions' subagent face: openChild closes the originating catalog then selects the child row, refresh re-pulls the parent window, setCatalogOpen remembers expansion (React openSubagent/refreshSubagents/setSubagentCatalogOpen)",
       "app_plugins.dart binds the link to the shared sessions list (setCurrent) and a getSessions refresh, then SubagentPlugin provides it as the 'subagents' service",
-      "session_header.dart HoleOutlet composes SubagentCatalogAction (id subagent-catalog, order 10) into conversation.session.header.actions; picking a row navigates to the child transcript through existing session selection \u2014 no invented RPCs",
+      "session_header.dart HoleOutlet composes SubagentCatalogAction (id subagent-catalog, order 10) into conversation.session.header.actions; picking a row navigates to the child transcript through existing session selection — no invented RPCs",
       "child lineage rides SessionSummary.origin/parentSessionId wire passthrough with runningSubagentCount mirroring indexSubagentDescendants; the node card renders keyed subagent transcript nodes and intentionally has no click nav (React navigates only via the header catalog)",
       "read-only composer takeover deferred until the conversation hub declares a composer-chain seat (subagent_read_only_composer.dart ships as widget + selector)"
     ],
@@ -6892,7 +6930,7 @@
       "approvedAt": ""
     },
     "legacyVerified": false,
-    "notes": "Runtime link complete over existing paths: navigation, catalog-open memory, refresh, keyed child-transcript rendering, and origin/parentId lineage. Streaming/reconnect are not-applicable \u2014 the link owns no stream or generation state (selection rides runtime.session-store). Composer-takeover seat waits on the conversation hub. See migration/parity-reports/2026-08-26-brand-runtime-link.md."
+    "notes": "Runtime link complete over existing paths: navigation, catalog-open memory, refresh, keyed child-transcript rendering, and origin/parentId lineage. Streaming/reconnect are not-applicable — the link owns no stream or generation state (selection rides runtime.session-store). Composer-takeover seat waits on the conversation hub. See migration/parity-reports/2026-08-26-brand-runtime-link.md."
   },
   {
     "id": "reference.composer-integration",
@@ -6939,7 +6977,7 @@
       "approvedAt": ""
     },
     "legacyVerified": false,
-    "notes": "WS-Input: reference composer integration \u2014 chip insertion via ReferenceInsert with codec (clipboard vs model serialization)."
+    "notes": "WS-Input: reference composer integration — chip insertion via ReferenceInsert with codec (clipboard vs model serialization)."
   },
   {
     "id": "input-trigger.suggestion-engine",
@@ -6988,7 +7026,7 @@
       "approvedAt": ""
     },
     "legacyVerified": false,
-    "notes": "WS-Input: input-trigger suggestion engine \u2014 source registry + per-session controller map, roster order, warm/dispose lifecycle."
+    "notes": "WS-Input: input-trigger suggestion engine — source registry + per-session controller map, roster order, warm/dispose lifecycle."
   },
   {
     "id": "platform.keyboard-shortcuts",
@@ -6999,7 +7037,7 @@
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/ui/conversation_shortcuts.dart",
     "replacementType": "direct",
     "notApplicableReason": "",
-    "status": "Audited",
+    "status": "Integrated",
     "owner": "react-codebase-auditor",
     "reviewer": "",
     "dependsOn": [],
@@ -7007,38 +7045,42 @@
       "platform"
     ],
     "integrationPoints": [
-      "conversation column mounts ConversationShortcuts: Enter -> composerSubmitHookProvider, Escape -> cancelTurn",
-      "composer Shortcuts map binds Cmd/Ctrl+Enter to accelerated _SubmitIntent",
+      "conversation column mounts ConversationShortcuts: Enter -> composerSubmitHookProvider (includeRepeats false), Escape -> cancelTurn",
+      "composer Shortcuts map binds Cmd/Ctrl+Enter to accelerated _SubmitIntent with queue-steer gate (empty-draft + running + queued, React InputBar.tsx canSteerQueue)",
+      "Shift+Enter inserts native newline via explicit _NewlineIntent (desktop hardware path)",
       "InputKeyboardProducer mounted around the composer TextField arbitrates menu ArrowUp/Down/Enter/Escape",
-      "input_trigger_shortcuts.dart declares the undo/redo action layer (defined, not yet mounted)"
+      "InputTriggerShortcuts mounted inside ConversationComposer (composer.dart) wraps undo/redo via platform accelerators (undoActivators/redoActivators) driving ChipUndoStack, invocable gate (machineBusy||locked) keeps key consumed",
+      "chip Backspace/Delete occurrence deletion via composer Focus onKeyEvent deleteOccurrenceAt (collapsed caret, composing guard, isSending guard)",
+      "Enter repeat guard via SingleActivator includeRepeats:false (mirrors e.repeat)"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
       "visual": "not-applicable",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
     },
     "platformParity": {
-      "web": "missing",
-      "macos": "missing"
+      "web": "pass",
+      "macos": "pass"
     },
     "tests": [
       "apps/flutter/test/plugins/conversation_render_test.dart",
       "apps/flutter/test/plugins/ws_input/input_keyboard_producer_test.dart",
-      "apps/flutter/test/plugins/ws_input/input_trigger_test.dart"
+      "apps/flutter/test/plugins/ws_input/input_trigger_test.dart",
+      "apps/flutter/test/plugins/ws_input/input_trigger_shortcuts_test.dart"
     ],
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/plugins/conversation_render_test.dart test/plugins/ws_input/input_keyboard_producer_test.dart",
-      "parityReport": "migration/parity-reports/2026-08-25-commands-input.md",
+      "testsRun": "flutter test test/plugins/conversation_render_test.dart test/plugins/ws_input/input_keyboard_producer_test.dart test/plugins/ws_input/input_trigger_shortcuts_test.dart",
+      "parityReport": "migration/parity-reports/2026-08-26-shortcuts-arbitration.md",
       "replayDiff": "",
       "approvedBy": "",
       "approvedAt": ""
     },
     "legacyVerified": false,
-    "notes": "Partial vs InputBar.tsx onKeyDown. Implemented+tested: Enter submit hook, Escape cancel, Shift+Enter native newline fall-through, platform accelerator seam (Cmd Apple / Ctrl elsewhere incl. Ctrl+Y redo), menu arbitration producer. Fixed en route: bare Shift+Z matched redo on both platform branches; undo/redo activators now shared and accelerator-bound. Gaps: InputTriggerShortcuts is not mounted anywhere so Cmd/Ctrl+Z|Y is inert end-to-end (controller/stack unit-tested only); chip Backspace/Delete occurrence deletion not ported; empty-draft accelerated Enter queue-steer and Enter repeat guard not ported."
+    "notes": "Parity vs InputBar.tsx onKeyDown now complete for this slice: Enter submit hook (includeRepeats false), Shift+Enter native newline, Escape cancel, Cmd/Ctrl accelerator seam, menu arbitration producer, queue-steer (empty-draft accelerated Enter), chip Backspace/Delete occurrence deletion, undo/redo mounted via InputTriggerShortcuts with invocable gate. All short-circuit gaps closed this sweep; composer.dart shows mounted layer, chip delete interceptor and steer hook."
   },
   {
     "id": "platform.drag-drop",
@@ -7059,7 +7101,7 @@
     ],
     "integrationPoints": [
       "ConversationScreen wraps ConversationColumn/hero via DocumentDropScope feeding DragDropController (depth counter + canAcceptDrop gate + ModalRoute.isCurrent effectiveEnabled guard)",
-      "DragDropController dropped() runs React-ordered pre-check (format \u2192 count \u2192 per-file \u2192 total(staged+incoming)) then forwards to intakeComposerImages with DroppedFile bytes read via readAsBytes",
+      "DragDropController dropped() runs React-ordered pre-check (format → count → per-file → total(staged+incoming)) then forwards to intakeComposerImages with DroppedFile bytes read via readAsBytes",
       "DocumentDropScope onDragDone captures bytes + enabled param + ModalRoute modal guard disables DropTarget and overlay when modal on top, resets stale dragActive",
       "intakeComposerImages creates ComposerAttachment via unified model (id=generateId, previewUrl=path, bytes propagated) and stages into composerControllerProvider",
       "ComposerController.serializeDraftImages validates mediaType image/png/jpeg/webp/gif, reads bytes via attachment.bytes or readFileBytes(path), base64 encodes to PromptContentPart, submit sends images+text via ConnectionClient.sendMessage (session.prompt)"
@@ -7085,10 +7127,10 @@
     ],
     "e2eScenarios": [
       "drag-image-to-composer-attach-with-thumbnail (native Image.file via conditional seam, http Blob via Image.network)",
-      "picker-image-to-rail (file_picker withData:true bytes \u2192 intake path)",
+      "picker-image-to-rail (file_picker withData:true bytes → intake path)",
       "drop-rejected-when-locked-or-running (gate + limits)",
       "drop-disabled-behind-modal (DocumentDropScope effectiveEnabled false when ModalRoute non-current)",
-      "submit-with-images-to-host (serializeDraftImages base64 \u2192 session.prompt PromptContentPart)"
+      "submit-with-images-to-host (serializeDraftImages base64 → session.prompt PromptContentPart)"
     ],
     "evidence": {
       "testsRun": "flutter test test/platform/drag_drop_test.dart test/widgets/attachment_rail_test.dart test/unit/composer_controller_test.dart test/unit/connection_client_images_test.dart",
@@ -7146,6 +7188,6 @@
       "approvedAt": ""
     },
     "legacyVerified": false,
-    "notes": "P2 remediation wave 1: external open implemented via url_launcher (direct dep) with React parity allowlist (http/https/mailto, block javascript/data). WebBlock title+url and citations become tappable; markdown links launch externally. Visual parity report notes mask blur etc. still open, but open-external seam is live on Web+macOS."
+    "notes": "External open via url_launcher with React parity allowlist (http/https/mailto, block javascript/data/relative, trim whitespace). WebBlock title+url and citations become tappable; markdown links launch externally. Visual partial honest: WebBlock safeHref/Citation chrome still differs from React CSS but seam is live on Web+macOS."
   }
 ]

@@ -41,7 +41,12 @@ class SessionHeaderView extends ConsumerWidget {
         ? 'New session'
         : summary.displayTitle;
     final String? agentPreset = summary?.agentPreset;
-    final String location = GoRouterState.of(context).matchedLocation;
+    String location = '';
+    try {
+      location = GoRouterState.of(context).matchedLocation;
+    } catch (_) {
+      location = '';
+    }
     final bool isTrajectory = location.endsWith('/trajectory');
     // Session log action is part of header.utilities hole in React; we keep the actions hole
     // but also render a simple Session log chip for parity when not blank.
@@ -160,14 +165,22 @@ class SessionHeaderView extends ConsumerWidget {
                 _HeaderTab(
                   label: 'Chat',
                   selected: !isTrajectory,
-                  onTap: () => context.go('/sessions/$sessionId'),
+                  onTap: () {
+                    try {
+                      context.go('/sessions/$sessionId');
+                    } catch (_) {}
+                  },
                   aliases: aliases,
                 ),
                 const SizedBox(width: 24),
                 _HeaderTab(
                   label: 'Trajectory',
                   selected: isTrajectory,
-                  onTap: () => context.go('/sessions/$sessionId/trajectory'),
+                  onTap: () {
+                    try {
+                      context.go('/sessions/$sessionId/trajectory');
+                    } catch (_) {}
+                  },
                   aliases: aliases,
                 ),
               ],
