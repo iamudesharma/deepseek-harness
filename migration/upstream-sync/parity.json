@@ -1,0 +1,642 @@
+{
+  "generatedAt": "2026-09-02T11:33:52.630Z",
+  "total": 63,
+  "pass": 31,
+  "missing": 16,
+  "outdated": 0,
+  "incompatible": 0,
+  "removed": 0,
+  "unknown": 16,
+  "entries": [
+    {
+      "id": "parity:session/control",
+      "reactApi": "session/control",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/connection/tests/fixture.client.spec.ts",
+      "flutterSource": null,
+      "reason": "React uses session/control but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/event",
+      "reactApi": "session/event",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "apps/web/tests/approval-composer.e2e.ts",
+      "flutterSource": null,
+      "reason": "React uses session/event but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/follow",
+      "reactApi": "session/follow",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "apps/web/tests/smoke-real.e2e.ts",
+      "flutterSource": null,
+      "reason": "React uses session/follow but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/fork-unavailable",
+      "reactApi": "session/fork-unavailable",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/connection/src/client/fixture.ts",
+      "flutterSource": null,
+      "reason": "React uses session/fork-unavailable but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/model-unavailable",
+      "reactApi": "session/model-unavailable",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "apps/web/tests/default-model.e2e.ts",
+      "flutterSource": null,
+      "reason": "React uses session/model-unavailable but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/openWorkspacePath",
+      "reactApi": "session/openWorkspacePath",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
+      "flutterSource": null,
+      "reason": "React uses session/openWorkspacePath but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/queue-item-not-found",
+      "reactApi": "session/queue-item-not-found",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/ui-conversation/src/client/input/hub.ts",
+      "flutterSource": null,
+      "reason": "React uses session/queue-item-not-found but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/steer-unavailable",
+      "reactApi": "session/steer-unavailable",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/ui-conversation/src/client/input/hub.ts",
+      "flutterSource": null,
+      "reason": "React uses session/steer-unavailable but Flutter does not call it"
+    },
+    {
+      "id": "parity:session/title",
+      "reactApi": "session/title",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "apps/web/tests/agent-preset-selection.e2e.ts",
+      "flutterSource": null,
+      "reason": "React uses session/title but Flutter does not call it"
+    },
+    {
+      "id": "parity:settings/openAgentPresetDirectory",
+      "reactApi": "settings/openAgentPresetDirectory",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
+      "flutterSource": null,
+      "reason": "React uses settings/openAgentPresetDirectory but Flutter does not call it"
+    },
+    {
+      "id": "parity:settings/openSettingsDocument",
+      "reactApi": "settings/openSettingsDocument",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
+      "flutterSource": null,
+      "reason": "React uses settings/openSettingsDocument but Flutter does not call it"
+    },
+    {
+      "id": "parity:settings/replace",
+      "reactApi": "settings/replace",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "packages/client/connection/tests/fixture.client.spec.ts",
+      "flutterSource": null,
+      "reason": "React uses settings/replace but Flutter does not call it"
+    },
+    {
+      "id": "parity:settings/update",
+      "reactApi": "settings/update",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P0",
+      "reactSource": "apps/web/tests/preview-boot.e2e.ts",
+      "flutterSource": null,
+      "reason": "React uses settings/update but Flutter does not call it"
+    },
+    {
+      "id": "parity:commands/execute",
+      "reactApi": "commands/execute",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P1",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": null,
+      "reason": "React uses commands/execute but Flutter does not call it"
+    },
+    {
+      "id": "parity:workspace/follow",
+      "reactApi": "workspace/follow",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P1",
+      "reactSource": "packages/client/connection/tests/fixture.client.spec.ts",
+      "flutterSource": null,
+      "reason": "React uses workspace/follow but Flutter does not call it"
+    },
+    {
+      "id": "parity:workspace/repo",
+      "reactApi": "workspace/repo",
+      "flutterApi": null,
+      "status": "MISSING",
+      "severity": "P1",
+      "reactSource": "packages/client/ui-chat/tests/chat-branch-tails.client.spec.tsx",
+      "flutterSource": null,
+      "reason": "React uses workspace/repo but Flutter does not call it"
+    },
+    {
+      "id": "parity:arch:session/follow-snapshot.cursor",
+      "reactApi": "session/follow snapshot.cursor",
+      "flutterApi": null,
+      "status": "UNKNOWN",
+      "severity": "P0",
+      "reactSource": "react-contract",
+      "flutterSource": null,
+      "reason": "React session/follow snapshot.cursor vs Flutter session/page sentinel cursor discovery — ARCHITECTURAL MISMATCH"
+    },
+    {
+      "id": "parity:arch:agentPreset-selected-event",
+      "reactApi": "agentPreset selected event",
+      "flutterApi": null,
+      "status": "UNKNOWN",
+      "severity": "P1",
+      "reactSource": "react-contract",
+      "flutterSource": null,
+      "reason": "React agentPreset selected event updates session state via events; Flutter must consume same event (event ignored → STATE/PARITY MISMATCH)"
+    },
+    {
+      "id": "parity:flutter-only:agentPresets/copy",
+      "reactApi": "agentPresets/copy",
+      "flutterApi": "agentPresets/copy",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_provider.dart",
+      "reason": "Flutter uses agentPresets/copy not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:agentPresets/deletePreset",
+      "reactApi": "agentPresets/deletePreset",
+      "flutterApi": "agentPresets/deletePreset",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_provider.dart",
+      "reason": "Flutter uses agentPresets/deletePreset not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:agentPresets/read",
+      "reactApi": "agentPresets/read",
+      "flutterApi": "agentPresets/read",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_provider.dart",
+      "reason": "Flutter uses agentPresets/read not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:directoryPicker/createDirectory",
+      "reactApi": "directoryPicker/createDirectory",
+      "flutterApi": "directoryPicker/createDirectory",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
+      "reason": "Flutter uses directoryPicker/createDirectory not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:directoryPicker/list",
+      "reactApi": "directoryPicker/list",
+      "flutterApi": "directoryPicker/list",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
+      "reason": "Flutter uses directoryPicker/list not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:directoryPicker/pick",
+      "reactApi": "directoryPicker/pick",
+      "flutterApi": "directoryPicker/pick",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
+      "reason": "Flutter uses directoryPicker/pick not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:remote/devices",
+      "reactApi": "remote/devices",
+      "flutterApi": "remote/devices",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/features/devices/devices_screen.dart",
+      "reason": "Flutter uses remote/devices not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:remote/pair",
+      "reactApi": "remote/pair",
+      "flutterApi": "remote/pair",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "Flutter uses remote/pair not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:remote/refresh",
+      "reactApi": "remote/refresh",
+      "flutterApi": "remote/refresh",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "Flutter uses remote/refresh not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:remote/revoke",
+      "reactApi": "remote/revoke",
+      "flutterApi": "remote/revoke",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/features/devices/devices_screen.dart",
+      "reason": "Flutter uses remote/revoke not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:remote/ws-ticket",
+      "reactApi": "remote/ws-ticket",
+      "flutterApi": "remote/ws-ticket",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "Flutter uses remote/ws-ticket not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:session/fork",
+      "reactApi": "session/fork",
+      "flutterApi": "session/fork",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
+      "reason": "Flutter uses session/fork not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:session/rename",
+      "reactApi": "session/rename",
+      "flutterApi": "session/rename",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
+      "reason": "Flutter uses session/rename not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:workspace/archiveSession",
+      "reactApi": "workspace/archiveSession",
+      "flutterApi": "workspace/archiveSession",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
+      "reason": "Flutter uses workspace/archiveSession not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:agentPresets/list",
+      "reactApi": "agentPresets/list",
+      "flutterApi": "agentPresets/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use agentPresets/list"
+    },
+    {
+      "id": "parity:agentPresets/select",
+      "reactApi": "agentPresets/select",
+      "flutterApi": "agentPresets/select",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use agentPresets/select"
+    },
+    {
+      "id": "parity:commands/list",
+      "reactApi": "commands/list",
+      "flutterApi": "commands/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/plugins/commands/command_plugin.dart",
+      "reason": "React and Flutter both use commands/list"
+    },
+    {
+      "id": "parity:credentials/describe",
+      "reactApi": "credentials/describe",
+      "flutterApi": "credentials/describe",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "apps/web/tests/preview-boot.e2e.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use credentials/describe"
+    },
+    {
+      "id": "parity:credentials/set",
+      "reactApi": "credentials/set",
+      "flutterApi": "credentials/set",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "apps/web/tests/preview-boot.e2e.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use credentials/set"
+    },
+    {
+      "id": "parity:credentials/unset",
+      "reactApi": "credentials/unset",
+      "flutterApi": "credentials/unset",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "apps/web/tests/preview-boot.e2e.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use credentials/unset"
+    },
+    {
+      "id": "parity:fileReferences/list",
+      "reactApi": "fileReferences/list",
+      "flutterApi": "fileReferences/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/plugins/reference/reference_plugin.dart",
+      "reason": "React and Flutter both use fileReferences/list"
+    },
+    {
+      "id": "parity:host/describe",
+      "reactApi": "host/describe",
+      "flutterApi": "host/describe",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use host/describe"
+    },
+    {
+      "id": "parity:llm/discoverModels",
+      "reactApi": "llm/discoverModels",
+      "flutterApi": "llm/discoverModels",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use llm/discoverModels"
+    },
+    {
+      "id": "parity:llm/listConfigurableProviders",
+      "reactApi": "llm/listConfigurableProviders",
+      "flutterApi": "llm/listConfigurableProviders",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use llm/listConfigurableProviders"
+    },
+    {
+      "id": "parity:llm/listProviders",
+      "reactApi": "llm/listProviders",
+      "flutterApi": "llm/listProviders",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use llm/listProviders"
+    },
+    {
+      "id": "parity:pluginInventory/list",
+      "reactApi": "pluginInventory/list",
+      "flutterApi": "pluginInventory/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use pluginInventory/list"
+    },
+    {
+      "id": "parity:session/attachment",
+      "reactApi": "session/attachment",
+      "flutterApi": "session/attachment",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/attachment"
+    },
+    {
+      "id": "parity:session/cancel",
+      "reactApi": "session/cancel",
+      "flutterApi": "session/cancel",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/cancel"
+    },
+    {
+      "id": "parity:session/create",
+      "reactApi": "session/create",
+      "flutterApi": "session/create",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/features/devices/sessions_mobile_screen.dart",
+      "reason": "React and Flutter both use session/create"
+    },
+    {
+      "id": "parity:session/list",
+      "reactApi": "session/list",
+      "flutterApi": "session/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "apps/web/tests/agent-preset-authoring.e2e.ts",
+      "flutterSource": "apps/flutter/lib/src/core/bootstrap/app_plugins.dart",
+      "reason": "React and Flutter both use session/list"
+    },
+    {
+      "id": "parity:session/modelCatalog",
+      "reactApi": "session/modelCatalog",
+      "flutterApi": "session/modelCatalog",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/tests/fixture.client.spec.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/modelCatalog"
+    },
+    {
+      "id": "parity:session/page",
+      "reactApi": "session/page",
+      "flutterApi": "session/page",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "apps/web/tests/chat-scroll-contract.e2e.ts",
+      "flutterSource": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
+      "reason": "React and Flutter both use session/page"
+    },
+    {
+      "id": "parity:session/prompt",
+      "reactApi": "session/prompt",
+      "flutterApi": "session/prompt",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/prompt"
+    },
+    {
+      "id": "parity:session/search",
+      "reactApi": "session/search",
+      "flutterApi": "session/search",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/search"
+    },
+    {
+      "id": "parity:session/selectModel",
+      "reactApi": "session/selectModel",
+      "flutterApi": "session/selectModel",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/selectModel"
+    },
+    {
+      "id": "parity:session/updateQueue",
+      "reactApi": "session/updateQueue",
+      "flutterApi": "session/updateQueue",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use session/updateQueue"
+    },
+    {
+      "id": "parity:settings/describe",
+      "reactApi": "settings/describe",
+      "flutterApi": "settings/describe",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "apps/web/tests/preview-boot.e2e.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use settings/describe"
+    },
+    {
+      "id": "parity:settings/mutate",
+      "reactApi": "settings/mutate",
+      "flutterApi": "settings/mutate",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use settings/mutate"
+    },
+    {
+      "id": "parity:skills/list",
+      "reactApi": "skills/list",
+      "flutterApi": "skills/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use skills/list"
+    },
+    {
+      "id": "parity:workspace/create",
+      "reactApi": "workspace/create",
+      "flutterApi": "workspace/create",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use workspace/create"
+    },
+    {
+      "id": "parity:workspace/delete",
+      "reactApi": "workspace/delete",
+      "flutterApi": "workspace/delete",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use workspace/delete"
+    },
+    {
+      "id": "parity:workspace/insertBefore",
+      "reactApi": "workspace/insertBefore",
+      "flutterApi": "workspace/insertBefore",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use workspace/insertBefore"
+    },
+    {
+      "id": "parity:workspace/insertSessionBefore",
+      "reactApi": "workspace/insertSessionBefore",
+      "flutterApi": "workspace/insertSessionBefore",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use workspace/insertSessionBefore"
+    },
+    {
+      "id": "parity:workspace/list",
+      "reactApi": "workspace/list",
+      "flutterApi": "workspace/list",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use workspace/list"
+    },
+    {
+      "id": "parity:workspace/rename",
+      "reactApi": "workspace/rename",
+      "flutterApi": "workspace/rename",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use workspace/rename"
+    }
+  ]
+}

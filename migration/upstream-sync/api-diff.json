@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-09-02T11:32:48.631Z",
+  "oldSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
+  "newSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
+  "total": 3,
+  "breaking": 3,
+  "additive": 0,
+  "entries": [
+    {
+      "id": "pluralization:subagent/interruptByParent->subagents/interruptByParent",
+      "kind": "pluralization",
+      "oldEndpoint": "subagent/interruptByParent",
+      "newEndpoint": "subagents/interruptByParent",
+      "oldValue": "subagent/interruptByParent",
+      "newValue": "subagents/interruptByParent",
+      "severity": "P0",
+      "description": "Namespace pluralization: subagent/interruptByParent → subagents/interruptByParent",
+      "sourceFiles": [
+        "packages/subagent/subagent/src/index.ts",
+        "packages/subagent/subagent/src/index.ts"
+      ]
+    },
+    {
+      "id": "pluralization:subagent/list->subagents/list",
+      "kind": "pluralization",
+      "oldEndpoint": "subagent/list",
+      "newEndpoint": "subagents/list",
+      "oldValue": "subagent/list",
+      "newValue": "subagents/list",
+      "severity": "P0",
+      "description": "Namespace pluralization: subagent/list → subagents/list",
+      "sourceFiles": [
+        "packages/subagent/subagent/src/index.ts",
+        "packages/subagent/subagent/src/index.ts"
+      ]
+    },
+    {
+      "id": "pluralization:subagent/prompt->subagents/prompt",
+      "kind": "pluralization",
+      "oldEndpoint": "subagent/prompt",
+      "newEndpoint": "subagents/prompt",
+      "oldValue": "subagent/prompt",
+      "newValue": "subagents/prompt",
+      "severity": "P0",
+      "description": "Namespace pluralization: subagent/prompt → subagents/prompt",
+      "sourceFiles": [
+        "packages/subagent/subagent/src/index.ts",
+        "packages/subagent/subagent/src/index.ts"
+      ]
+    }
+  ]
+}
