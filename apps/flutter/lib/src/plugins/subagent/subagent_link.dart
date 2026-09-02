@@ -13,12 +13,16 @@ library;
 import '../../core/session/session_models.dart';
 
 /// One addressed subagent: the parent whose catalog lists it plus the child
-/// session the address opens.
+/// session the address opens. Mirrors `SubagentAddress` in
+/// `packages/subagent/subagent/src/control-types.ts` which discriminates
+/// `mode:'one-shot'|'continuable'`; Flutter carries the mode for wire
+/// parity even though navigation currently selects by id alone.
 class SubagentAddress {
   /// Creates an address.
   const SubagentAddress({
     required this.parentSessionId,
     required this.childSessionId,
+    this.mode = 'one-shot',
   });
 
   /// Session whose catalog contains the child.
@@ -26,6 +30,9 @@ class SubagentAddress {
 
   /// Child session the address resolves to.
   final SessionId childSessionId;
+
+  /// Durable lifecycle mode of the child (`one-shot` vs `continuable`).
+  final String mode;
 }
 
 /// Navigation + catalog-open state for one plugin instance. Provided as the
