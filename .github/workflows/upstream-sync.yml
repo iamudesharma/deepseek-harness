@@ -1,0 +1,161 @@
+name: upstream-sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_pr:
+        description: 'Create PR from sync branch'
+        type: boolean
+        default: true
+      verify:
+        description: 'Run verification gates'
+        type: boolean
+        default: true
+  schedule:
+    # Daily 02:00 UTC — sync check (read-only unless create_pr enabled)
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  upstream-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/deepseek-ai/deepseek-harness.git 2>/dev/null || git remote set-url upstream https://github.com/deepseek-ai/deepseek-harness.git
+          git fetch upstream --prune
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Upstream check
+        id: check
+        run: |
+          pnpm upstream:check | tee /tmp/upstream-check.json
+          echo "changed=$(jq -r .changed /tmp/upstream-check.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate contracts, diff, impact, report
+        if: always()
+        run: |
+          pnpm upstream:report | tee /tmp/upstream-report.log
+          ls -lh migration/upstream-sync/*.json migration/upstream-sync/reports/*.md 2>&1 | head -n 30
+
+      - name: Upload sync artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-sync-${{ github.run_id }}
+          path: |
+            migration/upstream-sync/*.json
+            migration/upstream-sync/reports/*.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Run verification gates
+        if: inputs.verify == true || inputs.verify == 'true'
+        run: pnpm upstream:verify
+
+      - name: Create sync branch
+        id: branch
+        if: inputs.create_pr == true || inputs.create_pr == 'true'
+        run: |
+          # We only create branches/PR when there is actual upstream drift
+          CHANGED=$(jq -r .changed /tmp/upstream-check.json)
+          if [ "$CHANGED" != "true" ]; then
+            echo "No upstream drift — skipping branch creation"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          pnpm upstream:sync | tee /tmp/sync.log
+          BRANCH=$(grep -oE 'sync/upstream/[0-9-]+-[a-f0-9]+' /tmp/sync.log | head -n 1)
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          # Attempt to merge upstream/master into sync branch (conflicts stop and report)
+          if [ -n "$BRANCH" ]; then
+            git checkout "$BRANCH" 2>/dev/null || true
+            set +e
+            git merge --no-edit --no-ff upstream/master 2>&1 | tee /tmp/merge.log
+            MERGE_RC=$?
+            set -e
+            if [ $MERGE_RC -ne 0 ]; then
+              echo "Merge had conflicts — committing JSON artifacts and stopping (no auto-resolve)"
+              git add migration/upstream-sync/ || true
+              git commit -m "chore(sync): update upstream-sync contracts and report for $(date -u +%Y-%m-%d) [skip ci]" || true
+              git status --short | head -n 50
+              # Do not push conflicting merge; push the branch with report artifacts
+              git push -u origin "$BRANCH" || true
+              echo "Merge conflict detected — manual resolution required for apps/flutter/**, migration/**, contracts"
+              exit 0
+            fi
+            git add migration/upstream-sync/ || true
+            git diff --cached --quiet || git commit -m "chore(sync): merge upstream/master into $BRANCH [skip ci]"
+            git push -u origin "$BRANCH"
+          fi
+
+      - name: Create PR
+        if: steps.branch.outputs.created == 'true' && steps.branch.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          SHORT=$(git rev-parse --short upstream/master)
+          # PR description from generated template or fallback
+          DESC_FILE=$(ls migration/upstream-sync/reports/pr-description-*.md 2>/dev/null | head -n 1)
+          if [ -z "$DESC_FILE" ]; then DESC_FILE="migration/upstream-sync/reports/latest.md"; fi
+          cat <<EOF > /tmp/pr-body.md
+          $(cat "$DESC_FILE" 2>/dev/null | head -n 300)
+          EOF
+          echo "" >> /tmp/pr-body.md
+          echo "---" >> /tmp/pr-body.md
+          echo "Auto-generated by upstream-sync workflow. Do not auto-merge." >> /tmp/pr-body.md
+          echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> /tmp/pr-body.md
+
+          # Check if PR already exists
+          EXISTING=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            echo "PR #$EXISTING already exists for $BRANCH — updating body"
+            gh pr edit "$EXISTING" --body-file /tmp/pr-body.md || true
+            exit 0
+          fi
+
+          gh pr create \
+            --title "chore(sync): upstream ${SHORT} $(date -u +%Y-%m-%d)" \
+            --body-file /tmp/pr-body.md \
+            --base master \
+            --head "$BRANCH" \
+            --label "area/sync" 2>&1 | tee /tmp/pr-create.log || echo "PR create may have failed (check logs)"
+
+      - name: Summary
+        if: always()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOS'
+          ## Upstream sync
+          EOS
+          cat /tmp/upstream-report.log 2>/dev/null | tail -n 100 >> "$GITHUB_STEP_SUMMARY" || true
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifacts: migration/upstream-sync/" >> "$GITHUB_STEP_SUMMARY"
+          ls -1 migration/upstream-sync/*.json 2>/dev/null | head -n 20 >> "$GITHUB_STEP_SUMMARY" || true

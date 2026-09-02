@@ -1,0 +1,146 @@
+{
+  "rev": "49a606bc5b5934603f22a26957a07dc799ab0291",
+  "generatedAt": "2026-09-02T11:35:14.642Z",
+  "endpoints": [
+    {
+      "name": "REMOTE_STREAM_MUX_PATH",
+      "path": "/api/__remote_stream_mux",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "$events",
+      "path": "/api/events",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "events.host",
+      "path": "/api/events.host",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "remote.mux",
+      "path": "/api/events.mux",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "REMOTE_STREAM_MUX_PATH",
+      "path": "/api/remote.mux",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "REMOTE_EVENT_STREAM_ENDPOINT",
+      "path": "$events",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "REMOTE_EVENT_RESULT_ENDPOINT",
+      "path": "$events/result",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "session/control",
+      "path": "session/control",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "session/follow",
+      "path": "session/follow",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "workspace/follow",
+      "path": "workspace/follow",
+      "kind": "websocket",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    }
+  ],
+  "frames": [
+    {
+      "name": "ProjectedRemoteEventRequest",
+      "description": "stream frame ProjectedRemoteEventRequest from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventAgentId",
+      "description": "stream frame RemoteEventAgentId from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventCancellationFrame",
+      "description": "stream frame RemoteEventCancellationFrame",
+      "sourceFile": "packages/api/gateway/src/index.ts"
+    },
+    {
+      "name": "RemoteEventClientId",
+      "description": "stream frame RemoteEventClientId from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventDownlinkFrame",
+      "description": "stream frame RemoteEventDownlinkFrame from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventEmitFrame",
+      "description": "stream frame RemoteEventEmitFrame",
+      "sourceFile": "packages/api/gateway/src/client/remote-events.ts"
+    },
+    {
+      "name": "RemoteEventHostInfo",
+      "description": "stream frame RemoteEventHostInfo from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventId",
+      "description": "stream frame RemoteEventId from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventInvocationFrame",
+      "description": "stream frame RemoteEventInvocationFrame",
+      "sourceFile": "packages/api/gateway/src/client/remote-events.ts"
+    },
+    {
+      "name": "RemoteEventReadyFrame",
+      "description": "stream frame RemoteEventReadyFrame",
+      "sourceFile": "packages/api/gateway/src/index.ts"
+    },
+    {
+      "name": "RemoteEventRejection",
+      "description": "stream frame RemoteEventRejection from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "RemoteEventResult",
+      "description": "stream frame RemoteEventResult from stream-protocol.ts",
+      "sourceFile": "packages/api/gateway/src/stream-protocol.ts"
+    },
+    {
+      "name": "TypertRemoteEventFrame",
+      "description": "stream frame TypertRemoteEventFrame",
+      "sourceFile": "packages/api/gateway/src/index.ts"
+    }
+  ],
+  "features": {
+    "heartbeatMs": 30000,
+    "reconnect": "jittered backoff, generation increment",
+    "generation": "connection generation + stream generation",
+    "authentication": "browser cookie + bearer token (remote)",
+    "errorCodes": [
+      "NOT_FOUND",
+      "INTERNAL",
+      "UNAUTHORIZED",
+      "FORBIDDEN"
+    ]
+  },
+  "sourceFilesScanned": 92
+}
