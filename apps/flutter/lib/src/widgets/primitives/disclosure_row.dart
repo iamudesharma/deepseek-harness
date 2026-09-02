@@ -112,12 +112,12 @@ class _DisclosureRowState extends ConsumerState<DisclosureRow> {
               child: Center(child: leading),
             ),
           const SizedBox(width: 6),
-          // Title
+          // Title — React secondary size (13/20) not base 14/22.
           Text(
             widget.title,
             style: TextStyle(
-              fontSize: DswTokens.fontSizeS14,
-              height: 24 / DswTokens.fontSizeS14,
+              fontSize: DswTokens.fontSizeXs13,
+              height: 24 / DswTokens.fontSizeXs13,
               color: aliases.labelSecondary,
               fontFamily: 'SF Pro',
               fontFamilyFallback: DswTokens.fontFamilyFallback,

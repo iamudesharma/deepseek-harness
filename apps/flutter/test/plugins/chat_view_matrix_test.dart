@@ -299,7 +299,10 @@ void main() {
       addTearDown(c.dispose);
       await tester.pumpWidget(_wrapChat(sid, c));
       await tester.pump();
-      expect(find.textContaining('retry #1'), findsOneWidget);
+      // React parity: collapsed "Scheduled/Retrying model request (retry/max) · Xs"
+      expect(find.textContaining('model request'), findsOneWidget);
+      expect(find.textContaining('1/3'), findsOneWidget);
+      expect(find.textContaining('1s'), findsOneWidget);
     });
 
     testWidgets('J Compaction renders card', (tester) async {

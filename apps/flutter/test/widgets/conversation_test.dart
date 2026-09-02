@@ -6,6 +6,7 @@ import 'package:dsh_flutter/src/plugins/conversation/ui/conversation_screen.dart
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 import 'package:dsh_flutter/src/core/settings/settings_scope.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
+import 'package:dsh_flutter/src/widgets/primitives/state_dot.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dsh_flutter/src/core/session/session_event_map.dart';
@@ -346,8 +347,10 @@ void main() {
       await tester.pump();
 
       // TurnErrorNode projects the verbatim provider message (React parity).
+      // Inline error uses StateDot.error + title/message split (no banner fill).
       expect(find.textContaining('provider exploded'), findsOneWidget);
-      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byType(StateDot), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsNothing);
     });
 
     testWidgets('composer submit records via carrier client', (tester) async {

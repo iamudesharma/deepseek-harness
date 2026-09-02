@@ -793,7 +793,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
                 final wrapped = _buildNode(context, hub, node, aliases);
                 return Container(
                   key: _keyFor(node.key),
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
                   child: KeyedSubtree(key: ValueKey(node.key), child: wrapped),
                 );
               }
@@ -1109,26 +1109,63 @@ class _ChatViewState extends ConsumerState<ChatView> {
         // Render via generic disclosure using the same card logic.
         return _ToolFallbackRow(node: node, aliases: aliases);
 
-      case TurnErrorNode(:final friendly):
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color:
-                aliases.stateErrorSecondary ??
-                aliases.stateErrorPrimary.withValues(alpha: 0.12),
-            border: Border.all(color: aliases.stateErrorPrimary),
-            borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-          ),
+      case TurnErrorNode(:final friendly, :final errorCode):
+        final List<String> parts = friendly.split('\n');
+        final String title = parts.isNotEmpty && parts.first.trim().isNotEmpty
+            ? parts.first.trim()
+            : 'This turn failed';
+        final String message = parts.length > 1
+            ? parts.sublist(1).join('\n').trim()
+            : '';
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 16,
-                color: aliases.stateErrorPrimary,
+              const Padding(
+                padding: EdgeInsets.only(top: 5),
+                child: StateDot(state: StateDotState.error, size: 10),
               ),
               const SizedBox(width: 8),
-              Expanded(child: SelectableText(friendly)),
+              Expanded(
+                child: SelectableText.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: title,
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          height: 20 / DswTokens.fontSizeXs13,
+                          fontWeight: FontWeight.w600,
+                          color: aliases.stateErrorPrimary,
+                        ),
+                      ),
+                      if (message.isNotEmpty)
+                        TextSpan(
+                          text: ' $message',
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            height: 20 / DswTokens.fontSizeXs13,
+                            color: aliases.labelSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              if (errorCode != null && errorCode.isNotEmpty) ...[
+                const SizedBox(width: 12),
+                Text(
+                  errorCode,
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXxxs11,
+                    height: 18 / DswTokens.fontSizeXxxs11,
+                    color: aliases.labelTertiary,
+                    fontFamily: 'SF Mono',
+                    fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -1158,22 +1195,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
           aliases: aliases,
         );
 
-      case ModelRetryNode(:final retry, :final started, :final failureMessage):
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 2),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: aliases.bgLayer2,
-              borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-            ),
-            child: Text(
-              'retry #$retry${started ? " running" : ""}${failureMessage == null ? "" : " - $failureMessage"}',
-              style: TextStyle(fontSize: 11, color: aliases.labelTertiary),
-            ),
-          ),
-        );
+      case ModelRetryNode():
+        return _ModelRetryRow(node: node, aliases: aliases);
 
       case StepGroupNode():
         // Should have been flattened; this case unreachable.
@@ -2509,11 +2532,8 @@ class _ContextRowState extends State<_ContextRow> {
     final hasBody =
         widget.text.trim().isNotEmpty ||
         (widget.sections != null && widget.sections!.isNotEmpty);
-    final title = widget.form == 'snapshot'
-        ? 'Context snapshot'
-        : widget.form != null
-        ? 'Context · ${widget.form}'
-        : 'Context';
+    // React title is always "Context injection" (or "Context recall") — not per-form.
+    final title = 'Context injection';
     final collapsed = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2665,34 +2685,7 @@ class _SystemPromptRowState extends State<_SystemPromptRow> {
   @override
   Widget build(BuildContext context) {
     final hasBody = widget.text.trim().isNotEmpty;
-    final summary = _firstLine(widget.text);
-    final collapsed = summary.isNotEmpty
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 2,
-                height: 2,
-                decoration: BoxDecoration(
-                  color: widget.aliases.labelCaption,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  summary,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: widget.aliases.labelTertiary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-            ],
-          )
-        : const SizedBox.shrink();
+    // React SystemPromptRow has no collapsed summary — title only.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2708,7 +2701,6 @@ class _SystemPromptRowState extends State<_SystemPromptRow> {
           expandOnRowClick: true,
           keepContentWhenOpen: true,
           onToggle: () => setState(() => _expanded = !_expanded),
-          collapsedContent: summary.isEmpty ? null : collapsed,
           child: hasBody
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(4, 4, 0, 4),
@@ -2741,6 +2733,128 @@ class _SystemPromptRowState extends State<_SystemPromptRow> {
                 )
               : null,
         ),
+      ],
+    );
+  }
+}
+
+class _ModelRetryRow extends StatefulWidget {
+  const _ModelRetryRow({required this.node, required this.aliases});
+  final ModelRetryNode node;
+  final DswAliases aliases;
+  @override
+  State<_ModelRetryRow> createState() => _ModelRetryRowState();
+}
+
+class _ModelRetryRowState extends State<_ModelRetryRow> {
+  bool _expanded = false;
+
+  int _retrySeconds(int ms) => ms <= 0 ? 1 : (ms / 1000).ceil().clamp(1, 1 << 30);
+  @override
+  Widget build(BuildContext context) {
+    final node = widget.node;
+    final aliases = widget.aliases;
+    final seconds = _retrySeconds(node.delayMs);
+    final maximum = node.maxRetries <= 0 ? '∞' : '${node.maxRetries}';
+    final String label;
+    if (node.started) {
+      label = 'Retrying';
+    } else if (node.retry >= node.maxRetries && node.maxRetries > 0) {
+      label = 'Retried';
+    } else {
+      label = 'Scheduled';
+    }
+    final summary =
+        '$label model request (${node.retry}/$maximum) · ${seconds}s';
+    final hasDetails =
+        node.failureMessage != null && node.failureMessage!.trim().isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
+          borderRadius: BorderRadius.circular(DswTokens.radiusXs),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  summary,
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    height: 20 / DswTokens.fontSizeXs13,
+                    color: aliases.labelTertiary,
+                  ),
+                ),
+                if (hasDetails) ...[
+                  const SizedBox(width: 7),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.25 : -0.125,
+                    duration: DswTokens.transitionDurationFast,
+                    child: Icon(
+                      Icons.chevron_right,
+                      size: 10,
+                      color: aliases.labelTertiary.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (_expanded && hasDetails)
+          Padding(
+            padding: const EdgeInsets.only(left: 14, top: 3),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Delay',
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeXxxs11,
+                        color: aliases.labelSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${node.delayMs}ms',
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeXxxs11,
+                        color: aliases.labelTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Failure',
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeXxxs11,
+                        color: aliases.labelSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        node.failureMessage!,
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXxxs11,
+                          height: 18 / DswTokens.fontSizeXxxs11,
+                          color: aliases.labelTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
