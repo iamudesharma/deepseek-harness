@@ -74,8 +74,12 @@ String? formatFileMention({
   required bool preserveQuote,
 }) {
   final full = directory ? '$path/' : path;
-  if (RegExp(r'[\u0000-\u001f\u007f-\u009f"]').hasMatch(full)) return null;
-  final quoted = preserveQuote || RegExp(r'\s').hasMatch(full);
+  // React: /[\u0000-\u001f\u007f-\u009f"]/u  — double quote is unsafe inside
+  // the @"..." grammar and must be rejected, not escaped.
+  if (RegExp(r'[\u0000-\u001f\u007f-\u009f"]', unicode: true).hasMatch(full)) {
+    return null;
+  }
+  final quoted = preserveQuote || RegExp(r'\s', unicode: true).hasMatch(full);
   if (!quoted) return '@$full';
   return directory ? '@"$full' : '@"$full"';
 }

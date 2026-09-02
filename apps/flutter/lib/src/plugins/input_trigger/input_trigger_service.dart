@@ -60,8 +60,16 @@ class TriggerSourceRegistry implements SourceRoster {
   @override
   List<InputTriggerSource> sources(TriggerChar trigger) {
     final matching = _sources.where((s) => s.trigger == trigger).toList();
-    matching.sort((a, b) => a.order.compareTo(b.order));
-    return matching;
+    // Stable sort by order, registration order preserved for equal order
+    // (React service.ts sorts by order ?? 0 with stable ES2019 sort; Dart's
+    // List.sort is not guaranteed stable, so tie-break by insertion index).
+    final indexed = matching.asMap().entries.toList();
+    indexed.sort((a, b) {
+      final order = a.value.order.compareTo(b.value.order);
+      if (order != 0) return order;
+      return a.key.compareTo(b.key);
+    });
+    return indexed.map((e) => e.value).toList(growable: false);
   }
 
   @override
