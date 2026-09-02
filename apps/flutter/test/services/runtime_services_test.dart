@@ -120,14 +120,14 @@ void main() {
   });
 
   group('WorkspacesService wire mapping', () {
-    test('list/create/archiveSession ride the workspace.* methods', () async {
+    test('list/create/archiveSession ride the workspace/* methods', () async {
       final client = _RecordingClient()
-        ..answers['workspace.list'] = {
+        ..answers['workspace/list'] = {
           'items': [
             {'id': 'ws-1', 'path': '/repo'},
           ],
         }
-        ..answers['workspace.create'] = {
+        ..answers['workspace/create'] = {
           'workspace': {'id': 'ws-2', 'path': '/repo'},
         };
 
@@ -140,24 +140,24 @@ void main() {
       await svc.archiveSession('sess-9');
 
       expect(client.calls, [
-        'workspace.list',
-        'workspace.create',
-        'workspace.archiveSession',
+        'workspace/list',
+        'workspace/create',
+        'workspace/archiveSession',
       ]);
     });
 
     test(
-      'picker and browse ride the host.* methods; abort supersedes',
+      'picker and browse ride the directoryPicker/* methods; abort supersedes',
       () async {
         final client = _RecordingClient()
-          ..answers['host.pickDirectory'] = {'path': '/chosen'}
-          ..answers['host.createDirectory'] = {'path': '/chosen/new'};
+          ..answers['directoryPicker/pick'] = {'path': '/chosen'}
+          ..answers['directoryPicker/createDirectory'] = {'path': '/chosen/new'};
 
         final svc = WorkspacesService(client);
 
         expect(await svc.pickDirectory(), '/chosen');
         expect(await svc.listDirectory(), {});
-        expect(client.calls, ['host.pickDirectory', 'host.listDirectory']);
+        expect(client.calls, ['directoryPicker/pick', 'directoryPicker/list']);
 
         // Aborted before dispatch: fails loud, no call leaves.
         final preAborted = DirectoryListSignal()..abort();
@@ -167,7 +167,7 @@ void main() {
         );
 
         // Abort while a scan is in flight: the caller is freed immediately.
-        client.hang.add('host.listDirectory');
+        client.hang.add('directoryPicker/list');
         final signal = DirectoryListSignal();
         final pending = svc.listDirectory(path: '/slow', signal: signal);
         signal.abort();
@@ -179,7 +179,7 @@ void main() {
       'createDirectory falls back through nested and missing paths',
       () async {
         final client = _RecordingClient()
-          ..answers['host.createDirectory'] = {
+          ..answers['directoryPicker/createDirectory'] = {
             'value': {'path': '/nested/answer'},
           };
 

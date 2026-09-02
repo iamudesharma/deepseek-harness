@@ -1979,7 +1979,7 @@ class _SessionRow extends ConsumerWidget {
                           newTitle.isNotEmpty &&
                           context.mounted) {
                         try {
-                          await client.callMethod('session.rename', {
+                          await client.callMethod('session/rename', {
                             'agentId': summary.sessionId.value,
                             'title': newTitle,
                           });
@@ -1994,7 +1994,7 @@ class _SessionRow extends ConsumerWidget {
                       }
                     } else if (v == 'fork') {
                       try {
-                        final child = await client.callMethod('session.fork', {
+                        final child = await client.callMethod('session/fork', {
                           'agentId': summary.sessionId.value,
                         });
                         final childId =
@@ -2018,7 +2018,7 @@ class _SessionRow extends ConsumerWidget {
                       }
                     } else if (v == 'archive') {
                       try {
-                        await client.callMethod('workspace.archiveSession', {
+                        await client.callMethod('workspace/archiveSession', {
                           'sessionId': summary.sessionId.value,
                         });
                         ref.invalidate(workspaceListProvider);
