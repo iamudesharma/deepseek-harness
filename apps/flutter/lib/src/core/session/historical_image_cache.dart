@@ -68,10 +68,15 @@ class HistoricalImageCache {
           return dataUrl;
         }
       } catch (_) {
-        // Fallback to generic Typert call for hosts that expose Map shape
+        // Fallback to generic Typert call for hosts that expose Map shape.
+        // Host `session/attachment` expects `{request:{sessionId,attachmentId}}`
+        // (see `ConnectionClient.readAttachment`); a bare `{sessionId,attachmentId}`
+        // produces “missing 'request'” and never unwraps.
         final Map<String, dynamic> result = await _client.callMethod('session/attachment', {
-          'sessionId': sessionId.value,
-          'attachmentId': attachmentId,
+          'request': {
+            'sessionId': sessionId.value,
+            'attachmentId': attachmentId,
+          },
         });
         String dataUrl = '';
         final data = result['data']?.toString() ?? result['value']?.toString() ?? '';

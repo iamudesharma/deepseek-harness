@@ -168,15 +168,36 @@ class RemoteMuxClient {
     await _keepAlive;
   }
 
+  bool _isAuthFailure(Object error) {
+    final msg = error.toString();
+    return msg.contains('401') ||
+        msg.contains('403') ||
+        msg.contains('RemoteAuthException') ||
+        msg.contains('needsReauth');
+  }
+
   Future<void> _maintain(Object? previousFailure) async {
     if (!_running || _disposed) return;
     var attempt = previousFailure == null ? 1 : 2;
     while (_running && !_disposed) {
-      final ac = Completer<void>();
       try {
         await _reconnect(attempt);
         return;
       } catch (e) {
+        if (_isAuthFailure(e)) {
+          // Bearer ticket rejected (401/403) — no silent retry or fallback
+          // to an unauthenticated ws. Fail all waiters so the controller's
+          // pump catches the carrier error as _pumpAuthError → needsReauth.
+          for (final w in _waiters.toList()) {
+            if (!w.isCompleted) w.completeError(e);
+          }
+          _waiters.clear();
+          for (final ctrl in _streams.values) {
+            ctrl.addError(e);
+          }
+          _streams.clear();
+          return;
+        }
         if (!_running || _disposed) return;
         attempt++;
         final delay = _backoffDelay(attempt);
