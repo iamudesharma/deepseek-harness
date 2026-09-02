@@ -117,6 +117,7 @@ class _DocumentDropScopeState extends State<DocumentDropScope> {
         controller.dropped(mapped);
       },
       child: Stack(
+        fit: StackFit.expand,
         children: <Widget>[
           widget.child,
           if (controller.dragActive)
