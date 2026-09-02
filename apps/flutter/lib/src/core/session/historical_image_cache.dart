@@ -69,33 +69,23 @@ class HistoricalImageCache {
         }
       } catch (_) {
         // Fallback to generic Typert call for hosts that expose Map shape
-        Map<String, dynamic>? result;
-        try {
-          result = await _client.callMethod('session/attachment', {
-            'sessionId': sessionId.value,
-            'attachmentId': attachmentId,
-          });
-        } catch (_) {
-          result = await _client.callMethod('session.attachment', {
-            'sessionId': sessionId.value,
-            'attachmentId': attachmentId,
-          });
-        }
+        final Map<String, dynamic> result = await _client.callMethod('session/attachment', {
+          'sessionId': sessionId.value,
+          'attachmentId': attachmentId,
+        });
         String dataUrl = '';
-        if (result != null) {
-          final data = result['data']?.toString() ?? result['value']?.toString() ?? '';
-          String mediaType = 'image/png';
-          final att = result['attachment'];
-          if (att is Map && att['mediaType'] is String) mediaType = att['mediaType'] as String;
-          if (data.isNotEmpty) {
-            dataUrl = 'data:$mediaType;base64,$data';
-          } else if (result['dataUrl'] is String) {
-            dataUrl = result['dataUrl'] as String;
-          }
-          if (dataUrl.isNotEmpty) {
-            _urls[key] = dataUrl;
-            return dataUrl;
-          }
+        final data = result['data']?.toString() ?? result['value']?.toString() ?? '';
+        String mediaType = 'image/png';
+        final att = result['attachment'];
+        if (att is Map && att['mediaType'] is String) mediaType = att['mediaType'] as String;
+        if (data.isNotEmpty) {
+          dataUrl = 'data:$mediaType;base64,$data';
+        } else if (result['dataUrl'] is String) {
+          dataUrl = result['dataUrl'] as String;
+        }
+        if (dataUrl.isNotEmpty) {
+          _urls[key] = dataUrl;
+          return dataUrl;
         }
       }
       return '';
