@@ -2,7 +2,7 @@
 ///
 /// Web stores the `dsh-auth-*` cookie in the browser's jar and sends it
 /// automatically via `BrowserClient.withCredentials = true` + `fetch`/
-Connection: keep-alive. Native `dart:io` has no automatic jar, so the `io`
+// Connection: keep-alive. Native `dart:io` has no automatic jar, so the `io`
 /// variant performs the `?token=` → `Set-Cookie` exchange and replays the
 /// `Cookie` header on every `/api/*` and `ws://` request.
 library;

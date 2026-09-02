@@ -15,7 +15,7 @@ import '../core/session/host_session_policy.dart'
     show adoptHostBornSession, isWorkspaceAttachFailure;
 import '../features/layout/layout_controller.dart';
 import '../features/settings/settings_screen.dart';
-import '../features/trajectory/trajectory_screen.dart' as trajectory_feature;
+import '../plugins/trajectory/ui/trajectory_screen.dart' as trajectory_feature;
 import '../plugins/conversation/ui/conversation_screen.dart'
     as conversation_feature;
 import '../plugins/conversation/ui/slots/hole_outlet.dart';
