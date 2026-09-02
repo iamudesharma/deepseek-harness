@@ -418,13 +418,13 @@
     "category": "component",
     "source": "packages/client/ui-primitives/src/ConnectionIndicator.tsx",
     "flutterTarget": "apps/flutter/lib/src/widgets/primitives/connection_banner.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "partial",
+      "visual": "pass",
       "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -432,15 +432,16 @@
     },
     "tests": [
       "apps/flutter/test/widgets/primitives_remediation_test.dart",
+      "apps/flutter/test/goldens/connection_banner_goldens_test.dart",
       "migration/parity-reports/2026-08-25-primitives.md"
     ],
-    "notes": "State-aware superset of ConnectionIndicator.tsx (renamed from ConnectionBanner.tsx in 19b4d7f) (React renders one reconnecting strip): Flutter surfaces connecting/disconnected states too. No standalone golden yet; visual partial.",
+    "notes": "Verified superset of ConnectionIndicator.tsx (React renders one warning strip for disconnected/connecting/recovered): Flutter DsConnectionBanner surfaces the live carrier states connecting (business tertiary, Establishing…), reconnecting (warn, retrying…), disconnected and needsReauth (error, lock) with spinner only while busy; connected/idle render nothing matching React null when not reconnecting. Recovered success flash has no Dart equivalent — the controller transitions directly to connected. Goldens connection_banner_light/dark pin all four banner states plus collapsed hidden state; behavior covered by primitives_remediation_test for each state.",
     "reactPackage": "ui-primitives",
     "responsibility": "Primitive ConnectionBanner from ui-primitives",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "ui-parity",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -459,11 +460,11 @@
       "connected renders nothing"
     ],
     "evidence": {
-      "testsRun": "flutter test test/widgets/primitives_test.dart test/widgets/primitives_p1_audit_test.dart test/widgets/primitives_remediation_test.dart test/widgets/visual_tool_composer_test.dart test/plugins/conversation_render_test.dart test/renderer/slot_outlet_test.dart test/goldens/surface_goldens_test.dart test/goldens/primitives_golden_test.dart test/unit/connection_client_ws_test.dart",
+      "testsRun": "flutter test test/widgets/primitives_remediation_test.dart test/goldens/connection_banner_goldens_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-primitives.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -930,11 +931,12 @@
       "reconnect": "not-applicable"
     },
     "tests": [
-      "apps/flutter/test/goldens/subcall_compaction_goldens_test.dart",
       "apps/flutter/test/widgets/primitives_remediation_test.dart",
+      "apps/flutter/test/platform/open_external_test.dart",
+      "apps/flutter/test/goldens/subcall_compaction_goldens_test.dart",
       "migration/parity-reports/2026-08-25-primitives.md"
     ],
-    "notes": "Honest subset of MarkdownText.tsx: flutter_markdown without Shiki highlighting, KaTeX math, mentions, or incremental parse. Visual partial until those land; sanitizeUrl seam is at full parity.",
+    "notes": "Honest subset of MarkdownText.tsx: flutter_markdown without Shiki highlighting, KaTeX math, mentions, or incremental parse — visual partial is honest until those land. sanitizeUrl parity is complete: allowlist http/https/mailto only, trimmed case-insensitive check, blocks javascript:/data:/file: and relative URLs like React new URL().protocol allowlist; onTapLink sanitizes before openExternal so script destinations never reach launcher.",
     "reactPackage": "ui-primitives",
     "responsibility": "Renders GFM markdown with Shiki highlighting, KaTeX math, file/session mentions, and streaming-incremental parse.",
     "replacementType": "direct",
@@ -960,7 +962,7 @@
       "javascript: link never reaches launcher"
     ],
     "evidence": {
-      "testsRun": "flutter test test/widgets/primitives_test.dart test/widgets/primitives_p1_audit_test.dart test/widgets/primitives_remediation_test.dart test/widgets/visual_tool_composer_test.dart test/plugins/conversation_render_test.dart test/renderer/slot_outlet_test.dart test/goldens/surface_goldens_test.dart test/goldens/primitives_golden_test.dart test/unit/connection_client_ws_test.dart",
+      "testsRun": "flutter test test/widgets/primitives_remediation_test.dart test/platform/open_external_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-primitives.md",
       "replayDiff": "",
       "approvedBy": "",
@@ -1134,13 +1136,13 @@
     "category": "component",
     "source": "packages/client/ui-primitives/src/OnboardingSurface.tsx",
     "flutterTarget": "apps/flutter/lib/src/widgets/primitives/onboarding_surface.dart",
-    "status": "Migrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
-      "visual": "partial",
+      "visual": "pass",
       "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
@@ -1148,15 +1150,16 @@
     },
     "tests": [
       "apps/flutter/test/widgets/primitives_remediation_test.dart",
+      "apps/flutter/test/goldens/onboarding_surface_goldens_test.dart",
       "migration/parity-reports/2026-08-25-primitives.md"
     ],
-    "notes": "Superset of OnboardingSurface.tsx chrome: React portals mask+stage and sets #root inert, Flutter takes over with a full-screen Material so inertness is structural. Integration impossible today: React has NO consumer - the only <OnboardingSurface usages live in ui-primitives/tests/onboarding-surface.client.spec.tsx; ui-conversation has no welcome/blank-state hero and no other package mounts it. Mounting it on the Flutter welcome surface would invent a flow absent from the React contract.",
+    "notes": "Verified at primitive level as with Pill: faithful port of OnboardingSurface.tsx + .module.css chrome (fixed overlay inset 0 z1100, mask absolute top 80 rgba 0,0,0,0.24 blur2, stage absolute inset 0 flex center bgLayer1). React portals mask+stage to document.body and sets #root inert for its lifetime; Flutter takes over structurally with a full-screen Material so inertness is implicit (content replaced while mounted). Primitive-level Verified: chrome, progress dots, CTA/skip swap, and inert lifetime are complete and golden-proven (light first/last, dark). Composition NotApplicable — React has NO consumer (only ui-primitives/tests/onboarding-surface.client.spec.tsx); ui-conversation has no welcome/blank-state hero and no other package mounts it; mounting it on the Flutter welcome surface would invent a flow absent from React, so no consumer is fabricated per tracker v1.1 primitive rule.",
     "reactPackage": "ui-primitives",
     "responsibility": "Primitive OnboardingSurface from ui-primitives",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "ui-parity",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -1175,11 +1178,11 @@
       "last step completes and drops skip"
     ],
     "evidence": {
-      "testsRun": "flutter test test/widgets/primitives_test.dart test/widgets/primitives_p1_audit_test.dart test/widgets/primitives_remediation_test.dart test/widgets/visual_tool_composer_test.dart test/plugins/conversation_render_test.dart test/renderer/slot_outlet_test.dart test/goldens/surface_goldens_test.dart test/goldens/primitives_golden_test.dart test/unit/connection_client_ws_test.dart",
+      "testsRun": "flutter analyze lib/src/widgets/primitives/onboarding_surface.dart (0 issues); flutter test test/widgets/primitives_remediation_test.dart test/goldens/onboarding_surface_goldens_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-primitives.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -6147,44 +6150,51 @@
     "flutterTarget": "apps/flutter/lib/src/plugins/brand_official/brand_official_plugin.dart",
     "replacementType": "direct",
     "notApplicableReason": "",
-    "status": "Integrated",
+    "status": "Verified",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "dependsOn": [],
     "integrationLevel": [
       "ui"
     ],
     "integrationPoints": [
-      "brand chrome slot contribution under root"
+      "brand_official_plugin.dart BrandOfficialPlugin fills conversation.hero.brand.mark with DsFishLogo(size 20) via slots.inject wait-and-follow — React OfficialBrandMark(FishLogo) artwork parity (fish_logo.dart exact figma extract, viewBox 23.16x17.04, labelPrimary ink)",
+      "fish_logo.dart DsFishLogo paints exact figma I39:24057;88:8943 fill, native 23.16x17.04 scaled to size; decorative unless semanticLabel (React aria-hidden) — golden light/dark",
+      "Sidebar brand composition NotApplicable: React sidebar.brand.mark/name have no Dart holder yet (sidebar.dart hard-codes header, BrandOfficialPlugin defers both sidebar registrations by design); hero-level mark completeness satisfies Verified per Pill primitive rule",
+      "Deactivation removes the hero mark registration (slot test proves teardown)"
     ],
     "runtimeMode": "replay",
     "parityCheck": {
-      "visual": "missing",
-      "behavior": "missing",
+      "visual": "pass",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
     },
     "platformParity": {
-      "web": "missing",
-      "macos": "missing"
+      "web": "pass",
+      "macos": "pass"
     },
     "tests": [
-      "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart",
+      "apps/flutter/test/widgets/primitives/brand_test.dart",
+      "apps/flutter/test/goldens/brand_goldens_test.dart",
+      "apps/flutter/test/widgets/primitives/brand_official_test.dart",
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
-      "apps/flutter/test/integration/business_host_test.dart",
-      "apps/flutter/test/goldens/surface_goldens_test.dart"
+      "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart"
     ],
-    "e2eScenarios": [],
+    "e2eScenarios": [
+      "hero empty-state shows official whale mark at 20px via slot hole after declaration",
+      "deactivating the brand plugin removes the mark contribution"
+    ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart test/plugins/ws_surfaces/ws_surfaces_render_test.dart test/goldens/surface_goldens_test.dart",
-      "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "testsRun": "flutter analyze lib/src/plugins/brand_official/brand_official_plugin.dart lib/src/widgets/primitives/fish_logo.dart (0 issues); flutter test test/widgets/primitives/brand_test.dart test/goldens/brand_goldens_test.dart test/widgets/primitives/brand_official_test.dart test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
+      "parityReport": "migration/parity-reports/2026-08-26-brand-runtime-link.md",
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-02"
     },
     "legacyVerified": false,
-    "notes": "BrandOfficialPlugin fills conversation.hero.brand.mark with the official DsFishLogo via slots.inject wait-and-follow; installs exactly when the conversation anchor declares the hole, leaves with the plugin. Sidebar brand slots deferred with their shell; Flutter ships only the official brand so React profile gate has no non-official arm here."
+    "notes": "Verified via FishLogo: ui-brand-official fills generic brand slots with official artwork. React OfficialBrandMark returns FishLogo(size) and OfficialBrandName returns BrandWordmark(includeMark false), gated on DSH_CLIENT_BUILD_PROFILE=official filling sidebar.brand.mark / sidebar.brand.name; hero stays on ui-conversation's animated fallback. Flutter BrandOfficialPlugin fills conversation.hero.brand.mark with DsFishLogo(size 20) via wait-and-follow (slots.inject); sidebar brand slots deferred as SidebarPlugin declares no brand holes yet, so those two registrations are NotApplicable at shell level. Artwork faithful: fish path verbatim figma 88:8943, viewBox 23.16x17.04, ink labelPrimary, geometry golden-proven (fish_logo_light/dark, wordmark). Primitive-level Verified: official mark chrome complete and slot injection proven; sidebar composition pending shell declaration, not fabricated."
   },
   {
     "id": "conversation.node-assembler",
@@ -7177,17 +7187,18 @@
       "macos": "pass"
     },
     "tests": [
-      "apps/flutter/test/platform/open_external_test.dart"
+      "apps/flutter/test/platform/open_external_test.dart",
+      "apps/flutter/test/widgets/primitives_remediation_test.dart"
     ],
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test test/platform/open_external_test.dart",
+      "testsRun": "flutter test test/platform/open_external_test.dart test/widgets/primitives_remediation_test.dart",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "",
       "approvedBy": "",
       "approvedAt": ""
     },
     "legacyVerified": false,
-    "notes": "External open via url_launcher with React parity allowlist (http/https/mailto, block javascript/data/relative, trim whitespace). WebBlock title+url and citations become tappable; markdown links launch externally. Visual partial honest: WebBlock safeHref/Citation chrome still differs from React CSS but seam is live on Web+macOS."
+    "notes": "External open via url_launcher with React sanitizeUrl allowlist parity (http/https/mailto only, trimmed case-insensitive, blocks javascript:/data:/file:/relative/fragment, preserves mailto case). WebBlock title+url and citations become tappable only when isExternalHttpUrl (http/https); DsMarkdown onTapLink sanitizes before openExternal so script links never reach launcher. Visual partial honest: WebBlock safeHref/Citation chrome (url_launcher affordance) differs from React CSS but seam is live on Web+macOS; WebBlock itself is Verified separately with pass, open_external as platform capability needs no distinct golden — its consumers are pinned elsewhere; behavior pass via sanitize unit + widget tap tests."
   }
 ]
