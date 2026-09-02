@@ -4,8 +4,6 @@
 
 library;
 
-import '../input_trigger/trigger_source.dart';
-
 /// Re-exports for tracker distinctness — the composer integration surface
 /// is implemented in `reference_plugin.dart`'s `_ReferenceSource.onPick`
 /// and `ReferenceCodec`, but this file owns the integration seam for
