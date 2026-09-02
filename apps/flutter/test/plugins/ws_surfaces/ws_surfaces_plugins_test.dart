@@ -1,6 +1,7 @@
 import 'package:dsh_flutter/src/core/renderer/slot_outlet.dart'
     show SlotComponentProps;
 import 'package:dsh_flutter/src/core/services/runtime_services.dart';
+import 'package:dsh_flutter/src/core/session/session_models.dart' show DraftAttachmentId;
 import 'package:dsh_flutter/src/features/attachment/attachment_provider.dart'
     show ComposerAttachment;
 import 'package:dsh_flutter/src/plugins/attachment/attachment_service.dart';
@@ -90,12 +91,12 @@ void main() {
     'workspace service records workspace.list/create wire methods',
     () async {
       final client = FakeClient()
-        ..answers['workspace.list'] = {
+        ..answers['workspace/list'] = {
           'items': [
             {'workspaceId': 'ws-1', 'title': 'Main', 'path': '/work/main'},
           ],
         }
-        ..answers['workspace.create'] = {
+        ..answers['workspace/create'] = {
           'workspace': {'workspaceId': 'ws-2', 'title': '/work/new'},
         };
       final host = wsSurfacesHost(client: client);
@@ -110,7 +111,7 @@ void main() {
 
       expect(
         client.calls,
-        containsAllInOrder(['workspace.list', 'workspace.create']),
+        containsAllInOrder(['workspace/list', 'workspace/create']),
       );
     },
   );
@@ -119,7 +120,7 @@ void main() {
     'directory-picker backends resolve pick through the recorded seam',
     () async {
       final client = FakeClient()
-        ..answers['host.pickDirectory'] = {'path': '/work/picked'};
+        ..answers['directoryPicker/pick'] = {'path': '/work/picked'};
       final host = wsSurfacesHost(client: client);
       addTearDown(host.deactivateAll);
 
@@ -128,7 +129,7 @@ void main() {
 
       final picker = host.service<DirectoryPickFace>(kNativePickerServiceName)!;
       await expectLater(picker.pick(), completion('/work/picked'));
-      expect(client.calls, contains('host.pickDirectory'));
+      expect(client.calls, contains('directoryPicker/pick'));
 
       host.deactivate(kNativePickerPluginId);
       expect(activatedPickDirectory, isNull);
@@ -151,9 +152,9 @@ void main() {
       void listener() => notified++;
       staging.addListener(listener);
 
-      staging.add(ComposerAttachment(id: 'a1', name: 'shot.png'));
-      staging.add(ComposerAttachment(id: 'a1', name: 'shot.png')); // id dedupe
-      expect(staging.items.map((item) => item.id), ['a1']);
+      staging.add(ComposerAttachment(id: const DraftAttachmentId('a1'), name: 'shot.png'));
+      staging.add(ComposerAttachment(id: const DraftAttachmentId('a1'), name: 'shot.png')); // id dedupe
+      expect(staging.items.map((item) => item.id), [const DraftAttachmentId('a1')]);
       expect(notified, 1);
       staging.remove('a1');
       expect(staging.items, isEmpty);
@@ -199,14 +200,14 @@ void main() {
       final inventory = host.service<PluginInventoryService>(
         kPluginInventoryServiceName,
       )!;
-      client.answers['pluginInventory.list'] = {
+      client.answers['pluginInventory/list'] = {
         'items': [
           {'name': 'ui-tool', 'version': '0.0.0', 'enabled': true},
         ],
       };
       final rows = await inventory.list();
       expect(rows.single.name, 'ui-tool');
-      expect(client.calls, contains('pluginInventory.list'));
+      expect(client.calls, contains('pluginInventory/list'));
     },
   );
 }
