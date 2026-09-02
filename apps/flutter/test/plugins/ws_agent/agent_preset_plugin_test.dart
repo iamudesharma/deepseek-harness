@@ -213,7 +213,7 @@ void main() {
     expect(find.text('# preset composition\ncat: standard'), findsOneWidget);
     // The read rode the generic carrier with the addressed preset id.
     final (method, payload) = client.calls.single;
-    expect(method, 'agentPreset.read');
+    expect(method, 'agentPresets/read');
     expect(payload['agentPreset'], 'standard');
 
     await tester.tap(find.text('Close'));
@@ -251,9 +251,9 @@ void main() {
 
     expect(client.calls, hasLength(1));
     final (method, payload) = client.calls.single;
-    expect(method, 'agentPreset.copy');
+    expect(method, 'agentPresets/copy');
     expect(payload['from'], 'standard');
-    expect(payload['agentPreset'], 'standard-copy');
+    expect(payload['id'], 'standard-copy');
     expect(payload['name'], 'My copy');
   });
 
@@ -279,8 +279,8 @@ void main() {
 
     expect(client.calls, hasLength(1));
     final (method, payload) = client.calls.single;
-    expect(method, 'agentPreset.remove');
-    expect(payload['agentPreset'], 'mine');
+    expect(method, 'agentPresets/deletePreset');
+    expect(payload['id'], 'mine');
   });
 }
 
@@ -316,12 +316,20 @@ class _FakePresetClient extends ConnectionClient {
       if (value is Map<String, dynamic>) return value;
     }
     return switch (method) {
+      'agentPresets/read' => {
+        'agentPreset': payload['agentPreset'],
+        'trust': 'system',
+        'content': '# preset composition\ncat: standard',
+      },
+      'agentPresets/copy' => {'agentPreset': payload['id']},
+      'agentPresets/deletePreset' => const {},
+      // Legacy singular dot forms kept for backward compat with older test fixtures
       'agentPreset.read' => {
         'agentPreset': payload['agentPreset'],
         'trust': 'system',
         'content': '# preset composition\ncat: standard',
       },
-      'agentPreset.copy' => {'agentPreset': payload['agentPreset']},
+      'agentPreset.copy' => {'agentPreset': payload['agentPreset'] ?? payload['id']},
       'agentPreset.remove' => const {},
       _ => const {},
     };
