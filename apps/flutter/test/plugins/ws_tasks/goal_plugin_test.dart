@@ -86,13 +86,13 @@ void main() {
 
       expect(
         [for (final c in client.calls) c.method],
-        ['goal.edit', 'goal.pause', 'goal.resume', 'goal.clear'],
+        ['goals/edit', 'goals/pause', 'goals/resume', 'goals/clear'],
       );
-      expect(client.calls[0].payload['sessionId'], 's1');
-      expect(client.calls[0].payload['objective'], 'rewritten');
+      expect(client.calls[0].payload['agentId'], 's1');
+      expect(client.calls[0].payload['request'], {'objective': 'rewritten'});
       expect(client.calls[0].payload['ref'], {'id': 'goal-1', 'revision': 3});
-      expect(client.calls[2].payload['sessionId'], 'paused');
-      expect(client.calls[2].payload.containsKey('objective'), isFalse);
+      expect(client.calls[2].payload['agentId'], 'paused');
+      expect(client.calls[2].payload.containsKey('request'), isFalse);
       expect(client.calls[2].payload['ref'], {'id': 'goal-2', 'revision': 7});
       expect(client.calls[3].payload['ref'], {'id': 'goal-1', 'revision': 3});
     },
@@ -226,14 +226,14 @@ void main() {
     // pumpAndSettle would never settle.
     await tester.pump();
     await tester.pump();
-    expect(client.calls.single.method, 'goal.pause');
+    expect(client.calls.single.method, 'goals/pause');
     expect(client.calls.single.payload['ref'], {'id': 'goal-1', 'revision': 3});
 
     // A failed edit surfaces `message (code)` inline.
-    client.failNextWith = Exception('goal.edit: rejected');
+    client.failNextWith = Exception('goals/edit: rejected');
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pump();
-    expect(client.calls.last.method, 'goal.edit');
+    expect(client.calls.last.method, 'goals/edit');
     expect(find.textContaining('rejected'), findsOneWidget);
   });
 
