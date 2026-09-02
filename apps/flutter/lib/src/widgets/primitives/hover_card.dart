@@ -9,16 +9,17 @@ import '../../theme/app_theme.dart';
 ///
 /// Shows [content] in an overlay 8px to the right of [trigger] after
 /// [openDelay] (500ms). The card is reachable (pointer may rest on it);
-/// leaving both trigger and card arms a grace-delayed close (100ms, 8px gap).
-/// Position flips via rAF (post-frame viewport clamping) mirroring web
-/// `useLayoutEffect` + `getBoundingClientRect` flip.
+/// leaving both trigger and card arms a grace-delayed close (200ms, 8px gap)
+/// matching `usePointerGrace` / `POINTER_GRACE_MS`. Position flips via rAF
+/// (post-frame viewport clamping) mirroring web `useLayoutEffect` +
+/// `getBoundingClientRect` flip.
 class DsHoverCard extends ConsumerStatefulWidget {
   const DsHoverCard({
     super.key,
     required this.trigger,
     required this.content,
     this.openDelay = const Duration(milliseconds: 500),
-    this.closeDelay = const Duration(milliseconds: 100),
+    this.closeDelay = const Duration(milliseconds: 200),
     this.enabled = true,
     this.cardWidth = 244,
     this.copyText,
@@ -34,7 +35,8 @@ class DsHoverCard extends ConsumerStatefulWidget {
   /// Hover dwell before showing. Defaults to 500ms matching HoverCard.tsx.
   final Duration openDelay;
 
-  /// Grace period after pointer leaves before closing. 100ms matching spec.
+  /// Grace period after pointer leaves before closing. 200ms matching
+  /// `POINTER_GRACE_MS` / `usePointerGrace`.
   final Duration closeDelay;
 
   /// When false suppresses opening and closes an open card.
@@ -64,7 +66,11 @@ class _DsHoverCardState extends ConsumerState<DsHoverCard> {
   @override
   void didUpdateWidget(DsHoverCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!widget.enabled && _open) _close();
+    if (!widget.enabled) {
+      _openTimer?.cancel();
+      _closeTimer?.cancel();
+      if (_open) _close();
+    }
   }
 
   @override
