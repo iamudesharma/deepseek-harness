@@ -123,23 +123,49 @@ function parseDartFile(file: string, content: string): FlutterCallSite[] {
         })
       }
     }
-    // Also catch string literals that look like endpoints but not via call (for coverage)
-    // Don't double count
+    // Stream subscriptions via open('session/follow'| 'session/control' | 'workspace/follow' | etc.)
+    // These are Typert stream endpoints opened over the mux, not unary _postTypert. Capture them as call sites
     {
-      const re = /['"](session\/[a-z\/]+|settings\/[a-z\/]+|workspace\/[a-z\/]+|llm\/[a-z\/]+|pluginInventory\/[a-z\/]+|agentPresets\/[a-z\/]+|host\/[a-z\/]+|remote\/[a-z\/]+|credentials\/[a-z\/]+)['"]/g
+      const re = /\bopen\s*\(\s*['"]([^'"]+)['"]/g
       let mm: RegExpExecArray | null
       while ((mm = re.exec(line)) !== null) {
         const endpoint = mm[1]
-        // If this line already has a call site for same endpoint, skip
-        if (sites.some(s => s.line === i + 1 && s.endpoint === endpoint)) continue
-        // Only consider if line looks like API usage not just comment
+        // Only treat Typert-like endpoints (contains slash) as stream RPCs; skip local opens
+        if (!endpoint.includes('/')) continue
+        // Reuse the same allowlist as impact-analyzer (session, settings, workspace, etc.) or any /-form
+        // Accept any slash endpoint that looks like namespace/operation
+        if (!/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9._-]+$/.test(endpoint)) continue
         if (line.trim().startsWith('//') || line.trim().startsWith('*')) continue
-        // Check if it's inside a string that is endpoint literal passed to function (we already captured callMethod)
-        // We'll add as low-confidence site if file is connection_client.dart and line contains endpoint
-        if (file.includes('connection_client.dart') || file.includes('session')) {
-          // Already captured most; skip to avoid noise
-          continue
-        }
+        if (sites.some(s => s.line === i + 1 && s.endpoint === endpoint)) continue
+        sites.push({
+          file,
+          line: i + 1,
+          api: endpoint,
+          endpoint,
+          wireEndpoint: `/api/${endpoint}`,
+          requestShape: extractRequestShape(lines, i),
+          responseDecoder: extractDecoder(lines, i),
+          providerOrState: extractProvider(lines, i),
+          eventConsumer: extractEvent(lines, i),
+          streamConsumer: endpoint,
+          model: extractModel(lines, i),
+          currentValueSource: extractCursor(lines, i),
+        })
+      }
+    }
+    // Also catch string literals that look like endpoints but not via call (for coverage)
+    // Don't double count; this is now handled by the open() capture above, keep fallback for plain literals in non-stream contexts
+    {
+      const re = /['"](session\/[a-zA-Z0-9\/_-]+|settings\/[a-zA-Z0-9\/_-]+|workspace\/[a-zA-Z0-9\/_-]+|llm\/[a-zA-Z0-9\/_-]+|pluginInventory\/[a-zA-Z0-9\/_-]+|agentPresets\/[a-zA-Z0-9\/_-]+|host\/[a-zA-Z0-9\/_-]+|remote\/[a-zA-Z0-9\/_-]+|credentials\/[a-zA-Z0-9\/_-]+|skills\/[a-zA-Z0-9\/_-]+|feed\/[a-zA-Z0-9\/_-]+|goals\/[a-zA-Z0-9\/_-]+|subagents\/[a-zA-Z0-9\/_-]+|fileReferences\/[a-zA-Z0-9\/_-]+)['"]/g
+      let mm: RegExpExecArray | null
+      while ((mm = re.exec(line)) !== null) {
+        const endpoint = mm[1]
+        if (sites.some(s => s.line === i + 1 && s.endpoint === endpoint)) continue
+        if (line.trim().startsWith('//') || line.trim().startsWith('*')) continue
+        // Only add if this line looks like an endpoint literal used as data (not already captured via open/_postTypert/callMethod)
+        // For coverage, we intentionally do not push here to avoid false positives from comments or error-code strings.
+        // The stream case is already handled above; other string literals are informational (e.g., error codes like session/fork-unavailable).
+        void endpoint
       }
     }
   }
