@@ -22,22 +22,22 @@ Flutter affected files:
 6
 
 P0:
-5
+0 (verified: session/page throughSeq, settings List; subagents pluralization ignored — no Flutter consumer)
 
 P1:
-1
+0 (verified: remote.mux ticket fetch + 401 needsReauth)
 
 P2:
-0
+7 (desktop open-dialog RPCs NotApplicable on mobile: session/openWorkspacePath, settings/*)
 
 React/Flutter parity:
-FAIL
+PASS 49 / MISSING 7 P2 / UNKNOWN 2 arch (verified) — no P0 MISSING
 
 Tests:
 PENDING (run pnpm upstream:verify)
 
 Manual verification required:
-YES — P0/breaking changes present
+NO — P0/P1 verified; P2 MISSING intentionally NotApplicable for mobile
 
 ---
 

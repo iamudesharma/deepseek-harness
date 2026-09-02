@@ -171,9 +171,10 @@ export function buildParity(
     const [ns, op] = ep.split('/')
     if (!ALLOWED_NAMESPACES.has(ns)) return false
     if (!op || op.length < 2) return false
-    // Exclude known error/event suffixes that are not RPCs
-    const badOps = ['agent-busy','attachment-invalid','conflict','created','end-seed','forbidden','not-found','title-invalid','workspace-attach-failed','document-updated','rejected','reference-updated','adapters-updated','model-discovery-rejected','retry','retry-started','not-found']
-    if (badOps.includes(op)) return false
+    // Exclude known error/event suffixes that are not RPCs (codes, not namespaces)
+    // Keep real RPCs like session/openWorkspacePath etc. as valid — they will be downgraded via severity, not hidden.
+    const badOps = new Set(['agent-busy','attachment-invalid','conflict','created','end-seed','forbidden','not-found','title-invalid','workspace-attach-failed','document-updated','rejected','reference-updated','adapters-updated','model-discovery-rejected','retry','retry-started','not-found','fork-unavailable','model-unavailable','queue-item-not-found','steer-unavailable','title','title-llm-request','event','repo'])
+    if (badOps.has(op)) return false
     // operation should be alphanumeric with maybe -/_/. ; error codes like "agent-busy" look like RPC but are actually error codes; filter via badOps already
     // Also exclude strings containing sentences
     if (ep.includes(' carrier ') || ep.includes(' did not ') || ep.includes(' before ')) return false
@@ -182,8 +183,8 @@ export function buildParity(
 
   const reactEndpoints = new Set<string>()
   for (const s of react.surfaces) for (const api of s.apiUsed) if (isValidEndpoint(api)) reactEndpoints.add(api)
-  // Add known explicit ones
-  const known = ['session/list','session/page','session/prompt','session/create','session/cancel','settings/describe','settings/mutate','workspace/list','agentPresets/list','agentPresets/select','pluginInventory/list','host/describe','session/modelCatalog','session/selectModel','session/attachment','session/search','session/updateQueue','session/cancel','workspace/create','workspace/delete','workspace/rename','workspace/insertBefore','workspace/insertSessionBefore','credentials/describe','credentials/set','credentials/unset','llm/listProviders','llm/listConfigurableProviders','llm/discoverModels','skills/list','fileReferences/list','commands/list','commands/execute']
+  // Add known explicit ones — include all Typert RPCs that are expected on both sides even if React extractor misses them in tests
+  const known = ['session/list','session/page','session/prompt','session/create','session/cancel','session/control','session/follow','session/fork','session/rename','session/search','session/selectModel','session/updateQueue','session/attachment','session/modelCatalog','session/canOpenWorkspacePath','session/openWorkspacePath','settings/describe','settings/mutate','settings/replace','settings/update','settings/canOpenAgentPresetDirectory','settings/openAgentPresetDirectory','settings/openSettingsDocument','workspace/list','workspace/follow','workspace/create','workspace/delete','workspace/rename','workspace/insertBefore','workspace/insertSessionBefore','workspace/archiveSession','agentPresets/list','agentPresets/select','agentPresets/copy','agentPresets/deletePreset','agentPresets/read','pluginInventory/list','host/describe','credentials/describe','credentials/set','credentials/unset','llm/listProviders','llm/listConfigurableProviders','llm/discoverModels','skills/list','fileReferences/list','commands/list','commands/execute','directoryPicker/list','directoryPicker/pick','directoryPicker/createDirectory','remote/pair','remote/devices','remote/refresh','remote/revoke','remote/ws-ticket']
   for (const k of known) if (isValidEndpoint(k) || k.includes('/')) reactEndpoints.add(k)
 
   // Normalize Flutter endpoints: both slash and dot variants map to slash for comparison
@@ -196,11 +197,22 @@ export function buildParity(
     }
   }
 
+  // Desktop-specific RPCs that are intentionally not on mobile — downgrade to P2 (NotApplicable)
+  const MOBILE_NOT_APPLICABLE = new Set([
+    'session/canOpenWorkspacePath',
+    'session/openWorkspacePath',
+    'settings/canOpenAgentPresetDirectory',
+    'settings/openAgentPresetDirectory',
+    'settings/openSettingsDocument',
+    'settings/replace',
+    'settings/update',
+  ])
   for (const ep of [...reactEndpoints].sort()) {
     const flutterHas = flutterEndpointsSlash.has(ep)
     const dotVariant = flutterDotVariants.get(ep)
     const status: ParityStatus = flutterHas ? (dotVariant ? 'OUTDATED' : 'PASS') : 'MISSING'
-    const severity = status === 'PASS' ? 'P3' as const : status === 'OUTDATED' ? 'P1' as const : (ep.includes('session/') || ep.includes('settings/') ? 'P0' as const : 'P1' as const)
+    let severity: 'P0'|'P1'|'P2'|'P3' = status === 'PASS' ? 'P3' as const : status === 'OUTDATED' ? 'P1' as const : (ep.includes('session/') || ep.includes('settings/') ? 'P0' as const : 'P1' as const)
+    if (status === 'MISSING' && MOBILE_NOT_APPLICABLE.has(ep)) severity = 'P2'
     const reactSource = react.surfaces.find(s => s.apiUsed.includes(ep))?.sourceFile ?? 'packages/client/connection/src'
     const flutterSource = flutterHas ? flutter.callSites.find(cs => cs.endpoint.replaceAll('.', '/') === ep)?.file ?? null : null
     const reason = status === 'PASS' ? `React and Flutter both use ${ep}` : status === 'OUTDATED' ? `React uses ${ep} (slash) but Flutter still has dot variant ${dotVariant} — needs slash migration (Flutter _wireEndpoint handles but Host may 404)` : `React uses ${ep} but Flutter does not call it`

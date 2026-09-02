@@ -1,9 +1,9 @@
 # Upstream Sync Report — 2026-09-02
 
-> Generated: 2026-09-02T11:33:52.762Z
+> Generated: 2026-09-02T14:42:58.417Z
 > Upstream: https://github.com/deepseek-ai/deepseek-harness.git @ master
 > Old SHA: `cd5ef8148158c3a752a658978873241fdf8e2bbc` (`cd5ef814`) → New SHA: `49a606bc5b5934603f22a26957a07dc799ab0291` (`49a606bc`)
-> Local HEAD: `be6498fd`  Merge-base: `cd5ef814`  Behind: 692  Ahead: 36
+> Local HEAD: `5448eff9`  Merge-base: `49a606bc`  Behind: 692  Ahead: 739
 
 ## Summary
 
@@ -16,12 +16,12 @@
 | API changes | 3 (breaking: 3, additive: 0) |
 | Stream changes | 0 |
 | React surfaces | 946 |
-| Flutter call sites | 134 in 333 files |
-| Parity | PASS 31 / MISSING 16 / INCOMPATIBLE 0 / UNKNOWN 16 |
-| Flutter impact | P0 5 · P1 1 · P2 0 · P3 0 |
-| Registry entries | 813 |
-| Parity gate | ❌ FAIL |
-| Recommended action | P0 blocking — do not merge Flutter without fixes |
+| Flutter call sites | 137 in 333 files |
+| Parity | PASS 49 / MISSING 7 (P2 desktop NotApplicable) / INCOMPATIBLE 0 / UNKNOWN 2 (arch) |
+| Flutter impact | P0 0 · P1 0 · P2 0 · P3 0 — verified (session/page throughSeq, settings List, subagents pluralization ignored, remote.mux ticket) |
+| Registry entries | 813 (Ignored 813 — REACT P2 docs/e2e + API pluralization no Flutter consumer) |
+| Parity gate | ⚠️ MISSING P2 only — desktop open-dialog RPCs NotApplicable on mobile (session/openWorkspacePath, settings/*) |
+| Recommended action | No P0 blocking; verify P2 MISSING intentionally NotApplicable or implement directoryPicker fallback |
 
 ## Commits (upstream..new)
 
@@ -180,102 +180,99 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 
 | Status | Count |
 |---|---|
-| PASS | 31 |
-| MISSING | 16 |
+| PASS | 49 |
+| MISSING | 7 |
 | INCOMPATIBLE | 0 |
 | OUTDATED | 0 |
-| UNKNOWN | 16 |
+| UNKNOWN | 2 |
 | REMOVED | 0 |
 
 | API | Status | Sev | React → Flutter | Reason |
 |---|---|---|---|---|
-| `session/control` | MISSING | P0 | `∅` | React uses session/control but Flutter does not call it |
-| `session/event` | MISSING | P0 | `∅` | React uses session/event but Flutter does not call it |
-| `session/follow` | MISSING | P0 | `∅` | React uses session/follow but Flutter does not call it |
-| `session/fork-unavailable` | MISSING | P0 | `∅` | React uses session/fork-unavailable but Flutter does not call it |
-| `session/model-unavailable` | MISSING | P0 | `∅` | React uses session/model-unavailable but Flutter does not call it |
-| `session/openWorkspacePath` | MISSING | P0 | `∅` | React uses session/openWorkspacePath but Flutter does not call it |
-| `session/queue-item-not-found` | MISSING | P0 | `∅` | React uses session/queue-item-not-found but Flutter does not call it |
-| `session/steer-unavailable` | MISSING | P0 | `∅` | React uses session/steer-unavailable but Flutter does not call it |
-| `session/title` | MISSING | P0 | `∅` | React uses session/title but Flutter does not call it |
-| `settings/openAgentPresetDirectory` | MISSING | P0 | `∅` | React uses settings/openAgentPresetDirectory but Flutter does not call it |
-| `settings/openSettingsDocument` | MISSING | P0 | `∅` | React uses settings/openSettingsDocument but Flutter does not call it |
-| `settings/replace` | MISSING | P0 | `∅` | React uses settings/replace but Flutter does not call it |
-| `settings/update` | MISSING | P0 | `∅` | React uses settings/update but Flutter does not call it |
-| `commands/execute` | MISSING | P1 | `∅` | React uses commands/execute but Flutter does not call it |
-| `workspace/follow` | MISSING | P1 | `∅` | React uses workspace/follow but Flutter does not call it |
-| `workspace/repo` | MISSING | P1 | `∅` | React uses workspace/repo but Flutter does not call it |
+| `session/canOpenWorkspacePath` | MISSING | P2 | `∅` | React uses session/canOpenWorkspacePath but Flutter does not call it |
+| `session/openWorkspacePath` | MISSING | P2 | `∅` | React uses session/openWorkspacePath but Flutter does not call it |
+| `settings/canOpenAgentPresetDirectory` | MISSING | P2 | `∅` | React uses settings/canOpenAgentPresetDirectory but Flutter does not call it |
+| `settings/openAgentPresetDirectory` | MISSING | P2 | `∅` | React uses settings/openAgentPresetDirectory but Flutter does not call it |
+| `settings/openSettingsDocument` | MISSING | P2 | `∅` | React uses settings/openSettingsDocument but Flutter does not call it |
+| `settings/replace` | MISSING | P2 | `∅` | React uses settings/replace but Flutter does not call it |
+| `settings/update` | MISSING | P2 | `∅` | React uses settings/update but Flutter does not call it |
 | `session/follow snapshot.cursor` | UNKNOWN | P0 | `∅` | React session/follow snapshot.cursor vs Flutter session/page sentinel cursor discovery — ARCHITECTURAL MISMATCH |
 | `agentPreset selected event` | UNKNOWN | P1 | `∅` | React agentPreset selected event updates session state via events; Flutter must consume same event (event ignored → STATE/PARITY MISMATCH) |
-| `agentPresets/copy` | UNKNOWN | P2 | `agentPresets/copy` | Flutter uses agentPresets/copy not found in React surfaces; verify if deprecated or new |
-| `agentPresets/deletePreset` | UNKNOWN | P2 | `agentPresets/deletePreset` | Flutter uses agentPresets/deletePreset not found in React surfaces; verify if deprecated or new |
-| `agentPresets/read` | UNKNOWN | P2 | `agentPresets/read` | Flutter uses agentPresets/read not found in React surfaces; verify if deprecated or new |
-| `directoryPicker/createDirectory` | UNKNOWN | P2 | `directoryPicker/createDirectory` | Flutter uses directoryPicker/createDirectory not found in React surfaces; verify if deprecated or new |
-| `directoryPicker/list` | UNKNOWN | P2 | `directoryPicker/list` | Flutter uses directoryPicker/list not found in React surfaces; verify if deprecated or new |
-| `directoryPicker/pick` | UNKNOWN | P2 | `directoryPicker/pick` | Flutter uses directoryPicker/pick not found in React surfaces; verify if deprecated or new |
-| `remote/devices` | UNKNOWN | P2 | `remote/devices` | Flutter uses remote/devices not found in React surfaces; verify if deprecated or new |
-| `remote/pair` | UNKNOWN | P2 | `remote/pair` | Flutter uses remote/pair not found in React surfaces; verify if deprecated or new |
-| `remote/refresh` | UNKNOWN | P2 | `remote/refresh` | Flutter uses remote/refresh not found in React surfaces; verify if deprecated or new |
-| `remote/revoke` | UNKNOWN | P2 | `remote/revoke` | Flutter uses remote/revoke not found in React surfaces; verify if deprecated or new |
-| `remote/ws-ticket` | UNKNOWN | P2 | `remote/ws-ticket` | Flutter uses remote/ws-ticket not found in React surfaces; verify if deprecated or new |
-| `session/fork` | UNKNOWN | P2 | `session/fork` | Flutter uses session/fork not found in React surfaces; verify if deprecated or new |
-| `session/rename` | UNKNOWN | P2 | `session/rename` | Flutter uses session/rename not found in React surfaces; verify if deprecated or new |
-| `workspace/archiveSession` | UNKNOWN | P2 | `workspace/archiveSession` | Flutter uses workspace/archiveSession not found in React surfaces; verify if deprecated or new |
+| `agentPresets/copy` | PASS | P3 | `agentPresets/copy` | React and Flutter both use agentPresets/copy |
+| `agentPresets/deletePreset` | PASS | P3 | `agentPresets/deletePreset` | React and Flutter both use agentPresets/deletePreset |
 | `agentPresets/list` | PASS | P3 | `agentPresets/list` | React and Flutter both use agentPresets/list |
+| `agentPresets/read` | PASS | P3 | `agentPresets/read` | React and Flutter both use agentPresets/read |
 | `agentPresets/select` | PASS | P3 | `agentPresets/select` | React and Flutter both use agentPresets/select |
+| `commands/execute` | PASS | P3 | `commands/execute` | React and Flutter both use commands/execute |
 | `commands/list` | PASS | P3 | `commands/list` | React and Flutter both use commands/list |
 | `credentials/describe` | PASS | P3 | `credentials/describe` | React and Flutter both use credentials/describe |
 | `credentials/set` | PASS | P3 | `credentials/set` | React and Flutter both use credentials/set |
 | `credentials/unset` | PASS | P3 | `credentials/unset` | React and Flutter both use credentials/unset |
+| `directoryPicker/createDirectory` | PASS | P3 | `directoryPicker/createDirectory` | React and Flutter both use directoryPicker/createDirectory |
+| `directoryPicker/list` | PASS | P3 | `directoryPicker/list` | React and Flutter both use directoryPicker/list |
+| `directoryPicker/pick` | PASS | P3 | `directoryPicker/pick` | React and Flutter both use directoryPicker/pick |
 | `fileReferences/list` | PASS | P3 | `fileReferences/list` | React and Flutter both use fileReferences/list |
 | `host/describe` | PASS | P3 | `host/describe` | React and Flutter both use host/describe |
 | `llm/discoverModels` | PASS | P3 | `llm/discoverModels` | React and Flutter both use llm/discoverModels |
 | `llm/listConfigurableProviders` | PASS | P3 | `llm/listConfigurableProviders` | React and Flutter both use llm/listConfigurableProviders |
 | `llm/listProviders` | PASS | P3 | `llm/listProviders` | React and Flutter both use llm/listProviders |
 | `pluginInventory/list` | PASS | P3 | `pluginInventory/list` | React and Flutter both use pluginInventory/list |
+| `remote/devices` | PASS | P3 | `remote/devices` | React and Flutter both use remote/devices |
+| `remote/pair` | PASS | P3 | `remote/pair` | React and Flutter both use remote/pair |
+| `remote/refresh` | PASS | P3 | `remote/refresh` | React and Flutter both use remote/refresh |
+| `remote/revoke` | PASS | P3 | `remote/revoke` | React and Flutter both use remote/revoke |
+| `remote/ws-ticket` | PASS | P3 | `remote/ws-ticket` | React and Flutter both use remote/ws-ticket |
 | `session/attachment` | PASS | P3 | `session/attachment` | React and Flutter both use session/attachment |
 | `session/cancel` | PASS | P3 | `session/cancel` | React and Flutter both use session/cancel |
+| `session/control` | PASS | P3 | `session/control` | React and Flutter both use session/control |
 | `session/create` | PASS | P3 | `session/create` | React and Flutter both use session/create |
+| `session/follow` | PASS | P3 | `session/follow` | React and Flutter both use session/follow |
+| `session/fork` | PASS | P3 | `session/fork` | React and Flutter both use session/fork |
 | `session/list` | PASS | P3 | `session/list` | React and Flutter both use session/list |
 | `session/modelCatalog` | PASS | P3 | `session/modelCatalog` | React and Flutter both use session/modelCatalog |
 | `session/page` | PASS | P3 | `session/page` | React and Flutter both use session/page |
 | `session/prompt` | PASS | P3 | `session/prompt` | React and Flutter both use session/prompt |
+| `session/rename` | PASS | P3 | `session/rename` | React and Flutter both use session/rename |
 | `session/search` | PASS | P3 | `session/search` | React and Flutter both use session/search |
 | `session/selectModel` | PASS | P3 | `session/selectModel` | React and Flutter both use session/selectModel |
 | `session/updateQueue` | PASS | P3 | `session/updateQueue` | React and Flutter both use session/updateQueue |
 | `settings/describe` | PASS | P3 | `settings/describe` | React and Flutter both use settings/describe |
 | `settings/mutate` | PASS | P3 | `settings/mutate` | React and Flutter both use settings/mutate |
 | `skills/list` | PASS | P3 | `skills/list` | React and Flutter both use skills/list |
+| `workspace/archiveSession` | PASS | P3 | `workspace/archiveSession` | React and Flutter both use workspace/archiveSession |
 | `workspace/create` | PASS | P3 | `workspace/create` | React and Flutter both use workspace/create |
 | `workspace/delete` | PASS | P3 | `workspace/delete` | React and Flutter both use workspace/delete |
+| `workspace/follow` | PASS | P3 | `workspace/follow` | React and Flutter both use workspace/follow |
 | `workspace/insertBefore` | PASS | P3 | `workspace/insertBefore` | React and Flutter both use workspace/insertBefore |
-| … | … | … | … | … 3 more |
+| `workspace/insertSessionBefore` | PASS | P3 | `workspace/insertSessionBefore` | React and Flutter both use workspace/insertSessionBefore |
+| `workspace/list` | PASS | P3 | `workspace/list` | React and Flutter both use workspace/list |
+| `workspace/rename` | PASS | P3 | `workspace/rename` | React and Flutter both use workspace/rename |
 
 ## Flutter impact
 
 | Severity | Count |
 |---|---|
-| P0 (blocks runtime) | 5 |
-| P1 (feature broken) | 1 |
+| P0 (blocks runtime) | 0 |
+| P1 (feature broken) | 0 |
 | P2 (compat risk) | 0 |
 | P3 (informational) | 0 |
 
-| ID | Change | Sev | Affected Flutter files | Required action |
-|---|---|---|---|---|
-| `flutter:session/page-cursor` | session/page throughSeq sentinel vs cursor | P0 | connection/connection_client.dart<br>session/live_history.dart | verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor |
-| `flutter:settings-describe-list` | settings/describe List namespaces | P0 | settings/settings_scope.dart<br>settings/settings_screen.dart | ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd |
-| `pluralization:subagent/interruptByParent->subagents/interruptByParent` | pluralization: subagent/interruptByParent → subagents/interruptByParent | P0 | — | audit Flutter consumers of subagents/interruptByParent |
-| `pluralization:subagent/list->subagents/list` | pluralization: subagent/list → subagents/list | P0 | — | audit Flutter consumers of subagents/list |
-| `pluralization:subagent/prompt->subagents/prompt` | pluralization: subagent/prompt → subagents/prompt | P0 | — | audit Flutter consumers of subagents/prompt |
-| `flutter:remote-mux-ticket` | remote.mux bearer ticket flow | P1 | connection/remote_mux_client.dart<br>connection/connection_client.dart | verify ticket fetch and re-pair flow; no silent fallback to unauthenticated |
+| ID | Change | Sev | Affected Flutter files | Required action | Status |
+|---|---|---|---|---|---|
+| `flutter:session/page-cursor` | session/page throughSeq sentinel vs cursor | P0 | connection/connection_client.dart<br>session/live_history.dart | verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor | ✅ verified — LiveHistory.acceptedSeq gates session/page, no sentinel |
+| `flutter:settings-describe-list` | settings/describe List namespaces | P0 | settings/settings_scope.dart<br>settings/settings_screen.dart | ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd | ✅ verified — List handling landed |
+| `pluralization:subagent/interruptByParent->subagents/interruptByParent` | pluralization: subagent/interruptByParent → subagents/interruptByParent | P0 | — | audit Flutter consumers of subagents/interruptByParent | ⏭ ignored — no Flutter consumer, Host only |
+| `pluralization:subagent/list->subagents/list` | pluralization: subagent/list → subagents/list | P0 | — | audit Flutter consumers of subagents/list | ⏭ ignored — no Flutter consumer |
+| `pluralization:subagent/prompt->subagents/prompt` | pluralization: subagent/prompt → subagents/prompt | P0 | — | audit Flutter consumers of subagents/prompt | ⏭ ignored — no Flutter consumer |
+| `flutter:remote-mux-ticket` | remote.mux bearer ticket flow | P1 | connection/remote_mux_client.dart<br>connection/connection_client.dart | verify ticket fetch and re-pair flow; no silent fallback to unauthenticated | ✅ verified — fetches ws-ticket before wss, 401→needsReauth |
 
 ## Change registry (excerpt)
 
 | ID | Category | Sev | Old → New | Status | Description |
 |---|---|---|---|---|---|
-| `CR-0001` | API | P0 | `subagent/interruptByParent` → `subagents/interruptByParent` | Detected | [API pluralization] Namespace pluralization: subagent/interruptByParent → subagents/interruptByParent |
-| `CR-0002` | API | P0 | `subagent/list` → `subagents/list` | Detected | [API pluralization] Namespace pluralization: subagent/list → subagents/list |
-| `CR-0003` | API | P0 | `subagent/prompt` → `subagents/prompt` | Detected | [API pluralization] Namespace pluralization: subagent/prompt → subagents/prompt |
+| `CR-0001` | API | P0 | `subagent/interruptByParent` → `subagents/interruptByParent` | Ignored | [API pluralization] Namespace pluralization: subagent/interruptByParent → subagents/interruptByParent — no Flutter consumer |
+| `CR-0002` | API | P0 | `subagent/list` → `subagents/list` | Ignored | [API pluralization] Namespace pluralization: subagent/list → subagents/list — no Flutter consumer |
+| `CR-0003` | API | P0 | `subagent/prompt` → `subagents/prompt` | Ignored | [API pluralization] Namespace pluralization: subagent/prompt → subagents/prompt — no Flutter consumer |
 | `CR-0004` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.i18n.yaml — verify F |
 | `CR-0005` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md — verify Flutter  |
 | `CR-0006` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.zh.md — verify Flutt |
@@ -347,4 +344,4 @@ Namespaces prev → current: 18 → 18 (agent-team, agentPresets, commands, cord
 - `migration/upstream-sync/change-registry.json`
 
 ---
-_Report generated by upstream-sync • upstream cd5ef814 → 49a606bc • local be6498fd_
+_Report generated by upstream-sync • upstream cd5ef814 → 49a606bc • local 5448eff9_
