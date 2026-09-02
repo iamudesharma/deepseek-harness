@@ -323,7 +323,7 @@ class InputTriggerController {
     try {
       src.warm(_sessionId);
       final off = src.subscribeLexicon(_sessionId, refreshLexicon);
-      if (src.lexicon != null && off != null) _lexiconOffs[src] = off;
+      if (off != null) _lexiconOffs[src] = off;
     } catch (error) {
       // Contain faulty source setup exactly like the root service does: the
       // registration stands and other sources still warm.
