@@ -3,17 +3,34 @@
 /// one controller per session backing every per-message control.
 ///
 /// React injects `remote.messageFeedback` (the generated Remote namespace) and
-/// registers into `conversation.chat.assistant-actions`; no Dart service
-/// carries that namespace and the assistant-actions hole is undeclared, so the
-/// ledger entry lands with those seams. The plugin provides service
-/// `'messageFeedback'`: the per-session [MessageFeedbackController] resolver,
-/// plus the reconnect resync posture over the `'remote'` bus when present.
+/// registers into `conversation.chat.assistant-actions`; the live Host wire
+/// rides [ConnectionClientMessageFeedbackRemote] and the assistant-actions
+/// hole is still undeclared, so the ledger entry lands with that seam. The
+/// plugin provides service `'messageFeedback'`: the per-session
+/// [MessageFeedbackController] resolver, plus the reconnect resync posture
+/// over the `'remote'` bus when present.
 library;
 
 import '../../core/api/rpc_envelope.dart';
 import '../../core/connection/connection_client.dart';
 import '../../core/plugin/plugin_contract.dart';
+import '../../core/services/runtime_services.dart';
+import 'locales.dart';
 import 'message_feedback_controller.dart';
+
+/// Currently bound per-session controller resolver (null before first
+/// activation); the UI bridge reads this instead of reaching into the plugin
+/// host, mirroring the conversation hub's activated-hub seat.
+MessageFeedbackControllers? _activatedMessageFeedback;
+
+/// Currently bound resolver, or null when the plugin has not activated.
+MessageFeedbackControllers? get activatedMessageFeedback =>
+    _activatedMessageFeedback;
+
+/// Binds (or clears) the activated resolver.
+void bindActivatedMessageFeedback(MessageFeedbackControllers? controllers) {
+  _activatedMessageFeedback = controllers;
+}
 
 /// Per-session controller resolver — the Dart slice of the React closure over
 /// `controllers: Map<SessionId, MessageFeedbackController>`.
@@ -52,6 +69,15 @@ class MessageFeedbackPlugin extends DshPlugin {
   @override
   Future<void> apply(DshContext ctx) async {
     ctx.require<Object>('slots'); // pin declared edge
+    // Product copy rides the locale registry when it is present; the plugin
+    // stays activatable without it (activation order is unchanged — no new
+    // inject edge).
+    final LocaleService? locale = ctx.get<LocaleService>('locale');
+    final void Function()? unregisterLocale = locale?.register(
+      kMessageFeedbackNamespace,
+      {'zh': kMessageFeedbackZh, 'en': kMessageFeedbackEn},
+    );
+    if (unregisterLocale != null) ctx.onDispose(unregisterLocale);
     // Prefer an explicitly bound face (tests), then the live Host wire,
     // otherwise stay renderable via _AbsentRemote.
     final explicit = ctx.get<MessageFeedbackRemote>('remote.messageFeedback');
@@ -63,7 +89,15 @@ class MessageFeedbackPlugin extends DshPlugin {
 
     final controllers = MessageFeedbackControllers(remote);
     ctx.provide('messageFeedback', controllers);
-    ctx.onDispose(controllers.disposeAll);
+    // Bridge for the feedback UI — widgets resolve per-session controllers
+    // through the Riverpod seat over this binding.
+    bindActivatedMessageFeedback(controllers);
+    ctx.onDispose(() {
+      controllers.disposeAll();
+      if (identical(_activatedMessageFeedback, controllers)) {
+        bindActivatedMessageFeedback(null);
+      }
+    });
   }
 }
 
