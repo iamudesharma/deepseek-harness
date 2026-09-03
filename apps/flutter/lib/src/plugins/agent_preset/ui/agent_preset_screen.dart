@@ -219,7 +219,10 @@ class AgentPresetScreen extends ConsumerWidget {
     }
   }
 
-  /// Creates a copy through `agentPreset.copy` and refreshes the roster.
+  /// Creates a copy through `agentPreset.copy` and refreshes the roster, then
+  /// takes the user to the new preset's files like React `confirmCopy`: the
+  /// directory opens where the host has a desktop, and its path appears on
+  /// the new row where it does not. A location failure never fails the copy.
   Future<void> _copy(
     BuildContext context,
     WidgetRef ref,
@@ -235,6 +238,20 @@ class AgentPresetScreen extends ConsumerWidget {
         name: name,
       );
       ref.invalidate(agentPresetListProvider);
+      try {
+        final PresetLocation loc = await openPresetLocation(
+          ref.read(connectionClientProvider),
+          created,
+        );
+        if (!loc.opened && loc.path != null) {
+          ref.read(agentPresetRevealedPathsProvider.notifier).update((m) => {
+            ...m,
+            created: loc.path!,
+          });
+        }
+      } catch (_) {
+        // The copy landed; getting to its files is a follow-up, not the write.
+      }
       if (context.mounted) _toast(context, 'Created preset "$created"');
     } catch (e) {
       if (context.mounted) _toast(context, 'Failed to create "$presetId": $e');
@@ -539,8 +556,9 @@ class PresetMenu extends ConsumerWidget {
 ///
 /// Copy/delete ride the host wire (`agentPreset.copy`/`.remove`) and are
 /// gated on `authorable` exactly like React's section store; a broken preset
-/// can neither compose nor copy. The location action lands with the native
-/// opener face and stays out.
+/// can neither compose nor copy. The location action rides the host wire too
+/// (`settings/openAgentPresetDirectory`): the directory opens on the host
+/// desktop where it can, otherwise its path appears on the row.
 class AgentPresetSection extends ConsumerWidget {
   const AgentPresetSection({
     super.key,
@@ -593,6 +611,7 @@ class AgentPresetSection extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: DswTokens.spaceSm),
               child: _PresetCard(
                 option: o,
+                options: options,
                 isDefault: o.id == current,
                 authorable: authorable,
                 hasDocument: hasDocument,
@@ -630,6 +649,7 @@ class AgentPresetSection extends ConsumerWidget {
 class _PresetCard extends ConsumerWidget {
   const _PresetCard({
     required this.option,
+    required this.options,
     required this.isDefault,
     required this.authorable,
     required this.hasDocument,
@@ -640,6 +660,7 @@ class _PresetCard extends ConsumerWidget {
     required this.onDelete,
   });
   final AgentPresetOption option;
+  final List<AgentPresetOption> options;
   final bool isDefault;
   final bool authorable;
   final bool hasDocument;
@@ -653,6 +674,9 @@ class _PresetCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final Translate t = ref.bindLocale(kAgentPresetNamespace);
     final bool broken = option.broken != null;
+    final String? revealed = ref.watch(
+      agentPresetRevealedPathsProvider,
+    )[option.id];
     return Container(
       padding: const EdgeInsets.all(DswTokens.spaceMd),
       decoration: BoxDecoration(
@@ -783,6 +807,9 @@ class _PresetCard extends ConsumerWidget {
               const SizedBox(width: DswTokens.spaceSm),
               // Shipped presets open read-only to be READ; a broken one has no
               // readable composition, so its viewer is withheld (React rule).
+              // A custom preset is edited in its own files instead, which the
+              // location action leads to — kept even for a broken one, since
+              // the files are where it gets fixed (React cardFoot rule).
               if (option.trust == PresetTrust.system)
                 IconButton(
                   tooltip: t('view'),
@@ -792,9 +819,23 @@ class _PresetCard extends ConsumerWidget {
                     color: aliases.labelTertiary,
                   ),
                   onPressed: broken ? null : () => onView(option.id),
+                )
+              else
+                IconButton(
+                  tooltip: hasDocument
+                      ? t('openLocation')
+                      : t('showLocation'),
+                  icon: Icon(
+                    Icons.folder_open_outlined,
+                    size: 16,
+                    color: aliases.labelTertiary,
+                  ),
+                  onPressed: () => _openLocation(context, ref, option.id),
                 ),
               IconButton(
-                tooltip: authorable
+                tooltip: broken
+                    ? t('brokenNoCopy')
+                    : authorable
                     ? t('duplicate')
                     : t('duplicateUnavailable'),
                 icon: Icon(Icons.copy, size: 16, color: aliases.labelTertiary),
@@ -816,9 +857,58 @@ class _PresetCard extends ConsumerWidget {
                 ),
             ],
           ),
+          // The host answered with a path instead of opening: show it on the
+          // row (React `revealedPaths` paragraph). Plain widgets so the
+          // label and the path stay exact-match findable in widget tests.
+          if (revealed != null) ...[
+            const SizedBox(height: DswTokens.spaceSm),
+            Text(
+              t('revealedPathLabel'),
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXxs12,
+                color: aliases.labelSecondary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            SelectableText(
+              revealed,
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXxs12,
+                fontFamily: 'SF Mono',
+                color: aliases.labelSecondary,
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Opens one preset's directory on the host desktop, or reveals its path
+  /// on the row where the deployment has no opener. Failures surface as a
+  /// snackbar, never a fake path.
+  Future<void> _openLocation(
+    BuildContext context,
+    WidgetRef ref,
+    String id,
+  ) async {
+    try {
+      final PresetLocation loc = await openPresetLocation(
+        ref.read(connectionClientProvider),
+        id,
+      );
+      if (loc.opened || loc.path == null) return;
+      ref.read(agentPresetRevealedPathsProvider.notifier).update((m) => {
+        ...m,
+        id: loc.path!,
+      });
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to open "$id": $e')));
+      }
+    }
   }
 
   void _copyDialog(
@@ -835,39 +925,73 @@ class _PresetCard extends ConsumerWidget {
     final DswAliases a = aliases;
     showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: a.bgLayer2,
-        title: Text(
-          '${t('copyTitle')} · ${option.displayName ?? option.name}',
-          style: TextStyle(color: a.labelPrimary),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: idCtrl,
-              decoration: InputDecoration(labelText: t('presetId')),
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setState) {
+          // Client-side only: the host re-checks the id and its answer is
+          // what the dialog reports on failure (React draftBlocker rule).
+          final String? blocker = presetCopyBlocker(idCtrl.text, options);
+          final String? message = blocker == null ? null : t(blocker);
+          return AlertDialog(
+            backgroundColor: a.bgLayer2,
+            title: Text(
+              '${t('copyTitle')} · ${option.displayName ?? option.name}',
+              style: TextStyle(color: a.labelPrimary),
             ),
-            const SizedBox(height: DswTokens.spaceSm),
-            TextField(
-              controller: nameCtrl,
-              decoration: InputDecoration(labelText: t('displayName')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t('copyIntro'),
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXxs12,
+                    color: a.labelSecondary,
+                  ),
+                ),
+                const SizedBox(height: DswTokens.spaceSm),
+                TextField(
+                  controller: idCtrl,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(labelText: t('presetId')),
+                ),
+                const SizedBox(height: DswTokens.spaceSm),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(labelText: t('displayName')),
+                ),
+                if (message != null) ...[
+                  const SizedBox(height: DswTokens.spaceSm),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: DswTokens.fontSizeXxs12,
+                      color: a.stateErrorPrimary,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(t('cancel')),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              onCopy(option.id, idCtrl.text.trim(), nameCtrl.text.trim());
-            },
-            child: Text(t('create')),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(t('cancel')),
+              ),
+              FilledButton(
+                onPressed: blocker != null
+                    ? null
+                    : () {
+                        Navigator.pop(ctx);
+                        onCopy(
+                          option.id,
+                          idCtrl.text.trim(),
+                          nameCtrl.text.trim(),
+                        );
+                      },
+                child: Text(t('create')),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

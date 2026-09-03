@@ -683,6 +683,12 @@ class ConnectionClient {
             // list for callers that expect it.
             return {'_list': cur};
           }
+          if (cur is bool) {
+            // `settings/canOpenAgentPresetDirectory` returns
+            // `RemoteResult<boolean>`; wrap it like the string case below so
+            // the typed face reads `result['value']`.
+            return {'value': cur, '_value': cur};
+          }
           if (cur is String) {
             // `agentPresets/select` returns `RemoteResult<string>` (the selected
             // preset id); wrap as `{value, agentPreset}` so callers can read
@@ -722,6 +728,9 @@ class ConnectionClient {
       throw RemoteMethodException(code: code, message: msg, details: details);
     }
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
+    if (cur is bool) {
+      return {'value': cur, '_value': cur};
+    }
     if (cur is String) {
       return {
         'value': cur,
@@ -995,6 +1004,32 @@ class ConnectionClient {
       'agentPreset': agentPreset,
     });
     return _unwrapValue(body, 'agentPresets/select');
+  }
+
+  /// `settings/canOpenAgentPresetDirectory` — whether the host can open an
+  /// authored preset directory natively (React `section-store.ts:load` joins
+  /// this with the roster; it is Host opener capability, not a roster
+  /// property — `agentPresets/list` carries no `hasDocument`).
+  Future<bool> settingsCanOpenAgentPresetDirectory() async {
+    final body = await _postTypert('settings/canOpenAgentPresetDirectory', {
+      'args': {},
+    });
+    final value = _unwrapValue(body, 'settings/canOpenAgentPresetDirectory');
+    return value['value'] as bool? ?? false;
+  }
+
+  /// `settings/openAgentPresetDirectory { agentPreset }` — opens one
+  /// user-authored preset directory on the host desktop, or answers
+  /// `{ opened: false, path }` for text reveal where no opener exists (React
+  /// `section-store.ts:openLocation`). Never a client-side `url_launcher`
+  /// open: the path lives on the host machine.
+  Future<Map<String, dynamic>> settingsOpenAgentPresetDirectory({
+    required String agentPreset,
+  }) async {
+    final body = await _postTypert('settings/openAgentPresetDirectory', {
+      'args': {'agentPreset': agentPreset},
+    });
+    return _unwrapValue(body, 'settings/openAgentPresetDirectory');
   }
 
   Future<Map<String, dynamic>> hostDescribe() async {

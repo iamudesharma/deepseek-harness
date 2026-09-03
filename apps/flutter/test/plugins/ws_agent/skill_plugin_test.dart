@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dsh_flutter/src/core/connection/connection_client.dart';
 import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
@@ -40,6 +42,40 @@ class _FakeSkillClient extends ConnectionClient {
         },
       ],
     };
+  }
+}
+
+/// Fake typed client with manually completed fetches for mid-flight tests.
+class _GatedSkillClient extends ConnectionClient {
+  _GatedSkillClient() : super(baseUrl: '');
+
+  final List<String> calls = <String>[];
+  final Map<String, Completer<Map<String, dynamic>>> gates = {};
+
+  @override
+  Future<Map<String, dynamic>> skillList({required String sessionId}) {
+    calls.add(sessionId);
+    final gate = Completer<Map<String, dynamic>>();
+    gates[sessionId] = gate;
+    return gate.future;
+  }
+
+  /// Completes the in-flight fetch for [sessionId] with the shared rows.
+  void complete(String sessionId) {
+    gates.remove(sessionId)!.complete({
+      'skills': [
+        {
+          'name': 'review',
+          'description': 'Review code',
+          'modelInvocable': true,
+        },
+        {
+          'name': 'refactor',
+          'description': 'Refactor code',
+          'modelInvocable': false,
+        },
+      ],
+    });
   }
 }
 
@@ -101,6 +137,61 @@ void main() {
     await catalog.candidates(const SessionId('b'));
 
     expect(client.calls, ['a', 'b']);
+  });
+
+  test('catalog: lexicon stays null while the fetch is in flight', () async {
+    final client = _GatedSkillClient();
+    final catalog = SkillCatalog(connection: client);
+    const key = SessionId('s-gated');
+
+    final pending = catalog.candidates(key);
+    expect(client.calls, ['s-gated']);
+    expect(catalog.lexicon(key), isNull);
+
+    client.complete('s-gated');
+    final entries = await pending;
+    expect(entries.map((e) => e.name), ['review', 'refactor']);
+    expect(catalog.lexicon(key), ['review', 'refactor']);
+  });
+
+  test('catalog: mid-flight invalidation detaches the stale settlement', () async {
+    final client = _GatedSkillClient();
+    final catalog = SkillCatalog(connection: client);
+    const key = SessionId('s-epoch');
+
+    var notifications = 0;
+    catalog.subscribeLexicon(key, () => notifications++);
+
+    final pending = catalog.candidates(key);
+    catalog.invalidate(key); // preset switch lands mid-flight
+    expect(notifications, 1);
+    expect(catalog.lexicon(key), isNull);
+
+    client.complete('s-epoch');
+    final stale = await pending; // the detached awaiter keeps its own rows
+    expect(stale.map((e) => e.name), ['review', 'refactor']);
+    await Future<void>.delayed(Duration.zero);
+    expect(catalog.lexicon(key), isNull); // stale rows never repopulate
+    expect(notifications, 1); // no second notify from the stale settlement
+
+    final refetch = catalog.candidates(key); // next read retries exactly once
+    client.complete('s-epoch');
+    await refetch;
+    expect(client.calls, ['s-epoch', 's-epoch']);
+    expect(catalog.lexicon(key), ['review', 'refactor']);
+  });
+
+  test('catalog: one faulty lexicon listener does not starve the rest', () async {
+    final catalog = SkillCatalog(connection: _FakeSkillClient());
+    const key = SessionId('s-iso');
+
+    var delivered = 0;
+    catalog.subscribeLexicon(key, () => throw StateError('boom'));
+    catalog.subscribeLexicon(key, () => delivered++);
+
+    await catalog.candidates(key);
+    expect(delivered, 1);
+    expect(catalog.lexicon(key), ['review', 'refactor']);
   });
 
   test(
@@ -218,8 +309,48 @@ void main() {
     },
   );
 
-  test('user-only marker rides the menu description', () {
-    const userOnly = SkillEntry(
+  test(
+    "'/' source: a caller superseded mid-flight yields [] over the warm fetch",
+    () async {
+      final client = _GatedSkillClient();
+      final host = wsAgentHost(client: client);
+      addTearDown(host.deactivateAll);
+      host.register(const SkillPlugin());
+      await host.activateAll();
+
+      final inputTriggers = host.service<TriggerSourceRegistry>(
+        'inputTriggers',
+      )!;
+      final source = inputTriggers
+          .sources('/')
+          .singleWhere((s) => s.name == kSkillSourceName);
+
+      var cancelled = false;
+      final pending = source.candidates(
+        'sess-yield',
+        CandidateRequest(
+          query: '',
+          position: TriggerPosition.leading,
+          cancelled: () => cancelled,
+        ),
+      );
+      expect(client.calls, ['sess-yield']);
+
+      cancelled = true; // a newer keystroke supersedes this caller mid-flight
+      client.complete('sess-yield');
+      expect(await pending, isEmpty);
+
+      // The shared fetch settled warm: the winning caller costs no second RPC.
+      final winner = await source.candidates(
+        'sess-yield',
+        const CandidateRequest(query: 're', position: TriggerPosition.leading),
+      );
+      expect(winner.map((c) => c.name), ['review', 'refactor']);
+      expect(client.calls, ['sess-yield']);
+    },
+  );
+
+  test('user-only marker rides the menu description', () {    const userOnly = SkillEntry(
       name: 'refactor',
       description: 'Refactor code',
       modelInvocable: false,

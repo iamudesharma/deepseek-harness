@@ -438,7 +438,15 @@ PluginHost buildAppHost(WidgetRef ref) {
   // WS-Tasks — jobs / workflow runs / deliverables / goal / permission
   // presets.
   host.register(const JobsPlugin());
-  host.register(const WorkflowRunPlugin());
+  // Navigation face mirrors React `ctx.sessions.open`: selecting the child
+  // row through the shared sessions list (unknown ids are ignored by the
+  // controller guard). Kept ctor-injected so the panel never reaches ctx.
+  host.register(
+    WorkflowRunPlugin(
+      openSession: (childId) =>
+          ref.read(sessionsProvider.notifier).setCurrent(SessionId(childId)),
+    ),
+  );
   host.register(const DeliverablesPlugin());
   host.register(const GoalPlugin());
   host.register(const PermissionPresetsPlugin());

@@ -111,12 +111,50 @@ String _previewFor(String full, int maxLen) {
   return '${full.substring(0, maxLen - 1)}…';
 }
 
-// Derive ledger rows from HistoryEntry window — approximates
-// `deriveTrajectoryLayout` + `flattenRecords` for Flutter's host history.
-List<LedgerRow> _ledgerFromHistory(List<HistoryEntry> entries) {
+/// Derive ledger rows from a [HistoryEntry] window.
+///
+/// Approximates React `deriveTrajectoryLayout` + `flattenRecords` for
+/// Flutter's host history. Flutter folds raw history event types
+/// (`user/message`, `assistant/message`, `tool/call`, `tool/result`, …)
+/// because the Conversation Node assembly (`eventNodes` + `partial` +
+/// `runningCalls` + `requests`) has no Dart counterpart yet; turn boundaries
+/// come from `turn/start` envelopes when present, else from `user/message`
+/// seq positions — the same rule as `trajectoryFromHistory`.
+///
+/// Tool durations join `tool/call` → `tool/result` by `callId` time delta so
+/// the timed timeline projections use recorded spans; an unpaired call keeps
+/// a null duration (React `running`: `outputDetail === undefined`). Paired
+/// call/result entries stay as two ledger rows — folding them into one tool
+/// cell (React `expandAssistant`) stays deferred with the Node assembly.
+///
+/// Kept pure (no ref) so it is testable in isolation.
+List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
   if (entries.isEmpty) return const [];
   final rows = <LedgerRow>[];
   int idx = 0;
+  // Join tool durations by callId from host event times (no fabrication:
+  // only pairs the host actually logged).
+  final Map<String, int> callStartById = {};
+  final Map<String, int> resultTimeById = {};
+  for (final entry in entries) {
+    final ev = entry.event;
+    final String? callId =
+        ev.data['callId'] as String? ?? ev.data['id'] as String?;
+    if (callId == null) continue;
+    if (ev.type == 'tool/call') {
+      callStartById.putIfAbsent(callId, () => ev.time);
+    } else if (ev.type == 'tool/result') {
+      resultTimeById.putIfAbsent(callId, () => ev.time);
+    }
+  }
+  double? toolDurationFor(String? callId) {
+    if (callId == null) return null;
+    final int? start = callStartById[callId];
+    final int? end = resultTimeById[callId];
+    if (start == null || end == null) return null;
+    final double secs = (end - start) / 1000.0;
+    return secs < 0 ? 0 : secs;
+  }
   final hasEnvelope = entries.any((e) => e.event.type == 'turn/start');
   final List<int> userSeqs = entries
       .where((e) => e.event.type == 'user/message')
@@ -161,6 +199,7 @@ List<LedgerRow> _ledgerFromHistory(List<HistoryEntry> entries) {
     bool isError = ev.data['isError'] == true;
     String? callId;
     String? result;
+    double? timeSeconds;
     switch (type) {
       case 'user/message':
         {
@@ -227,6 +266,7 @@ List<LedgerRow> _ledgerFromHistory(List<HistoryEntry> entries) {
           callId = ev.data['callId'] as String? ?? ev.data['id'] as String?;
           text = argsText.isEmpty ? name : '$name · ${_previewFor(argsText, 120)}';
           inputDetail = argsText;
+          timeSeconds = toolDurationFor(callId);
           break;
         }
       case 'tool/result':
@@ -243,6 +283,7 @@ List<LedgerRow> _ledgerFromHistory(List<HistoryEntry> entries) {
           text = outText.isEmpty ? name : '$name · ${_previewFor(outText, 120)}';
           result = outText;
           isError = ev.data['isError'] == true || ev.data['error'] != null;
+          timeSeconds = toolDurationFor(callId);
           break;
         }
       case 'compaction/start':
@@ -288,7 +329,6 @@ List<LedgerRow> _ledgerFromHistory(List<HistoryEntry> entries) {
     final bool isGroupStart = isFirstInTurn;
 
     final int? startedAt = ev.time;
-    double? timeSeconds;
 
     final row = LedgerRow(
       index: idx++,
@@ -366,7 +406,10 @@ class TurnBoundary {
   const TurnBoundary({required this.turn, required this.time});
 }
 
-int _laneForKind(TrajectoryCellKind k) => switch (k) {
+/// Lane projection — mirrors React `laneFor` in
+/// `packages/client/ui-trajectory/src/client/timeline.ts`: tools on lane 2,
+/// assistant output on lane 1, inputs/system on lane 0.
+int laneForKind(TrajectoryCellKind k) => switch (k) {
   TrajectoryCellKind.user => 0,
   TrajectoryCellKind.context => 0,
   TrajectoryCellKind.system => 0,
@@ -376,19 +419,32 @@ int _laneForKind(TrajectoryCellKind k) => switch (k) {
   TrajectoryCellKind.subtool => 2,
 };
 
+/// Project ledger rows into the timeline domain.
+///
+/// Mirrors React `deriveTrajectoryTimeline` in
+/// `packages/client/ui-trajectory/src/client/timeline.ts` (`sequence` |
+/// `duration` | `time` | `actual`; the toolbar's `actualDuration`/`actualTime`
+/// pair maps to modes exactly like `TrajectoryView.tsx:342`):
+/// - `sequence`: equal-width blocks in ledger order (the only equal mode).
+/// - `duration`: recorded spans with idle gaps compressed.
+/// - `actual`: recorded spans on the complete wall clock.
+/// - `time`: point spans (`start == end`) on the complete wall clock.
+///
+/// Rows without a known start are skipped (React drops cells with a null
+/// `startedAt`); null durations project as points. Returns null when no row
+/// is projectable (React `rawSpans.length == 0 → null`), which the strip
+/// renders as its no-timing-data state. Turn boundaries mark ledger-order
+/// turn transitions; the first turn starts at the domain origin.
 TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
   if (rows.isEmpty) return null;
-  final bool equal = mode == 'time' || mode == 'sequence';
-  int start;
-  int end;
-  if (equal) {
-    start = 0;
-    end = rows.length * 10;
+  if (mode == 'sequence') {
+    const int start = 0;
+    final int end = rows.length * 10;
     final spans = <TimelineSpan>[];
     for (final r in rows) {
       final int s = r.index * 10;
       final int e = s + 8;
-      spans.add(TimelineSpan(index: r.index, kind: r.kind, lane: _laneForKind(r.kind), start: s, end: e, isError: r.isError));
+      spans.add(TimelineSpan(index: r.index, kind: r.kind, lane: laneForKind(r.kind), start: s, end: e, isError: r.isError));
     }
     final boundaries = <TurnBoundary>[];
     for (int i = 1; i < rows.length; i++) {
@@ -398,22 +454,59 @@ TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
     }
     return TimelineModel(start: start, end: end, spans: spans, boundaries: boundaries);
   } else {
-    int minT = rows.first.startedAt ?? 0;
-    int maxT = rows.last.startedAt ?? minT;
-    if (maxT == minT) maxT = minT + (rows.length * 1000);
-    start = minT;
-    end = maxT + 1000;
-    final spans = <TimelineSpan>[];
+    final bool actualDuration = mode == 'duration' || mode == 'actual';
+    final bool compressIdle = mode == 'duration';
+    // Raw spans in ledger order; rows without a start are not projectable.
+    final List<TimelineSpan> raw = [];
+    final List<int> rawTurns = [];
     for (final r in rows) {
-      final s = r.startedAt ?? minT;
-      final dur = (r.timeSeconds != null ? (r.timeSeconds! * 1000).round() : 800);
-      final e = s + dur;
-      spans.add(TimelineSpan(index: r.index, kind: r.kind, lane: _laneForKind(r.kind), start: s, end: e, isError: r.isError));
+      final int? started = r.startedAt;
+      if (started == null) continue;
+      final double? secs = r.timeSeconds;
+      final int durationMs = secs == null || secs.isNaN || secs.isInfinite
+          ? 0
+          : (secs * 1000).round().clamp(0, 1 << 30);
+      final int s = started;
+      final int e = actualDuration ? s + durationMs : s;
+      raw.add(TimelineSpan(index: r.index, kind: r.kind, lane: laneForKind(r.kind), start: s, end: e, isError: r.isError));
+      rawTurns.add(r.turn);
+    }
+    if (raw.isEmpty) return null;
+    // Idle compression over start-sorted order (React `deriveTimedTimeline`).
+    final List<int> order = List<int>.generate(raw.length, (i) => i)
+      ..sort((a, b) {
+        final int c = raw[a].start.compareTo(raw[b].start);
+        return c != 0 ? c : raw[a].end.compareTo(raw[b].end);
+      });
+    final Map<int, int> removedByRaw = {};
+    int removedIdle = 0;
+    int? coveredUntil;
+    for (final i in order) {
+      final TimelineSpan span = raw[i];
+      if (compressIdle && coveredUntil != null && span.start > coveredUntil) {
+        removedIdle += span.start - coveredUntil;
+      }
+      removedByRaw[i] = removedIdle;
+      coveredUntil = coveredUntil == null
+          ? span.end
+          : (span.end > coveredUntil ? span.end : coveredUntil);
+    }
+    final List<TimelineSpan> spans = [];
+    for (int i = 0; i < raw.length; i++) {
+      final int offset = removedByRaw[i] ?? 0;
+      final TimelineSpan s = raw[i];
+      spans.add(TimelineSpan(index: s.index, kind: s.kind, lane: s.lane, start: s.start - offset, end: s.end - offset, isError: s.isError));
+    }
+    int start = spans.first.start;
+    int end = spans.first.end;
+    for (final s in spans) {
+      if (s.start < start) start = s.start;
+      if (s.end > end) end = s.end;
     }
     final boundaries = <TurnBoundary>[];
-    for (int i = 1; i < rows.length; i++) {
-      if (rows[i].turn != rows[i - 1].turn) {
-        boundaries.add(TurnBoundary(turn: rows[i].turn, time: rows[i].startedAt ?? start));
+    for (int i = 1; i < spans.length; i++) {
+      if (rawTurns[i] != rawTurns[i - 1]) {
+        boundaries.add(TurnBoundary(turn: rawTurns[i], time: spans[i].start));
       }
     }
     return TimelineModel(start: start, end: end, spans: spans, boundaries: boundaries);
@@ -485,7 +578,7 @@ class TrajectoryScreen extends ConsumerWidget {
       ),
       body: async.when(
         data: (Trajectory trajectory) {
-          final List<LedgerRow> rows = _ledgerFromHistory(history);
+          final List<LedgerRow> rows = ledgerFromHistory(history);
           final bool empty = rows.isEmpty && trajectory.turns.isEmpty;
           if (empty) {
             return _EmptyTrajectory(sessionId: sessionId, aliases: aliases);
@@ -1491,7 +1584,10 @@ class _TimelineSpanWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
         (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
-    final bool equal = mode == 'time';
+    // Equal-width rendering only in `sequence` mode (React parity: only the
+    // sequence projection uses equal blocks; `time`/`duration`/`actual` are
+    // recorded-time projections).
+    final bool equal = mode == 'sequence';
     final double left = (span.start - modelStart) / fullDuration * w;
     final double width = (span.end - span.start) / fullDuration * w;
     final double effWidth = width.clamp(2, w);
@@ -1648,6 +1744,15 @@ class _TrajectoryLedger extends StatelessWidget {
               ),
             ),
           Expanded(
+            // No manual windowing cap here, deliberately. React's ledger wraps
+            // its rows in a tanstack virtualizer window (threshold 100,
+            // overscan 12) because the DOM pays per node; `ListView.builder`
+            // with a fixed `itemExtent` already builds only visible rows with
+            // O(1) layout, so duplicating React's head/tail window would add a
+            // second paging mechanism with no frame win. Older history arrives
+            // through the authoritative `liveHistoryProvider.loadOlder()`
+            // cursor page (mirroring React's earlier-history button above),
+            // never a synthetic cursor.
             child: ListView.builder(
               controller: scrollController,
               itemCount: rows.length,
