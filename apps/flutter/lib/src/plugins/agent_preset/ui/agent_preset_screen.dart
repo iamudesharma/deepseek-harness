@@ -6,7 +6,7 @@ import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
 import '../../../core/session/session_provider.dart';
 import '../../../theme/app_theme.dart';
-import '../locales.dart' show kAgentPresetNamespace;
+import '../locales.dart' show kAgentPresetNamespace, presetDisplayText;
 import 'agent_preset_provider.dart';
 
 /// Agent preset screen — Section/Row/Seat list + PresetMenu.
@@ -377,6 +377,23 @@ Future<void> makeDefaultPresetSelection(
   }
 }
 
+/// Localized display copy for one roster option: shipped presets resolve
+/// through the locale dictionaries (React `presetDisplayText`), user-authored
+/// ones keep their own metadata. Call at render time — never cache across a
+/// locale switch.
+({String name, String? description}) displayOf(
+  AgentPresetOption option,
+  Translate t,
+) {
+  return presetDisplayText(
+    id: option.id,
+    builtIn: option.trust == PresetTrust.system,
+    t: t,
+    name: option.displayName ?? option.name,
+    description: option.description,
+  );
+}
+
 /// AgentPresetRow — preference row with PresetMenu.
 class AgentPresetRow extends ConsumerWidget {
   const AgentPresetRow({
@@ -399,7 +416,8 @@ class AgentPresetRow extends ConsumerWidget {
     final AgentPresetOption? chosen = options
         .where((o) => o.id == selectedId)
         .firstOrNull;
-    final String label = chosen?.displayName ?? chosen?.name ?? selectedId;
+    final String label =
+        chosen == null ? selectedId : displayOf(chosen, t).name;
     return Container(
       padding: const EdgeInsets.all(DswTokens.spaceMd),
       decoration: BoxDecoration(
@@ -467,7 +485,8 @@ class AgentPresetSeat extends ConsumerWidget {
     final AgentPresetOption? chosen = options
         .where((o) => o.id == current)
         .firstOrNull;
-    final String label = chosen?.displayName ?? chosen?.name ?? current;
+    final String label =
+        chosen == null ? current : displayOf(chosen, t).name;
     return Container(
       padding: const EdgeInsets.all(DswTokens.spaceMd),
       decoration: BoxDecoration(
@@ -539,8 +558,8 @@ class PresetMenu extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     o.trust == PresetTrust.user
-                        ? '${o.displayName ?? o.name} · ${t('userTrust')}'
-                        : o.displayName ?? o.name,
+                        ? '${displayOf(o, t).name} · ${t('userTrust')}'
+                        : displayOf(o, t).name,
                     style: TextStyle(
                       fontSize: DswTokens.fontSizeS14,
                       color: aliases.labelPrimary,
@@ -792,13 +811,17 @@ class _PresetCard extends ConsumerWidget {
     )[option.id];
     // The card body IS the control (React rule): picking a preset is the
     // common act. A broken preset cannot compose a session so its body
-    // refuses the pick; the default one is already picked.
+    // refuses the pick; the default one is already picked. Shipped names and
+    // descriptions resolve through the locale dictionaries — the host ships
+    // its own metadata language, which must never leak into a localized UI.
     final bool pickable = !broken && !isDefault;
+    final String displayName = displayOf(option, t).name;
+    final String? displayDescription = displayOf(option, t).description;
     final String cardLabel = broken
-        ? '${t('brokenBadge')}: ${option.displayName ?? option.name}'
+        ? '${t('brokenBadge')}: $displayName'
         : isDefault
-            ? '${t('inUse')}: ${option.displayName ?? option.name}'
-            : '${t('setDefault')}: ${option.displayName ?? option.name}';
+            ? '${t('inUse')}: $displayName'
+            : '${t('setDefault')}: $displayName';
     return Semantics(
       button: pickable,
       label: cardLabel,
@@ -828,7 +851,7 @@ class _PresetCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  option.displayName ?? option.name,
+                  displayName,
                   style: TextStyle(
                     fontSize: DswTokens.fontSizeS14,
                     fontWeight: FontWeight.w600,
@@ -893,7 +916,7 @@ class _PresetCard extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            option.description ?? t('noDescription'),
+            displayDescription ?? option.description ?? t('noDescription'),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -1051,7 +1074,7 @@ class _PresetCard extends ConsumerWidget {
       text: '${option.id}-copy',
     );
     final TextEditingController nameCtrl = TextEditingController(
-      text: '${option.displayName ?? option.name} copy',
+      text: '${displayOf(option, t).name} copy',
     );
     final DswAliases a = aliases;
     showDialog<void>(
@@ -1065,7 +1088,7 @@ class _PresetCard extends ConsumerWidget {
           return AlertDialog(
             backgroundColor: a.bgLayer2,
             title: Text(
-              '${t('copyTitle')} · ${option.displayName ?? option.name}',
+              '${t('copyTitle')} · ${displayOf(option, t).name}',
               style: TextStyle(color: a.labelPrimary),
             ),
             content: Column(

@@ -26,7 +26,7 @@ class _FakePresetClient extends ConnectionClient {
   Future<Map<String, dynamic>> agentPresetList() async => {
     'presets': [
       {'id': 'standard', 'trust': 'system', 'isDefault': true},
-      {'id': 'code', 'trust': 'system'},
+      {'id': 'ptc', 'trust': 'system'},
       {'id': 'minimal', 'trust': 'system'},
       {'id': 'cordis', 'trust': 'system'},
     ],
@@ -62,7 +62,7 @@ ProviderContainer _containerWithSession(SessionSummary summary) {
         trust: PresetTrust.system,
         isDefault: true,
       ),
-      AgentPresetOption(id: 'code', name: 'code', trust: PresetTrust.system),
+      AgentPresetOption(id: 'ptc', name: 'ptc', trust: PresetTrust.system),
       AgentPresetOption(
         id: 'minimal',
         name: 'minimal',
@@ -214,7 +214,7 @@ void main() {
         updatedAt: 1,
         running: false,
         blank: true,
-        agentPreset: 'code',
+        agentPreset: 'ptc',
       );
       final container = _containerWithSession(summary);
       final locale = container.read(localeServiceProvider);
@@ -228,7 +228,7 @@ void main() {
       // Checkmark stays on same id.
       await _tapChip(tester);
       await tester.pumpAndSettle();
-      // Find check icon near PTC row - there should be a check for 'code'.
+      // Find check icon near PTC row - there should be a check for 'ptc'.
       expect(find.byIcon(Icons.check), findsOneWidget);
       // The check should be in the PTC row, not elsewhere.
       final checkFinder = find.byIcon(Icons.check);
@@ -364,8 +364,8 @@ void main() {
             isDefault: true,
           ),
           AgentPresetOption(
-            id: 'code',
-            name: 'code',
+            id: 'ptc',
+            name: 'ptc',
             trust: PresetTrust.system,
           ),
           AgentPresetOption(

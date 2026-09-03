@@ -138,6 +138,21 @@ void main() {
       final builtIn = presetDisplayText(id: 'minimal', builtIn: true, t: t);
       expect(builtIn.name, 'Minimal mode');
 
+      // The Host ships ids standard/ptc/minimal/cordis (not 'code'): every
+      // shipped id resolves, so host-metadata language never leaks through.
+      expect(
+        presetDisplayText(id: 'ptc', builtIn: true, t: t).name,
+        'PTC mode',
+      );
+      expect(
+        presetDisplayText(id: 'standard', builtIn: true, t: t).name,
+        'Standard mode',
+      );
+      expect(
+        presetDisplayText(id: 'cordis', builtIn: true, t: t).name,
+        'Creator mode',
+      );
+
       final custom = presetDisplayText(
         id: 'my-preset',
         builtIn: false,
@@ -163,7 +178,10 @@ void main() {
             'id': 'standard',
             'trust': 'system',
             'isDefault': true,
-            'name': 'Standard mode',
+            // Host ships its own metadata language (here zh): shipped cards
+            // must still render the active locale's dictionary copy.
+            'name': '标准模式',
+            'description': '功能完整的编码 Agent。',
           },
           {
             'id': 'broken-one',
@@ -180,10 +198,13 @@ void main() {
       // Group headers and trust badges share the builtInGroup/userTrust copy.
       expect(find.text('Built-in'), findsWidgets);
       expect(find.text('Custom'), findsWidgets);
+      // Shipped card renders dictionary copy, not host metadata.
+      expect(find.text('Standard mode'), findsWidgets);
+      expect(find.text('标准模式'), findsNothing);
       expect(
-        find.text('Standard mode'),
-        findsWidgets,
-      ); // row label + roster card
+        find.textContaining('Full coding agent with file editing'),
+        findsOneWidget,
+      );
       expect(find.text('Broken preset'), findsOneWidget);
       expect(find.text('Failed to load'), findsOneWidget); // brokenBadge
       expect(find.text('invalid composition key'), findsOneWidget); // reason
@@ -440,7 +461,13 @@ void main() {
     await tester.pumpWidget(_sectionApp(client));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Set as default'));
+    final Finder setDefault = find.widgetWithText(
+      OutlinedButton,
+      'Set as default',
+    );
+    await tester.ensureVisible(setDefault);
+    await tester.pumpAndSettle();
+    await tester.tap(setDefault);
     await tester.pumpAndSettle();
 
     // The pick rode settings/update (host default for sessions created
