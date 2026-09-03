@@ -15,6 +15,7 @@ import '../../../core/session/session_provider.dart';
 import '../../../core/session/sessions_controller.dart';
 import '../../../theme/app_theme.dart';
 import '../subagent_link.dart';
+import 'subagent_provider.dart';
 
 /// Children of [parent] known from the shared sessions list, oldest first.
 List<SessionSummary> subagentChildrenOf(SessionsState state, SessionId parent) {
@@ -66,60 +67,83 @@ class SubagentCatalogAction extends ConsumerWidget {
           SubagentAddress(parentSessionId: current, childSessionId: childId),
         );
       },
-      itemBuilder: (BuildContext ctx) => <PopupMenuEntry<SessionId>>[
-        for (final SessionSummary child in children)
-          PopupMenuItem<SessionId>(
-            value: child.sessionId,
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: child.running
-                        ? aliases.stateWarnPrimary
-                        : aliases.stateSuccessPrimary,
+      itemBuilder: (BuildContext ctx) {
+        // Snapshot clock for the open timing interval of running children.
+        final int nowMs = DateTime.now().millisecondsSinceEpoch;
+        final List<PopupMenuEntry<SessionId>> entries = [];
+        for (final SessionSummary child in children) {
+          // Projection metrics present on disk only; absent rows omit the
+          // line instead of fabricating a zero.
+          final String? metrics = subagentMetricsForSummary(
+            child,
+            nowMs: nowMs,
+          );
+          entries.add(
+            PopupMenuItem<SessionId>(
+              value: child.sessionId,
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: child.running
+                          ? aliases.stateWarnPrimary
+                          : aliases.stateSuccessPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(width: DswTokens.spaceSm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        child.title ?? child.sessionId.value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: DswTokens.fontSizeS14,
-                          fontWeight: FontWeight.w500,
-                          color: aliases.labelPrimary,
+                  const SizedBox(width: DswTokens.spaceSm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          child.title ?? child.sessionId.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeS14,
+                            fontWeight: FontWeight.w500,
+                            color: aliases.labelPrimary,
+                          ),
                         ),
-                      ),
-                      Text(
-                        child.running
-                            ? 'running'
-                            : child.origin == 'subagent'
-                            ? 'subagent'
-                            : '',
-                        style: TextStyle(
-                          fontSize: DswTokens.fontSizeXxs12,
-                          color: aliases.labelTertiary,
+                        Text(
+                          child.running
+                              ? 'running'
+                              : child.origin == 'subagent'
+                              ? 'subagent'
+                              : '',
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeXxs12,
+                            color: aliases.labelTertiary,
+                          ),
                         ),
-                      ),
-                    ],
+                        if (metrics != null)
+                          Text(
+                            metrics,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: DswTokens.fontSizeXxs12,
+                              color: aliases.labelCaption,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  size: 14,
-                  color: aliases.labelCaption,
-                ),
-              ],
+                  Icon(
+                    Icons.chevron_right,
+                    size: 14,
+                    color: aliases.labelCaption,
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+          );
+        }
+        return entries;
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: DswTokens.spaceSm,

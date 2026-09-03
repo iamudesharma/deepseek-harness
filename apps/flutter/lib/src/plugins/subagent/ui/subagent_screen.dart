@@ -284,6 +284,12 @@ class _SubagentTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Projection metrics present on disk only; a child without host rows
+    // renders no metrics line instead of a fabricated zero.
+    final String? metrics = subagentMetricsLabel(
+      view,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+    );
     return Material(
       color: aliases.bgLayer2,
       borderRadius: BorderRadius.circular(DswTokens.radiusMd),
@@ -346,6 +352,18 @@ class _SubagentTile extends ConsumerWidget {
                         color: aliases.labelTertiary,
                       ),
                     ),
+                    if (metrics != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        metrics,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXxs12,
+                          color: aliases.labelCaption,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

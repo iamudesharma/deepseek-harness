@@ -362,6 +362,296 @@ void main() {
     expect(rows.map((r) => r.content), ['hello', 'read', 'done']);
     expect(rows.map((r) => r.id), ['1', '2', '3']);
   });
+
+  test(
+    'token total sums the four durable buckets; absent is unavailable, not zero',
+    () {
+      expect(subagentTokenTotal(null), isNull);
+      expect(subagentTokenTotal(const <String, dynamic>{}), isNull);
+      // A missing bucket is malformed, not zero.
+      expect(
+        subagentTokenTotal(const {
+          'uncachedInputTokens': 1,
+          'outputTokens': 2,
+          'cacheReadTokens': 3,
+        }),
+        isNull,
+      );
+      expect(
+        subagentTokenTotal(const {
+          'uncachedInputTokens': 1000,
+          'outputTokens': 500,
+          'cacheReadTokens': 10,
+          'cacheWriteTokens': 5,
+        }),
+        1515,
+      );
+      // Negative or non-numeric buckets never fabricate a total.
+      expect(
+        subagentTokenTotal(const {
+          'uncachedInputTokens': -1,
+          'outputTokens': 0,
+          'cacheReadTokens': 0,
+          'cacheWriteTokens': 0,
+        }),
+        isNull,
+      );
+      expect(
+        subagentTokenTotal(const {
+          'uncachedInputTokens': '1',
+          'outputTokens': 0,
+          'cacheReadTokens': 0,
+          'cacheWriteTokens': 0,
+        }),
+        isNull,
+      );
+    },
+  );
+
+  test('active duration closes the open interval at now while running', () {
+    // Settled-only row: no open interval to close.
+    expect(
+      subagentActiveDurationMs(
+        settledMs: 2000,
+        activeSince: null,
+        activeThrough: null,
+        running: false,
+        nowMs: 9999,
+      ),
+      2000,
+    );
+    // Running: settled + (now - since).
+    expect(
+      subagentActiveDurationMs(
+        settledMs: 1000,
+        activeSince: 5000,
+        activeThrough: 6000,
+        running: true,
+        nowMs: 8000,
+      ),
+      4000,
+    );
+    // Stopped: settled + (through - since), independent of now.
+    expect(
+      subagentActiveDurationMs(
+        settledMs: 1000,
+        activeSince: 5000,
+        activeThrough: 6000,
+        running: false,
+        nowMs: 80000,
+      ),
+      2000,
+    );
+    // No timing row: unavailable, never zero.
+    expect(
+      subagentActiveDurationMs(
+        settledMs: null,
+        activeSince: null,
+        activeThrough: null,
+        running: false,
+        nowMs: 8000,
+      ),
+      isNull,
+    );
+    // A half-present interval folds to unavailable at the reader.
+    final half = readSubagentTiming(const {
+      'settledMs': 1000,
+      'active': {'since': 5000},
+    });
+    expect(half.settledMs, isNull);
+  });
+
+  test('token formatting compacts at K/M like the stats strip', () {
+    expect(formatSubagentTokens(999), '999');
+    expect(formatSubagentTokens(1500), '1.5K');
+    expect(formatSubagentTokens(100000), '100K');
+    expect(formatSubagentTokens(2500000), '2.5M');
+  });
+
+  test('duration formatting decreases precision at larger scales', () {
+    expect(formatSubagentDuration(4000), '4s');
+    expect(formatSubagentDuration(90000), '1m 30s');
+    expect(formatSubagentDuration(3723000), '1h 02m 03s');
+    expect(formatSubagentDuration(90000000), '1d 1h');
+  });
+
+  test('metrics label joins tokens and duration; unavailable omits', () {
+    const bare = SubagentView(
+      id: 'c',
+      parentSessionId: 'p',
+      label: 'l',
+      running: false,
+      updatedAt: 0,
+    );
+    expect(subagentMetricsLabel(bare, nowMs: 0), isNull);
+
+    const timed = SubagentView(
+      id: 'c',
+      parentSessionId: 'p',
+      label: 'l',
+      running: false,
+      updatedAt: 0,
+      tokenTotal: 1515,
+      timingSettledMs: 4000,
+    );
+    expect(subagentMetricsLabel(timed, nowMs: 99999), '1.5K tok · 4s');
+  });
+
+  test('provider derives metrics from projection rows present on disk', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    const parent = SessionId('sess-parent');
+    const child = SessionId('sess-child');
+    container.read(sessionsProvider.notifier).addSession(_summary(parent));
+    container.read(sessionsProvider.notifier).addSession(
+      SessionSummary(
+        sessionId: child,
+        updatedAt: 1000,
+        running: false,
+        blank: false,
+        parentSessionId: parent,
+        origin: 'subagent',
+        projections: const SessionProjectionsBlock(
+          asOfSeq: 3,
+          values: {
+            'tokenUsage': {
+              'uncachedInputTokens': 100,
+              'outputTokens': 50,
+              'cacheReadTokens': 10,
+              'cacheWriteTokens': 5,
+            },
+            'subagentTiming': {'settledMs': 2000},
+          },
+        ),
+      ),
+    );
+
+    final views = container.read(subagentsFamilyProvider('sess-parent'));
+    expect(views, hasLength(1));
+    expect(views.single.tokenTotal, 165);
+    expect(views.single.timingSettledMs, 2000);
+    expect(subagentMetricsLabel(views.single, nowMs: 9999), '165 tok · 2s');
+  });
+
+  testWidgets('header catalog menu shows projection metrics only when present', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    const parent = SessionId('sess-parent');
+    const child = SessionId('sess-child');
+    const plain = SessionId('sess-plain');
+    SessionSummary metered(SessionId id) => SessionSummary(
+      sessionId: id,
+      updatedAt: 1000,
+      running: false,
+      blank: false,
+      title: 'Metered child',
+      parentSessionId: parent,
+      origin: 'subagent',
+      projections: const SessionProjectionsBlock(
+        asOfSeq: 3,
+        values: {
+          'tokenUsage': {
+            'uncachedInputTokens': 1000,
+            'outputTokens': 500,
+            'cacheReadTokens': 0,
+            'cacheWriteTokens': 0,
+          },
+          'subagentTiming': {'settledMs': 4000},
+        },
+      ),
+    );
+    container.read(sessionsProvider.notifier).addSession(_summary(parent));
+    container.read(sessionsProvider.notifier).addSession(metered(child));
+    container
+        .read(sessionsProvider.notifier)
+        .addSession(_summary(plain, parent: parent));
+    container.read(sessionsProvider.notifier).setCurrent(parent);
+
+    final link = SubagentLink(
+      selectSession: (id) =>
+          container.read(sessionsProvider.notifier).setCurrent(id),
+      refreshParent: (_) async {},
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(body: SubagentCatalogAction(link: link)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('2 subagents'));
+    await tester.pumpAndSettle();
+
+    // The metered row carries its on-disk metrics; the row without host
+    // rows renders no fabricated `0 tok` line.
+    expect(find.text('1.5K tok · 4s'), findsOneWidget);
+    expect(find.textContaining('tok'), findsOneWidget);
+  });
+
+  testWidgets('screen tiles show projection metrics only when present', (
+    tester,
+  ) async {
+    const parent = SessionId('sess-parent');
+    const childA = SessionId('sess-a');
+    const childB = SessionId('sess-b');
+    final state = SessionsState(
+      byId: {
+        parent: const SessionSummary(
+          sessionId: parent,
+          updatedAt: 900,
+          running: false,
+          blank: false,
+        ),
+        childA: const SessionSummary(
+          sessionId: childA,
+          updatedAt: 1100,
+          running: false,
+          blank: false,
+          title: 'Metered task',
+          parentSessionId: parent,
+          origin: 'subagent',
+          projections: SessionProjectionsBlock(
+            asOfSeq: 3,
+            values: {
+              'tokenUsage': {
+                'uncachedInputTokens': 2000000,
+                'outputTokens': 500000,
+                'cacheReadTokens': 0,
+                'cacheWriteTokens': 0,
+              },
+              'subagentTiming': {'settledMs': 90000},
+            },
+          ),
+        ),
+        childB: const SessionSummary(
+          sessionId: childB,
+          updatedAt: 1200,
+          running: false,
+          blank: false,
+          title: 'Unmetered task',
+          parentSessionId: parent,
+          origin: 'subagent',
+        ),
+      },
+    );
+
+    await tester.pumpWidget(
+      _screenApp(const SubagentScreen(sessionId: 'sess-parent'), state: state),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2.5M tok · 1m 30s'), findsOneWidget);
+    // Exactly one metrics line: the unmetered tile omits it, never zeroes it.
+    expect(find.textContaining('tok'), findsOneWidget);
+  });
 }
 
 /// Sessions controller seeded at build so the screen reads a stable snapshot
