@@ -21,9 +21,15 @@ class FeedbackItem {
 }
 
 /// Per-message feedback rows (the store is empty until a rating lands; there
-/// are no fixtures). Kept beside the controller port until the
-/// `conversation.chat.assistant-actions` hole and the `remote.messageFeedback`
-/// namespace land, at which point this surface moves into the message row.
+/// are no fixtures).
+///
+/// Superseded by the Host-durable [MessageFeedbackController] seat
+/// (`message_feedback_providers.dart`): new surfaces watch
+/// `messageFeedbackSessionProvider` and route mutations through its notifier
+/// so ratings reach Host durability. Kept for compat; do not extend.
+@Deprecated(
+  'Use messageFeedbackSessionProvider (Host-durable controller seat) instead.',
+)
 final messageFeedbackProvider =
     StateNotifierProvider<MessageFeedbackNotifier, Map<String, FeedbackItem>>(
       (ref) => MessageFeedbackNotifier(),

@@ -1,7 +1,7 @@
 import 'package:dsh_flutter/src/core/plugin/plugin_host.dart';
+import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/plugins/message_feedback/message_feedback_controller.dart';
 import 'package:dsh_flutter/src/plugins/message_feedback/message_feedback_plugin.dart';
-import 'package:dsh_flutter/src/plugins/message_feedback/message_feedback_provider.dart';
 import 'package:dsh_flutter/src/plugins/message_feedback/ui/message_feedback_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +26,7 @@ class _Call {
 class _FakeRemote implements MessageFeedbackRemote {
   final List<MessageFeedbackItem> stored = [];
   final List<_Call> calls = [];
+  int listCalls = 0;
   String? failListWith;
 
   /// Simulates a concurrent writer winning the CAS race on the next mutation.
@@ -35,6 +36,7 @@ class _FakeRemote implements MessageFeedbackRemote {
   Future<FeedbackReply<List<MessageFeedbackItem>>> list({
     required String sessionId,
   }) async {
+    listCalls++;
     if (failListWith != null) return ReplyError(failListWith!);
     return ReplyOk(List.of(stored));
   }
@@ -87,6 +89,24 @@ class _FakeRemote implements MessageFeedbackRemote {
     }
     return null;
   }
+}
+
+/// Activates the real plugin over [remote] and returns a scope container
+/// sharing the plugin's locale service: the screen then runs the production
+/// wiring (explicit remote face → `'messageFeedback'` service → activated
+/// binding → session seat) with English copy.
+Future<ProviderContainer> _activateWithRemote(_FakeRemote remote) async {
+  final container = ProviderContainer();
+  final host = PluginHost();
+  host.provide('slots', host.slots);
+  host.provide('locale', container.read(localeServiceProvider));
+  host.provide('remote.messageFeedback', remote);
+  host.register(MessageFeedbackPlugin());
+  addTearDown(host.deactivateAll);
+  addTearDown(container.dispose);
+  await host.activateAll();
+  container.read(localeServiceProvider).setLocale('en');
+  return container;
 }
 
 void main() {
@@ -227,6 +247,7 @@ void main() {
     final host = PluginHost();
     host.provide('slots', host.slots);
     host.register(MessageFeedbackPlugin());
+    addTearDown(host.deactivateAll);
     await host.activateAll();
     final controllers = host.service<MessageFeedbackControllers>(
       'messageFeedback',
@@ -240,48 +261,201 @@ void main() {
     expect(result.code, 'disposed');
   });
 
-  testWidgets('feedback rows rate and toggle through the provider surface', (
+  testWidgets('feedback screen seeds from one Host list read, then toggles durably', (
     tester,
   ) async {
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
+    final remote = _FakeRemote();
+    remote.stored.addAll([
+      const MessageFeedbackItem(
+        messageId: 'm-1',
+        rating: FeedbackRatingValue.positive,
+        version: 1,
+      ),
+      const MessageFeedbackItem(
+        messageId: 'm-2',
+        rating: FeedbackRatingValue.negative,
+        version: 2,
+      ),
+    ]);
+    final container = await _activateWithRemote(remote);
 
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MessageFeedbackScreen(sessionId: 's-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // A single list read seeds every row; both recorded rows render active.
+    expect(remote.listCalls, 1);
+    expect(find.text('No feedback yet'), findsNothing);
+    expect(find.text('m-1'), findsOneWidget);
+    expect(find.text('m-2'), findsOneWidget);
+    expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+    expect(find.byIcon(Icons.thumb_down), findsOneWidget);
+
+    // Tapping an active rating retracts it through the Host (toggle → delete
+    // commits removal); the row leaves with the recorded item and no second
+    // list read fires.
+    await tester.tap(find.byIcon(Icons.thumb_up));
+    await tester.pumpAndSettle();
+    expect(remote.stored.map((i) => i.messageId), ['m-2']);
+    expect(remote.calls.single.op, 'delete');
+    expect(remote.listCalls, 1);
+    expect(find.text('m-1'), findsNothing);
+    expect(find.text('m-2'), findsOneWidget);
+
+    // …and tapping an inactive rating commits it (toggle → put with the
+    // observed version).
+    await tester.tap(find.byIcon(Icons.thumb_up_outlined));
+    await tester.pumpAndSettle();
+    expect(
+      remote.stored.singleWhere((i) => i.messageId == 'm-2').rating,
+      FeedbackRatingValue.positive,
+    );
+    expect(remote.calls.last.op, 'put');
+    expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+  });
+
+  testWidgets('feedback note saves through rate and clears through clearNote', (
+    tester,
+  ) async {
+    final remote = _FakeRemote();
+    remote.stored.add(
+      const MessageFeedbackItem(
+        messageId: 'm-2',
+        rating: FeedbackRatingValue.positive,
+        version: 1,
+      ),
+    );
+    final container = await _activateWithRemote(remote);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MessageFeedbackScreen(sessionId: 's-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Add a note'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'helpful context');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(remote.stored.single.note, 'helpful context');
+    // The dialog closes on success; the trigger now shows the stored note.
+    expect(find.text('helpful context'), findsOneWidget);
+
+    // Emptying the editor removes the note while keeping the rating.
+    await tester.tap(find.text('helpful context'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '   ');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(remote.stored.single.note, isNull);
+    expect(remote.stored.single.rating, FeedbackRatingValue.positive);
+  });
+
+  testWidgets('a version-conflict settle reports and keeps the authoritative row', (
+    tester,
+  ) async {
+    final remote = _FakeRemote();
+    remote.stored.add(
+      const MessageFeedbackItem(
+        messageId: 'm-3',
+        rating: FeedbackRatingValue.negative,
+        version: 7,
+      ),
+    );
+    remote.forceVersionConflict = true;
+    final container = await _activateWithRemote(remote);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MessageFeedbackScreen(sessionId: 's-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.thumb_up_outlined));
+    await tester.pumpAndSettle();
+
+    // The conflict text comes from describeFeedbackFailure; the reply's
+    // authoritative row (negative, v7) stays rendered.
+    expect(find.text('feedback changed elsewhere'), findsOneWidget);
+    expect(find.byIcon(Icons.thumb_down), findsOneWidget);
+  });
+
+  testWidgets('a failed list read shows the error with a working retry', (
+    tester,
+  ) async {
+    final remote = _FakeRemote()..failListWith = 'unavailable';
+    final container = await _activateWithRemote(remote);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MessageFeedbackScreen(sessionId: 's-1')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('unavailable'), findsOneWidget);
+
+    remote.failListWith = null;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+
+    expect(remote.listCalls, 2);
+    expect(find.text('No feedback yet'), findsOneWidget);
+  });
+
+  testWidgets('without a session the screen keeps the empty state', (
+    tester,
+  ) async {
+    final container = await _activateWithRemote(_FakeRemote());
+
+    // No explicit sessionId and no current session in the fresh container.
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
         child: const MaterialApp(home: MessageFeedbackScreen()),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    // No fixtures: the store starts empty and shows the empty state.
-    expect(container.read(messageFeedbackProvider), isEmpty);
     expect(find.text('No feedback yet'), findsOneWidget);
+  });
 
-    // Seed one recorded row through the notifier, like a settled transcript
-    // would once the assistant-actions hole carries these controls.
-    container
-        .read(messageFeedbackProvider.notifier)
-        .rate('m-1', FeedbackRating.positive);
-    await tester.pump();
+  testWidgets('without a wired remote the screen stays renderable with a visible failure', (
+    tester,
+  ) async {
+    // No connection and no explicit face: the plugin wires _AbsentRemote and
+    // still registers its copy, so the failure settles visibly.
+    final container = ProviderContainer();
+    final host = PluginHost();
+    host.provide('slots', host.slots);
+    host.provide('locale', container.read(localeServiceProvider));
+    host.register(MessageFeedbackPlugin());
+    addTearDown(host.deactivateAll);
+    addTearDown(container.dispose);
+    await host.activateAll();
+    container.read(localeServiceProvider).setLocale('en');
 
-    expect(find.text('No feedback yet'), findsNothing);
-    expect(find.byIcon(Icons.thumb_up), findsOneWidget);
-
-    // Tapping the active rating retracts it (toggle semantics)…
-    await tester.tap(find.byIcon(Icons.thumb_up));
-    await tester.pump();
-    expect(
-      container.read(messageFeedbackProvider)['m-1']!.rating,
-      FeedbackRating.none,
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: MessageFeedbackScreen(sessionId: 's-1')),
+      ),
     );
+    await tester.pumpAndSettle();
 
-    // …and tapping an inactive rating commits it.
-    await tester.tap(find.byIcon(Icons.thumb_down_outlined));
-    await tester.pump();
-    expect(
-      container.read(messageFeedbackProvider)['m-1']!.rating,
-      FeedbackRating.negative,
-    );
+    expect(find.text('message feedback remote is not wired yet'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
   });
 }
