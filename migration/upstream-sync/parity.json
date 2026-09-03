@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-02T14:42:58.336Z",
-  "total": 58,
-  "pass": 49,
-  "missing": 7,
+  "generatedAt": "2026-09-03T02:52:40.015Z",
+  "total": 61,
+  "pass": 51,
+  "missing": 5,
   "outdated": 0,
   "incompatible": 0,
   "removed": 0,
-  "unknown": 2,
+  "unknown": 5,
   "entries": [
     {
       "id": "parity:session/canOpenWorkspacePath",
@@ -27,26 +27,6 @@
       "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
       "flutterSource": null,
       "reason": "React uses session/openWorkspacePath but Flutter does not call it"
-    },
-    {
-      "id": "parity:settings/canOpenAgentPresetDirectory",
-      "reactApi": "settings/canOpenAgentPresetDirectory",
-      "flutterApi": null,
-      "status": "MISSING",
-      "severity": "P2",
-      "reactSource": "packages/client/connection/src",
-      "flutterSource": null,
-      "reason": "React uses settings/canOpenAgentPresetDirectory but Flutter does not call it"
-    },
-    {
-      "id": "parity:settings/openAgentPresetDirectory",
-      "reactApi": "settings/openAgentPresetDirectory",
-      "flutterApi": null,
-      "status": "MISSING",
-      "severity": "P2",
-      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
-      "flutterSource": null,
-      "reason": "React uses settings/openAgentPresetDirectory but Flutter does not call it"
     },
     {
       "id": "parity:settings/openSettingsDocument",
@@ -86,7 +66,7 @@
       "severity": "P0",
       "reactSource": "react-contract",
       "flutterSource": null,
-      "reason": "React session/follow snapshot.cursor vs Flutter session/page sentinel cursor discovery \u2014 ARCHITECTURAL MISMATCH -> Verified: Flutter LiveHistory requires throughSeq from session/follow snapshot.cursor (see flutter:session/page-cursor)."
+      "reason": "React session/follow snapshot.cursor vs Flutter session/page sentinel cursor discovery \u2014 ARCHITECTURAL MISMATCH -> Verified: Flutter LiveHistory requires throughSeq from session/follow snapshot.cursor (flutter:session/page-cursor)."
     },
     {
       "id": "parity:arch:agentPreset-selected-event",
@@ -96,7 +76,37 @@
       "severity": "P1",
       "reactSource": "react-contract",
       "flutterSource": null,
-      "reason": "React agentPreset selected event updates session state via events; Flutter must consume same event (event ignored \u2192 STATE/PARITY MISMATCH) -> Audited: Flutter connection_controller consumes agentPreset selected via events.mux; no parity mismatch observed in sidebar."
+      "reason": "React agentPreset selected event updates session state via events; Flutter must consume same event (event ignored \u2192 STATE/PARITY MISMATCH) -> Audited: Flutter consumes agentPreset selected via events.mux; sidebar verification 2026-09-02."
+    },
+    {
+      "id": "parity:flutter-only:messageFeedback/delete",
+      "reactApi": "messageFeedback/delete",
+      "flutterApi": "messageFeedback/delete",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
+      "reason": "Flutter uses messageFeedback/delete not found in React surfaces; verify if deprecated or new -> Expected: React consumes via typed ctx.remote.messageFeedback face (not string literals, so extractor misses it); Host namespace messageFeedback exists; Flutter wired via ConnectionClientMessageFeedbackRemote 2026-09-03."
+    },
+    {
+      "id": "parity:flutter-only:messageFeedback/list",
+      "reactApi": "messageFeedback/list",
+      "flutterApi": "messageFeedback/list",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
+      "reason": "Flutter uses messageFeedback/list not found in React surfaces; verify if deprecated or new -> Expected: React consumes via typed ctx.remote.messageFeedback face (not string literals, so extractor misses it); Host namespace messageFeedback exists; Flutter wired via ConnectionClientMessageFeedbackRemote 2026-09-03."
+    },
+    {
+      "id": "parity:flutter-only:messageFeedback/put",
+      "reactApi": "messageFeedback/put",
+      "flutterApi": "messageFeedback/put",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
+      "reason": "Flutter uses messageFeedback/put not found in React surfaces; verify if deprecated or new -> Expected: React consumes via typed ctx.remote.messageFeedback face (not string literals, so extractor misses it); Host namespace messageFeedback exists; Flutter wired via ConnectionClientMessageFeedbackRemote 2026-09-03."
     },
     {
       "id": "parity:agentPresets/copy",
@@ -479,6 +489,16 @@
       "reason": "React and Flutter both use session/updateQueue"
     },
     {
+      "id": "parity:settings/canOpenAgentPresetDirectory",
+      "reactApi": "settings/canOpenAgentPresetDirectory",
+      "flutterApi": "settings/canOpenAgentPresetDirectory",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/src",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use settings/canOpenAgentPresetDirectory"
+    },
+    {
       "id": "parity:settings/describe",
       "reactApi": "settings/describe",
       "flutterApi": "settings/describe",
@@ -497,6 +517,16 @@
       "reactSource": "packages/client/connection/src",
       "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
       "reason": "React and Flutter both use settings/mutate"
+    },
+    {
+      "id": "parity:settings/openAgentPresetDirectory",
+      "reactApi": "settings/openAgentPresetDirectory",
+      "flutterApi": "settings/openAgentPresetDirectory",
+      "status": "PASS",
+      "severity": "P3",
+      "reactSource": "packages/client/connection/tests/node-half.host.spec.ts",
+      "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
+      "reason": "React and Flutter both use settings/openAgentPresetDirectory"
     },
     {
       "id": "parity:skills/list",

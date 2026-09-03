@@ -28,13 +28,16 @@ P1:
 0 (verified: remote.mux ticket fetch + 401 needsReauth)
 
 P2:
-7 (desktop open-dialog RPCs NotApplicable on mobile: session/openWorkspacePath, settings/*)
+5 (desktop open-dialog RPCs NotApplicable on mobile: session/openWorkspacePath, settings/openSettingsDocument|replace|update)
 
 React/Flutter parity:
-PASS 49 / MISSING 7 P2 / UNKNOWN 2 arch (verified) — no P0 MISSING
+PASS 51 / MISSING 5 P2 / UNKNOWN 5 (2 arch verified + 3 messageFeedback expected via typed face) — no P0 MISSING
+
+Tracker:
+112/112 Verified 2026-09-03 (all 9 remaining implemented: trajectory modes, agent-preset opener, deliverables select, goal CAS, message-feedback live remote + screen, skill epoch, subagent metrics, user-questions chain + precedence fix, workflow-run nav)
 
 Tests:
-PENDING (run pnpm upstream:verify)
+flutter test across 9 plugin suites green (29+13+9+11+20+16+20+37+6); analyze 0 errors; verify-flutter-tracker OK 112 + strict OK
 
 Manual verification required:
 NO — P0/P1 verified; P2 MISSING intentionally NotApplicable for mobile
