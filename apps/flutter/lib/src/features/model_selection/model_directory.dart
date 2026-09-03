@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection_client.dart';
+import '../../core/services/remote_event_bus.dart';
 import '../../core/session/session_models.dart';
 
 /// Model selection for next step — mirrors `ModelSelection` in `dsh-api-remotes/client`.
@@ -143,30 +145,66 @@ class ModelDirectory extends StateNotifier<ModelDirectoryState> {
     if (_disposed) return <String, dynamic>{};
     state = state.copyWith(status: 'loading', clearError: true);
     try {
-      // New global catalog (session/modelCatalog) + per-session current is now
-      // derived from the modelSelection projection, but the old session.models
-      // with sessionId still returns the per-session directory for backward compat
-      // on hosts that haven't yet migrated. Try the new global catalog first,
-      // fall back to the old per-session call.
-      late Map<String, dynamic> value;
+      final value = await _readRaw();
+      if (_disposed || gen != _generation) return value;
+      state = _applyRaw(value, fallbackCurrent: null);
+      return value;
+    } catch (e) {
+      if (_disposed || gen != _generation) rethrow;
+      state = state.copyWith(status: 'error', error: e.toString());
+      rethrow;
+    }
+  }
+
+  /// Background refresh mirroring React `ModelCatalogDirectory.refresh()`:
+  /// re-reads the Host catalog after a model-input push event while keeping
+  /// the last-good groups on screen (added models appear, removed ones
+  /// leave). Failures keep the last-good list and record the error for the
+  /// menu's Retry strip. Dropped while a selection is in flight (that
+  /// response is authoritative) and while never loaded (open fresh-loads).
+  Future<void> refresh() async {
+    if (_disposed || state.status == 'idle') return;
+    late Map<String, dynamic> value;
+    try {
+      value = await _readRaw();
+    } catch (e) {
+      if (_disposed) return;
+      state = state.copyWith(error: e.toString());
+      return;
+    }
+    if (_disposed || state.status == 'selecting') return;
+    state = _applyRaw(value, fallbackCurrent: state.current);
+  }
+
+  /// Generation reset mirroring React `connection/reset`: drop in-flight
+  /// work and reload when previously loaded (an idle directory fresh-loads
+  /// on open, so it needs no reset).
+  void resetConnected() {
+    if (_disposed) return;
+    ++_generation;
+    if (state.status == 'idle') return;
+    // ignore: discarded_futures
+    refresh();
+  }
+
+  /// Shared fetch: new global catalog first, old per-session call as fallback.
+  Future<Map<String, dynamic>> _readRaw() async {
+    // New global catalog (session/modelCatalog) + per-session current is now
+    // derived from the modelSelection projection, but the old session.models
+    // with sessionId still returns the per-session directory for backward compat
+    // on hosts that haven't yet migrated. Try the new global catalog first,
+    // fall back to the old per-session call.
+    late Map<String, dynamic> value;
+    try {
+      final catalog = await _client.sessionModelCatalog();
+      // catalog has {default, groups, failures, routableProviders}
+      // For per-session current, we need the session's modelSelection projection.
+      // If the host still supports the old session.models, prefer it for current.
       try {
-        final catalog = await _client.sessionModelCatalog();
-        // catalog has {default, groups, failures, routableProviders}
-        // For per-session current, we need the session's modelSelection projection.
-        // If the host still supports the old session.models, prefer it for current.
-        try {
-          final perSession = await _client.sessionModels(sessionId: _sessionId.value);
-          if (perSession.containsKey('current') || perSession.containsKey('groups')) {
-            value = perSession;
-          } else {
-            value = {
-              'current': catalog['default'],
-              'groups': catalog['groups'],
-              'failures': catalog['failures'],
-              'routable': (catalog['routableProviders'] as List?)?.isNotEmpty ?? false,
-            };
-          }
-        } catch (_) {
+        final perSession = await _client.sessionModels(sessionId: _sessionId.value);
+        if (perSession.containsKey('current') || perSession.containsKey('groups')) {
+          value = perSession;
+        } else {
           value = {
             'current': catalog['default'],
             'groups': catalog['groups'],
@@ -175,39 +213,49 @@ class ModelDirectory extends StateNotifier<ModelDirectoryState> {
           };
         }
       } catch (_) {
-        // Fallback to old per-session endpoint if global catalog is not yet available
-        value = await _client.sessionModels(sessionId: _sessionId.value);
+        value = {
+          'current': catalog['default'],
+          'groups': catalog['groups'],
+          'failures': catalog['failures'],
+          'routable': (catalog['routableProviders'] as List?)?.isNotEmpty ?? false,
+        };
       }
-      if (_disposed || gen != _generation) return value;
-      final currentJson = value['current'] as Map?;
-      final current = currentJson == null
-          ? null
-          : ModelSelection(
-              provider: currentJson['provider'] as String? ?? '',
-              model: currentJson['model'] as String? ?? '',
-              reasoningEffort: currentJson['reasoningEffort'] as String?,
-            );
-      final groups = (value['groups'] as List<dynamic>? ?? [])
-          .whereType<Map>()
-          .map((e) => ModelProviderGroup.fromJson(e.cast<String, dynamic>()))
-          .toList();
-      final failures = value['failures'] as List<dynamic>? ?? [];
-      final routable = value['routable'] as bool?;
-      state = state.copyWith(
-        current: current,
-        clearCurrent: current == null,
-        routable: routable,
-        groups: groups,
-        failures: failures,
-        status: 'ready',
-        clearError: true,
-      );
-      return value;
-    } catch (e) {
-      if (_disposed || gen != _generation) rethrow;
-      state = state.copyWith(status: 'error', error: e.toString());
-      rethrow;
+    } catch (_) {
+      // Fallback to old per-session endpoint if global catalog is not yet available
+      value = await _client.sessionModels(sessionId: _sessionId.value);
     }
+    return value;
+  }
+
+  /// Shared parse: per-session `current`, else the catalog `default`, else
+  /// the caller's fallback (null on first load, last-good on refresh).
+  ModelDirectoryState _applyRaw(
+    Map<String, dynamic> value, {
+    required ModelSelection? fallbackCurrent,
+  }) {
+    final currentJson = value['current'] as Map?;
+    final current = currentJson == null
+        ? fallbackCurrent
+        : ModelSelection(
+            provider: currentJson['provider'] as String? ?? '',
+            model: currentJson['model'] as String? ?? '',
+            reasoningEffort: currentJson['reasoningEffort'] as String?,
+          );
+    final groups = (value['groups'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) => ModelProviderGroup.fromJson(e.cast<String, dynamic>()))
+        .toList();
+    final failures = value['failures'] as List<dynamic>? ?? [];
+    final routable = value['routable'] as bool?;
+    return state.copyWith(
+      current: current,
+      clearCurrent: current == null,
+      routable: routable,
+      groups: groups,
+      failures: failures,
+      status: 'ready',
+      clearError: true,
+    );
   }
 
   Future<void> select(ModelSelection selection) async {
@@ -314,6 +362,30 @@ final modelDirectoryProvider =
       final client = ref.watch(connectionClientProvider);
       final dir = ModelDirectory(client, SessionId(sessionId));
       ref.onDispose(dir.dispose);
+      // React parity (`ui-model-selection/service.ts`): the catalog refreshes
+      // on llm/adapters-updated, settings/document-updated, and
+      // credentials/reference-updated, and resets on connection/reset. The bus
+      // is fed by live_sync's host/remote-event fanout. Refresh self-guards
+      // idle directories (open fresh-loads anyway).
+      final bus = ref.read(remoteBusProvider);
+      void refreshIfLoaded() {
+        // ignore: discarded_futures
+        dir.refresh();
+      }
+
+      final unsubs = <VoidCallback>[
+        bus.$on('llm/adapters-updated', (_) => refreshIfLoaded()),
+        bus.$on('settings/document-updated', (_) => refreshIfLoaded()),
+        bus.$on('credentials/reference-updated', (_) => refreshIfLoaded()),
+      ];
+      ref.onDispose(() {
+        for (final unsub in unsubs) {
+          unsub();
+        }
+      });
+      ref.listen<ConnectionState>(connectionStateProvider, (prev, next) {
+        if (next == ConnectionState.connected) dir.resetConnected();
+      });
       // Auto-load on first watch like React's `load()` on open.
       Future.microtask(() => dir.load().then((_) {}, onError: (_) {}));
       return dir;

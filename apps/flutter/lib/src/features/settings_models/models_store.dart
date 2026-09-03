@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection_client.dart';
 import '../../core/connection/connection_controller.dart';
+import '../../core/services/remote_event_bus.dart';
 
 /// Status of the models settings page load.
 enum ModelsSettingsStatus { idle, loading, ready, error }
@@ -221,14 +222,21 @@ class ModelsSettingsController extends Notifier<ModelsSettingsState> {
       load();
     }
 
-    // Listen to $events emit via RemoteEventBus for the three push invalidations.
-    // In new remote.mux, these are forwarded as `emit` frames with same event names.
-    // For now, also refresh on any remote-event; the bus is fed by connection_controller's
-    // _handleRemoteEmit which already dispatches via onHostEnvelope synthetic host/remote-event.
-    // Keep a no-op subscription to preserve lifecycle; actual refresh is via connectionState.
-    // TODO: wire to RemoteEventBus.$on('llm/adapters-updated' ...) when bus is exposed here.
-    // For now, rely on connectionState connected to refresh.
-    ref.onDispose(() {});
+    // Push invalidations (React `ui-model-selection/service.ts`): the host
+    // announces model-input changes over the forwarded remote-event bus
+    // (fed by connection_controller's host/remote-event fanout). Refresh the
+    // provider directory when it has been loaded once (idle guard).
+    final bus = ref.read(remoteBusProvider);
+    final unsubs = <VoidCallback>[
+      bus.$on('llm/adapters-updated', (_) => refreshIfLoaded()),
+      bus.$on('settings/document-updated', (_) => refreshIfLoaded()),
+      bus.$on('credentials/reference-updated', (_) => refreshIfLoaded()),
+    ];
+    ref.onDispose(() {
+      for (final unsub in unsubs) {
+        unsub();
+      }
+    });
 
     // Also refresh on reconnect (connection/reset equivalent) — when the
     // FlutterConnectionController goes connected, the host may have new

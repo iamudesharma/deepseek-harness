@@ -2441,9 +2441,10 @@
       "apps/flutter/test/plugins/permission_model_plan_test.dart",
       "apps/flutter/test/plugins/conversation_integration_test.dart",
       "apps/flutter/test/plugins/conversation_nodes_test.dart",
-      "apps/flutter/test/unit/live_sync_test.dart"
+      "apps/flutter/test/unit/live_sync_test.dart",
+      "apps/flutter/test/features/settings/model_sync_test.dart"
     ],
-    "notes": "ui-model-selection plugin: model locale dictionaries, ModelDirectoryService (modelDirectories) owning per-session ModelDirectory stores over session.models/session.selectModel, and the conversation.input.model seat (ModelSeat) installed via slots.inject wait-and-follow. /model command-popup entry deferred until a Dart commandUi service exists.",
+    "notes": "ui-model-selection plugin: model locale dictionaries, ModelDirectoryService (modelDirectories) owning per-session ModelDirectory stores over session.models/session.selectModel, and the conversation.input.model seat (ModelSeat) installed via slots.inject wait-and-follow. /model command-popup entry deferred until a Dart commandUi service exists. 2026-09-04 catalog sync parity: ModelDirectory.refresh/resetConnected re-read session/modelCatalog on llm/adapters-updated, settings/document-updated, credentials/reference-updated + reconnect (service.ts parity); last-good kept on failure with retry error.",
     "reactPackage": "ui-model-selection",
     "responsibility": "Model selection in conversation surfaces",
     "replacementType": "direct",
@@ -2910,9 +2911,10 @@
       "apps/flutter/test/plugins/conversation_integration_test.dart",
       "apps/flutter/test/plugins/conversation_nodes_test.dart",
       "apps/flutter/test/unit/live_sync_test.dart",
-      "apps/flutter/test/integration/composer_contract_test.dart"
+      "apps/flutter/test/integration/composer_contract_test.dart",
+      "apps/flutter/test/features/settings/model_sync_test.dart"
     ],
-    "notes": "Composer seat widget: trigger shows host-reported current selection, menu over provider-grouped directory, failure rows listed but never selectable; state read through the shared seatDirectoryProvider over the activated modelDirectories service. Composer-side interactive dropdown lives in conversation/ui/composer.dart _LiveModelDropdown over the same per-session directory service; payload contract (provider/model/reasoningEffort default+preserve+clear, empty catalog renders no synthesized rows) is pinned by composer_contract_test.dart; live-host transcript in evidence/2026-08-27-live-model-select-transcript.json.",
+    "notes": "Composer seat widget: trigger shows host-reported current selection, menu over provider-grouped directory, failure rows listed but never selectable; state read through the shared seatDirectoryProvider over the activated modelDirectories service. Composer-side interactive dropdown lives in conversation/ui/composer.dart _LiveModelDropdown over the same per-session directory service; payload contract (provider/model/reasoningEffort default+preserve+clear, empty catalog renders no synthesized rows) is pinned by composer_contract_test.dart; live-host transcript in evidence/2026-08-27-live-model-select-transcript.json. 2026-09-04 catalog sync parity: ModelDirectory.refresh/resetConnected re-read session/modelCatalog on llm/adapters-updated, settings/document-updated, credentials/reference-updated + reconnect (service.ts parity); last-good kept on failure with retry error.",
     "reactPackage": "ui-model-selection",
     "responsibility": "ModelSelect",
     "replacementType": "direct",
@@ -4415,9 +4417,10 @@
       "apps/flutter/test/plugins/permission_model_plan_test.dart",
       "apps/flutter/test/plugins/conversation_integration_test.dart",
       "apps/flutter/test/plugins/conversation_nodes_test.dart",
-      "apps/flutter/test/unit/live_sync_test.dart"
+      "apps/flutter/test/unit/live_sync_test.dart",
+      "apps/flutter/test/features/settings/model_sync_test.dart"
     ],
-    "notes": "ModelsSettingsPlugin publishes settings.models service with the ui-onboarding welcome-notice acknowledgement scope (welcomeNoticeVersion fence). Provider-editor store keeps its existing wire-backed implementation until re-home; Models section registration deferred with the settings shell holes; no settingsSchema face in Dart yet.",
+    "notes": "ModelsSettingsPlugin publishes settings.models service with the ui-onboarding welcome-notice acknowledgement scope (welcomeNoticeVersion fence). Provider-editor store keeps its existing wire-backed implementation until re-home; Models section registration deferred with the settings shell holes; no settingsSchema face in Dart yet. 2026-09-04 push invalidation: provider directory reloads on the three remote-event pushes (TODO wired) + reconnect.",
     "reactPackage": "ui-settings-models",
     "responsibility": "Model provider onboarding",
     "replacementType": "direct",
