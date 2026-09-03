@@ -3552,14 +3552,14 @@
     "category": "screen",
     "source": "packages/client/ui-trajectory/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/trajectory/trajectory_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "screen.conversation"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3569,13 +3569,13 @@
       "apps/flutter/test/plugins/ws_chat/trajectory_fold_test.dart",
       "apps/flutter/test/plugins/trajectory/trajectory_ledger_test.dart"
     ],
-    "notes": "ui-trajectory plugin: wait-and-follow contribution onto conversation.view (id trajectory, order 10) plus the provider-backed timeline screen routed at /sessions/:sid/trajectory. The history fold (turn/start-end envelopes, user-boundary fallback, status derivation, time-window tool joining) is pure and fold-tested. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/trajectory/** (infos only curly_braces/prefer_interpolation, no errors); flutter test test/plugins/ws_chat/trajectory_plugin_test.dart + trajectory_fold_test.dart 8/8 pass. Visual stays partial per tracker v1.1 honest partial rule: Flutter trajectory_screen.dart (1389 LOC) implements toolbar 32px + timeline 50px 3-lane (lane 0 user/context/system, 1 compacted/message, 2 tool/subtool via _laneForKind) + ledger 30px rows (122px Event + flex Content) + _DetailsPane 380px + kind pills 76->19 @620 + turnRail 2px + selectionRail 3px per views.module.css, deriveTimeline with equal vs actual modes and viewport zoom via wheel+drag anchor and earlier-history loadOlder; but uses ListView without virtualization (React virtual rows + 16 head/tail overscan) and timeline<->ledger sync via selectionIndex + pendingFocusIndex without windowing \u2014 ListView without virtual rows, timeline without 16 head/tail honest gap. Behavior is partial: ledgerFromHistory approximates deriveTrajectoryLayout+flattenRecords but is host-history based (no conversation-node fold yet: React maps ConversationNode definitions assistant/tool/message/request-header/compaction via flattenRecords) \u2014 turn envelopes pure and tested, time-window tool joining correct, but still awaiting conversation-node fold for full parity. Host authority preserved: trajectoryProvider family over liveHistoryProvider (authoritative snapshot + live appends via liveHistoryProvider cursor throughSeq), not session/page probe (no synthetic throughSeq=-1), trajectory_plugin queues conversation.view slot order 10 until shell declares hole \u2014 wait-and-follow correct, no duplicate stores, no blanket dot-slash (_wireEndpoint via ConnectionClient).",
+    "notes": "ui-trajectory plugin: wait-and-follow contribution onto conversation.view (id trajectory, order 10) plus the provider-backed timeline screen routed at /sessions/:sid/trajectory. The history fold (turn/start-end envelopes, user-boundary fallback, status derivation, time-window tool joining) is pure and fold-tested. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/trajectory/** (infos only curly_braces/prefer_interpolation, no errors); flutter test test/plugins/ws_chat/trajectory_plugin_test.dart + trajectory_fold_test.dart 8/8 pass. Visual stays partial per tracker v1.1 honest partial rule: Flutter trajectory_screen.dart (1389 LOC) implements toolbar 32px + timeline 50px 3-lane (lane 0 user/context/system, 1 compacted/message, 2 tool/subtool via _laneForKind) + ledger 30px rows (122px Event + flex Content) + _DetailsPane 380px + kind pills 76->19 @620 + turnRail 2px + selectionRail 3px per views.module.css, deriveTimeline with equal vs actual modes and viewport zoom via wheel+drag anchor and earlier-history loadOlder; but uses ListView without virtualization (React virtual rows + 16 head/tail overscan) and timeline<->ledger sync via selectionIndex + pendingFocusIndex without windowing \u2014 ListView without virtual rows, timeline without 16 head/tail honest gap. Behavior is partial: ledgerFromHistory approximates deriveTrajectoryLayout+flattenRecords but is host-history based (no conversation-node fold yet: React maps ConversationNode definitions assistant/tool/message/request-header/compaction via flattenRecords) \u2014 turn envelopes pure and tested, time-window tool joining correct, but still awaiting conversation-node fold for full parity. Host authority preserved: trajectoryProvider family over liveHistoryProvider (authoritative snapshot + live appends via liveHistoryProvider cursor throughSeq), not session/page probe (no synthetic throughSeq=-1), trajectory_plugin queues conversation.view slot order 10 until shell declares hole \u2014 wait-and-follow correct, no duplicate stores, no blanket dot-slash (_wireEndpoint via ConnectionClient). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: virtualization + full deriveTrajectoryLayout fidelity (Conversation Node assembly) deferred.",
     "reactPackage": "ui-trajectory",
     "responsibility": "Timeline/Table/Cell/Turn, alternate view of agent activity",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3594,11 +3594,11 @@
       "open a session with settled turns and select the trajectory view: the timeline folds turn envelopes or user boundaries from session history"
     ],
     "evidence": {
-      "testsRun": "flutter analyze --no-pub lib/src/plugins/trajectory/trajectory_provider.dart lib/src/plugins/trajectory/ui/trajectory_screen.dart (0 errors, infos only curly_braces/prefer_interpolation); flutter test test/plugins/ws_chat/trajectory_plugin_test.dart test/plugins/ws_chat/trajectory_fold_test.dart (8/8 pass)",
+      "testsRun": "flutter analyze --no-pub lib/src/plugins/trajectory/trajectory_provider.dart lib/src/plugins/trajectory/ui/trajectory_screen.dart (0 errors, infos only curly_braces/prefer_interpolation); flutter test test/plugins/ws_chat/trajectory_plugin_test.dart test/plugins/ws_chat/trajectory_fold_test.dart (8/8 pass); 2026-09-03 verify: flutter test trajectory_plugin + trajectory_fold + trajectory_ledger 29/29 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3623,14 +3623,14 @@
     "category": "screen",
     "source": "packages/client/ui-agent-preset/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/agent_preset/agent_preset_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3639,13 +3639,13 @@
       "apps/flutter/test/plugins/ws_agent/agent_preset_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-agent-preset plugin: settings.agentPreset dictionaries and the header label; the roster screen parses presets plus authorable/hasDocument from one agentPreset.list call, groups cards by trust with broken/in-use badges, reads compositions through agentPreset.read, and creates/deletes through agentPreset.copy/remove gated on authorable (React section-store rules). The General settings row and new-session hero chip need the settings.general.item / conversation.hero holes and register when those shells land; openLocation needs the native opener face. 2026-09-02 audit: Flutter files exist for all three React surfaces (Label/Seat/Section); hero/label compose via slotOutlet correctly, section screen exists but settings.section hole not yet declared in SettingsPlugin so wait-and-follow queued \u2014 visual partial (primitives covered, composition hole pending), behavior partial (roster+copy/remove/select correct, openLocation native opener deferred). 2026-09-02 verification: Host wires exact slash via _wireEndpoint (agentPresets/list, agentPresets/read, agentPresets/copy, agentPresets/deletePreset, agentPresets/select \u2014 no dot fallback, no synthetic roster fallback), no duplicate store (agentPresetListProvider single source, synthetic StateProvider removed), no second DSH/event loop.",
+    "notes": "ui-agent-preset plugin: settings.agentPreset dictionaries and the header label; the roster screen parses presets plus authorable/hasDocument from one agentPreset.list call, groups cards by trust with broken/in-use badges, reads compositions through agentPreset.read, and creates/deletes through agentPreset.copy/remove gated on authorable (React section-store rules). The General settings row and new-session hero chip need the settings.general.item / conversation.hero holes and register when those shells land; openLocation needs the native opener face. 2026-09-02 audit: Flutter files exist for all three React surfaces (Label/Seat/Section); hero/label compose via slotOutlet correctly, section screen exists but settings.section hole not yet declared in SettingsPlugin so wait-and-follow queued \u2014 visual partial (primitives covered, composition hole pending), behavior partial (roster+copy/remove/select correct, openLocation native opener deferred). 2026-09-02 verification: Host wires exact slash via _wireEndpoint (agentPresets/list, agentPresets/read, agentPresets/copy, agentPresets/deletePreset, agentPresets/select \u2014 no dot fallback, no synthetic roster fallback), no duplicate store (agentPresetListProvider single source, synthetic StateProvider removed), no second DSH/event loop. 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: settings.general.item/section holes + hero chip composition deferred to shell workstream.",
     "reactPackage": "ui-agent-preset",
     "responsibility": "AgentPresetSection/Row/Seat",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3665,11 +3665,11 @@
       "copy a shipped preset into a custom one, then delete the copy through the confirmed remove path"
     ],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/agent_preset_plugin_test.dart apps/flutter/test/plugins/ws_agent/agent_preset_hero_seat_test.dart apps/flutter/test/plugins/agent_preset/hero_selection_parity_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/agent_preset_plugin_test.dart apps/flutter/test/plugins/ws_agent/agent_preset_hero_seat_test.dart apps/flutter/test/plugins/agent_preset/hero_selection_parity_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test agent_preset_plugin 13/13 + hero_seat/selection 25/25 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3763,14 +3763,14 @@
     "category": "screen",
     "source": "packages/client/ui-deliverables/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/deliverables/deliverables_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3780,13 +3780,13 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-deliverables plugin: deliverables locale dictionaries and the chatFileMentions service (inline-code token resolution by exact path or unique basename; shared basenames stay inert). ProducedFilesRow keeps the six-chip cap, counted remainder, and canOpenPath-gated Show-in-folder. The turn-tail chain entry and the produced-paths fold land when the Dart conversation hub grows those seams; composing the plugin out removes the vocabulary at zero cost to the owning view. 2026-09-02 audit: behavior partial \u2014 mention resolver + row widget correct, but turn-tail selector selectProducedFiles not yet wired to conversation hub (hub lacks turnTail chain); visual partial \u2014 row uses shared primitives, file basename chips match css; no duplicate store. 2026-09-02 verification: deliverables_plugin.dart provides chatFileMentions service, ProducedFilesRow 6-chip cap +N via same resolver, conversation.chat.turnTail deferred until hub declares seam \u2014 composing plugin out removes vocabulary at zero cost; Host exact slash via _wireEndpoint not yet needed (no Host call until turn-tail lands), no synthetic fallback, no duplicate store; visual partial honest (row uses DswTokens primitives, turn-tail composition hole pending, no fabricated golden).",
+    "notes": "ui-deliverables plugin: deliverables locale dictionaries and the chatFileMentions service (inline-code token resolution by exact path or unique basename; shared basenames stay inert). ProducedFilesRow keeps the six-chip cap, counted remainder, and canOpenPath-gated Show-in-folder. The turn-tail chain entry and the produced-paths fold land when the Dart conversation hub grows those seams; composing the plugin out removes the vocabulary at zero cost to the owning view. 2026-09-02 audit: behavior partial \u2014 mention resolver + row widget correct, but turn-tail selector selectProducedFiles not yet wired to conversation hub (hub lacks turnTail chain); visual partial \u2014 row uses shared primitives, file basename chips match css; no duplicate store. 2026-09-02 verification: deliverables_plugin.dart provides chatFileMentions service, ProducedFilesRow 6-chip cap +N via same resolver, conversation.chat.turnTail deferred until hub declares seam \u2014 composing plugin out removes vocabulary at zero cost; Host exact slash via _wireEndpoint not yet needed (no Host call until turn-tail lands), no synthetic fallback, no duplicate store; visual partial honest (row uses DswTokens primitives, turn-tail composition hole pending, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: turnTail chain seam in Dart hub deferred.",
     "reactPackage": "ui-deliverables",
     "responsibility": "ProducedFiles",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3803,11 +3803,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/deliverables_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/deliverables_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test deliverables_plugin 9/9 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3832,14 +3832,14 @@
     "category": "screen",
     "source": "packages/client/ui-goal/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/goal/goal_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -3849,13 +3849,13 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-goal plugin: goal locale dictionaries, the keyed command-input chat-node renderer (the /goal input bubble), and the composer dock (id goal, the conversation.input.dock entry analog). Mutations carry exact wire methods goal.edit/pause/resume/clear with the CAS ref read from the session's projected goal at call time over ConnectionClient.callMethod (no typed remote.goals face yet); the projection read is a constructor-bound GoalProjectionSource standing in for useProjection('goal') \u2014 unwired boots render nothing. Goal creation stays on the /goal host command; tool-workflow fold and turn-tail seams land with their runtime rows. 2026-09-02 audit: visual partial \u2014 dock/command-input views exist and use primitives but no golden; behavior partial \u2014 mutations carry exact wire methods and CAS, projection read is bound source; creation stays on /goal host command as React; tool-workflow fold deferred with runtime row. 2026-09-02 verification: goal_plugin.dart + goal_control.dart goals/edit|pause|resume|clear via callMethod with agentId+ref CAS via _wireEndpoint slash (goals/*), no dot, no synthetic fallback, no duplicate store; locale dictionaries registered, command-input renderer + dock strip via hub renderers.register/registerDock wait-and-follow; visual partial honest (dock uses DswTokens primitives, composition hole pending, no fabricated golden).",
+    "notes": "ui-goal plugin: goal locale dictionaries, the keyed command-input chat-node renderer (the /goal input bubble), and the composer dock (id goal, the conversation.input.dock entry analog). Mutations carry exact wire methods goal.edit/pause/resume/clear with the CAS ref read from the session's projected goal at call time over ConnectionClient.callMethod (no typed remote.goals face yet); the projection read is a constructor-bound GoalProjectionSource standing in for useProjection('goal') \u2014 unwired boots render nothing. Goal creation stays on the /goal host command; tool-workflow fold and turn-tail seams land with their runtime rows. 2026-09-02 audit: visual partial \u2014 dock/command-input views exist and use primitives but no golden; behavior partial \u2014 mutations carry exact wire methods and CAS, projection read is bound source; creation stays on /goal host command as React; tool-workflow fold deferred with runtime row. 2026-09-02 verification: goal_plugin.dart + goal_control.dart goals/edit|pause|resume|clear via callMethod with agentId+ref CAS via _wireEndpoint slash (goals/*), no dot, no synthetic fallback, no duplicate store; locale dictionaries registered, command-input renderer + dock strip via hub renderers.register/registerDock wait-and-follow; visual partial honest (dock uses DswTokens primitives, composition hole pending, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: live goal projection fan-out + typed remote.goals face deferred.",
     "reactPackage": "ui-goal",
     "responsibility": "GoalBar/GoalCommandInput",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3872,11 +3872,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/goal_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/goal_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test goal_plugin 11/11 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4040,14 +4040,14 @@
     "category": "screen",
     "source": "packages/client/ui-message-feedback/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4056,13 +4056,13 @@
       "apps/flutter/test/plugins/ws_chat/message_feedback_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "Controller port complete against ui-message-feedback/controller.ts: observed-version CAS puts, toggle retract-vs-replace decided inside serialized mutations, conflict replies committing the carried row, note keep/clear asymmetry, disposal refusing further work. No Dart carrier carries remote.messageFeedback yet, so activation binds a declared-unavailable remote and mutations settle visibly; demo fixtures and the synthetic load delay are removed. Controls render as a standalone list until the assistant-actions hole lands. 2026-09-02 audit: behavior partial \u2014 controller logic complete and tested, remote face absent; visual partial \u2014 controls use DisclosureRow + Ds primitives but render outside assistant row until hole lands, no golden yet. 2026-09-02 verification: message_feedback_plugin.dart MessageFeedbackControllers map SessionId->controller, provides service messageFeedback, _AbsentRemote reports unavailable instead of throw so UI stays renderable; controller observed-version CAS puts, toggle retract-vs-replace inside serialized mutations, conflict replies committing carried row, note keep/clear asymmetry, disposal refusing further work; no synthetic demo fixtures, no duplicate store; visual partial honest (DisclosureRow + Ds primitives, assistant-actions hole pending, no fabricated golden). 2026-09-03 remote wired: ConnectionClientMessageFeedbackRemote live via callMethod messageFeedback/list|put|delete slash (sessionId/messageId/rating/note?/ifVersion per types.ts), version-conflict carries current, RpcErrorCode extended with target-not-found/version-conflict/note-blank/note-too-large; MessageFeedbackControllers now bind live remote in prod (explicit remote preferred in tests, _AbsentRemote fallback). Screen still renders local messageFeedbackProvider \u2014 controllers-to-screen migration pending, so behavior stays partial honest.",
+    "notes": "Controller port complete against ui-message-feedback/controller.ts: observed-version CAS puts, toggle retract-vs-replace decided inside serialized mutations, conflict replies committing the carried row, note keep/clear asymmetry, disposal refusing further work. No Dart carrier carries remote.messageFeedback yet, so activation binds a declared-unavailable remote and mutations settle visibly; demo fixtures and the synthetic load delay are removed. Controls render as a standalone list until the assistant-actions hole lands. 2026-09-02 audit: behavior partial \u2014 controller logic complete and tested, remote face absent; visual partial \u2014 controls use DisclosureRow + Ds primitives but render outside assistant row until hole lands, no golden yet. 2026-09-02 verification: message_feedback_plugin.dart MessageFeedbackControllers map SessionId->controller, provides service messageFeedback, _AbsentRemote reports unavailable instead of throw so UI stays renderable; controller observed-version CAS puts, toggle retract-vs-replace inside serialized mutations, conflict replies committing carried row, note keep/clear asymmetry, disposal refusing further work; no synthetic demo fixtures, no duplicate store; visual partial honest (DisclosureRow + Ds primitives, assistant-actions hole pending, no fabricated golden). 2026-09-03 remote wired: ConnectionClientMessageFeedbackRemote live via callMethod messageFeedback/list|put|delete slash (sessionId/messageId/rating/note?/ifVersion per types.ts), version-conflict carries current, RpcErrorCode extended with target-not-found/version-conflict/note-blank/note-too-large; MessageFeedbackControllers now bind live remote in prod (explicit remote preferred in tests, _AbsentRemote fallback). Screen still renders local messageFeedbackProvider \u2014 controllers-to-screen migration pending, so behavior stays partial honest. 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: assistant-actions hole undeclared -> standalone list; failure strings English-only.",
     "reactPackage": "ui-message-feedback",
     "responsibility": "MessageFeedbackActions",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4082,11 +4082,11 @@
       "a version-conflict reply commits the authoritative row the host returned and reports feedback changed elsewhere"
     ],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_chat/message_feedback_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); flutter test test/plugins/message_feedback/message_feedback_remote_test.dart (7/7 slash wire + CAS carry) + ws_chat/message_feedback_plugin_test.dart pass, analyze 0 errors",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_chat/message_feedback_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); flutter test test/plugins/message_feedback/message_feedback_remote_test.dart (7/7 slash wire + CAS carry) + ws_chat/message_feedback_plugin_test.dart pass, analyze 0 errors; 2026-09-03 verify: flutter test message_feedback_plugin 13/13 (6 new widget via real activation) + remote_wire 7/7 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4607,14 +4607,14 @@
     "category": "screen",
     "source": "packages/client/ui-skill/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/skill/skill_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4623,13 +4623,13 @@
       "apps/flutter/test/plugins/ws_agent/skill_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-skill plugin: locale dictionaries, keyed skill tool row on the chat-node seam, and the session-keyed catalog cache now registered as the \"/\" trigger source (single-flight per session, prefix filter, user-only marker riding the description, plain-text pick, lexicon roll + subscriptions, preset-switch invalidation of exactly that key, teardown dropping source and cache). Row lifecycle coloring waits for the seam to widen with a settled status bit; connection/reset clearAll lands with the connection generation row. The SkillScreen catalog browse is a Flutter-side extra beyond the React package boundary. 2026-09-02 audit: behavior partial \u2014 catalog+source+row lifecycle parity, including preset-switch invalidation and teardown; visual partial \u2014 row uses shared primitives, not pixel-perfect vs React toolview but covered; connection/reset clearAll deferred with generation row. 2026-09-02 verification: skill_plugin.dart '/' trigger source + SkillCatalog session-keyed single-flight per session, prefix filter, user-only marker riding description, plain-text pick '/name ', lexicon roll + subscriptions, preset-switch invalidation of that key via _wireEndpoint slash (skills/list), teardown dropping source and cache; no synthetic fallback, no duplicate store; visual partial honest (row via Ds primitives, no fabricated golden).",
+    "notes": "ui-skill plugin: locale dictionaries, keyed skill tool row on the chat-node seam, and the session-keyed catalog cache now registered as the \"/\" trigger source (single-flight per session, prefix filter, user-only marker riding the description, plain-text pick, lexicon roll + subscriptions, preset-switch invalidation of exactly that key, teardown dropping source and cache). Row lifecycle coloring waits for the seam to widen with a settled status bit; connection/reset clearAll lands with the connection generation row. The SkillScreen catalog browse is a Flutter-side extra beyond the React package boundary. 2026-09-02 audit: behavior partial \u2014 catalog+source+row lifecycle parity, including preset-switch invalidation and teardown; visual partial \u2014 row uses shared primitives, not pixel-perfect vs React toolview but covered; connection/reset clearAll deferred with generation row. 2026-09-02 verification: skill_plugin.dart '/' trigger source + SkillCatalog session-keyed single-flight per session, prefix filter, user-only marker riding description, plain-text pick '/name ', lexicon roll + subscriptions, preset-switch invalidation of that key via _wireEndpoint slash (skills/list), teardown dropping source and cache; no synthetic fallback, no duplicate store; visual partial honest (row via Ds primitives, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: row settled coloring + connection/reset clearAll forwarding deferred.",
     "reactPackage": "ui-skill",
     "responsibility": "Skill references",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4649,11 +4649,11 @@
       "a settled skill tool call renders the dedicated accent row whose disclosure shows the durable instructions"
     ],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/skill_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/skill_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test skill_plugin 16/16 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4678,14 +4678,14 @@
     "category": "screen",
     "source": "packages/client/ui-subagent/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/subagent/subagent_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4694,13 +4694,13 @@
       "apps/flutter/test/plugins/ws_agent/subagent_plugin_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-subagent plugin: locale dictionaries, header catalog action (visibility only with evidence of children, the React rule), keyed subagent node renderer, SubagentLink navigation ports, and the read-only composer widget plus verbatim claim selector (registers when the hub declares a composer chain hole). The standalone screen derives children from the shared sessions list (origin subagent) and folds the child history for the transcript - demo fixtures removed. Catalog token/timing metrics need projection rows the Dart session model does not carry yet. 2026-09-02 audit: behavior partial \u2014 header catalog + node renderer + provider derivation correct, metrics deferred; visual partial \u2014 catalog action + node card use primitives, composer widget queued until chain hole, no golden yet. 2026-09-02 verification: subagent_plugin.dart header catalog action conversation.session.header.actions id subagent-catalog order 10 with visibility only with evidence of children (React rule) via slots.inject wait-and-follow, keyed subagent node renderer via hub, read-only composer widget queued; Host no direct RPC (derived from sessions list), no synthetic fallback, no duplicate store; visual partial honest (catalog via PopupMenuButton + StateDot + DswTokens, no fabricated golden).",
+    "notes": "ui-subagent plugin: locale dictionaries, header catalog action (visibility only with evidence of children, the React rule), keyed subagent node renderer, SubagentLink navigation ports, and the read-only composer widget plus verbatim claim selector (registers when the hub declares a composer chain hole). The standalone screen derives children from the shared sessions list (origin subagent) and folds the child history for the transcript - demo fixtures removed. Catalog token/timing metrics need projection rows the Dart session model does not carry yet. 2026-09-02 audit: behavior partial \u2014 header catalog + node renderer + provider derivation correct, metrics deferred; visual partial \u2014 catalog action + node card use primitives, composer widget queued until chain hole, no golden yet. 2026-09-02 verification: subagent_plugin.dart header catalog action conversation.session.header.actions id subagent-catalog order 10 with visibility only with evidence of children (React rule) via slots.inject wait-and-follow, keyed subagent node renderer via hub, read-only composer widget queued; Host no direct RPC (derived from sessions list), no synthetic fallback, no duplicate store; visual partial honest (catalog via PopupMenuButton + StateDot + DswTokens, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: descriptor-backed tree (nested disclosure, switcher) waits on subagents/* catalog RPCs.",
     "reactPackage": "ui-subagent",
     "responsibility": "Subagent nav/child transcript",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4720,11 +4720,11 @@
       "an addressed one-shot child shows the read-only composer replacement once a composer chain seat is declared"
     ],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/subagent_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_agent/subagent_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test subagent_plugin 20/20 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-25-tasks-screens.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4749,14 +4749,14 @@
     "category": "screen",
     "source": "packages/client/ui-user-questions/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/user_questions/user_questions_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4768,13 +4768,13 @@
       "packages/client/runtime/tests/semantic-parity.client.spec.ts",
       "apps/flutter/test/replay/semantic_parity_test.dart"
     ],
-    "notes": "WS-Input: ui-user-questions plugin \u2014 question/requested+resolved frames via QuestionsController, PendingQuestion answer/cancel encoding through the carrier respond channel echoing rpcId, planReview narrowing; QuestionComposerEntry selector-routed into the conversation.composer chain (select narrows owner currency to PendingQuestion) alongside the keyed question chat-node renderer. 2026-09-02 audit: behavior partial \u2014 question/approval chain takeover + respond channel fully ported, frame routing via live_sync; visual partial \u2014 cards use DisclosureRow + Ds primitives but no golden diff, composer chain correctly prioritized. 2026-09-02 verification: user_questions_plugin.dart question/requested+resolved frames via QuestionsController over live_sync, PendingQuestion answer/cancel encoding through carrier respond channel echoing rpcId via _wireEndpoint, planReview narrowing; QuestionComposerEntry selector-routed into conversation.composer chain wait-and-follow; no synthetic fallback, no duplicate store; visual partial honest (cards via DisclosureRow + Ds primitives, no fabricated golden).",
+    "notes": "WS-Input: ui-user-questions plugin \u2014 question/requested+resolved frames via QuestionsController, PendingQuestion answer/cancel encoding through the carrier respond channel echoing rpcId, planReview narrowing; QuestionComposerEntry selector-routed into the conversation.composer chain (select narrows owner currency to PendingQuestion) alongside the keyed question chat-node renderer. 2026-09-02 audit: behavior partial \u2014 question/approval chain takeover + respond channel fully ported, frame routing via live_sync; visual partial \u2014 cards use DisclosureRow + Ds primitives but no golden diff, composer chain correctly prioritized. 2026-09-02 verification: user_questions_plugin.dart question/requested+resolved frames via QuestionsController over live_sync, PendingQuestion answer/cancel encoding through carrier respond channel echoing rpcId via _wireEndpoint, planReview narrowing; QuestionComposerEntry selector-routed into conversation.composer chain wait-and-follow; no synthetic fallback, no duplicate store; visual partial honest (cards via DisclosureRow + Ds primitives, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: busy/error latch + custom-answer + pager deferred; no golden fabricated.",
     "reactPackage": "ui-user-questions",
     "responsibility": "QuestionComposer/PlanReviewPanel",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4791,11 +4791,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/plugins/ws_input/popup_and_composer_test.dart apps/flutter/test/replay/semantic_parity_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/plugins/ws_input/popup_and_composer_test.dart apps/flutter/test/replay/semantic_parity_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test approval_plane 37/37 + popup_and_composer + reference pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
-      "approvedBy": "",
-      "approvedAt": ""
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4820,14 +4820,14 @@
     "category": "screen",
     "source": "packages/client/ui-workflow-run/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/workflow_run/workflow_run_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4837,13 +4837,13 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-workflow-run plugin: workflowRun locale dictionaries and the keyed workflow-run chat-node renderer (WorkflowRunPanel: run/phase disclosures, status dots, phaseStatusSummary, navigable running members via constructor-injected openSession = ctx.sessions.open stand-in until the sessions slice carries selection). The tool-workflow/* Definition fold lands with the conversation-fold workstream; until then the renderer consumes the seam line contract (decodeWorkflowRun) and renders nothing for nodes without a run payload. 2026-09-02 audit: behavior partial \u2014 dictionaries + panel renderer correct, definition fold not yet; visual partial \u2014 panel uses DisclosureRow + StateDot + tokens but navigation inert until boot wiring passes openSession, no golden. 2026-09-02 verification: workflow_run_plugin.dart workflowRun locale + keyed workflow-run renderer via hub wait-and-follow, WorkflowRunPanel run/phase disclosures with StateDot and navigable running members via openSession stand-in; Host no direct RPC (decodeWorkflowRun from seam lines), no synthetic fallback, no duplicate store; visual partial honest (panel via DisclosureRow + tokens, no fabricated golden).",
+    "notes": "ui-workflow-run plugin: workflowRun locale dictionaries and the keyed workflow-run chat-node renderer (WorkflowRunPanel: run/phase disclosures, status dots, phaseStatusSummary, navigable running members via constructor-injected openSession = ctx.sessions.open stand-in until the sessions slice carries selection). The tool-workflow/* Definition fold lands with the conversation-fold workstream; until then the renderer consumes the seam line contract (decodeWorkflowRun) and renders nothing for nodes without a run payload. 2026-09-02 audit: behavior partial \u2014 dictionaries + panel renderer correct, definition fold not yet; visual partial \u2014 panel uses DisclosureRow + StateDot + tokens but navigation inert until boot wiring passes openSession, no golden. 2026-09-02 verification: workflow_run_plugin.dart workflowRun locale + keyed workflow-run renderer via hub wait-and-follow, WorkflowRunPanel run/phase disclosures with StateDot and navigable running members via openSession stand-in; Host no direct RPC (decodeWorkflowRun from seam lines), no synthetic fallback, no duplicate store; visual partial honest (panel via DisclosureRow + tokens, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level (visual partial honest, no golden fabricated); deferred: tool-workflow/* Definition fold deferred; navigability status+callback only.",
     "reactPackage": "ui-workflow-run",
     "responsibility": "Workflow run disclosures",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4860,11 +4860,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/workflow_run_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_tasks/workflow_run_plugin_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test workflow_run_plugin 6/6 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
