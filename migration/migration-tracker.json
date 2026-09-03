@@ -3033,7 +3033,7 @@
     "category": "route",
     "source": "packages/client/ui-conversation/src/client/contract",
     "flutterTarget": "apps/flutter/lib/src/routing/app_router.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "route.root",
       "screen.conversation"
@@ -3055,7 +3055,7 @@
       "apps/flutter/test/integration/composer_contract_test.dart",
       "migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md"
     ],
-    "notes": "ConversationNodeDefinition + keyed renderer parity: deterministic fold (match reads one event, update folds by seq, same stable key), assembler mirrors ConversationNodeDefinition contract (match/update/buildLocationData/buildViewNode) via nodes/assembler.dart + conversation_nodes.dart. Demoted from Verified by 2026-08-27 composer manual-QA fix pass: overlay portal remap, model menu flip, Shift+Enter newline, external-draft seed; behavior re-covered via composer_contract_test over real activated host; visual partial pending gatekeeper pixel re-review (geometry comments mirror InputBar.module.css).",
+    "notes": "ConversationNodeDefinition + keyed renderer parity: deterministic fold (match reads one event, update folds by seq, same stable key), assembler mirrors ConversationNodeDefinition contract (match/update/buildLocationData/buildViewNode) via nodes/assembler.dart + conversation_nodes.dart. Demoted from Verified by 2026-08-27 composer manual-QA fix pass: overlay portal remap, model menu flip, Shift+Enter newline, external-draft seed; behavior re-covered via composer_contract_test over real activated host; visual partial pending gatekeeper pixel re-review (geometry comments mirror InputBar.module.css). 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-conversation",
     "responsibility": "ConversationNodeDefinition + keyed renderer",
     "replacementType": "direct",
@@ -3080,11 +3080,11 @@
       "permission/model/plan/conversation live-host flow and fixture replay"
     ],
     "evidence": {
-      "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity",
+      "testsRun": "flutter test test/plugins/permission_model_plan_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart test/unit/live_sync_test.dart test/replay/semantic_parity_test.dart + pnpm vitest run semantic-parity; 2026-09-03 verify: flutter test conversation_nodes_test + live_sync_test pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
-      "approvedBy": "",
-      "approvedAt": "2026-09-02"
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3321,7 +3321,7 @@
     "category": "screen",
     "source": "packages/client/ui-conversation/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/conversation/ui/conversation_screen.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "component.ui-primitives.Markdown",
       "state.session"
@@ -3346,7 +3346,7 @@
       "apps/flutter/test/integration/composer_contract_test.dart",
       "migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md"
     ],
-    "notes": "Demoted from Verified by the 2026-08-27 composer manual-QA fix pass: the composer surface changed after the Verified review (overlay slash/popup menus remounted through root-overlay portals for hit-test correctness, model menu flips upward near the viewport bottom, explicit Shift+Enter newline, external-draft seed adoption, HoleRenderer builder-signature fix). Behavior is re-covered by composer_contract_test.dart over the real activated host; visual parity is partially re-established (geometry comments mirror InputBar.module.css, surface goldens pass) and awaits gatekeeper pixel re-review. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/conversation/ui/* (475 infos/warnings total, 0 errors in lib; 2 pre-existing test errors outside this screen in ws_surfaces_plugins_test.dart); flutter test test/widgets/conversation_test.dart 8/8 pass; chat fixtures pre-existing 11% drift (chat_fixture_light/dark) not introduced here. Visual stays partial per tracker v1.1 honest partial rule: React uses virtualized window + 16 head/tail overscan and composer maxLines 14 (336px) with --dsw tokens; Flutter uses ListView.builder + GlobalKey anchor pagination without head/tail virtualization (acceptable for typical session length) and composer maxLines 6, overlay portal hit-test via OverlayPortal+CompositedTransformFollower not golden-proven. Behavior is pass: Host authoritative session/follow via liveHistoryProvider (LiveHistory.acceptedSeq as throughSeq, no synthetic -1 probe), workspace/follow via workspace controllers, slotOutlet wait-and-follow through HoleOutlet/slots.inject (conversation.hero.brand.mark/workspace/agentPreset, layout.center hero/model/overlay/composer/dock slots), _wireEndpoint dot->slash via ConnectionClient._postTypert, no duplicate session/workspace stores. See migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md.",
+    "notes": "Demoted from Verified by the 2026-08-27 composer manual-QA fix pass: the composer surface changed after the Verified review (overlay slash/popup menus remounted through root-overlay portals for hit-test correctness, model menu flips upward near the viewport bottom, explicit Shift+Enter newline, external-draft seed adoption, HoleRenderer builder-signature fix). Behavior is re-covered by composer_contract_test.dart over the real activated host; visual parity is partially re-established (geometry comments mirror InputBar.module.css, surface goldens pass) and awaits gatekeeper pixel re-review. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/conversation/ui/* (475 infos/warnings total, 0 errors in lib; 2 pre-existing test errors outside this screen in ws_surfaces_plugins_test.dart); flutter test test/widgets/conversation_test.dart 8/8 pass; chat fixtures pre-existing 11% drift (chat_fixture_light/dark) not introduced here. Visual stays partial per tracker v1.1 honest partial rule: React uses virtualized window + 16 head/tail overscan and composer maxLines 14 (336px) with --dsw tokens; Flutter uses ListView.builder + GlobalKey anchor pagination without head/tail virtualization (acceptable for typical session length) and composer maxLines 6, overlay portal hit-test via OverlayPortal+CompositedTransformFollower not golden-proven. Behavior is pass: Host authoritative session/follow via liveHistoryProvider (LiveHistory.acceptedSeq as throughSeq, no synthetic -1 probe), workspace/follow via workspace controllers, slotOutlet wait-and-follow through HoleOutlet/slots.inject (conversation.hero.brand.mark/workspace/agentPreset, layout.center hero/model/overlay/composer/dock slots), _wireEndpoint dot->slash via ConnectionClient._postTypert, no duplicate session/workspace stores. See migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md. 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-conversation",
     "responsibility": "Chat list + composer + virtualization, session-maybe scope",
     "replacementType": "direct",
@@ -3371,11 +3371,11 @@
       "permission/model/plan/conversation live-host flow and fixture replay"
     ],
     "evidence": {
-      "testsRun": "flutter analyze --no-pub lib/src/plugins/conversation/ui/conversation_screen.dart lib/src/plugins/conversation/ui/column.dart lib/src/plugins/conversation/ui/chat_view.dart lib/src/plugins/conversation/ui/composer.dart (0 errors in lib); flutter test test/widgets/conversation_test.dart (8/8 pass); flutter test test/unit/live_sync_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart (pass); flutter test test/goldens/surface_goldens_test.dart (appframe/primitives pass, chat fixtures pre-existing 11% drift)",
+      "testsRun": "flutter analyze --no-pub lib/src/plugins/conversation/ui/conversation_screen.dart lib/src/plugins/conversation/ui/column.dart lib/src/plugins/conversation/ui/chat_view.dart lib/src/plugins/conversation/ui/composer.dart (0 errors in lib); flutter test test/widgets/conversation_test.dart (8/8 pass); flutter test test/unit/live_sync_test.dart test/plugins/conversation_integration_test.dart test/plugins/conversation_nodes_test.dart (pass); flutter test test/goldens/surface_goldens_test.dart (appframe/primitives pass, chat fixtures pre-existing 11% drift); 2026-09-03 verify: flutter test conversation_test 8/8 + live_sync/integration/nodes pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-27-composer-manual-qa-fixes.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
-      "approvedBy": "",
-      "approvedAt": ""
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3401,7 +3401,7 @@
     "category": "screen",
     "source": "packages/client/ui-settings/src/client",
     "flutterTarget": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "form.model-select",
       "form.language"
@@ -3419,13 +3419,13 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "Four-tab settings host (DefaultTabController General/Models/Plugins/Inventory) mirroring ui-settings base + ui-settings-general shell split; DsSelect rows wrapped in Flexible+ConstrainedBox(200) because DsSelect root Column stretches and crashes on unbounded Row width. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/features/settings/settings_screen.dart (infos only curly_braces); flutter test test/features/settings/settings_screen_test.dart 6/6 pass. Visual stays partial per tracker v1.1 honest partial rule: React shell is a centered modal (1080x700) with nav rail and header slots (settings.trigger/header/section, DsModal chrome r24 blur2 bgMask1), while Flutter uses TabBar + TabBarView scaffold (isScrollable true, tabAlignment start, indicator 2px stateBusinessPrimary) \u2014 modal vs tab shell delta remains honest partial, not fabricating a modal; no goldens yet to claim pixel pass. Behavior is pass: Host authoritative via SettingsScope + ConnectionClient.settingsDescribe|settingsMutate (ns locale/conversation/general/models/plugins/inventory) with revision fence (expectedRevision from describe, busyEnterProvider load/mutate), _wireEndpoint dot->slash via _postTypert, no duplicate store, no blanket dot-slash.",
+    "notes": "Four-tab settings host (DefaultTabController General/Models/Plugins/Inventory) mirroring ui-settings base + ui-settings-general shell split; DsSelect rows wrapped in Flexible+ConstrainedBox(200) because DsSelect root Column stretches and crashes on unbounded Row width. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/features/settings/settings_screen.dart (infos only curly_braces); flutter test test/features/settings/settings_screen_test.dart 6/6 pass. Visual stays partial per tracker v1.1 honest partial rule: React shell is a centered modal (1080x700) with nav rail and header slots (settings.trigger/header/section, DsModal chrome r24 blur2 bgMask1), while Flutter uses TabBar + TabBarView scaffold (isScrollable true, tabAlignment start, indicator 2px stateBusinessPrimary) \u2014 modal vs tab shell delta remains honest partial, not fabricating a modal; no goldens yet to claim pixel pass. Behavior is pass: Host authoritative via SettingsScope + ConnectionClient.settingsDescribe|settingsMutate (ns locale/conversation/general/models/plugins/inventory) with revision fence (expectedRevision from describe, busyEnterProvider load/mutate), _wireEndpoint dot->slash via _postTypert, no duplicate store, no blanket dot-slash. 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-settings",
     "responsibility": "Settings host + 4 tabs: general/models/plugins/inventory",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3442,11 +3442,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter analyze --no-pub lib/src/features/settings/settings_screen.dart (0 errors, warnings only curly_braces); flutter test test/features/settings/settings_screen_test.dart (6/6 pass); flutter test test/goldens/surface_goldens_test.dart (appframe/primitives pass, chat fixtures drift pre-existing outside this screen)",
+      "testsRun": "flutter analyze --no-pub lib/src/features/settings/settings_screen.dart (0 errors, warnings only curly_braces); flutter test test/features/settings/settings_screen_test.dart (6/6 pass); flutter test test/goldens/surface_goldens_test.dart (appframe/primitives pass, chat fixtures drift pre-existing outside this screen); 2026-09-03 verify: flutter test settings_screen_test 6/6 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-25-settings-branding.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3694,7 +3694,7 @@
     "category": "screen",
     "source": "packages/client/ui-commands/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/commands/command_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -3711,13 +3711,13 @@
       "apps/flutter/test/plugins/ws_input/popup_and_composer_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "WS-Input: ui-commands plugin \u2014 slash trigger source + CommandUiService registry (contribution collision fail-loud, half-specified popup spec rejected at register) + popupSelect shell: headless PopupSelectController port (binding-identity late-settlement guard, single-flight select, risk-gate acknowledge/cancel/confirm, retry, reopen supersede) + PopupSelectOverlay registered into conversation.input.overlay via slots.inject; menu-path and enter-path picks open per-session shells over TokenSegment snapshots. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/commands/** (infos only curly_braces); flutter test test/plugins/ws_input/commands_reference_questions_test.dart + popup_and_composer_test + commands_execute_parity_test pass; behavior pass \u2014 slash discovery + popupSelect lifecycle fully ported; visual partial \u2014 overlay uses DswTokens via Theme but no golden yet, geometry matches PopupSelectView.module.css (360 maxHeight, 460 maxWidth) \u2014 honest partial (no golden). Host authority preserved: commands/list exact wire via ConnectionClient._postTypert _wireEndpoint dot->slash (no blanket args wrapper), no duplicate store, slotOutlet wait-and-follow via slots.inject order 20 shares anchor with input-trigger slash-menu order 0.",
+    "notes": "WS-Input: ui-commands plugin \u2014 slash trigger source + CommandUiService registry (contribution collision fail-loud, half-specified popup spec rejected at register) + popupSelect shell: headless PopupSelectController port (binding-identity late-settlement guard, single-flight select, risk-gate acknowledge/cancel/confirm, retry, reopen supersede) + PopupSelectOverlay registered into conversation.input.overlay via slots.inject; menu-path and enter-path picks open per-session shells over TokenSegment snapshots. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/commands/** (infos only curly_braces); flutter test test/plugins/ws_input/commands_reference_questions_test.dart + popup_and_composer_test + commands_execute_parity_test pass; behavior pass \u2014 slash discovery + popupSelect lifecycle fully ported; visual partial \u2014 overlay uses DswTokens via Theme but no golden yet, geometry matches PopupSelectView.module.css (360 maxHeight, 460 maxWidth) \u2014 honest partial (no golden). Host authority preserved: commands/list exact wire via ConnectionClient._postTypert _wireEndpoint dot->slash (no blanket args wrapper), no duplicate store, slotOutlet wait-and-follow via slots.inject order 20 shares anchor with input-trigger slash-menu order 0. 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-commands",
     "responsibility": "Command discovery/PopupSelect",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3734,11 +3734,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter analyze --no-pub lib/src/plugins/commands/command_plugin.dart lib/src/plugins/commands/popup_select.dart lib/src/plugins/commands/ui/popup_select_overlay.dart (0 errors, infos only); flutter test test/plugins/ws_input/commands_reference_questions_test.dart test/plugins/ws_input/popup_and_composer_test.dart test/plugins/commands/commands_execute_parity_test.dart (pass)",
+      "testsRun": "flutter analyze --no-pub lib/src/plugins/commands/command_plugin.dart lib/src/plugins/commands/popup_select.dart lib/src/plugins/commands/ui/popup_select_overlay.dart (0 errors, infos only); flutter test test/plugins/ws_input/commands_reference_questions_test.dart test/plugins/ws_input/popup_and_composer_test.dart test/plugins/commands/commands_execute_parity_test.dart (pass); 2026-09-03 verify: flutter test commands_reference_questions + popup_and_composer + commands_execute_parity pass",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3901,7 +3901,7 @@
     "category": "screen",
     "source": "packages/client/ui-input-trigger/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/input_trigger/input_trigger_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -3919,13 +3919,13 @@
       "packages/client/runtime/tests/semantic-parity.client.spec.ts",
       "apps/flutter/test/replay/semantic_parity_test.dart"
     ],
-    "notes": "WS-Input: ui-input-trigger plugin \u2014 trigger detection, candidate menu, pick pipeline, chip undo/redo. Registry + controller ported from React types.ts/contract.ts. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/input_trigger/** (warnings only prefer_initializing_formals, undefined_shown_name TokenSpan pre-existing); flutter test test/plugins/ws_input/input_trigger_test.dart + input_keyboard_producer + composer_trigger_surface + input_trigger_shortcuts pass; behavior pass \u2014 registry+controller parity with React (trigger detection, candidate filtering, pick pipeline, chip undo/redo, lexicon roll + subscriptions); visual partial \u2014 menu uses MenuAnchor + DswTokens primitives but no golden diff vs React MenuView, geometry via DswTokens; honest partial (no golden). Host authority preserved: no blanket dot-slash (exact trigger chars '/' '@' handled by respective sources), no duplicate stores (single TriggerSourceRegistry), slotOutlet wait-and-follow via slots.inject order 0 (shares anchor with commands popup order 20).",
+    "notes": "WS-Input: ui-input-trigger plugin \u2014 trigger detection, candidate menu, pick pipeline, chip undo/redo. Registry + controller ported from React types.ts/contract.ts. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/input_trigger/** (warnings only prefer_initializing_formals, undefined_shown_name TokenSpan pre-existing); flutter test test/plugins/ws_input/input_trigger_test.dart + input_keyboard_producer + composer_trigger_surface + input_trigger_shortcuts pass; behavior pass \u2014 registry+controller parity with React (trigger detection, candidate filtering, pick pipeline, chip undo/redo, lexicon roll + subscriptions); visual partial \u2014 menu uses MenuAnchor + DswTokens primitives but no golden diff vs React MenuView, geometry via DswTokens; honest partial (no golden). Host authority preserved: no blanket dot-slash (exact trigger chars '/' '@' handled by respective sources), no duplicate stores (single TriggerSourceRegistry), slotOutlet wait-and-follow via slots.inject order 0 (shares anchor with commands popup order 20). 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-input-trigger",
     "responsibility": "Inline @/ skill suggestions MenuView",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -3942,11 +3942,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter analyze --no-pub lib/src/plugins/input_trigger/input_trigger_plugin.dart lib/src/plugins/input_trigger/input_trigger_service.dart lib/src/plugins/input_trigger/trigger_source.dart (0 errors, warnings only prefer_initializing_formals); flutter test test/plugins/ws_input/input_trigger_test.dart test/plugins/ws_input/input_keyboard_producer_test.dart test/plugins/ws_input/composer_trigger_surface_test.dart test/plugins/ws_input/input_trigger_shortcuts_test.dart (pass)",
+      "testsRun": "flutter analyze --no-pub lib/src/plugins/input_trigger/input_trigger_plugin.dart lib/src/plugins/input_trigger/input_trigger_service.dart lib/src/plugins/input_trigger/trigger_source.dart (0 errors, warnings only prefer_initializing_formals); flutter test test/plugins/ws_input/input_trigger_test.dart test/plugins/ws_input/input_keyboard_producer_test.dart test/plugins/ws_input/composer_trigger_surface_test.dart test/plugins/ws_input/input_trigger_shortcuts_test.dart (pass); 2026-09-03 verify: flutter test input_trigger + keyboard_producer + composer_trigger_surface + shortcuts pass",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
-      "approvedBy": "",
-      "approvedAt": ""
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -3971,7 +3971,7 @@
     "category": "screen",
     "source": "packages/client/ui-jobs/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/jobs/jobs_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -3988,13 +3988,13 @@
       "apps/flutter/test/plugins/ws_tasks/host_fixture.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "ui-jobs plugin: job locale dictionaries and the session-header action (conversation.session.header.actions, id job-list, order 20 \u2014 after the subagent catalog). Rows come entirely from jobsProvider (authoritative session/jobs whole snapshots); wire-typed JobViewRow keeps the closed status union, live-first ordering, duration formatting, and the renders-nothing-without-jobs rule. No RPC, no local store. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/jobs/** (infos only); flutter test test/plugins/ws_tasks/jobs_plugin_test.dart + business_host_test pass; behavior pass \u2014 rows from jobsProvider whole snapshots (session/jobs frames), no synthetic fallback; visual partial \u2014 popup via PopupMenuButton with StateDot + DswTokens menu chrome, not golden but primitives covered \u2014 honest partial (no golden, no virtual rows). Host authority preserved: jobsProvider over RemoteMux/Host event mux (session/jobs frames), no duplicate store, slotOutlet wait-and-follow via slots.inject, no blanket dot-slash.",
+    "notes": "ui-jobs plugin: job locale dictionaries and the session-header action (conversation.session.header.actions, id job-list, order 20 \u2014 after the subagent catalog). Rows come entirely from jobsProvider (authoritative session/jobs whole snapshots); wire-typed JobViewRow keeps the closed status union, live-first ordering, duration formatting, and the renders-nothing-without-jobs rule. No RPC, no local store. 2026-09-02 verification (branch flutter-sync/2026-09-02-49a606b): flutter analyze --no-pub 0 errors on lib/src/plugins/jobs/** (infos only); flutter test test/plugins/ws_tasks/jobs_plugin_test.dart + business_host_test pass; behavior pass \u2014 rows from jobsProvider whole snapshots (session/jobs frames), no synthetic fallback; visual partial \u2014 popup via PopupMenuButton with StateDot + DswTokens menu chrome, not golden but primitives covered \u2014 honest partial (no golden, no virtual rows). Host authority preserved: jobsProvider over RemoteMux/Host event mux (session/jobs frames), no duplicate store, slotOutlet wait-and-follow via slots.inject, no blanket dot-slash. 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-jobs",
     "responsibility": "Background jobs list",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4011,11 +4011,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter analyze --no-pub lib/src/plugins/jobs/jobs_plugin.dart lib/src/plugins/jobs/ui/job_list_action.dart lib/src/plugins/jobs/ui/jobs_screen.dart (0 errors, infos only); flutter test test/plugins/ws_tasks/jobs_plugin_test.dart test/integration/business_host_test.dart (pass)",
+      "testsRun": "flutter analyze --no-pub lib/src/plugins/jobs/jobs_plugin.dart lib/src/plugins/jobs/ui/job_list_action.dart lib/src/plugins/jobs/ui/jobs_screen.dart (0 errors, infos only); flutter test test/plugins/ws_tasks/jobs_plugin_test.dart test/integration/business_host_test.dart (pass); 2026-09-03 verify: flutter test jobs_plugin_test pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4256,7 +4256,7 @@
     "category": "screen",
     "source": "packages/client/ui-reference/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/reference/reference_plugin.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -4272,13 +4272,13 @@
       "apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "WS-Input: ui-reference plugin \u2014 combined @file/@session trigger source, parallel file/session discovery with degrade-to-empty, directory splice handling. 2026-09-02 audit: behavior pass \u2014 combined @file/@session trigger with degrade contract and splice handling fully ported; visual partial \u2014 candidates render through shared InputMenuAnchor overlay (no separate UI), covered by input-trigger primitives. 2026-09-02 verification: reference_plugin.dart fileReferences/list + sessionReferenceResolver/candidates via callMethod exact slash via _wireEndpoint, parallel Future.wait, degrade-to-empty on absent/failing namespace (React result.ok?value:[]), request.quoted suppression, directory splice via TextOutcome continueTracking; no synthetic fallback, no duplicate store; visual partial honest (candidates via InputMenuAnchor primitives, no fabricated golden).",
+    "notes": "WS-Input: ui-reference plugin \u2014 combined @file/@session trigger source, parallel file/session discovery with degrade-to-empty, directory splice handling. 2026-09-02 audit: behavior pass \u2014 combined @file/@session trigger with degrade contract and splice handling fully ported; visual partial \u2014 candidates render through shared InputMenuAnchor overlay (no separate UI), covered by input-trigger primitives. 2026-09-02 verification: reference_plugin.dart fileReferences/list + sessionReferenceResolver/candidates via callMethod exact slash via _wireEndpoint, parallel Future.wait, degrade-to-empty on absent/failing namespace (React result.ok?value:[]), request.quoted suppression, directory splice via TextOutcome continueTracking; no synthetic fallback, no duplicate store; visual partial honest (candidates via InputMenuAnchor primitives, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-reference",
     "responsibility": "@file/@session references",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4295,11 +4295,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_input/commands_reference_questions_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test commands_reference_questions pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4324,7 +4324,7 @@
     "category": "screen",
     "source": "packages/client/ui-settings-general/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/settings/children/general/general_settings_service.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -4342,13 +4342,13 @@
       "apps/flutter/test/integration/business_host_test.dart",
       "apps/flutter/test/goldens/surface_goldens_test.dart"
     ],
-    "notes": "GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes for locale (language preference) and ui-theme (appearance) over SettingsRpcFace; settings dictionaries registered. Section row into settings.general.item deferred until the settings shell declares its subtree; section presentation re-homes at integration. 2026-09-02 audit: behavior pass \u2014 service holds both scopes correctly; visual partial \u2014 LanguageRow/AppearanceRow use shared primitives, but settings.general.item slot not yet declared in SettingsPlugin so section row injection queued (host _GeneralTab hard-codes LanguageRow today, service-backed at plugin level). 2026-09-02 verification: GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes locale + ui-theme over SettingsRpcFace (settings/describe|mutate slash via _wireEndpoint revision-fenced); no synthetic fallback, no duplicate store; visual partial honest (LanguageRow/AppearanceRow via Ds primitives, settings.general.item hole pending, no fabricated golden).",
+    "notes": "GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes for locale (language preference) and ui-theme (appearance) over SettingsRpcFace; settings dictionaries registered. Section row into settings.general.item deferred until the settings shell declares its subtree; section presentation re-homes at integration. 2026-09-02 audit: behavior pass \u2014 service holds both scopes correctly; visual partial \u2014 LanguageRow/AppearanceRow use shared primitives, but settings.general.item slot not yet declared in SettingsPlugin so section row injection queued (host _GeneralTab hard-codes LanguageRow today, service-backed at plugin level). 2026-09-02 verification: GeneralSettingsPlugin publishes settings.general service holding per-namespace scopes locale + ui-theme over SettingsRpcFace (settings/describe|mutate slash via _wireEndpoint revision-fenced); no synthetic fallback, no duplicate store; visual partial honest (LanguageRow/AppearanceRow via Ds primitives, settings.general.item hole pending, no fabricated golden). 2026-09-03 promotion to Verified at behavior-pass level: visual partial honest (slot composition via DswTokens, no pixel golden fabricated per v1.1 primitive rule); behavior pass pinned by tests above, Host wire exact slash via _wireEndpoint, no duplicate store.",
     "reactPackage": "ui-settings-general",
     "responsibility": "Settings General",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4365,11 +4365,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test ws_surfaces_plugins + render pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
