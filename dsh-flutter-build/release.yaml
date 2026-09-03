@@ -1,18 +1,18 @@
 formatVersion: 1
 release:
-  version: 1.0.1
+  version: 1.0.2
   channel: stable
-  buildNumber: 1
+  buildNumber: 2
   prerelease: ''
 app:
   repository: https://github.com/deepseek-ai/deepseek-harness
-  revision: 1c17813e1dc475e47217e006e754eda07b4f9241
+  revision: 55948a012780b44668f602df0d9f77e267370742
   path: apps/flutter
-  version: 1.0.1
-  buildNumber: 1
+  version: 1.0.2
+  buildNumber: 2
 harness:
   repository: https://github.com/deepseek-ai/deepseek-harness
-  revision: 1c17813e1dc475e47217e006e754eda07b4f9241
+  revision: 55948a012780b44668f602df0d9f77e267370742
   path: .
 toolchain:
   flutter:
