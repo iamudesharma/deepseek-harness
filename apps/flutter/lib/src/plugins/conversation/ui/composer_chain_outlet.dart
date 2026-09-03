@@ -38,16 +38,17 @@ class ComposerChainOutlet extends ConsumerWidget {
     if (entries.isEmpty) return const SizedBox.shrink();
 
     // Owner currency: the current session's pending interaction.
-    // Precedence mirrors SessionSummary sessionStatuses: approval → plan-review
-    // → question → subagents. The approval entry outranks question when both
-    // wait, so a pending approval alone still elects.
+    // Precedence mirrors SessionSummary sessionStatuses and
+    // combinePendingStatuses: question → plan-review → approval. The
+    // question entry outranks approval when both wait, so a pending
+    // question alone still elects (approval re-elects after resolve).
     final SessionId? sid = ref.watch(currentSessionIdProvider);
     if (sid == null) return const SizedBox.shrink();
     final PendingQuestion? question = ref.watch(
       pendingQuestionsProvider,
     )[sid.value];
     final PendingApproval? approval = ref.watch(approvalsProvider)[sid.value];
-    final Object? currency = approval ?? question;
+    final Object? currency = question ?? approval;
     if (currency == null) return const SizedBox.shrink();
 
     final List<SlotEntry> sorted = List<SlotEntry>.of(entries)

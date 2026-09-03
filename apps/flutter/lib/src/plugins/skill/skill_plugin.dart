@@ -125,6 +125,9 @@ class _SkillSource extends InputTriggerSource {
       SessionId(sessionId),
       query: request.query,
     );
+    // Superseded keystroke: the shared fetch stays warm for the winning
+    // caller, this one yields (React's post-fetch `signal.aborted` return).
+    if (request.cancelled?.call() ?? false) return const [];
     return [
       for (final SkillEntry entry in entries)
         InputTriggerCandidate(
