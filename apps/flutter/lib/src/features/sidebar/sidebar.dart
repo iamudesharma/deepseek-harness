@@ -1258,7 +1258,7 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                       // may not have landed, so the sidebar shows synth ids
                       // (workspace_provider.dart `_synthesizedFromSessions`).
                       // The host rejects unknown synth ids with
-                      // `workspace-not-found`; retry once with `cwd`.
+                      // `workspace/not-found`; retry once with `cwd`.
                       final fallbackCwd = workspaces
                           .where((w) => w.workspaceId == wsId)
                           .firstOrNull

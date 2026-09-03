@@ -5732,7 +5732,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "COMPLETE (2026-08-26) via extraction: the creation policy now lives in one pure file \u2014 sessionCreatePayload (wire body), isWorkspaceAttachFailure (the single sanctioned retry: workspace-not-found transport literal), adoptHostBornSession (blank idle summary projected at adoption, manager.ts create arm). All three carriers (connection_client payload, sidebar _handleNewSession/onCreateIn, app_router welcome submit) consume it; behavior preserved except the two UI flows now project the adopted blank summary before the list refresh lands, matching React synchronous addressability. Wire contract stays pinned by connection_client_rpc_test; reconnect marked not-applicable because host-born creation spans no connection generation (list refresh owns post-reconnect truth)."
+    "notes": "COMPLETE (2026-08-26) via extraction: the creation policy now lives in one pure file \u2014 sessionCreatePayload (wire body), isWorkspaceAttachFailure (the single sanctioned retry: workspace-not-found transport literal), adoptHostBornSession (blank idle summary projected at adoption, manager.ts create arm). All three carriers (connection_client payload, sidebar _handleNewSession/onCreateIn, app_router welcome submit) consume it; behavior preserved except the two UI flows now project the adopted blank summary before the list refresh lands, matching React synchronous addressability. Wire contract stays pinned by connection_client_rpc_test; reconnect marked not-applicable because host-born creation spans no connection generation (list refresh owns post-reconnect truth). 2026-09-04 isWorkspaceAttachFailure matches slash + hyphen literals and typed slash codes."
   },
   {
     "id": "runtime.reconnect-generations",
@@ -5970,7 +5970,7 @@
       "approvedAt": "2026-08-26"
     },
     "legacyVerified": false,
-    "notes": "Target corrected from nonexistent rpc_contracts.dart to rpc_envelope.dart \u2014 the request/result/error carrier authority; hand-invented contracts forbidden, shapes extracted from the TS gateway."
+    "notes": "Target corrected from nonexistent rpc_contracts.dart to rpc_envelope.dart \u2014 the request/result/error carrier authority; hand-invented contracts forbidden, shapes extracted from the TS gateway. 2026-09-04 slash-vocabulary sync: RpcErrorCode retracked to current RemoteErrorDetailsMap keys (workspace/not-found etc.; gateway/* family; session/agent-preset/subagent/directory-picker/llm wires); hyphen session-not-found kept for the live message-feedback path; dead attachment/command codes removed. Fixes workspace-plus create falling to 'not part of the closed error-code union' instead of the cwd fallback."
   },
   {
     "id": "slot.registry",

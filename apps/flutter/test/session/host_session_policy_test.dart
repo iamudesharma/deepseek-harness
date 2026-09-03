@@ -1,3 +1,4 @@
+import 'package:dsh_flutter/src/core/api/rpc_envelope.dart';
 import 'package:dsh_flutter/src/core/session/host_session_policy.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,8 +17,17 @@ void main() {
 
   group('isWorkspaceAttachFailure', () {
     test(
-      'matches the workspace-not-found wire literal in transport errors',
+      'matches the workspace/not-found wire literal in transport errors',
       () {
+        expect(
+          isWorkspaceAttachFailure(
+            Exception(
+              'session.create: '
+              'workspace/not-found: no workspace ws-9',
+            ),
+          ),
+          isTrue,
+        );
         expect(
           isWorkspaceAttachFailure(
             Exception(
@@ -30,6 +40,28 @@ void main() {
         expect(isWorkspaceAttachFailure(Exception('agent-busy')), isFalse);
       },
     );
+    test('matches the typed slash-vocabulary exceptions', () {
+      expect(
+        isWorkspaceAttachFailure(
+          RemoteMethodException(
+            code: RpcErrorCode.workspaceNotFound,
+            message: 'workspace "ws-9" not found',
+            details: const {},
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        isWorkspaceAttachFailure(
+          RemoteMethodException(
+            code: RpcErrorCode.workspaceAttachFailed,
+            message: 'could not attach',
+            details: const {'sessionId': 's-1'},
+          ),
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('adoptHostBornSession', () {

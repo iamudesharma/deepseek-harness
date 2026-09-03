@@ -167,7 +167,7 @@ void main() {
           'result': {
             'ok': false,
             'error': {
-              'code': 'workspace-not-found',
+              'code': 'workspace/not-found',
               'message': 'no such workspace',
               'details': {},
             },

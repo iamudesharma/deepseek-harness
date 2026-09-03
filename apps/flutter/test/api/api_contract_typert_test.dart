@@ -9,7 +9,7 @@
 /// 2. Directory-picker verbs (`directoryPicker/pick`, `directoryPicker/list`,
 ///    `directoryPicker/createDirectory`) carry the correct wire args. The
 ///    picker kind is detected at runtime via the typed
-///    `directory-picker-unavailable` failure (`details.capability`), not by a
+///    `directory-picker/unavailable` failure (`details.capability`), not by a
 ///    hidden client branch — the harness has no `host.describe` advertisement
 ///    for the picker.
 ///
@@ -321,12 +321,12 @@ void main() {
 
     test(
       'probeDirectoryPickerKind returns browse when host rejects pick '
-      'with directory-picker-unavailable {capability:browse}',
+      'with directory-picker/unavailable {capability:browse}',
       () async {
         final host = _ScriptedHost((path, envelope, _) {
           if (path == '/api/directoryPicker/pick') {
             return _fail(
-              'directory-picker-unavailable',
+              'directory-picker/unavailable',
               'directoryPicker.pick needs the native capability; '
                   'the composed picker serves "browse"',
               {'capability': 'browse'},
@@ -349,14 +349,14 @@ void main() {
 
     test(
       'probeDirectoryPickerKind returns native when host rejects list '
-      'with directory-picker-unavailable {capability:native}',
+      'with directory-picker/unavailable {capability:native}',
       () async {
         // Both `pick` and `list` reject with the same `native` capability
         // hint; the first call determines the cached kind, the second call
         // is short-circuited.
         final host = _ScriptedHost((path, envelope, _) {
           return _fail(
-            'directory-picker-unavailable',
+            'directory-picker/unavailable',
             'directoryPicker.$path needs the browse capability; '
                 'the composed picker serves "native"',
             {'capability': 'native'},
@@ -383,7 +383,7 @@ void main() {
           }
           if (path == '/api/directoryPicker/list') {
             return _fail(
-              'directory-picker-unavailable',
+              'directory-picker/unavailable',
               'directoryPicker.list needs the browse capability; '
                   'the composed picker serves "native"',
               {'capability': 'native'},
@@ -421,7 +421,7 @@ void main() {
           }
           if (path == '/api/directoryPicker/createDirectory') {
             return _fail(
-              'directory-picker-unavailable',
+              'directory-picker/unavailable',
               'directoryPicker.createDirectory needs the browse capability; '
                   'the composed picker serves "native"',
               {'capability': 'native'},

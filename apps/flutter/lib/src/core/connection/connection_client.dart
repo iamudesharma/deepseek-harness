@@ -455,7 +455,7 @@ class ConnectionClient {
   /// Create a new session (Typert `session.create`).
   ///
   /// Success unwraps `result.value.sessionId`. Business failures (e.g.
-  /// `workspace-not-found`, `workspace-attach-failed`) throw a typed
+  /// `workspace/not-found`, `session/workspace-attach-failed`) throw a typed
   /// [RemoteMethodException] via [_unwrapValue] so callers can classify
   /// retryable workspace-binding rejections without parsing strings.
   Future<SessionId> createSession({String? workspaceId, String? cwd}) async {

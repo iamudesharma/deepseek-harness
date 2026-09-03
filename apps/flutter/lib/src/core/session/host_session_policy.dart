@@ -33,18 +33,20 @@ Map<String, dynamic> sessionCreatePayload({String? workspaceId, String? cwd}) {
 /// the single retryable case, retried without the workspace binding (or
 /// with a `cwd` fallback for synthetic workspaces).
 ///
-/// The host's typed codes are `workspace-not-found` (pre-create, no
-/// session) and `workspace-attach-failed` (post-create with
+/// The host's typed codes are `workspace/not-found` (pre-create, no
+/// session) and `session/workspace-attach-failed` (post-create with
 /// `details.sessionId`). Carriers may see them as typed
 /// [RemoteMethodException] or, for compat, as transport strings that embed
-/// the wire literal.
+/// either the current slash literal or the retired hyphen literal.
 bool isWorkspaceAttachFailure(Object error) {
   if (error is RemoteMethodException) {
     return error.code == RpcErrorCode.workspaceNotFound ||
         error.code == RpcErrorCode.workspaceAttachFailed;
   }
   final msg = error.toString();
-  return msg.contains('workspace-not-found') ||
+  return msg.contains('workspace/not-found') ||
+      msg.contains('workspace-not-found') ||
+      msg.contains('session/workspace-attach-failed') ||
       msg.contains('workspace-attach-failed');
 }
 

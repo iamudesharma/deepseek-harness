@@ -9,9 +9,26 @@ void main() {
         'message': 'no such session',
         'details': {'sessionId': 'abc'},
       });
-      expect(error.code, RpcErrorCode.sessionNotFound);
+      // The hyphen form survives only on the message-feedback path.
+      expect(error.code, RpcErrorCode.messageFeedbackSessionNotFound);
       expect(error.message, 'no such session');
       expect(error.details, {'sessionId': 'abc'});
+    });
+
+    test('decodes the slash-namespaced session and gateway codes', () {
+      final notFound = RpcError.fromJson({
+        'code': 'workspace/not-found',
+        'message': 'workspace "ws-9" not found',
+        'details': {'workspaceId': 'ws-9'},
+      });
+      expect(notFound.code, RpcErrorCode.workspaceNotFound);
+
+      final internal = RpcError.fromJson({
+        'code': 'gateway/internal',
+        'message': 'boom',
+        'details': <String, Object?>{},
+      });
+      expect(internal.code, RpcErrorCode.gatewayInternal);
     });
 
     test('round-trips through toJson', () {
