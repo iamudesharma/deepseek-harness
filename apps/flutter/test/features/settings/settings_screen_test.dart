@@ -26,6 +26,7 @@ class _FakeClient extends ConnectionClient {
   final List<String> calls = [];
   Map<String, Object?> describeAnswer = const <String, dynamic>{};
   List<Map<String, dynamic>> inventoryEntries = const [];
+  List<Map<String, dynamic>> inventoryPresets = const [];
 
   @override
   Future<Map<String, dynamic>> settingsDescribe() async {
@@ -56,7 +57,10 @@ class _FakeClient extends ConnectionClient {
   @override
   Future<Map<String, dynamic>> pluginInventoryList() async {
     calls.add('pluginInventory.list');
-    return <String, dynamic>{'entries': inventoryEntries};
+    return <String, dynamic>{
+      'entries': inventoryEntries,
+      if (inventoryPresets.isNotEmpty) 'agentPresets': inventoryPresets,
+    };
   }
 
   @override
@@ -97,6 +101,26 @@ List<Map<String, dynamic>> _inventorySnapshot() => [
   {'entryId': 'readfile', 'moduleName': 'ReadFile', 'enabled': true, 'fiberPhase': 'active'},
   {'entryId': 'bash', 'moduleName': 'Bash', 'enabled': true, 'fiberPhase': 'active'},
   {'entryId': 'webfetch', 'moduleName': 'WebFetch', 'enabled': true, 'fiberPhase': 'active'},
+];
+
+List<Map<String, dynamic>> _inventoryPresets() => [
+  {
+    'id': 'ptc',
+    'name': 'PTC mode',
+    'isDefault': true,
+    'rows': [
+      {'entryId': null, 'moduleName': 'SessionChat', 'enabled': true, 'fiberPhase': 'active'},
+      {'entryId': null, 'moduleName': 'ConditionalTool', 'enabled': 'conditional', 'condition': 'isDesktop', 'fiberPhase': null},
+    ],
+  },
+  {
+    'id': 'minimal',
+    'name': 'Minimal',
+    'isDefault': false,
+    'rows': [
+      {'entryId': null, 'moduleName': 'SessionChat', 'enabled': true, 'fiberPhase': 'active'},
+    ],
+  },
 ];
 
 Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
@@ -237,5 +261,76 @@ void main() {
     expect(find.text('Search plugins'), findsOneWidget);
     expect(find.text('ReadFile'), findsOneWidget);
     expect(find.text('Bash'), findsOneWidget);
+  });
+
+  testWidgets('Inventory shows session group open with preset switcher', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = _settingsDocument()
+      ..inventoryEntries = _inventorySnapshot()
+      ..inventoryPresets = _inventoryPresets();
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.text('Inventory').first);
+    await tester.pumpAndSettle();
+
+    // Session group (React parity): open by default, switcher on default preset.
+    expect(find.text('Session plugins'), findsOneWidget);
+    expect(
+      find.text('Composed per session by agent presets · 2 plugins'),
+      findsOneWidget,
+    );
+    expect(find.text('PTC mode (default)'), findsOneWidget);
+    expect(find.text('SessionChat'), findsOneWidget);
+    expect(find.text('ConditionalTool'), findsOneWidget);
+    expect(find.text('Conditional'), findsOneWidget);
+    // Global group collapses when a roster is present.
+    expect(find.text('Global plugins'), findsOneWidget);
+    expect(find.text('ReadFile'), findsNothing);
+  });
+
+  testWidgets('Inventory global group expands and marks preset-provided rows', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = _settingsDocument()
+      ..inventoryEntries = [
+        {'entryId': 'g-chat', 'moduleName': 'SessionChat', 'enabled': false, 'fiberPhase': null},
+        {'entryId': 'g-bad', 'moduleName': 'BrokenMod', 'enabled': true, 'fiberPhase': 'failed'},
+        {'entryId': 'g-ok', 'moduleName': 'OkMod', 'enabled': true, 'fiberPhase': 'active'},
+      ]
+      ..inventoryPresets = _inventoryPresets();
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.text('Inventory').first);
+    await tester.pumpAndSettle();
+
+    // Failed count rides the collapsed global subtitle.
+    expect(find.textContaining('1 failed'), findsOneWidget);
+    // Expand the global group.
+    await tester.tap(find.text('Global plugins'));
+    await tester.pumpAndSettle();
+
+    // Failures float first and carry the Failed tag.
+    expect(find.text('BrokenMod'), findsOneWidget);
+    expect(find.text('Failed'), findsWidgets);
+    // Globally-disabled but preset-enabled row is marked, not plain Disabled.
+    expect(find.text('Enabled via presets'), findsOneWidget);
+  });
+
+  testWidgets('Inventory search forces groups open and surfaces other presets', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = _settingsDocument()
+      ..inventoryEntries = _inventorySnapshot()
+      ..inventoryPresets = _inventoryPresets();
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.text('Inventory').first);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'SessionChat');
+    await tester.pumpAndSettle();
+
+    // Search opens the collapsed global-adjacent session rows and points at
+    // matches sitting in unselected presets.
+    expect(find.textContaining('more matches in other presets'), findsOneWidget);
+    expect(find.text('Minimal'), findsOneWidget);
   });
 }

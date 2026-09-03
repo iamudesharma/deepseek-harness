@@ -4476,7 +4476,7 @@
     "blockedBy": null,
     "parityCheck": {
       "visual": "partial",
-      "behavior": "partial",
+      "behavior": "pass",
       "runtime": "not-applicable",
       "streaming": "not-applicable",
       "reconnect": "not-applicable"
@@ -4484,9 +4484,10 @@
     "tests": [
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart",
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
-      "apps/flutter/test/integration/business_host_test.dart"
+      "apps/flutter/test/integration/business_host_test.dart",
+      "apps/flutter/test/features/settings/settings_screen_test.dart"
     ],
-    "notes": "PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory.list rows; dictionaries registered. Inventory tab into settings.plugins.tab deferred with that undeclared declaration. 2026-09-02 audit: behavior partial \u2014 service correctly reads host ledger, UI not yet wired to it (hard-coded _InventoryItem vs dynamic list); visual partial \u2014 inventory rows use DswTokens but not compositionally injected (settings.plugins.tab hole pending). 2026-09-02 verification: PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory/list via callMethod exact slash via _wireEndpoint; no synthetic fallback, no duplicate store; visual partial honest (inventory rows via DswTokens, settings.plugins.tab hole pending, no fabricated golden). 2026-09-03 promotion to Verified: settings_screen.dart _PluginsTab/_InventoryTab delegate to live PluginsTab/InventoryTab (pluginInventory/list + SettingsScope per-namespace with revision fence), no static stub; visual partial honest (DswTokens primitives, no pixel golden fabricated).",
+    "notes": "PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory.list rows; dictionaries registered. Inventory tab into settings.plugins.tab deferred with that undeclared declaration. 2026-09-02 audit: behavior partial \u2014 service correctly reads host ledger, UI not yet wired to it (hard-coded _InventoryItem vs dynamic list); visual partial \u2014 inventory rows use DswTokens but not compositionally injected (settings.plugins.tab hole pending). 2026-09-02 verification: PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory/list via callMethod exact slash via _wireEndpoint; no synthetic fallback, no duplicate store; visual partial honest (inventory rows via DswTokens, settings.plugins.tab hole pending, no fabricated golden). 2026-09-03 promotion to Verified: settings_screen.dart _PluginsTab/_InventoryTab delegate to live PluginsTab/InventoryTab (pluginInventory/list + SettingsScope per-namespace with revision fence), no static stub; visual partial honest (DswTokens primitives, no pixel golden fabricated). 2026-09-03 session-parity: InventoryTab parses snapshot agentPresets (session group open by default with preset switcher, conditional/failed states, other-preset match hints) + global group collapsed with failed-first and preset-provided jump; locale-owned copy via settings.pluginInventory dicts; 9/9 settings_screen_test green.",
     "reactPackage": "ui-settings-plugin-inventory",
     "responsibility": "Host Loader inventory",
     "replacementType": "direct",
