@@ -8,17 +8,20 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef, Translate;
 import '../../../theme/app_theme.dart';
 import '../deliverables_mentions.dart' show basename;
 import '../locales.dart';
 
 /// At most six chips compete for the one-line summary; every other path
-/// stays counted.
+/// stays counted (React `SHOWN_LIMIT` parity).
 const int kProducedShownLimit = 6;
 
 /// Renders one turn's produced files as openable chips.
-class ProducedFilesRow extends StatelessWidget {
+class ProducedFilesRow extends ConsumerWidget {
   /// Creates the row over selector-matched paths.
   const ProducedFilesRow({
     super.key,
@@ -37,13 +40,16 @@ class ProducedFilesRow extends StatelessWidget {
   final ValueChanged<String>? onOpenFile;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
         (theme.brightness == Brightness.dark
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
+    // Product copy resolves through the deliverables dictionaries; the
+    // revision watch inside bindLocale re-renders on a Language-row switch.
+    final Translate t = ref.bindLocale(kDeliverablesNamespace);
     final int shownCount = paths.length > kProducedShownLimit
         ? kProducedShownLimit
         : paths.length;
@@ -61,7 +67,7 @@ class ProducedFilesRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            kDeliverablesEn['produced.label']!,
+            t('produced.label'),
             style: TextStyle(
               fontSize: DswTokens.fontSizeXxs12,
               fontWeight: FontWeight.w600,
@@ -77,30 +83,40 @@ class ProducedFilesRow extends StatelessWidget {
               for (final path in shown)
                 // The full path is the disambiguator when two turns produce
                 // files that share a basename; the chip itself stays short.
-                Tooltip(
-                  message: path,
-                  child: ActionChip(
-                    label: Text(
-                      basename(path),
-                      style: TextStyle(
-                        fontSize: DswTokens.fontSizeXxs12,
-                        color: aliases.labelPrimary,
+                // Tooltip carries the title parity; Semantics carries the
+                // `produced.open` accessible name React puts in aria-label.
+                Semantics(
+                  label: t(
+                    'produced.open',
+                  ).replaceAll('{name}', path),
+                  button: true,
+                  child: Tooltip(
+                    message: path,
+                    child: ActionChip(
+                      label: Text(
+                        basename(path),
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXxs12,
+                          color: aliases.labelPrimary,
+                        ),
                       ),
+                      backgroundColor: aliases.bgOverlay,
+                      side: BorderSide(color: aliases.borderL2),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          DswTokens.radiusFull,
+                        ),
+                      ),
+                      onPressed: onOpenFile == null
+                          ? null
+                          : () => onOpenFile!(path),
                     ),
-                    backgroundColor: aliases.bgOverlay,
-                    side: BorderSide(color: aliases.borderL2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-                    ),
-                    onPressed: onOpenFile == null
-                        ? null
-                        : () => onOpenFile!(path),
                   ),
                 ),
               if (hidden > 0)
                 Chip(
                   label: Text(
-                    _moreLabel(hidden),
+                    _moreLabel(t, hidden),
                     style: TextStyle(
                       fontSize: DswTokens.fontSizeXxs12,
                       color: aliases.labelSecondary,
@@ -111,6 +127,12 @@ class ProducedFilesRow extends StatelessWidget {
                 ),
             ],
           ),
+          // React renders the folder action when `paths.length > 1`, but its
+          // CSS keeps it `display: none` until a `.more` remainder is visible
+          // at the current container width (`:has(.more[data-shown])`). The
+          // Flutter row wraps instead of overflow-hiding, so visible parity
+          // is overflow-only: the action appears only when paths overflow
+          // the six-chip cap and the Host opener is available.
           if (hidden > 0 && canOpenPath && onOpenFile != null) ...[
             const SizedBox(height: DswTokens.spaceSm),
             Align(
@@ -123,7 +145,7 @@ class ProducedFilesRow extends StatelessWidget {
                   color: aliases.stateBusinessPrimary,
                 ),
                 label: Text(
-                  kDeliverablesEn['produced.showInFolder']!,
+                  t('produced.showInFolder'),
                   style: TextStyle(
                     fontSize: DswTokens.fontSizeXxs12,
                     color: aliases.stateBusinessPrimary,
@@ -137,7 +159,7 @@ class ProducedFilesRow extends StatelessWidget {
     );
   }
 
-  static String _moreLabel(int count) => count == 1
-      ? kDeliverablesEn['produced.moreOne']!
-      : '+ $count ${count == 1 ? 'file' : 'files'}';
+  static String _moreLabel(Translate t, int count) => count == 1
+      ? t('produced.moreOne')
+      : t('produced.more').replaceAll('{count}', '$count');
 }

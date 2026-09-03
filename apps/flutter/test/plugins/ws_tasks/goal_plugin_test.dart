@@ -1,3 +1,4 @@
+import 'package:dsh_flutter/src/core/api/rpc_envelope.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/session/session_provider.dart';
 import 'package:dsh_flutter/src/core/services/runtime_services.dart';
@@ -128,9 +129,80 @@ void main() {
       final result = await control.edit('s1', 'nope');
 
       expect(result.ok, isFalse);
+      expect(result.code, 'rpc-error');
       expect(result.message, contains('agent-busy'));
     },
   );
+
+  test('CAS refs are read at call time, not cached at construction', () async {
+    final client = RecordingClient();
+    final snapshots = {'s1': _activeGoal};
+    final control = GoalControl(
+      client: client,
+      projectionSource: _Source(snapshots),
+    );
+
+    // Host advances the goal between control creation and the verb call;
+    // the verb must address the live revision (the RPC's CAS is the guard,
+    // so the client never fences — it just reads late).
+    snapshots['s1'] = const GoalSnapshot(
+      id: 'goal-1',
+      objective: 'Ship the migration',
+      phase: GoalPhase.active,
+      revision: 4,
+    );
+
+    await control.pause('s1');
+
+    expect(client.calls.single.method, 'goals/pause');
+    expect(client.calls.single.payload['agentId'], 's1');
+    expect(client.calls.single.payload['ref'], {'id': 'goal-1', 'revision': 4});
+  });
+
+  test('host-typed failures preserve the wire error code', () async {
+    final client = RecordingClient()
+      ..failNextWith = RemoteMethodException(
+        code: RpcErrorCode.sessionNotFound,
+        message: 'session gone',
+        details: const {},
+      );
+    final control = GoalControl(
+      client: client,
+      projectionSource: _Source({'s1': _activeGoal}),
+    );
+
+    final result = await control.clear('s1');
+
+    // React renders RemoteResult.error verbatim; the strip renders
+    // `message (code)`, so the code must survive the carrier.
+    expect(result.ok, isFalse);
+    expect(result.code, 'session-not-found');
+    expect(result.message, 'session gone');
+  });
+
+  test('mutation wires use slash endpoints only (goals/<verb>)', () async {
+    final client = RecordingClient();
+    final control = GoalControl(
+      client: client,
+      projectionSource: _Source({'s1': _activeGoal}),
+    );
+
+    await control.edit('s1', 'rewritten');
+    await control.pause('s1');
+    await control.resume('s1');
+    await control.clear('s1');
+
+    expect(client.calls, hasLength(4));
+    for (final call in client.calls) {
+      expect(call.method.contains('.'), isFalse);
+      expect(call.method.startsWith('goals/'), isTrue);
+    }
+    // Edit carries the objective request; pause/resume/clear carry ref only.
+    expect(client.calls.first.payload['request'], {'objective': 'rewritten'});
+    for (final call in client.calls.skip(1)) {
+      expect(call.payload.containsKey('request'), isFalse);
+    }
+  });
 
   test(
     'dictionaries register under the goal namespace and leave with the plugin',

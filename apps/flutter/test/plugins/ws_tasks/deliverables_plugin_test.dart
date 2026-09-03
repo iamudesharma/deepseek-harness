@@ -103,13 +103,26 @@ void main() {
   testWidgets(
     'the row renders basename chips with a counted remainder and gated folder action',
     (tester) async {
+      // The row resolves copy through the deliverables dictionaries like the
+      // owning plugin's apply; English here pins the `more`/`folder` copy
+      // the parity assertions below check verbatim.
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(localeServiceProvider).register(kDeliverablesNamespace, {
+        'zh': kDeliverablesZh,
+        'en': kDeliverablesEn,
+      });
+      container.read(localeServiceProvider).setLocale('en');
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ProducedFilesRow(
-              paths: [for (var i = 0; i < 8; i++) 'dist/asset$i.js'],
-              canOpenPath: true,
-              onOpenFile: (_) {},
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: ProducedFilesRow(
+                paths: [for (var i = 0; i < 8; i++) 'dist/asset$i.js'],
+                canOpenPath: true,
+                onOpenFile: (_) {},
+              ),
             ),
           ),
         ),
@@ -121,19 +134,46 @@ void main() {
       expect(find.text('asset6.js'), findsNothing); // six-chip cap
       expect(find.text('+ 2 files'), findsOneWidget);
       expect(find.text('Show in folder'), findsOneWidget);
+      // The full path rides the tooltip (React `title` parity) and the
+      // accessible open label (React `aria-label` parity).
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Tooltip && widget.message == 'dist/asset0.js',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              widget.properties.label == 'Open dist/asset0.js',
+        ),
+        findsOneWidget,
+      );
     },
   );
 
   testWidgets(
     'without the Host capability the folder action stays off; empty turns render the screen empty state',
     (tester) async {
+      final rowContainer = ProviderContainer();
+      addTearDown(rowContainer.dispose);
+      rowContainer.read(localeServiceProvider).register(kDeliverablesNamespace, {
+        'zh': kDeliverablesZh,
+        'en': kDeliverablesEn,
+      });
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: ProducedFilesRow(paths: ['only.md'])),
+        UncontrolledProviderScope(
+          container: rowContainer,
+          child: const MaterialApp(
+            home: Scaffold(body: ProducedFilesRow(paths: ['only.md'])),
+          ),
         ),
       );
       expect(find.byType(ActionChip), findsOneWidget);
       expect(find.text('Show in folder'), findsNothing);
+      expect(find.text('在文件夹中显示'), findsNothing);
 
       // The empty state resolves deliverables.empty.title through the shared
       // LocaleService; register the namespace like the owning plugin's apply.
@@ -152,4 +192,165 @@ void main() {
       expect(find.text('暂无产物'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'the folder action stays overflow-only and the singular remainder uses moreOne copy',
+    (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(localeServiceProvider).register(kDeliverablesNamespace, {
+        'zh': kDeliverablesZh,
+        'en': kDeliverablesEn,
+      });
+      container.read(localeServiceProvider).setLocale('en');
+
+      // Two files with a capable Host: React renders the folder button at the
+      // JSX gate but its CSS keeps it hidden until a remainder is visible at
+      // the current width. The Flutter row wraps instead of overflow-hiding,
+      // so visible parity is overflow-only — no folder without a remainder.
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: ProducedFilesRow(
+                paths: const ['a.md', 'b.md'],
+                canOpenPath: true,
+                onOpenFile: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Show in folder'), findsNothing);
+
+      // Exactly one hidden file uses the singular `moreOne` template.
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: ProducedFilesRow(
+                paths: [
+                  for (var i = 0; i < 7; i++) 'dist/asset$i.js',
+                ],
+                canOpenPath: false,
+                onOpenFile: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('+ 1 file'), findsOneWidget);
+      expect(find.text('Show in folder'), findsNothing);
+
+      // Overflow without an opener still hides the folder action.
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Scaffold(
+              body: ProducedFilesRow(
+                paths: [
+                  for (var i = 0; i < 8; i++) 'dist/asset$i.js',
+                ],
+                canOpenPath: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('+ 2 files'), findsOneWidget);
+      expect(find.text('Show in folder'), findsNothing);
+    },
+  );
+
+  testWidgets('the row follows the active locale dictionaries', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(localeServiceProvider).register(kDeliverablesNamespace, {
+      'zh': kDeliverablesZh,
+      'en': kDeliverablesEn,
+    });
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(
+            body: ProducedFilesRow(
+              paths: [for (var i = 0; i < 8; i++) 'dist/asset$i.js'],
+              canOpenPath: true,
+              onOpenFile: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('产物'), findsOneWidget);
+    expect(find.text('+ 2 个文件'), findsOneWidget);
+    expect(find.text('在文件夹中显示'), findsOneWidget);
+  });
+
+  test('selectProducedFiles declines empty turns so the chain stays empty', () {
+    expect(selectProducedFiles(null), isNull);
+    expect(
+      selectProducedFiles(const DeliverablesTurnData([])),
+      isNull,
+    );
+    final data = DeliverablesTurnData(const [
+      (seq: 2, path: 'out/index.html'),
+      (seq: 5, path: 'src/app.css'),
+      (seq: 9, path: 'late.txt'),
+    ]);
+    expect(selectProducedFiles(data), [
+      'out/index.html',
+      'src/app.css',
+      'late.txt',
+    ]);
+    expect(selectProducedFiles(data, closingSeq: 6), [
+      'out/index.html',
+      'src/app.css',
+    ]);
+  });
+
+  test('mentions prefer the exact path even when its basename is ambiguous', () async {
+    final host = wsTasksHost();
+    addTearDown(host.deactivateAll);
+    host.register(const DeliverablesPlugin());
+    await host.activateAll();
+
+    final mentions = host.service<ChatFileMentions>(
+      kChatFileMentionsServiceName,
+    )!;
+    final opened = <String>[];
+    void open(String path) => opened.add(path);
+
+    // The basename `style.css` is shared, so it stays inert — but either
+    // exact path still resolves (React `paths.includes` before basename).
+    const paths = ['a/style.css', 'b/style.css'];
+    expect(
+      mentions.resolve(paths: paths, token: 'style.css', openFile: open),
+      isNull,
+    );
+    expect(
+      mentions.resolve(paths: paths, token: 'a/style.css', openFile: open)!.path,
+      'a/style.css',
+    );
+    mentions.resolve(paths: paths, token: 'b/style.css', openFile: open)!.open();
+    expect(opened, ['b/style.css']);
+
+    // Backslash-separated producers resolve through the same trailing
+    // segment as slash-separated ones.
+    expect(basename(r'a\b\c.txt'), 'c.txt');
+    expect(
+      mentions
+          .resolve(
+            paths: const [r'a\b\c.txt'],
+            token: 'c.txt',
+            openFile: open,
+          )!
+          .path,
+      r'a\b\c.txt',
+    );
+  });
 }
