@@ -62,6 +62,10 @@ enum RpcErrorCode {
   subagentNotResumable('subagent-not-resumable'),
   subagentUnauthorized('subagent-unauthorized'),
   subagentDeliveryUnavailable('subagent-delivery-unavailable'),
+  messageFeedbackTargetNotFound('target-not-found'),
+  messageFeedbackVersionConflict('version-conflict'),
+  messageFeedbackNoteBlank('note-blank'),
+  messageFeedbackNoteTooLarge('note-too-large'),
   internal('internal');
 
   const RpcErrorCode(this.wire);

@@ -10,6 +10,8 @@
 /// plus the reconnect resync posture over the `'remote'` bus when present.
 library;
 
+import '../../core/api/rpc_envelope.dart';
+import '../../core/connection/connection_client.dart';
 import '../../core/plugin/plugin_contract.dart';
 import 'message_feedback_controller.dart';
 
@@ -50,11 +52,134 @@ class MessageFeedbackPlugin extends DshPlugin {
   @override
   Future<void> apply(DshContext ctx) async {
     ctx.require<Object>('slots'); // pin declared edge
-    final remote = ctx.get<MessageFeedbackRemote>('remote.messageFeedback');
+    // Prefer an explicitly bound face (tests), then the live Host wire,
+    // otherwise stay renderable via _AbsentRemote.
+    final explicit = ctx.get<MessageFeedbackRemote>('remote.messageFeedback');
+    final client = ctx.get<ConnectionClient>('connection');
+    final MessageFeedbackRemote remote = explicit ??
+        (client != null
+            ? ConnectionClientMessageFeedbackRemote(client)
+            : _AbsentRemote());
 
-    final controllers = MessageFeedbackControllers(remote ?? _AbsentRemote());
+    final controllers = MessageFeedbackControllers(remote);
     ctx.provide('messageFeedback', controllers);
     ctx.onDispose(controllers.disposeAll);
+  }
+}
+
+/// Live Host remote over [ConnectionClient.callMethod] — slash wires
+/// `messageFeedback/list|put|delete` with `{sessionId, messageId, rating,
+/// note?, ifVersion}` matching `packages/feedback/message-feedback/src/types.ts`.
+/// Business failures map to [ReplyError] with the Host code string;
+/// `version-conflict` carries the authoritative row from `details.current`.
+class ConnectionClientMessageFeedbackRemote implements MessageFeedbackRemote {
+  ConnectionClientMessageFeedbackRemote(this._client);
+
+  final ConnectionClient _client;
+
+  static String _ratingWire(FeedbackRatingValue rating) =>
+      rating == FeedbackRatingValue.positive ? 'positive' : 'negative';
+
+  static FeedbackRatingValue _ratingFromWire(String wire) =>
+      wire == 'negative' ? FeedbackRatingValue.negative : FeedbackRatingValue.positive;
+
+  static MessageFeedbackItem _itemFromJson(Map<String, dynamic> json) {
+    final versionRaw = json['version'];
+    final int version = versionRaw is int
+        ? versionRaw
+        : (versionRaw as num).toInt();
+    return MessageFeedbackItem(
+      messageId: json['messageId'] as String,
+      rating: _ratingFromWire(json['rating'] as String),
+      note: json['note'] as String?,
+      version: version,
+    );
+  }
+
+  static MessageFeedbackItem? _currentFromDetails(Map<String, Object?> details) {
+    final current = details['current'];
+    if (current == null) return null;
+    if (current is Map) {
+      return _itemFromJson(Map<String, dynamic>.from(current));
+    }
+    return null;
+  }
+
+  @override
+  Future<FeedbackReply<List<MessageFeedbackItem>>> list({
+    required String sessionId,
+  }) async {
+    try {
+      final value = await _client.callMethod('messageFeedback/list', {
+        'sessionId': sessionId,
+      });
+      final raw = value['items'] as List<dynamic>? ?? const [];
+      final items = raw
+          .whereType<Map>()
+          .map((e) => _itemFromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      return ReplyOk<List<MessageFeedbackItem>>(items);
+    } on RemoteMethodException catch (e) {
+      return ReplyError<List<MessageFeedbackItem>>(
+        e.code.wire,
+        message: e.message,
+        current: null,
+      );
+    } catch (e) {
+      return ReplyError<List<MessageFeedbackItem>>('internal', message: '$e');
+    }
+  }
+
+  @override
+  Future<FeedbackReply<MessageFeedbackItem?>> put({
+    required String sessionId,
+    required String messageId,
+    required FeedbackRatingValue rating,
+    String? note,
+    required int? ifVersion,
+  }) async {
+    try {
+      final value = await _client.callMethod('messageFeedback/put', {
+        'sessionId': sessionId,
+        'messageId': messageId,
+        'rating': _ratingWire(rating),
+        if (note != null) 'note': note,
+        'ifVersion': ifVersion,
+      });
+      return ReplyOk<MessageFeedbackItem?>(_itemFromJson(value));
+    } on RemoteMethodException catch (e) {
+      return ReplyError<MessageFeedbackItem?>(
+        e.code.wire,
+        message: e.message,
+        current: _currentFromDetails(e.details),
+      );
+    } catch (e) {
+      return ReplyError<MessageFeedbackItem?>('internal', message: '$e');
+    }
+  }
+
+  @override
+  Future<FeedbackReply<MessageFeedbackItem?>> delete({
+    required String sessionId,
+    required String messageId,
+    required int ifVersion,
+  }) async {
+    try {
+      await _client.callMethod('messageFeedback/delete', {
+        'sessionId': sessionId,
+        'messageId': messageId,
+        'ifVersion': ifVersion,
+      });
+      return const ReplyOk<MessageFeedbackItem?>(null);
+    } on RemoteMethodException catch (e) {
+      return ReplyError<MessageFeedbackItem?>(
+        e.code.wire,
+        message: e.message,
+        current: _currentFromDetails(e.details),
+      );
+    } catch (e) {
+      return ReplyError<MessageFeedbackItem?>('internal', message: '$e');
+    }
   }
 }
 
