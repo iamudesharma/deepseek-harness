@@ -66,6 +66,10 @@ class ResolvedMention {
 /// resolves by exact path, or by being exactly the basename of exactly one
 /// produced path — a basename two paths share stays inert rather than
 /// guessing, so a mention link can never open the wrong file or 404.
+///
+/// An exact path always wins first, even when its basename is ambiguous
+/// across the turn (React `producedFileMentions` parity: `paths.includes`
+/// before `onlyPathWithBasename`).
 ResolvedMention? resolveFileMention(
   List<String> paths,
   String token,
@@ -80,4 +84,19 @@ ResolvedMention? resolveFileMention(
     path: matches.single,
     open: () => openFile(matches.single),
   );
+}
+
+/// Selector-matched produced paths for the turn-tail chain entry.
+///
+/// The same claim test React `selectProducedFiles` runs: no produced files,
+/// no vocabulary (`null` declines before mount). The Dart conversation hub
+/// has no `conversation.chat.turnTail` chain seam yet, so the owning view
+/// renders an empty chain at zero cost; when the seam lands, it feeds this
+/// same reader over the turn's `DeliverablesTurnData`.
+List<String>? selectProducedFiles(
+  DeliverablesTurnData? data, {
+  int closingSeq = -1,
+}) {
+  final paths = producedForClosing(data, closingSeq: closingSeq);
+  return paths.isEmpty ? null : paths;
 }
