@@ -11,7 +11,6 @@ import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate, kCommonNamespace;
 import '../../../core/session/session_provider.dart';
 import '../../conversation/hub.dart' show ChatNodeData;
-import '../locales.dart';
 import '../question_models.dart';
 import '../question_responder.dart';
 import '../questions_state.dart';
@@ -167,7 +166,6 @@ class _GenericFlow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final Translate t = ref.bindLocale(kQuestionNamespace);
     final Translate tcommon = ref.bindLocale(kCommonNamespace);
     return Card(
       key: const ValueKey('question-card'),

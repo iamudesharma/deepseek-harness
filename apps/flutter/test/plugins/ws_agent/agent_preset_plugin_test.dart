@@ -249,12 +249,16 @@ void main() {
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
 
-    expect(client.calls, hasLength(1));
-    final (method, payload) = client.calls.single;
+    // The copy plus React-parity landing in the new preset's files.
+    expect(client.calls, hasLength(2));
+    final (method, payload) = client.calls[0];
     expect(method, 'agentPresets/copy');
     expect(payload['from'], 'standard');
     expect(payload['id'], 'standard-copy');
     expect(payload['name'], 'My copy');
+    final (locMethod, locPayload) = client.calls[1];
+    expect(locMethod, 'settings/openAgentPresetDirectory');
+    expect(locPayload['agentPreset'], 'standard-copy');
   });
 
   testWidgets('delete confirms then removes through agentPreset.remove', (
@@ -282,17 +286,161 @@ void main() {
     expect(method, 'agentPresets/deletePreset');
     expect(payload['id'], 'mine');
   });
+
+  test('presetCopyBlocker mirrors React draftBlocker', () {
+    const rows = [
+      AgentPresetOption(id: 'standard', name: 'standard', trust: PresetTrust.system),
+      AgentPresetOption(id: 'mine', name: 'mine', trust: PresetTrust.user),
+    ];
+    expect(presetCopyBlocker('', rows), 'idRequired');
+    expect(presetCopyBlocker('BAD ID!', rows), 'idInvalid');
+    expect(presetCopyBlocker('Mine', rows), 'idInvalid');
+    expect(presetCopyBlocker('mine', rows), 'idTaken');
+    expect(presetCopyBlocker('standard', rows), 'idTaken');
+    expect(presetCopyBlocker('mine-2', rows), isNull);
+    expect(presetCopyBlocker('a', rows), isNull);
+  });
+
+  testWidgets('location action opens on the host when it can', (tester) async {
+    final client = _FakePresetClient(
+      roster: [
+        {'id': 'mine', 'trust': 'user', 'name': 'Mine'},
+      ],
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    // Opener capability joined from settings, not the list answer.
+    expect(find.byTooltip('Open folder'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open folder'));
+    await tester.pumpAndSettle();
+
+    expect(client.calls, hasLength(1));
+    final (method, payload) = client.calls.single;
+    expect(method, 'settings/openAgentPresetDirectory');
+    expect(payload['agentPreset'], 'mine');
+    // Opened on the host desktop: nothing revealed on the row.
+    expect(find.text('Preset files:'), findsNothing);
+  });
+
+  testWidgets('location action reveals the path where it cannot open', (
+    tester,
+  ) async {
+    final client = _FakePresetClient(
+      roster: [
+        {'id': 'mine', 'trust': 'user', 'name': 'Mine'},
+      ],
+      canOpen: false,
+      revealPath: '/data/presets/mine',
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Show location'), findsOneWidget);
+    await tester.tap(find.byTooltip('Show location'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preset files:'), findsOneWidget);
+    expect(find.text('/data/presets/mine'), findsOneWidget);
+  });
+
+  testWidgets('refused opener removes only the affordance, not the roster', (
+    tester,
+  ) async {
+    final client = _FakePresetClient(
+      roster: [
+        {'id': 'mine', 'trust': 'user', 'name': 'Mine'},
+      ],
+      throwCanOpen: true,
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    // Roster still loads; the row falls back to reveal-path posture.
+    // ('Mine' renders in the row picker, the seat picker, and the card.)
+    expect(find.text('Mine'), findsWidgets);
+    expect(find.byTooltip('Show location'), findsOneWidget);
+    expect(find.byTooltip('Open folder'), findsNothing);
+  });
+
+  testWidgets('copy dialog blocks invalid ids before the wire', (tester) async {
+    final client = _FakePresetClient(
+      roster: [
+        {
+          'id': 'standard',
+          'trust': 'system',
+          'isDefault': true,
+          'name': 'Standard mode',
+        },
+      ],
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Duplicate'));
+    await tester.pumpAndSettle();
+
+    FilledButton createButton() => tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Create'),
+    );
+    // Prefill is submittable.
+    expect(createButton().enabled, isTrue);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Identifier').first,
+      'BAD ID!',
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Use lowercase letters, digits, and hyphens, starting with a letter or digit.',
+      ),
+      findsOneWidget,
+    );
+    expect(createButton().enabled, isFalse);
+    expect(client.calls, isEmpty);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Identifier').first,
+      'standard',
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('A preset with this identifier already exists.'),
+      findsOneWidget,
+    );
+    expect(createButton().enabled, isFalse);
+    expect(client.calls, isEmpty);
+  });
 }
 
 /// Fake typed client for the management section: `agentPreset.list` serves a
-/// fixed roster; the generic carrier records read/copy/remove calls and
-/// replies from one scripted map (field-asserted, not string-matched).
+/// fixed roster; the generic carrier records read/copy/remove/location calls
+/// and replies from one scripted map (field-asserted, not string-matched).
+/// `hasDocument` is joined from `settings/canOpenAgentPresetDirectory` like
+/// React `section-store.ts:load` — the list answer carries no such key.
 class _FakePresetClient extends ConnectionClient {
-  _FakePresetClient({required this.roster, this.authorable = true})
-    : super(baseUrl: '');
+  _FakePresetClient({
+    required this.roster,
+    this.authorable = true,
+    this.canOpen = true,
+    this.throwCanOpen = false,
+    this.revealPath,
+  }) : super(baseUrl: '');
 
   final List<Map<String, dynamic>> roster;
   final bool authorable;
+
+  /// Answer for `settings/canOpenAgentPresetDirectory`.
+  final bool canOpen;
+
+  /// When true, the opener query throws (a refused describe removes only the
+  /// native-open affordance; the roster still loads).
+  final bool throwCanOpen;
+
+  /// When set, `settings/openAgentPresetDirectory` answers
+  /// `{opened: false, path: revealPath}` instead of opening.
+  final String? revealPath;
   final List<(String, Map<String, dynamic>)> calls =
       <(String, Map<String, dynamic>)>[];
   Object? Function(String method, Map<String, dynamic> payload)? onCall;
@@ -301,8 +449,34 @@ class _FakePresetClient extends ConnectionClient {
   Future<Map<String, dynamic>> agentPresetList() async => {
     'presets': roster,
     'authorable': authorable,
-    'hasDocument': true,
   };
+
+  @override
+  Future<bool> settingsCanOpenAgentPresetDirectory() async {
+    if (throwCanOpen) throw Exception('settings describe refused');
+    return canOpen;
+  }
+
+  @override
+  Future<Map<String, dynamic>> settingsOpenAgentPresetDirectory({
+    required String agentPreset,
+  }) async {
+    calls.add((
+      'settings/openAgentPresetDirectory',
+      {'agentPreset': agentPreset},
+    ));
+    final handler = onCall;
+    if (handler != null) {
+      final value = handler(
+        'settings/openAgentPresetDirectory',
+        {'agentPreset': agentPreset},
+      );
+      if (value is Map<String, dynamic>) return value;
+    }
+    final reveal = revealPath;
+    if (reveal != null) return {'opened': false, 'path': reveal};
+    return {'opened': true};
+  }
 
   @override
   Future<Map<String, dynamic>> callMethod(

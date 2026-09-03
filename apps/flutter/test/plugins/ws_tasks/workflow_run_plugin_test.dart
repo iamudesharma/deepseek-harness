@@ -1,10 +1,13 @@
 import 'package:dsh_flutter/src/core/services/runtime_services.dart';
+import 'package:dsh_flutter/src/core/session/session_models.dart';
+import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
 import 'package:dsh_flutter/src/plugins/conversation/hub.dart';
 import 'package:dsh_flutter/src/plugins/workflow_run/locales.dart';
 import 'package:dsh_flutter/src/plugins/workflow_run/ui/workflow_run_panel.dart';
 import 'package:dsh_flutter/src/plugins/workflow_run/workflow_run_models.dart';
 import 'package:dsh_flutter/src/plugins/workflow_run/workflow_run_plugin.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'host_fixture.dart';
@@ -161,4 +164,66 @@ void main() {
       expect(find.textContaining('Completed 1 · Failed 1'), findsNothing);
     },
   );
+
+  testWidgets('openSession wired to setCurrent navigates on member tap', (
+    tester,
+  ) async {
+    // Proves the production wiring shape used in `buildAppHost`
+    // (`openSession: (childId) => ref.read(sessionsProvider.notifier)
+    //  .setCurrent(SessionId(childId))`, React `ctx.sessions.open`):
+    // tapping a running member selects its child row. The boot registration
+    // in `app_plugins.dart` uses this exact closure; it is exercised here
+    // against `wsTasksHost` so this test stays independent of the full
+    // shell (which currently does not compile due to unrelated
+    // trajectory-screen errors).
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    // The selection guard ignores unknown ids, so seed the running child
+    // before tapping — without this the tap would honestly no-op.
+    container
+        .read(sessionsProvider.notifier)
+        .addSession(
+          const SessionSummary(
+            sessionId: SessionId('sess-child-2'),
+            updatedAt: 2,
+            running: true,
+            blank: false,
+          ),
+        );
+    final host = wsTasksHost();
+    addTearDown(host.deactivateAll);
+    host.register(
+      WorkflowRunPlugin(
+        openSession: (childId) => container
+            .read(sessionsProvider.notifier)
+            .setCurrent(SessionId(childId)),
+      ),
+    );
+    await host.activateAll();
+    final controller = host.service<ConversationController>('conversation')!;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              final renderer = controller.renderers.resolve(
+                kWorkflowRunNodeKey,
+              )!;
+              return renderer(context, nodeFor(_run));
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(container.read(sessionsProvider).current, isNull);
+    await tester.tap(find.text('reviewer-b'));
+    await tester.pump();
+    expect(
+      container.read(sessionsProvider).current,
+      const SessionId('sess-child-2'),
+    );
+  });
 }

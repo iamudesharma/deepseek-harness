@@ -5,6 +5,9 @@
 /// per-keystroke candidate reads re-poll filters over a settled snapshot
 /// locally, so one session costs one `skill.list` RPC. A failed fetch must
 /// not poison its key — the entry is dropped so the next consumer retries.
+/// A fetch invalidated mid-flight is detached (the `CommandDirectory` epoch
+/// guard; React aborts the superseded fetch): its late rows never repopulate
+/// the key, and the invalidation itself notifies waiting lexicon readers.
 /// Invalidation clears exactly one session key (a preset switch drops that
 /// key: the catalog is the preset's); [clearAll] drops every key.
 library;
@@ -108,8 +111,14 @@ class SkillCatalog {
 
   /// Drops one session's cache and notifies lexicon readers.
   void invalidate(SessionId key) {
-    _fetches.remove(key);
-    if (_settled.remove(key) != null) _notify(key);
+    final hadFetch = _fetches.remove(key) != null;
+    final hadSettled = _settled.remove(key) != null;
+    // React notifies whenever the dropped entry existed — an in-flight key
+    // has waiters too, and they must re-read instead of hanging on the
+    // detached fetch the epoch guard below refuses to publish.
+    if (hadFetch || hadSettled) {
+      _notify(key);
+    }
   }
 
   /// Drops every cached catalog (connection-reset posture).
@@ -127,15 +136,19 @@ class SkillCatalog {
     unawaited(
       future.then(
         (entries) {
+          // Epoch guard (the `CommandDirectory` twin's `epoch != entry.epoch`
+          // early return; React aborts the superseded fetch): an invalidation
+          // that landed mid-flight detached this future, so its rows belong
+          // to the composition the session no longer runs — drop them.
+          if (!identical(_fetches[sessionId], future)) return;
           _settled[sessionId] = entries;
-          // Settlement notifies even when the key was invalidated mid-flight:
-          // late readers see the settled list, invalidation already dropped it.
-          if (_settled.containsKey(sessionId)) _notify(sessionId);
+          _notify(sessionId);
         },
         onError: (_) {
           // A failed fetch must not poison the key: the next consumer retries.
-          if (identical(_fetches[sessionId], future))
+          if (identical(_fetches[sessionId], future)) {
             _fetches.remove(sessionId);
+          }
         },
       ),
     );
@@ -155,7 +168,13 @@ class SkillCatalog {
     for (final listener in List.of(
       _lexiconListeners[sessionId] ?? const <VoidCallback>{},
     )) {
-      listener();
+      try {
+        listener();
+      } catch (_) {
+        // Contain one faulty consumer so it cannot starve the rest (React's
+        // `notifyLexicon` guard): settlement notifies off an unawaited chain
+        // where a throw would surface as an unhandled rejection.
+      }
     }
   }
 }
