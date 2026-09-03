@@ -3,15 +3,19 @@
 /// carried over `ConnectionClient.callMethod` because no typed remote face
 /// exists yet.
 ///
-/// Method names and payload fields mirror `GoalsApi` (`rpc-map.ts`) exactly:
-/// every verb is CAS-guarded by the ref read from the session's projected
-/// goal at call time; with no projection there is nothing to mutate and the
-/// verb fails with `no-current-goal` without touching the wire (the same
-/// `refOf → undefined` short-circuit the React apply() builds).
+/// Method names and payload fields mirror `GoalService` (namespace `goals`,
+/// `@Remote('edit' | 'pause' | 'resume' | 'clear')` in
+/// `packages/goal/goal/src/index.ts`) exactly: every verb is CAS-guarded by
+/// the ref read from the session's projected goal at call time; with no
+/// projection there is nothing to mutate and the verb fails with
+/// `no-current-goal` without touching the wire (the same `refOf → undefined`
+/// short-circuit the React apply() builds). Wire payloads are
+/// `{agentId, ref: {id, revision}}` plus `request: {objective}` on edit.
 library;
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/api/rpc_envelope.dart' show RemoteMethodException;
 import '../../core/connection/connection_client.dart';
 import 'goal_projection.dart';
 
@@ -63,8 +67,25 @@ class GoalActionResult {
   );
 
   /// Maps a carrier failure (`callMethod` throws on `result.ok == false`).
-  factory GoalActionResult.failure(Object error) =>
-      GoalActionResult(ok: false, code: 'rpc-error', message: error.toString());
+  ///
+  /// Host-typed failures ([RemoteMethodException]) keep their wire `code`
+  /// (e.g. `session-not-found`) and clean `message` so the strip renders the
+  /// same `message (code)` React renders from `RemoteResult.error`; transport
+  /// and decoding failures collapse to `rpc-error`.
+  factory GoalActionResult.failure(Object error) {
+    if (error is RemoteMethodException) {
+      return GoalActionResult(
+        ok: false,
+        code: error.code.wire,
+        message: error.message,
+      );
+    }
+    return GoalActionResult(
+      ok: false,
+      code: 'rpc-error',
+      message: error.toString(),
+    );
+  }
 }
 
 /// The four mutation verbs of the goal strip, published as the `'goal'`
