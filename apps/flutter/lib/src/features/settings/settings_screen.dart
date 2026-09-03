@@ -20,6 +20,9 @@ import '../../plugins/settings/children/plugins/plugins_settings_plugin.dart'
     show kPluginsNamespace;
 import '../../plugins/settings/children/plugin_inventory/plugin_inventory_plugin.dart'
     show kInventoryNamespace;
+import '../../plugins/agent_preset/locales.dart' show kAgentPresetNamespace;
+import '../../plugins/agent_preset/ui/agent_preset_screen.dart'
+    show AgentPresetRosterBody;
 import '../../plugins/conversation/locales.dart' show kConversationNamespace;
 import 'inventory_tab.dart' show InventoryTab;
 import 'plugins_tab.dart' show PluginsTab;
@@ -161,12 +164,16 @@ final busyEnterProvider = NotifierProvider<BusyEnterController, BusyEnterState>(
   BusyEnterController.new,
 );
 
-/// Settings screen — four tabs: General, Models, Plugins, Inventory.
+/// Settings screen — five tabs: General, Models, Plugins, Inventory, Agent presets.
 ///
-/// Uses [TabBar] + [TabBarView] with [DefaultTabController] (length 4).
+/// Uses [TabBar] + [TabBarView] with [DefaultTabController] (length 5).
 /// General tab wires to [appearanceProvider] for theme, [appLanguageProvider]
 /// for language row, and a notification toggle. Models tab shows model
-/// selection form. Plugins and Inventory are placeholder lists.
+/// selection form. Plugins shows the live configuration cards, Inventory the
+/// live Host Loader inventory, and Agent presets the roster management
+/// section — mirroring React's Settings sidebar
+/// (General / Models / Plugins / Agent presets) with the plugin inventory as
+/// the Plugins section's second view.
 ///
 /// Handles empty/loading states via local stub data; uses [Theme] and
 /// [DswTokens] throughout. [ConsumerWidget] for Riverpod integration.
@@ -188,9 +195,10 @@ class SettingsScreen extends ConsumerWidget {
     final Translate tm = ref.bindLocale(kModelsNamespace);
     final Translate tp = ref.bindLocale(kPluginsNamespace);
     final Translate ti = ref.bindLocale(kInventoryNamespace);
+    final Translate ta = ref.bindLocale(kAgentPresetNamespace);
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
@@ -238,6 +246,10 @@ class SettingsScreen extends ConsumerWidget {
                     icon: const Icon(Icons.inventory_2_outlined, size: 16),
                     text: ti('nav'),
                   ),
+                  Tab(
+                    icon: const Icon(Icons.group_outlined, size: 16),
+                    text: ta('nav'),
+                  ),
                 ],
               ),
             ),
@@ -249,6 +261,7 @@ class SettingsScreen extends ConsumerWidget {
             const SettingsModelsScreen(),
             _PluginsTab(aliases: aliases),
             _InventoryTab(aliases: aliases),
+            const _AgentPresetsTab(),
           ],
         ),
       ),
@@ -824,6 +837,19 @@ class _InventoryTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => InventoryTab(aliases: aliases);
+}
+
+/// Agent presets tab — roster management section (React `AgentPresetSection`).
+///
+/// Embeds the shared [AgentPresetRosterBody] without the standalone screen's
+/// per-session pickers: intro plus Built-in/Custom cards whose pick persists
+/// the deployment default to the host (`settings/update agent-presets`).
+class _AgentPresetsTab extends StatelessWidget {
+  const _AgentPresetsTab();
+
+  @override
+  Widget build(BuildContext context) =>
+      const AgentPresetRosterBody(showPickers: false);
 }
 
 // Shared primitives.

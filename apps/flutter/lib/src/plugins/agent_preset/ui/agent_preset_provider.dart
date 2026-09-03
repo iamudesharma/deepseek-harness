@@ -177,6 +177,27 @@ Future<void> removePreset(ConnectionClient client, String presetId) async {
   await client.callMethod('agentPresets/deletePreset', {'id': presetId});
 }
 
+/// Persists one preset as the default for sessions created later (React
+/// `writeDefaultPreset` in `settings-store.ts` over
+/// `settings.update('agent-presets', {default: id})`).
+///
+/// The default is a settings field rather than a preset property; the host
+/// resolves it at session creation, so this is what makes a management-card
+/// pick reflect throughout the app. Running sessions keep the composition
+/// they began with. Returns the failure message, or null once the write
+/// landed and the caller should re-read the roster.
+Future<String?> makeDefaultPreset(ConnectionClient client, String id) async {
+  try {
+    await client.settingsUpdate(
+      ns: 'agent-presets',
+      patch: {'default': id},
+    );
+    return null;
+  } catch (e) {
+    return e.toString();
+  }
+}
+
 /// Opens one user preset's directory on the host desktop, or reveals its
 /// path where the deployment has no opener (React `section-store.ts:
 /// openLocation` over `settings/openAgentPresetDirectory`). Failures surface

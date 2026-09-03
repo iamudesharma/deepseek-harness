@@ -13,6 +13,8 @@ import 'package:dsh_flutter/src/plugins/settings/children/plugins/plugins_settin
     show kPluginsNamespace, kPluginsZh, kPluginsEn;
 import 'package:dsh_flutter/src/plugins/settings/children/plugin_inventory/plugin_inventory_plugin.dart'
     show kInventoryNamespace, kInventoryZh, kInventoryEn;
+import 'package:dsh_flutter/src/plugins/agent_preset/locales.dart'
+    show kAgentPresetNamespace, kAgentPresetZh, kAgentPresetEn;
 import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +29,8 @@ class _FakeClient extends ConnectionClient {
   Map<String, Object?> describeAnswer = const <String, dynamic>{};
   List<Map<String, dynamic>> inventoryEntries = const [];
   List<Map<String, dynamic>> inventoryPresets = const [];
+  List<Map<String, dynamic>> presetRoster = const [];
+  final List<(String, Map<String, dynamic>)> presetWrites = [];
 
   @override
   Future<Map<String, dynamic>> settingsDescribe() async {
@@ -61,6 +65,25 @@ class _FakeClient extends ConnectionClient {
       'entries': inventoryEntries,
       if (inventoryPresets.isNotEmpty) 'agentPresets': inventoryPresets,
     };
+  }
+
+  @override
+  Future<Map<String, dynamic>> agentPresetList() async {
+    calls.add('agentPresets.list');
+    return <String, dynamic>{'presets': presetRoster, 'authorable': true};
+  }
+
+  @override
+  Future<bool> settingsCanOpenAgentPresetDirectory() async => false;
+
+  @override
+  Future<Map<String, dynamic>> settingsUpdate({
+    required String ns,
+    required Map<String, dynamic> patch,
+    int? expectedRevision,
+  }) async {
+    presetWrites.add(('settings/update', {'ns': ns, 'patch': patch}));
+    return {'ns': ns, 'value': patch, 'revision': 2};
   }
 
   @override
@@ -140,6 +163,10 @@ Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
     'zh': kInventoryZh,
     'en': kInventoryEn,
   });
+  locale.register(kAgentPresetNamespace, {
+    'zh': kAgentPresetZh,
+    'en': kAgentPresetEn,
+  });
   locale.register(kConversationNamespace, {
     'zh': kConversationZh,
     'en': kConversationEn,
@@ -163,7 +190,7 @@ Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
 }
 
 void main() {
-  testWidgets('hosts the four settings tabs', (tester) async {
+  testWidgets('hosts the five settings tabs', (tester) async {
     await _pumpScreen(tester, _FakeClient());
 
     expect(find.text('Settings'), findsOneWidget);
@@ -171,6 +198,7 @@ void main() {
     expect(find.text('Models'), findsWidgets);
     expect(find.text('Plugins'), findsWidgets);
     expect(find.text('Inventory'), findsWidgets);
+    expect(find.text('Agent presets'), findsWidgets);
   });
 
   testWidgets('General tab renders the language row over the Host document', (
@@ -332,5 +360,60 @@ void main() {
     // matches sitting in unselected presets.
     expect(find.textContaining('more matches in other presets'), findsOneWidget);
     expect(find.text('Minimal'), findsOneWidget);
+  });
+
+  testWidgets('Agent presets tab manages the roster like React', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = _settingsDocument()
+      ..presetRoster = [
+        {
+          'id': 'standard',
+          'trust': 'system',
+          'isDefault': true,
+          'name': 'Standard mode',
+          'description': 'Full coding agent.',
+        },
+        {'id': 'minimal', 'trust': 'system', 'name': 'Minimal mode'},
+      ];
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.text('Agent presets').first);
+    await tester.pumpAndSettle();
+
+    // Intro plus Built-in group with the In-use badge on the default.
+    expect(find.textContaining('plugin composition'), findsOneWidget);
+    expect(find.text('Built-in'), findsWidgets);
+    expect(find.text('Standard mode'), findsOneWidget);
+    expect(find.text('In use'), findsWidgets);
+    expect(find.text('Minimal mode'), findsOneWidget);
+  });
+
+  testWidgets('Agent presets tab pick persists the host default', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = _settingsDocument()
+      ..presetRoster = [
+        {
+          'id': 'standard',
+          'trust': 'system',
+          'isDefault': true,
+          'name': 'Standard mode',
+        },
+        {'id': 'minimal', 'trust': 'system', 'name': 'Minimal mode'},
+      ];
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.text('Agent presets').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Set as default'));
+    await tester.pumpAndSettle();
+
+    // The pick rode settings/update agent-presets {default} — the host
+    // resolves it at session creation, so new sessions follow app-wide.
+    expect(client.presetWrites, hasLength(1));
+    final (method, payload) = client.presetWrites.single;
+    expect(method, 'settings/update');
+    expect(payload['ns'], 'agent-presets');
+    expect(payload['patch'], {'default': 'minimal'});
   });
 }

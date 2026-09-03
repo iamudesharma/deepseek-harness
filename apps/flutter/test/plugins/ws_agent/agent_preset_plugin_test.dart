@@ -287,8 +287,7 @@ void main() {
     expect(payload['id'], 'mine');
   });
 
-  test('presetCopyBlocker mirrors React draftBlocker', () {
-    const rows = [
+  test('presetCopyBlocker mirrors React draftBlocker', () {    const rows = [
       AgentPresetOption(id: 'standard', name: 'standard', trust: PresetTrust.system),
       AgentPresetOption(id: 'mine', name: 'mine', trust: PresetTrust.user),
     ];
@@ -412,6 +411,110 @@ void main() {
     expect(createButton().enabled, isFalse);
     expect(client.calls, isEmpty);
   });
+
+  test('makeDefaultPreset persists the default through settings/update', () async {
+    final client = _FakePresetClient(roster: const []);
+    final failure = await makeDefaultPreset(client, 'ptc');
+    expect(failure, isNull);
+    expect(client.calls, hasLength(1));
+    final (method, payload) = client.calls.single;
+    expect(method, 'settings/update');
+    expect(payload['ns'], 'agent-presets');
+    expect(payload['patch'], {'default': 'ptc'});
+  });
+
+  testWidgets('set-as-default persists the host default and refreshes', (
+    tester,
+  ) async {
+    final client = _FakePresetClient(
+      roster: [
+        {
+          'id': 'standard',
+          'trust': 'system',
+          'isDefault': true,
+          'name': 'Standard mode',
+        },
+        {'id': 'minimal', 'trust': 'system', 'name': 'Minimal mode'},
+      ],
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Set as default'));
+    await tester.pumpAndSettle();
+
+    // The pick rode settings/update (host default for sessions created
+    // later), not the per-session select — this is what reflects app-wide.
+    expect(client.calls, hasLength(1));
+    final (method, payload) = client.calls.single;
+    expect(method, 'settings/update');
+    expect(payload['ns'], 'agent-presets');
+    expect(payload['patch'], {'default': 'minimal'});
+    expect(
+      find.text('Preset "minimal" is now the default for new sessions'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('tapping a card body picks it as the default', (tester) async {
+    final client = _FakePresetClient(
+      roster: [
+        {
+          'id': 'standard',
+          'trust': 'system',
+          'isDefault': true,
+          'name': 'Standard mode',
+        },
+        {'id': 'minimal', 'trust': 'system', 'name': 'Minimal mode'},
+      ],
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    // React rule: the card body IS the control.
+    await tester.tap(find.text('Minimal mode'));
+    await tester.pumpAndSettle();
+
+    expect(client.calls, hasLength(1));
+    final (method, payload) = client.calls.single;
+    expect(method, 'settings/update');
+    expect(payload['patch'], {'default': 'minimal'});
+  });
+
+  testWidgets('custom group keeps the creator entry beside cordis', (
+    tester,
+  ) async {
+    final client = _FakePresetClient(
+      roster: [
+        {
+          'id': 'standard',
+          'trust': 'system',
+          'isDefault': true,
+          'name': 'Standard mode',
+        },
+        {'id': 'cordis', 'trust': 'system', 'name': 'Creator mode'},
+      ],
+    );
+    await tester.pumpWidget(_sectionApp(client));
+    await tester.pumpAndSettle();
+
+    // Section intro plus the guided drafting entry (React creatorButton).
+    expect(find.textContaining('plugin composition'), findsOneWidget);
+    expect(
+      find.text('Draft a custom preset with Creator mode'),
+      findsOneWidget,
+    );
+
+    // No session in this harness: stages cordis locally, nothing on the wire.
+    await tester.ensureVisible(
+      find.text('Draft a custom preset with Creator mode'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Draft a custom preset with Creator mode'));
+    await tester.pumpAndSettle();
+    expect(client.calls, isEmpty);
+    expect(find.textContaining('cordis'), findsWidgets);
+  });
 }
 
 /// Fake typed client for the management section: `agentPreset.list` serves a
@@ -455,6 +558,19 @@ class _FakePresetClient extends ConnectionClient {
   Future<bool> settingsCanOpenAgentPresetDirectory() async {
     if (throwCanOpen) throw Exception('settings describe refused');
     return canOpen;
+  }
+
+  @override
+  Future<Map<String, dynamic>> settingsUpdate({
+    required String ns,
+    required Map<String, dynamic> patch,
+    int? expectedRevision,
+  }) async {
+    calls.add((
+      'settings/update',
+      {'ns': ns, 'patch': patch},
+    ));
+    return {'ns': ns, 'value': patch, 'revision': 2};
   }
 
   @override

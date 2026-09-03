@@ -768,6 +768,23 @@ class ConnectionClient {
     return _unwrapValue(body, 'settings/mutate');
   }
 
+  /// `settings/update` — merge a patch into one namespace's stored user
+  /// section (React `ctx.remote.settings.update`). Mirrors `settingsMutate`
+  /// payload shape: positional params as request keys.
+  Future<Map<String, dynamic>> settingsUpdate({
+    required String ns,
+    required Map<String, dynamic> patch,
+    int? expectedRevision,
+  }) async {
+    final payload = <String, dynamic>{
+      'ns': ns,
+      'patch': patch,
+      if (expectedRevision != null) 'expectedRevision': expectedRevision,
+    };
+    final body = await _postTypert('settings/update', payload);
+    return _unwrapValue(body, 'settings/update');
+  }
+
   /// `credentials.describe` — batched ref lookup.
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async {
     final body = await _postTypert('credentials/describe', {'refs': refs});

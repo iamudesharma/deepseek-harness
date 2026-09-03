@@ -31,11 +31,6 @@ class AgentPresetScreen extends ConsumerWidget {
         (theme.brightness == Brightness.dark
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
-    final AsyncValue<AgentPresetRoster> async = ref.watch(
-      agentPresetListProvider,
-    );
-    final String current = ref.watch(agentPresetCurrentProvider);
-    final bool saving = ref.watch(agentPresetSavingProvider);
     // bindLocale watches localeRevisionProvider, so a Language-row switch
     // re-renders every label on this screen.
     final Translate t = ref.bindLocale(kAgentPresetNamespace);
@@ -64,7 +59,36 @@ class AgentPresetScreen extends ConsumerWidget {
           const SizedBox(width: DswTokens.spaceSm),
         ],
       ),
-      body: async.when(
+      body: const AgentPresetRosterBody(),
+    );
+  }
+}
+
+/// Roster body shared by [AgentPresetScreen] and the Settings `Agent presets`
+/// tab: picker row + management section + seat. The Settings tab passes
+/// `showPickers: false` — React's settings section is intro plus cards only,
+/// while the standalone screen keeps the per-session pickers.
+class AgentPresetRosterBody extends ConsumerWidget {
+  const AgentPresetRosterBody({super.key, this.showPickers = true});
+
+  final bool showPickers;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final AsyncValue<AgentPresetRoster> async = ref.watch(
+      agentPresetListProvider,
+    );
+    final String current = ref.watch(agentPresetCurrentProvider);
+    final bool saving = ref.watch(agentPresetSavingProvider);
+    final Translate t = ref.bindLocale(kAgentPresetNamespace);
+
+    return async.when(
         data: (AgentPresetRoster roster) {
           final List<AgentPresetOption> options = roster.presets;
           // Derive current display: prefer explicit current, else isDefault, else first.
@@ -76,33 +100,38 @@ class AgentPresetScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(DswTokens.spaceLg),
             children: [
-              AgentPresetRow(
-                options: options,
-                selectedId: effectiveCurrent,
-                saving: saving,
-                aliases: aliases,
-                onSelect: (String id) => _select(context, ref, id),
-              ),
-              const SizedBox(height: DswTokens.spaceLg),
+              if (showPickers)
+                AgentPresetRow(
+                  options: options,
+                  selectedId: effectiveCurrent,
+                  saving: saving,
+                  aliases: aliases,
+                  onSelect: (String id) => selectPreset(context, ref, id),
+                ),
+              if (showPickers) const SizedBox(height: DswTokens.spaceLg),
               AgentPresetSection(
                 options: options,
                 current: effectiveCurrent,
                 authorable: roster.authorable,
                 hasDocument: roster.hasDocument,
                 aliases: aliases,
-                onMakeDefault: (String id) => _select(context, ref, id),
-                onView: (String id) => _viewComposition(context, ref, id),
+                onMakeDefault: (String id) =>
+                    makeDefaultPresetSelection(context, ref, id),
+                onView: (String id) => viewPresetComposition(context, ref, id),
                 onCopy: (String fromId, String presetId, String name) =>
-                    _copy(context, ref, fromId, presetId, name),
-                onDelete: (String id) => _delete(context, ref, id),
+                    copyPresetAs(context, ref, fromId, presetId, name),
+                onDelete: (String id) => deletePreset(context, ref, id),
+                onCreatorDraft: () => selectPreset(context, ref, 'cordis'),
               ),
-              const SizedBox(height: DswTokens.spaceLg),
-              AgentPresetSeat(
-                options: options,
-                current: effectiveCurrent,
-                aliases: aliases,
-                onSelect: (String id) => _select(context, ref, id),
-              ),
+              if (showPickers) ...[
+                const SizedBox(height: DswTokens.spaceLg),
+                AgentPresetSeat(
+                  options: options,
+                  current: effectiveCurrent,
+                  aliases: aliases,
+                  onSelect: (String id) => selectPreset(context, ref, id),
+                ),
+              ],
             ],
           );
         },
@@ -167,13 +196,13 @@ class AgentPresetScreen extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
+}
 
-  /// Opens the read-only viewer over one preset's shipped composition
-  /// (`agentPreset.read`); failures surface as a snackbar, never a fake body.
-  Future<void> _viewComposition(
+/// Opens the read-only viewer over one preset's shipped composition
+/// (`agentPreset.read`); failures surface as a snackbar, never a fake body.
+Future<void> viewPresetComposition(
     BuildContext context,
     WidgetRef ref,
     String id,
@@ -188,7 +217,7 @@ class AgentPresetScreen extends ConsumerWidget {
       showDialog<void>(
         context: context,
         builder: (BuildContext ctx) {
-          final DswAliases viewerAliases = aliasesOf(ctx);
+          final DswAliases viewerAliases = presetAliasesOf(ctx);
           return AlertDialog(
             backgroundColor: viewerAliases.bgLayer2,
             title: Text(
@@ -215,7 +244,7 @@ class AgentPresetScreen extends ConsumerWidget {
         },
       );
     } catch (e) {
-      _toast(context, 'Failed to read "$id": $e');
+      showPresetToast(context, 'Failed to read "$id": $e');
     }
   }
 
@@ -223,7 +252,7 @@ class AgentPresetScreen extends ConsumerWidget {
   /// takes the user to the new preset's files like React `confirmCopy`: the
   /// directory opens where the host has a desktop, and its path appears on
   /// the new row where it does not. A location failure never fails the copy.
-  Future<void> _copy(
+  Future<void> copyPresetAs(
     BuildContext context,
     WidgetRef ref,
     String fromId,
@@ -252,34 +281,34 @@ class AgentPresetScreen extends ConsumerWidget {
       } catch (_) {
         // The copy landed; getting to its files is a follow-up, not the write.
       }
-      if (context.mounted) _toast(context, 'Created preset "$created"');
+      if (context.mounted) showPresetToast(context, 'Created preset "$created"');
     } catch (e) {
-      if (context.mounted) _toast(context, 'Failed to create "$presetId": $e');
+      if (context.mounted) showPresetToast(context, 'Failed to create "$presetId": $e');
     }
   }
 
   /// Deletes a user preset through `agentPreset.remove`; running sessions
   /// keep the composition they were mounted with.
-  Future<void> _delete(BuildContext context, WidgetRef ref, String id) async {
+  Future<void> deletePreset(BuildContext context, WidgetRef ref, String id) async {
     try {
       await removePreset(ref.read(connectionClientProvider), id);
       ref.invalidate(agentPresetListProvider);
-      if (context.mounted) _toast(context, 'Deleted "$id"');
+      if (context.mounted) showPresetToast(context, 'Deleted "$id"');
     } catch (e) {
-      if (context.mounted) _toast(context, 'Failed to delete "$id": $e');
+      if (context.mounted) showPresetToast(context, 'Failed to delete "$id": $e');
     }
   }
 
-  void _toast(BuildContext context, String message) {
+void showPresetToast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  DswAliases aliasesOf(BuildContext context) =>
+  DswAliases presetAliasesOf(BuildContext context) =>
       Theme.of(context).extension<DswThemeExtension>()?.aliases ??
       DswTokens.lightAliases;
 
-  Future<void> _select(BuildContext context, WidgetRef ref, String id) async {
+  Future<void> selectPreset(BuildContext context, WidgetRef ref, String id) async {
     final String? sessionId = ref.read(currentSessionIdProvider)?.value;
     ref.read(agentPresetSavingProvider.notifier).state = true;
     try {
@@ -312,6 +341,39 @@ class AgentPresetScreen extends ConsumerWidget {
     } finally {
       ref.read(agentPresetSavingProvider.notifier).state = false;
     }
+  }
+
+/// Persists one preset as the deployment default for sessions created later
+/// (React `makeDefault` → `writeDefaultPreset` over
+/// `settings.update('agent-presets', {default})`), then re-reads the roster.
+///
+/// This is what makes a management-card pick reflect throughout the app:
+/// the hero seat falls back to the roster's `isDefault` row and the host
+/// resolves the default at session creation. Running sessions keep the
+/// composition they began with. Failures surface as a snackbar and leave
+/// the roster untouched.
+Future<void> makeDefaultPresetSelection(
+  BuildContext context,
+  WidgetRef ref,
+  String id,
+) async {
+  ref.read(agentPresetSavingProvider.notifier).state = true;
+  try {
+    final String? failure = await makeDefaultPreset(
+      ref.read(connectionClientProvider),
+      id,
+    );
+    if (failure != null) {
+      if (context.mounted) showPresetToast(context, 'Failed to set default: $failure');
+      return;
+    }
+    ref.read(agentPresetCurrentProvider.notifier).state = id;
+    ref.invalidate(agentPresetListProvider);
+    if (context.mounted) {
+      showPresetToast(context, 'Preset "$id" is now the default for new sessions');
+    }
+  } finally {
+    ref.read(agentPresetSavingProvider.notifier).state = false;
   }
 }
 
@@ -571,6 +633,7 @@ class AgentPresetSection extends ConsumerWidget {
     required this.onView,
     required this.onCopy,
     required this.onDelete,
+    this.onCreatorDraft,
   });
   final List<AgentPresetOption> options;
   final String current;
@@ -582,6 +645,11 @@ class AgentPresetSection extends ConsumerWidget {
   final void Function(String fromId, String presetId, String name) onCopy;
   final ValueChanged<String> onDelete;
 
+  /// Guided alternative to copying: stage the self-referential preset for the
+  /// next session. Mirrors React's `startCreatorDraft` entry point, which is
+  /// offered only where the `cordis` preset is on the roster.
+  final VoidCallback? onCreatorDraft;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Translate t = ref.bindLocale(kAgentPresetNamespace);
@@ -591,21 +659,10 @@ class AgentPresetSection extends ConsumerWidget {
     final List<AgentPresetOption> user = options
         .where((o) => o.trust == PresetTrust.user)
         .toList();
-    Widget group(String title, List<AgentPresetOption> rows) {
-      if (rows.isEmpty) return const SizedBox.shrink();
+    Widget cards(List<AgentPresetOption> rows) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: DswTokens.fontSizeXxs12,
-              fontWeight: FontWeight.w600,
-              color: aliases.labelCaption,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: DswTokens.spaceSm),
           for (final o in rows)
             Padding(
               padding: const EdgeInsets.only(bottom: DswTokens.spaceSm),
@@ -626,6 +683,29 @@ class AgentPresetSection extends ConsumerWidget {
       );
     }
 
+    Widget groupHead(String title) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: DswTokens.fontSizeXxs12,
+              fontWeight: FontWeight.w600,
+              color: aliases.labelCaption,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: DswTokens.spaceSm),
+        ],
+      );
+    }
+
+    // The custom group stays on screen even while empty: it is where a preset
+    // of one's own will appear (React section rule).
+    final bool showCreator =
+        onCreatorDraft != null && options.any((o) => o.id == 'cordis');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -637,10 +717,43 @@ class AgentPresetSection extends ConsumerWidget {
             color: aliases.labelPrimary,
           ),
         ),
-        const SizedBox(height: DswTokens.spaceSm),
-        group(t('builtInGroup'), system),
-        const SizedBox(height: DswTokens.spaceSm),
-        group(t('customGroup'), user),
+        const SizedBox(height: 4),
+        Text(
+          t('sectionIntro'),
+          style: TextStyle(
+            fontSize: DswTokens.fontSizeXxs12,
+            color: aliases.labelSecondary,
+          ),
+        ),
+        const SizedBox(height: DswTokens.spaceMd),
+        if (system.isNotEmpty) ...[
+          groupHead(t('builtInGroup')),
+          cards(system),
+          const SizedBox(height: DswTokens.spaceSm),
+        ],
+        groupHead(t('customGroup')),
+        cards(user),
+        if (showCreator) ...[
+          const SizedBox(height: DswTokens.spaceSm),
+          SizedBox(
+            width: double.infinity,
+            child: Tooltip(
+              message: authorable ? '' : t('duplicateUnavailable'),
+              child: OutlinedButton.icon(
+                onPressed: authorable ? onCreatorDraft : null,
+                icon: const Icon(Icons.add, size: 14),
+                label: Text(t('creatorDraft')),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: aliases.borderL2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(DswTokens.radiusMd),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -677,7 +790,23 @@ class _PresetCard extends ConsumerWidget {
     final String? revealed = ref.watch(
       agentPresetRevealedPathsProvider,
     )[option.id];
-    return Container(
+    // The card body IS the control (React rule): picking a preset is the
+    // common act. A broken preset cannot compose a session so its body
+    // refuses the pick; the default one is already picked.
+    final bool pickable = !broken && !isDefault;
+    final String cardLabel = broken
+        ? '${t('brokenBadge')}: ${option.displayName ?? option.name}'
+        : isDefault
+            ? '${t('inUse')}: ${option.displayName ?? option.name}'
+            : '${t('setDefault')}: ${option.displayName ?? option.name}';
+    return Semantics(
+      button: pickable,
+      label: cardLabel,
+      child: InkWell(
+        onTap: pickable ? () => onMakeDefault(option.id) : null,
+        borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+        hoverColor: aliases.interactiveBgHover,
+        child: Container(
       padding: const EdgeInsets.all(DswTokens.spaceMd),
       decoration: BoxDecoration(
         color: isDefault
@@ -880,6 +1009,8 @@ class _PresetCard extends ConsumerWidget {
             ),
           ],
         ],
+      ),
+        ),
       ),
     );
   }
