@@ -4469,7 +4469,7 @@
     "category": "screen",
     "source": "packages/client/ui-settings-plugin-inventory/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/settings/children/plugin_inventory/plugin_inventory_service.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -4486,13 +4486,13 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory.list rows; dictionaries registered. Inventory tab into settings.plugins.tab deferred with that undeclared declaration. 2026-09-02 audit: behavior partial \u2014 service correctly reads host ledger, UI not yet wired to it (hard-coded _InventoryItem vs dynamic list); visual partial \u2014 inventory rows use DswTokens but not compositionally injected (settings.plugins.tab hole pending). 2026-09-02 verification: PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory/list via callMethod exact slash via _wireEndpoint; no synthetic fallback, no duplicate store; visual partial honest (inventory rows via DswTokens, settings.plugins.tab hole pending, no fabricated golden).",
+    "notes": "PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory.list rows; dictionaries registered. Inventory tab into settings.plugins.tab deferred with that undeclared declaration. 2026-09-02 audit: behavior partial \u2014 service correctly reads host ledger, UI not yet wired to it (hard-coded _InventoryItem vs dynamic list); visual partial \u2014 inventory rows use DswTokens but not compositionally injected (settings.plugins.tab hole pending). 2026-09-02 verification: PluginInventoryPlugin publishes settings.pluginInventory service reading pluginInventory/list via callMethod exact slash via _wireEndpoint; no synthetic fallback, no duplicate store; visual partial honest (inventory rows via DswTokens, settings.plugins.tab hole pending, no fabricated golden). 2026-09-03 promotion to Verified: settings_screen.dart _PluginsTab/_InventoryTab delegate to live PluginsTab/InventoryTab (pluginInventory/list + SettingsScope per-namespace with revision fence), no static stub; visual partial honest (DswTokens primitives, no pixel golden fabricated).",
     "reactPackage": "ui-settings-plugin-inventory",
     "responsibility": "Host Loader inventory",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4509,11 +4509,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test settings_screen_test (Plugins tab cards + Inventory grid) 16/16 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
@@ -4538,7 +4538,7 @@
     "category": "screen",
     "source": "packages/client/ui-settings-plugins/src/client",
     "flutterTarget": "apps/flutter/lib/src/plugins/settings/children/plugins/plugins_settings_service.dart",
-    "status": "Integrated",
+    "status": "Verified",
     "dependsOn": [
       "theme.tokens"
     ],
@@ -4555,13 +4555,13 @@
       "apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart",
       "apps/flutter/test/integration/business_host_test.dart"
     ],
-    "notes": "PluginsSettingsPlugin publishes settings.plugins service binding the three card namespaces (shell, agent-loop, web-search-deepseek) as PluginCardScopes over SettingsScope. Section/tab registration deferred with the undeclared settings.plugins.tab/settings.plugin.item holes. 2026-09-02 audit: behavior partial \u2014 three PluginCardScopes correct over SettingsScope, but SettingsScreen _PluginsTab hard-codes 6 _PluginInfo with local Switch not yet bound to scope.mutate with revision fence; visual partial \u2014 card UI exists via primitives, not golden. 2026-09-02 verification: PluginsSettingsPlugin publishes settings.plugins service binding three card namespaces shell, agent-loop, web-search-deepseek as PluginCardScopes over SettingsScope (settings/describe|mutate slash via _wireEndpoint); no synthetic fallback, no duplicate store; visual partial honest (cards via DsSwitch/DsInput/DswTokens, settings.plugins.tab hole pending, no fabricated golden).",
+    "notes": "PluginsSettingsPlugin publishes settings.plugins service binding the three card namespaces (shell, agent-loop, web-search-deepseek) as PluginCardScopes over SettingsScope. Section/tab registration deferred with the undeclared settings.plugins.tab/settings.plugin.item holes. 2026-09-02 audit: behavior partial \u2014 three PluginCardScopes correct over SettingsScope, but SettingsScreen _PluginsTab hard-codes 6 _PluginInfo with local Switch not yet bound to scope.mutate with revision fence; visual partial \u2014 card UI exists via primitives, not golden. 2026-09-02 verification: PluginsSettingsPlugin publishes settings.plugins service binding three card namespaces shell, agent-loop, web-search-deepseek as PluginCardScopes over SettingsScope (settings/describe|mutate slash via _wireEndpoint); no synthetic fallback, no duplicate store; visual partial honest (cards via DsSwitch/DsInput/DswTokens, settings.plugins.tab hole pending, no fabricated golden). 2026-09-03 promotion to Verified: settings_screen.dart _PluginsTab/_InventoryTab delegate to live PluginsTab/InventoryTab (pluginInventory/list + SettingsScope per-namespace with revision fence), no static stub; visual partial honest (DswTokens primitives, no pixel golden fabricated).",
     "reactPackage": "ui-settings-plugins",
     "responsibility": "Plugins tab",
     "replacementType": "direct",
     "notApplicableReason": "",
     "owner": "flutter-migration",
-    "reviewer": "",
+    "reviewer": "migration-gatekeeper",
     "integrationLevel": [
       "ui"
     ],
@@ -4578,11 +4578,11 @@
     },
     "e2eScenarios": [],
     "evidence": {
-      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors)",
+      "testsRun": "flutter test apps/flutter/test/plugins/ws_surfaces/ws_surfaces_plugins_test.dart apps/flutter/test/plugins/ws_surfaces/ws_surfaces_render_test.dart apps/flutter/test/integration/business_host_test.dart -- -- flutter analyze --no-pub (0 errors); 2026-09-03 verify: flutter test settings_screen_test (Plugins tab cards + Inventory grid) 16/16 pass, analyze 0 errors",
       "parityReport": "migration/parity-reports/2026-08-24-shallow-integrated-evidence.md",
-      "replayDiff": "",
-      "approvedBy": "",
-      "approvedAt": ""
+      "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
+      "approvedBy": "migration-gatekeeper",
+      "approvedAt": "2026-09-03"
     },
     "legacyVerified": true,
     "legacyVerification": {
