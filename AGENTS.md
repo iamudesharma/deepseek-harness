@@ -8,6 +8,10 @@ DeepSeek Harness is an all-plugin Cordis agent harness. Read [docs/architecture.
 
 **Application launch.** Only `dsh` profiles launch supported Node apps; package bins, demos, and public SDK argv escapes are forbidden ([rule](docs/architecture.md#application-launch)).
 
+## Code modification permissions
+
+**React code is read-only.** Do not modify any React code — it must be taken from the master branch as-is. Only Flutter code may be changed freely. React code may only be modified for remote configuration changes, and only with explicit user permission. Always confirm before touching any React file.
+
 ## Repository layout
 
 ```
