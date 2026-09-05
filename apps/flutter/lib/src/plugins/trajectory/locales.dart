@@ -42,6 +42,21 @@ const Map<String, String> kTrajectoryZh = {
   'timing.throughput': '吞吐量',
   'system.initialPrompt': '初始系统提示词',
   'system.promptUpdated': '系统提示词已更新',
+  'tab.options': '选项',
+  'tab.usage': '用量',
+  'details.request': '请求',
+  'details.provider': '服务商',
+  'details.model': '模型',
+  'details.toolCalls': '工具调用',
+  'details.subtoolCalls': '子工具调用',
+  'options.notRecorded': '未记录选项',
+  'usage.notReported': '未上报用量',
+  'usage.input': '输入',
+  'usage.output': '输出',
+  'usage.cached': '缓存',
+  'timeline.total': '共 {duration}',
+  'timeline.started': '开始于 {time}',
+  'timeline.ttftDecoding': '首 Token {ttft} · 解码 {decoding}',
 };
 
 /// English copy — keys mirror React `en`.
@@ -86,6 +101,21 @@ const Map<String, String> kTrajectoryEn = {
   'timing.throughput': 'Throughput',
   'system.initialPrompt': 'Initial System Prompt',
   'system.promptUpdated': 'System Prompt Updated',
+  'tab.options': 'Options',
+  'tab.usage': 'Usage',
+  'details.request': 'Request',
+  'details.provider': 'Provider',
+  'details.model': 'Model',
+  'details.toolCalls': 'Tool calls',
+  'details.subtoolCalls': 'Subtool calls',
+  'options.notRecorded': 'Options not recorded',
+  'usage.notReported': 'Usage not reported',
+  'usage.input': 'Input',
+  'usage.output': 'Output',
+  'usage.cached': 'Cached',
+  'timeline.total': 'Total {duration}',
+  'timeline.started': 'Started {time}',
+  'timeline.ttftDecoding': 'TTFT {ttft} · Decoding {decoding}',
 };
 
 /// Resolves a trajectory copy key for a locale language code.

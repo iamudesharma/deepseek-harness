@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/plugins/trajectory/ui/trajectory_screen.dart'
-    show ledgerFromHistory;
+    show ledgerFromHistory, deriveTimeline;
 import 'package:flutter_test/flutter_test.dart';
 
 HistoryEntry _ev(String type, int seq, [Map<String, dynamic>? data]) {
@@ -279,6 +279,189 @@ void main() {
       expect(rows.single.text.length, lessThanOrEqualTo(513));
       expect(rows.single.text.endsWith('…'), isTrue);
       expect(rows.single.inputDetail, long);
+    });
+  });
+
+  group('deferred parity: subtools, requests, histogram, TTFT spans', () {
+    test('code-dispatch pairs fold into subtool rows after the parent', () {
+      final rows = ledgerFromHistory([
+        _ev('tool/call', 10, {
+          'turn': 1,
+          'step': 1,
+          'callId': 'root-1',
+          'name': 'run_code',
+          'args': '{}',
+        }),
+        _ev('tool/code-dispatch-start', 11, {
+          'rootCallId': 'root-1',
+          'parentCallId': 'root-1',
+          'subCallId': 'sub-1',
+          'name': 'exec',
+          'arguments': {'cmd': 'ls'},
+        }),
+        _ev('tool/code-dispatch', 12, {
+          'rootCallId': 'root-1',
+          'parentCallId': 'root-1',
+          'subCallId': 'sub-1',
+          'name': 'exec',
+          'arguments': {'cmd': 'ls'},
+          'content': [
+            {'type': 'text', 'text': 'out.txt'}
+          ],
+        }),
+        _ev('tool/result', 13, {
+          'turn': 1,
+          'step': 1,
+          'message': {
+            'source': {'callId': 'root-1'},
+            'content': [
+              {
+                'type': 'tool-result',
+                'toolCallId': 'root-1',
+                'content': [
+                  {'type': 'text', 'text': 'done'}
+                ]
+              }
+            ]
+          }
+        }),
+      ]);
+      final kinds = rows.map((r) => r.kind.name).toList();
+      expect(kinds, ['tool', 'subtool']);
+      final sub = rows.last;
+      expect(sub.callId, 'sub-1');
+      expect(sub.text, contains('exec'));
+      expect(sub.outputDetail, 'out.txt');
+      expect(sub.running, isFalse);
+      expect(sub.timeSeconds, isNotNull);
+      expect(sub.turn, 1);
+    });
+
+    test('orphan dispatches without a parent row drop', () {
+      final rows = ledgerFromHistory([
+        _ev('tool/code-dispatch-start', 11, {
+          'rootCallId': 'ghost',
+          'parentCallId': 'ghost',
+          'subCallId': 'sub-9',
+          'name': 'exec',
+          'arguments': {},
+        }),
+      ]);
+      expect(rows, isEmpty);
+    });
+
+    test('cyclic dispatch edges drop', () {
+      final rows = ledgerFromHistory([
+        _ev('tool/call', 10, {
+          'turn': 1,
+          'step': 1,
+          'callId': 'root-1',
+          'name': 'run_code',
+          'args': '{}',
+        }),
+        _ev('tool/code-dispatch-start', 11, {
+          'rootCallId': 'root-1',
+          'parentCallId': 'root-1',
+          'subCallId': 'root-1',
+          'name': 'exec',
+          'arguments': {},
+        }),
+      ]);
+      expect(rows.map((r) => r.kind.name), ['tool']);
+    });
+
+    test('request headers number requests with cumulative usage', () {
+      final rows = ledgerFromHistory([
+        _ev('request/header', 1, {
+          'reason': 'initial',
+          'header': {
+            'config': {'provider': 'opencode', 'model': 'm1'},
+            'system': 'sys',
+            'tools': [],
+          }
+        }),
+        _ev('assistant/message', 2, {
+          'turn': 1,
+          'step': 1,
+          'usage': {'inputTokens': 100, 'outputTokens': 10},
+          'message': {
+            'content': [
+              {'type': 'text', 'text': 'hi'}
+            ]
+          }
+        }),
+        _ev('tool/call', 3, {
+          'turn': 1,
+          'step': 1,
+          'callId': 'c1',
+          'name': 'bash',
+          'args': '{}',
+        }),
+        _ev('tool/result', 4, {
+          'turn': 1,
+          'step': 1,
+          'message': {
+            'source': {'callId': 'c1'},
+            'content': [
+              {
+                'type': 'tool-result',
+                'toolCallId': 'c1',
+                'content': [
+                  {'type': 'text', 'text': 'ok'}
+                ]
+              }
+            ]
+          }
+        }),
+        _ev('request/header', 20, {
+          'reason': 'follow-up',
+          'header': {
+            'config': {'provider': 'opencode', 'model': 'm2'},
+            'system': 'sys2',
+            'tools': [],
+          }
+        }),
+      ]);
+      final headers =
+          rows.where((r) => r.isRequestHeader).toList();
+      expect(headers, hasLength(2));
+      expect(headers[0].requestNumber, 1);
+      expect(headers[1].requestNumber, 2);
+      expect(headers[0].requestProvider, 'opencode');
+      expect(headers[0].requestModel, 'm1');
+      expect(headers[0].requestToolCalls, 1);
+      expect(headers[0].requestInputTokens, 100);
+      expect(headers[0].requestOutputTokens, 10);
+      expect(headers[0].requestOptionsJson ?? '', contains('m1'));
+      expect(headers[1].requestToolCalls, 0);
+      expect(headers[1].requestInputTokens, isNull);
+    });
+
+    test('deriveTimeline carries TTFT detail on assistant spans', () {
+      final rows = ledgerFromHistory([
+        _ev('step/start', 1, {'turn': 1, 'step': 1}),
+        _ev('assistant/chunk', 2, {
+          'turn': 1,
+          'step': 1,
+          'chunk': {'text': 'Hi'},
+        }),
+        _ev('assistant/message', 3, {
+          'turn': 1,
+          'step': 1,
+          'message': {
+            'content': [
+              {'type': 'text', 'text': 'Hi'}
+            ]
+          }
+        }),
+      ]);
+      final model = deriveTimeline(rows, 'actual')!;
+      final span = model.spans
+          .singleWhere((s) => s.kind.name == 'message');
+      expect(span.ttftMs, isNotNull);
+      expect(span.decodingMs, isNotNull);
+      expect(span.durationMs, isNotNull);
+      expect(span.startedAtMs, isNotNull);
     });
   });
 }

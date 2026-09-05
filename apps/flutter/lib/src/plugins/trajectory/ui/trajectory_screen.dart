@@ -108,6 +108,30 @@ class LedgerRow {
   final String? schemaDescription;
   final String? schemaParameters;
 
+  /// True for system rows projected from `request/header` (React request
+  /// boundary + prompt change): the inspector shows request tabs.
+  final bool isRequestHeader;
+
+  /// Session-global request number (React `requestNumbers` order by start).
+  final int? requestNumber;
+
+  /// Request config provider/model (React request Summary rows).
+  final String? requestProvider;
+  final String? requestModel;
+
+  /// Request `header.config` JSON (React Options tab).
+  final String? requestOptionsJson;
+
+  /// Accumulated request stats (React Usage/Timing tabs).
+  final int requestToolCalls;
+  final int requestSubtoolCalls;
+  final int? requestInputTokens;
+  final int? requestOutputTokens;
+  final int? requestCacheReadTokens;
+  final int? requestStartedAt;
+  final int? requestCompletedAt;
+  final bool requestFailed;
+
   const LedgerRow({
     required this.index,
     required this.kind,
@@ -146,6 +170,19 @@ class LedgerRow {
     this.promptToolsJson,
     this.schemaDescription,
     this.schemaParameters,
+    this.isRequestHeader = false,
+    this.requestNumber,
+    this.requestProvider,
+    this.requestModel,
+    this.requestOptionsJson,
+    this.requestToolCalls = 0,
+    this.requestSubtoolCalls = 0,
+    this.requestInputTokens,
+    this.requestOutputTokens,
+    this.requestCacheReadTokens,
+    this.requestStartedAt,
+    this.requestCompletedAt,
+    this.requestFailed = false,
   });
 }
 
@@ -213,9 +250,32 @@ String _markdownPlainText(String src) {
   return s;
 }
 
-/// Joined tool-result projection — mirrors React `summarizeResult` +
-/// `detailResult`: errors surface `error.code`, otherwise the first text
-/// block feeds the inline preview while the full text feeds Result.
+/// Plain text joined from `tool-result` content blocks (React `detailResult`
+/// text path). Shared by settled results and code-dispatch sub-results.
+String _toolResultBlocksText(List<dynamic> blocks) {
+  String outText = '';
+  for (final blk in blocks) {
+    if (blk is! Map) continue;
+    final String btype = (blk['type'] ?? '').toString();
+    if (btype == 'tool-result') {
+      final inner = blk['content'];
+      if (inner is List) {
+        for (final inBlk in inner) {
+          if (inBlk is Map && inBlk['type'] == 'text' && inBlk['text'] is String) {
+            final t = inBlk['text'] as String;
+            outText = outText.isEmpty ? t : '$outText\n$t';
+          }
+        }
+      } else if (inner is String && inner.isNotEmpty) {
+        outText = outText.isEmpty ? inner : '$outText\n$inner';
+      }
+    } else if (blk['type'] == 'text' && blk['text'] is String) {
+      final t = blk['text'] as String;
+      outText = outText.isEmpty ? t : '$outText\n$t';
+    }
+  }
+  return outText;
+}
 ({String text, String preview, bool isError, String? errorCode})
     _joinToolResult(SessionEvent ev) {
   String outText = '';
@@ -230,6 +290,7 @@ String _markdownPlainText(String src) {
   for (final blk in blocks) {
     if (blk is! Map) continue;
     final String btype = (blk['type'] ?? '').toString();
+    if (blk['isError'] == true) error = true;
     if (btype.contains('error')) {
       error = true;
       code ??= (blk['code'] ?? blk['error'])?.toString();
@@ -237,23 +298,9 @@ String _markdownPlainText(String src) {
       if (t.isNotEmpty) outText = outText.isEmpty ? t : '$outText\n$t';
       continue;
     }
-    if (btype == 'tool-result') {
-      final inner = blk['content'];
-      if (inner is List) {
-        for (final inBlk in inner) {
-          if (inBlk is Map && inBlk['type'] == 'text' && inBlk['text'] is String) {
-            final t = (inBlk['text'] as String);
-            outText = outText.isEmpty ? t : '$outText\n$t';
-          }
-        }
-      } else if (inner is String && inner.isNotEmpty) {
-        outText = outText.isEmpty ? inner : '$outText\n$inner';
-      }
-    } else if (blk['type'] == 'text' && blk['text'] is String) {
-      final t = blk['text'] as String;
-      outText = outText.isEmpty ? t : '$outText\n$t';
-    }
   }
+  final String joined = _toolResultBlocksText(blocks);
+  if (joined.isNotEmpty) outText = outText.isEmpty ? joined : '$outText\n$joined';
   if (outText.isEmpty) {
     final dynamic out = ev.data['output'] ?? ev.data['result'] ?? ev.data['content'];
     if (out is String) {
@@ -297,7 +344,136 @@ String _summaryBlocksText(Object? summary) {
   return '';
 }
 
-/// Derive ledger rows from a [HistoryEntry] window.
+/// Copies [row] with settled result fields merged in (React: one cell per
+/// call, result joins the call row instead of appending a second row).
+LedgerRow _withToolResult(
+  LedgerRow row, {
+  required String? outputDetail,
+  required String? result,
+  required String? resultPreview,
+  required bool isError,
+  required double? timeSeconds,
+}) {
+  return LedgerRow(
+    index: row.index,
+    kind: row.kind,
+    text: row.text,
+    previewMarkdown: row.previewMarkdown,
+    inputDetail: row.inputDetail,
+    outputDetail: outputDetail,
+    thinkingDetail: row.thinkingDetail,
+    isError: isError,
+    resultPreview: resultPreview,
+    errorCode: row.errorCode,
+    running: false,
+    toolCallOnly: row.toolCallOnly,
+    childCallIds: row.childCallIds,
+    timeSeconds: timeSeconds,
+    startedAt: row.startedAt,
+    firstTokenTime: row.firstTokenTime,
+    stepStartTime: row.stepStartTime,
+    callId: row.callId,
+    result: result,
+    turn: row.turn,
+    step: row.step,
+    group: row.group,
+    turnStart: row.turnStart,
+    turnEnd: row.turnEnd,
+    groupStart: row.groupStart,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    reasoningTokens: row.reasoningTokens,
+    cacheReadTokens: row.cacheReadTokens,
+    messageSource: row.messageSource,
+    promptDetail: row.promptDetail,
+    promptToolsJson: row.promptToolsJson,
+    schemaDescription: row.schemaDescription,
+    schemaParameters: row.schemaParameters,
+    isRequestHeader: row.isRequestHeader,
+    requestNumber: row.requestNumber,
+    requestProvider: row.requestProvider,
+    requestModel: row.requestModel,
+    requestOptionsJson: row.requestOptionsJson,
+    requestToolCalls: row.requestToolCalls,
+    requestSubtoolCalls: row.requestSubtoolCalls,
+    requestInputTokens: row.requestInputTokens,
+    requestOutputTokens: row.requestOutputTokens,
+    requestCacheReadTokens: row.requestCacheReadTokens,
+    requestStartedAt: row.requestStartedAt,
+    requestCompletedAt: row.requestCompletedAt,
+    requestFailed: row.requestFailed,
+  );
+}
+
+/// Copies [row] with request-boundary stats attached (React request
+/// inspector: numbers in session-global start order, cumulative usage).
+LedgerRow _withRequest(
+  LedgerRow row, {
+  required int requestNumber,
+  required String? provider,
+  required String? model,
+  required String? optionsJson,
+  required int toolCalls,
+  required int subtoolCalls,
+  required int? inputTokens,
+  required int? outputTokens,
+  required int? cacheReadTokens,
+  required int? startedAt,
+  required int? completedAt,
+  bool? isError,
+  bool? running,
+  bool? requestFailed,
+}) {
+  return LedgerRow(
+    index: row.index,
+    kind: row.kind,
+    text: row.text,
+    previewMarkdown: row.previewMarkdown,
+    inputDetail: row.inputDetail,
+    outputDetail: row.outputDetail,
+    thinkingDetail: row.thinkingDetail,
+    isError: isError ?? row.isError,
+    resultPreview: row.resultPreview,
+    errorCode: row.errorCode,
+    running: running ?? row.running,
+    toolCallOnly: row.toolCallOnly,
+    childCallIds: row.childCallIds,
+    timeSeconds: row.timeSeconds,
+    startedAt: row.startedAt,
+    firstTokenTime: row.firstTokenTime,
+    stepStartTime: row.stepStartTime,
+    callId: row.callId,
+    result: row.result,
+    turn: row.turn,
+    step: row.step,
+    group: row.group,
+    turnStart: row.turnStart,
+    turnEnd: row.turnEnd,
+    groupStart: row.groupStart,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    reasoningTokens: row.reasoningTokens,
+    cacheReadTokens: row.cacheReadTokens,
+    messageSource: row.messageSource,
+    promptDetail: row.promptDetail,
+    promptToolsJson: row.promptToolsJson,
+    schemaDescription: row.schemaDescription,
+    schemaParameters: row.schemaParameters,
+    isRequestHeader: row.isRequestHeader,
+    requestNumber: requestNumber,
+    requestProvider: provider,
+    requestModel: model,
+    requestOptionsJson: optionsJson,
+    requestToolCalls: toolCalls,
+    requestSubtoolCalls: subtoolCalls,
+    requestInputTokens: inputTokens,
+    requestOutputTokens: outputTokens,
+    requestCacheReadTokens: cacheReadTokens,
+    requestStartedAt: startedAt,
+    requestCompletedAt: completedAt,
+    requestFailed: requestFailed ?? row.requestFailed,
+  );
+}
 ///
 /// Approximates React `deriveTrajectoryLayout` + `flattenRecords` for
 /// Flutter's host history. Flutter folds raw history event types
@@ -309,9 +485,10 @@ String _summaryBlocksText(Object? summary) {
 ///
 /// Tool durations join `tool/call` → `tool/result` by `callId` time delta so
 /// the timed timeline projections use recorded spans; an unpaired call keeps
-/// a null duration (React `running`: `outputDetail === undefined`). Paired
-/// call/result entries stay as two ledger rows — folding them into one tool
-/// cell (React `expandAssistant`) stays deferred with the Node assembly.
+/// a null duration (React `running`: `outputDetail === undefined`). Each
+/// callId folds into one tool cell (React `expandAssistant`); nested
+/// `tool/code-dispatch` pairs fold into `subtool` rows after their parent.
+/// Request boundaries come from `request/header` order with cumulative usage.
 ///
 /// Kept pure (no ref) so it is testable in isolation.
 List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
@@ -329,6 +506,12 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
   final Map<String, StringBuffer> chunkTextByStep = {};
   final Map<String, int> chunkFirstTimeByStep = {};
   final Map<String, int> stepStartTimeByStep = {};
+  final Map<String, String> dispatchParents = {};
+  final Map<String, SessionEvent> dispatchStarts = {};
+  final Map<String, SessionEvent> dispatchResults = {};
+  // Request headers in event order (React session-global request numbering):
+  // provider/model/options per boundary for the request inspector.
+  final List<Map<String, String?>> requestHeaders = [];
   String? stepKeyOf(Map<String, dynamic> data) {
     final dynamic t = data['turn'];
     final dynamic s = data['step'];
@@ -376,7 +559,20 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
     final ev = entry.event;
     if (ev.type == 'request/header') {
       final header = ev.data['header'];
+      String? provider;
+      String? model;
+      String? optionsJson;
       if (header is Map) {
+        final config = header['config'];
+        if (config is Map) {
+          provider = config['provider']?.toString();
+          model = config['model']?.toString();
+          try {
+            optionsJson = jsonEncode(config);
+          } catch (_) {
+            optionsJson = null;
+          }
+        }
         final tools = header['tools'];
         if (tools is List) {
           for (final t in tools) {
@@ -391,6 +587,11 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
           }
         }
       }
+      requestHeaders.add({
+        'provider': provider,
+        'model': model,
+        'options': optionsJson,
+      });
     } else if (ev.type == 'tool/call') {
       final callId = callIdOf(ev);
       if (callId != null) {
@@ -435,6 +636,44 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
     } else if (ev.type == 'step/start') {
       final key = stepKeyOf(ev.data);
       if (key != null) stepStartTimeByStep.putIfAbsent(key, () => ev.time);
+    } else if (ev.type == 'tool/code-dispatch-start' ||
+        ev.type == 'tool/code-dispatch') {
+      // Nested code-dispatch sub-calls (React `updateDispatch`): edge guards
+      // mirror `acceptsEdge` — no self-parenting, first parent wins, no
+      // ancestor cycles, 256 depth ceiling. Orphan edges whose parent never
+      // rows drop below (unreachable from any root, as in React).
+      final data = ev.data;
+      final parentId = data['parentCallId']?.toString() ?? '';
+      final subId = data['subCallId']?.toString() ?? '';
+      if (parentId.isNotEmpty &&
+          subId.isNotEmpty &&
+          parentId != subId &&
+          !dispatchParents.containsKey(subId)) {
+        bool cycle = false;
+        final seen = <String>{subId};
+        String? cursor = parentId;
+        int depth = 0;
+        while (cursor != null) {
+          if (!seen.add(cursor)) {
+            cycle = true;
+            break;
+          }
+          depth++;
+          if (depth > 256) {
+            cycle = true;
+            break;
+          }
+          cursor = dispatchParents[cursor];
+        }
+        if (!cycle) {
+          dispatchParents[subId] = parentId;
+          if (ev.type == 'tool/code-dispatch-start') {
+            dispatchStarts[subId] = ev;
+          } else {
+            dispatchResults[subId] = ev;
+          }
+        }
+      }
     }
   }
   double? toolDurationFor(String? callId) {
@@ -471,6 +710,10 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
   }
 
   final Map<int, int> turnGroupCounter = {};
+  // Emitted row positions per tool callId (subtool parent linkage) and per
+  // sub-call id (result merge-in-place, one row per sub-call).
+  final Map<String, int> parentRowIndexByCall = {};
+  final Map<String, int> subRowIndexBySub = {};
   for (final entry in entries) {
     final ev = entry.event;
     final type = ev.type;
@@ -526,6 +769,10 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
     String? promptToolsJson;
     String? schemaDescription;
     String? schemaParameters;
+    bool isRequestHeader = false;
+    // Subtool rows inherit their parent's turn (React interleaves by start
+    // order after the parent); set by the dispatch case below.
+    int? turnOverride;
     // Emitted below, or merged into an earlier row (tool results join their
     // call row; chunk deltas accumulate per step and emit once).
     bool emitRow = true;
@@ -543,6 +790,8 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
           text = t.isEmpty ? '(empty message)' : trajectoryPreviewText(t);
           inputDetail = t;
           preview = t.isEmpty ? null : t;
+          // React `inputCellDetail` stamps zero duration on inputs.
+          timeSeconds = 0.0;
           if (src is Map) {
             try {
               messageSource = jsonEncode(src);
@@ -603,6 +852,13 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
           if (stepKey != null) {
             firstTokenTime = chunkFirstTimeByStep[stepKey];
             stepStartTime = stepStartTimeByStep[stepKey];
+            // Assistant wall time runs step start → message (React
+            // `durationSeconds(node.time, stepStartTime)`); feeds the
+            // Timing Total row and the timeline span.
+            if (stepStartTime != null) {
+              final double secs = (ev.time - stepStartTime!) / 1000.0;
+              timeSeconds = secs < 0 ? 0 : secs;
+            }
           }
           break;
         }
@@ -704,6 +960,7 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
               (ev.data['reason'] ?? 'initial').toString() == 'initial';
           text = initial ? 'Initial System Prompt' : 'System Prompt Updated';
           promptDetail = system;
+          isRequestHeader = true;
           final headerTools = header['tools'];
           if (headerTools is List) {
             try {
@@ -715,6 +972,116 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
           preview = system.isEmpty ? null : system;
           break;
         }
+      case 'tool/code-dispatch-start':
+      case 'tool/code-dispatch':
+        {
+          // Nested subtool rows interleave after their parent (React
+          // `withSubCalls`/`expandSubCalls`); orphans without a parent row
+          // drop (unreachable from any root, as in React).
+          kind = TrajectoryCellKind.subtool;
+          final bool isStart = type == 'tool/code-dispatch-start';
+          final data = ev.data;
+          final parentId = data['parentCallId']?.toString() ?? '';
+          final subId = data['subCallId']?.toString() ?? '';
+          final int? parentRowPos = parentRowIndexByCall[parentId];
+          if (parentId.isEmpty ||
+              subId.isEmpty ||
+              parentRowPos == null ||
+              dispatchParents[subId] != parentId) {
+            emitRow = false;
+            break;
+          }
+          final startEv = dispatchStarts[subId];
+          final resultEv =
+              isStart ? null : (dispatchResults[subId] ?? ev);
+          // A result landing on an already-emitted start row merges in
+          // place (one row per sub-call); otherwise the result builds the
+          // standalone row from start + result evidence.
+          final int? emittedPos =
+              isStart ? null : subRowIndexBySub[subId];
+          final String name = ((isStart ? data['name'] : null) ??
+                      startEv?.data['name'] ??
+                      data['name'] ??
+                      'subtool')
+              .toString();
+          dynamic rawArgs = isStart
+              ? data['arguments']
+              : (startEv?.data['arguments'] ?? data['arguments']);
+          String argsText = '';
+          if (rawArgs is String) {
+            argsText = rawArgs;
+          } else if (rawArgs != null) {
+            try {
+              argsText = jsonEncode(rawArgs);
+            } catch (_) {
+              argsText = '$rawArgs';
+            }
+          }
+          callId = subId;
+          text = argsText.isEmpty
+              ? name
+              : '$name ${trajectoryPreviewText(argsText)}';
+          inputDetail = argsText;
+          preview = argsText.isEmpty ? null : argsText;
+          final parentRow = rows[parentRowPos];
+          turnOverride = parentRow.turn;
+          // step local is reassigned below; events carry their own first.
+          final int ownStep = (data['step'] as num?)?.toInt() ?? 0;
+          final int parentStep = parentRow.step;
+          step = ownStep != 0 ? ownStep : parentStep;
+          timeSeconds = null;
+          if (resultEv != null) {
+            final content = resultEv.data['content'];
+            final List<dynamic> blocks =
+                content is List ? content : const [];
+            final String joined = _toolResultBlocksText(blocks);
+            String tail = joined;
+            if (tail.isEmpty) {
+              final dynamic out = resultEv.data['output'] ??
+                  resultEv.data['result'] ??
+                  resultEv.data['text'];
+              if (out is String) {
+                tail = out;
+              } else if (out != null) {
+                try {
+                  tail = jsonEncode(out);
+                } catch (_) {
+                  tail = '$out';
+                }
+              }
+            }
+            final bool err = resultEv.data['isError'] == true ||
+                resultEv.data['error'] != null;
+            outputDetail = tail.isEmpty ? null : tail;
+            result = tail.isEmpty ? null : tail;
+            resultPreview =
+                tail.isEmpty ? null : trajectoryPreviewText(tail);
+            isError = err;
+            final int startTime = startEv?.time ?? ev.time;
+            final double secs =
+                (resultEv.time - startTime) / 1000.0;
+            timeSeconds = secs < 0 ? 0 : secs;
+          } else {
+            running = true;
+          }
+          final schema = schemaByName[name];
+          if (schema != null) {
+            schemaDescription = schema['description'];
+            schemaParameters = schema['parameters'];
+          }
+          if (emittedPos != null) {
+            rows[emittedPos] = _withToolResult(
+              rows[emittedPos],
+              outputDetail: outputDetail,
+              result: result,
+              resultPreview: resultPreview,
+              isError: isError,
+              timeSeconds: timeSeconds,
+            );
+            emitRow = false;
+          }
+          break;
+        }
       default:
         // Raw control-plane noise has no React counterpart — drop it.
         emitRow = false;
@@ -724,7 +1091,7 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
 
     if (!emitRow) continue;
 
-    final int turn = turnForSeq(ev.seq);
+    final int turn = turnOverride ?? turnForSeq(ev.seq);
     final int gcount = (turnGroupCounter[turn] ?? 0) + 1;
     turnGroupCounter[turn] = gcount;
     final bool isFirstInTurn = rows.isEmpty || rows.last.turn != turn;
@@ -766,8 +1133,19 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
       promptToolsJson: promptToolsJson,
       schemaDescription: schemaDescription,
       schemaParameters: schemaParameters,
+      isRequestHeader: isRequestHeader,
     );
     rows.add(row);
+    // Row positions feed subtool parent linkage and result merge-in-place.
+    if (callId != null &&
+        callId.isNotEmpty &&
+        (kind == TrajectoryCellKind.tool ||
+            kind == TrajectoryCellKind.subtool)) {
+      parentRowIndexByCall.putIfAbsent(callId, () => rows.length - 1);
+      if (kind == TrajectoryCellKind.subtool) {
+        subRowIndexBySub[callId] = rows.length - 1;
+      }
+    }
   }
 
   // Accumulated chunk tails emit once per step with no settled message
@@ -837,8 +1215,83 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
         promptToolsJson: cur.promptToolsJson,
         schemaDescription: cur.schemaDescription,
         schemaParameters: cur.schemaParameters,
+        isRequestHeader: cur.isRequestHeader,
+        requestFailed: cur.requestFailed,
       );
     }
+  }
+
+  // Request boundaries in session-global start order (React
+  // `requestNumbers`): number headers, accumulate per-request tool counts,
+  // usage, errors, and wall times, then attach to the header rows for the
+  // request inspector (Summary/Options/Usage/Timing).
+  final List<int> headerPositions = [];
+  for (int i = 0; i < rows.length; i++) {
+    if (rows[i].isRequestHeader) headerPositions.add(i);
+  }
+  for (int h = 0; h < headerPositions.length; h++) {
+    final info = h < requestHeaders.length
+        ? requestHeaders[h]
+        : const <String, String?>{};
+    final int start = headerPositions[h];
+    final int end = h + 1 < headerPositions.length
+        ? headerPositions[h + 1]
+        : rows.length;
+    int tools = 0;
+    int subtools = 0;
+    int inT = 0;
+    int outT = 0;
+    int cacheT = 0;
+    bool hasIn = false;
+    bool hasOut = false;
+    bool hasCache = false;
+    bool hasErr = false;
+    bool hasRunning = false;
+    int? first;
+    int? last;
+    for (int i = start; i < end; i++) {
+      final r = rows[i];
+      if (r.kind == TrajectoryCellKind.tool) tools++;
+      if (r.kind == TrajectoryCellKind.subtool) subtools++;
+      if (r.inputTokens != null) {
+        inT += r.inputTokens!;
+        hasIn = true;
+      }
+      if (r.outputTokens != null) {
+        outT += r.outputTokens!;
+        hasOut = true;
+      }
+      if (r.cacheReadTokens != null) {
+        cacheT += r.cacheReadTokens!;
+        hasCache = true;
+      }
+      if (r.isError) hasErr = true;
+      if (r.running) hasRunning = true;
+      if (r.startedAt != null) {
+        first = first == null || r.startedAt! < first ? r.startedAt : first;
+        int done = r.startedAt!;
+        if (r.timeSeconds != null && r.timeSeconds!.isFinite) {
+          done += (r.timeSeconds! * 1000).round();
+        }
+        last = last == null || done > last ? done : last;
+      }
+    }
+    rows[start] = _withRequest(
+      rows[start],
+      requestNumber: h + 1,
+      provider: info['provider'],
+      model: info['model'],
+      optionsJson: info['options'],
+      toolCalls: tools,
+      subtoolCalls: subtools,
+      inputTokens: hasIn ? inT : null,
+      outputTokens: hasOut ? outT : null,
+      cacheReadTokens: hasCache ? cacheT : null,
+      startedAt: first,
+      completedAt: last,
+      requestFailed: hasErr,
+      running: hasRunning && !hasErr,
+    );
   }
 
   return List<LedgerRow>.unmodifiable(rows);
@@ -860,7 +1313,25 @@ class TimelineSpan {
   final int start;
   final int end;
   final bool isError;
-  const TimelineSpan({required this.index, required this.kind, required this.lane, required this.start, required this.end, this.isError = false});
+
+  /// Recorded wall-clock detail for rich tooltips and the assistant
+  /// TTFT/decoding split (React `TimelineRecordDetail`).
+  final int? startedAtMs;
+  final int? durationMs;
+  final int? ttftMs;
+  final int? decodingMs;
+  const TimelineSpan({
+    required this.index,
+    required this.kind,
+    required this.lane,
+    required this.start,
+    required this.end,
+    this.isError = false,
+    this.startedAtMs,
+    this.durationMs,
+    this.ttftMs,
+    this.decodingMs,
+  });
 }
 
 class TurnBoundary {
@@ -900,6 +1371,59 @@ int laneForKind(TrajectoryCellKind k) => switch (k) {
 /// turn transitions; the first turn starts at the domain origin.
 TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
   if (rows.isEmpty) return null;
+  final Map<int, LedgerRow> byIndex = {for (final r in rows) r.index: r};
+
+  /// Wall-clock detail for one row (React `timelineRecordDetail` +
+  /// `assistantTimingDetail`): validated TTFT/decoding only.
+  ({int? startedAtMs, int? durationMs, int? ttftMs, int? decodingMs})
+      detailOf(LedgerRow r) {
+    final int? startedAt = r.startedAt;
+    final double? secs = r.timeSeconds;
+    final int? durationMs = secs == null || secs.isNaN || secs.isInfinite
+        ? null
+        : (secs * 1000).round().clamp(0, 1 << 30);
+    int? ttftMs;
+    int? decodingMs;
+    if (r.kind == TrajectoryCellKind.message) {
+      final int? stepStart = r.stepStartTime;
+      final int? first = r.firstTokenTime;
+      final int? completed = r.startedAt;
+      if (stepStart != null &&
+          first != null &&
+          completed != null &&
+          first >= stepStart &&
+          completed >= first) {
+        ttftMs = first - stepStart;
+        decodingMs = completed - first;
+      }
+    }
+    return (
+      startedAtMs: startedAt,
+      durationMs: durationMs,
+      ttftMs: ttftMs,
+      decodingMs: decodingMs
+    );
+  }
+
+  TimelineSpan project(
+    LedgerRow r, {
+    required int start,
+    required int end,
+  }) {
+    final d = detailOf(r);
+    return TimelineSpan(
+      index: r.index,
+      kind: r.kind,
+      lane: laneForKind(r.kind),
+      start: start,
+      end: end,
+      isError: r.isError,
+      startedAtMs: d.startedAtMs,
+      durationMs: d.durationMs,
+      ttftMs: d.ttftMs,
+      decodingMs: d.decodingMs,
+    );
+  }
   if (mode == 'sequence') {
     const int start = 0;
     final int end = rows.length * 10;
@@ -907,7 +1431,7 @@ TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
     for (final r in rows) {
       final int s = r.index * 10;
       final int e = s + 8;
-      spans.add(TimelineSpan(index: r.index, kind: r.kind, lane: laneForKind(r.kind), start: s, end: e, isError: r.isError));
+      spans.add(project(r, start: s, end: e));
     }
     final boundaries = <TurnBoundary>[];
     for (int i = 1; i < rows.length; i++) {
@@ -931,7 +1455,7 @@ TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
           : (secs * 1000).round().clamp(0, 1 << 30);
       final int s = started;
       final int e = actualDuration ? s + durationMs : s;
-      raw.add(TimelineSpan(index: r.index, kind: r.kind, lane: laneForKind(r.kind), start: s, end: e, isError: r.isError));
+      raw.add(project(r, start: s, end: e));
       rawTurns.add(r.turn);
     }
     if (raw.isEmpty) return null;
@@ -958,7 +1482,26 @@ TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
     for (int i = 0; i < raw.length; i++) {
       final int offset = removedByRaw[i] ?? 0;
       final TimelineSpan s = raw[i];
-      spans.add(TimelineSpan(index: s.index, kind: s.kind, lane: s.lane, start: s.start - offset, end: s.end - offset, isError: s.isError));
+      final LedgerRow? origin = byIndex[s.index];
+      if (origin != null) {
+        final d = detailOf(origin);
+        spans.add(TimelineSpan(
+          index: s.index,
+          kind: s.kind,
+          lane: s.lane,
+          start: s.start - offset,
+          end: s.end - offset,
+          isError: s.isError,
+          // Tooltip keeps original wall times (React tooltips detail, not
+          // the compressed domain position).
+          startedAtMs: d.startedAtMs,
+          durationMs: d.durationMs,
+          ttftMs: d.ttftMs,
+          decodingMs: d.decodingMs,
+        ));
+      } else {
+        spans.add(TimelineSpan(index: s.index, kind: s.kind, lane: s.lane, start: s.start - offset, end: s.end - offset, isError: s.isError));
+      }
     }
     int start = spans.first.start;
     int end = spans.first.end;
@@ -1229,6 +1772,55 @@ class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
         .toSet();
   }
 
+/// Turn wall-span plus tool histogram, e.g. `1,500 ms bash×6` — mirrors
+/// React `groupDescription`: tool rows contribute start and end (start +
+/// own duration) so a single tool cell still spans call→result.
+String _groupDescription(List<LedgerRow> turnRows) {
+  final times = <int>[];
+  for (final l in turnRows) {
+    final s = l.startedAt;
+    if (s == null) continue;
+    times.add(s);
+    final secs = l.timeSeconds;
+    if (l.kind == TrajectoryCellKind.tool &&
+        secs != null &&
+        secs.isFinite) {
+      times.add(s + (secs * 1000).round());
+    }
+  }
+  final parts = <String>[];
+  if (times.length >= 2) {
+    int lo = times.first;
+    int hi = times.first;
+    for (final t in times) {
+      if (t < lo) lo = t;
+      if (t > hi) hi = t;
+    }
+    parts.add(_formatMs(hi - lo));
+  } else if (times.length == 1) {
+    LedgerRow? owner;
+    for (final l in turnRows) {
+      if (l.startedAt == times.single) owner = l;
+    }
+    final secs = owner?.timeSeconds;
+    if (secs != null && secs.isFinite) {
+      parts.add(_formatMs((secs * 1000).round()));
+    }
+  }
+  final tools = <String, int>{};
+  for (final l in turnRows) {
+    if (l.kind != TrajectoryCellKind.tool) continue;
+    final name = l.text.split(' ').firstWhere((w) => w.isNotEmpty,
+        orElse: () => '');
+    if (name.isEmpty) continue;
+    tools[name] = (tools[name] ?? 0) + 1;
+  }
+  for (final entry in tools.entries) {
+    parts.add(entry.value > 1 ? '${entry.key}×${entry.value}' : entry.key);
+  }
+  return parts.join(' ');
+}
+
   List<LedgerRow> get _collapsedRows {
     final filtered = _filteredRows;
     final Map<int, List<LedgerRow>> byTurn = {};
@@ -1242,8 +1834,12 @@ class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
         final first = turnRows.first;
         if (r.index != first.index) {
           if (r.index == turnRows[1].index) {
-            final int steps = 1;
-            final int toolCalls = turnRows.where((x) => x.kind == TrajectoryCellKind.tool || x.kind == TrajectoryCellKind.subtool).length;
+            final String summary = _groupDescription(turnRows);
+            final int toolCalls = turnRows
+                .where((x) =>
+                    x.kind == TrajectoryCellKind.tool ||
+                    x.kind == TrajectoryCellKind.subtool)
+                .length;
             out.add(LedgerRow(
               index: r.index,
               kind: r.kind,
@@ -1251,7 +1847,9 @@ class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
               turn: r.turn,
               group: r.group,
               isCollapsedSummary: true,
-              collapsedSummary: '$steps step${steps == 1 ? '' : 's'} · $toolCalls tool call${toolCalls == 1 ? '' : 's'}',
+              collapsedSummary: summary.isEmpty
+                  ? '$toolCalls tool call${toolCalls == 1 ? '' : 's'}'
+                  : summary,
             ));
           }
           continue;
@@ -2057,6 +2655,34 @@ class _EarlierHistoryButton extends StatelessWidget {
   }
 }
 
+/// Thousands-separated millisecond label (React `formatDurationMillis`).
+String _formatMs(int ms) {
+  var digits = ms.abs().toString();
+  final buf = StringBuffer();
+  while (digits.length > 3) {
+    buf.write(',${digits.substring(digits.length - 3)}');
+    digits = digits.substring(0, digits.length - 3);
+  }
+  buf.write(digits);
+  final out = buf.toString().split(',').reversed.join(',');
+  return '${ms < 0 ? '-' : ''}$out ms';
+}
+
+/// Fills `{name}` placeholders in a locale template.
+String _fillTemplate(String template, Map<String, String> values) {
+  var out = template;
+  values.forEach((k, v) => out = out.replaceAll('{$k}', v));
+  return out;
+}
+
+/// Local clock label `HH:MM:SS.mmm` (React `formatRecordedTime`).
+String _formatClockMs(int ms) {
+  final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+  String two(int n) => n.toString().padLeft(2, '0');
+  String three(int n) => n.toString().padLeft(3, '0');
+  return '${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}.${three(dt.millisecond)}';
+}
+
 class _TimelineSpanWidget extends StatelessWidget {
   const _TimelineSpanWidget({
     required this.span,
@@ -2127,19 +2753,95 @@ class _TimelineSpanWidget extends StatelessWidget {
     final double boxWidth = equalWidth ? 8 : widthWithGap;
     final double boxLeft = equalWidth ? left : leftWithGap;
 
+    // Assistant TTFT/decoding split (React `data-assistant-timing`): the
+    // TTFT fraction renders solid, the decoding remainder translucent.
+    double? ttftFraction;
+    if (!equalWidth &&
+        span.ttftMs != null &&
+        span.decodingMs != null &&
+        span.ttftMs! >= 0 &&
+        span.decodingMs! >= 0 &&
+        span.ttftMs! + span.decodingMs! > 0) {
+      ttftFraction =
+          span.ttftMs! / (span.ttftMs! + span.decodingMs!);
+    }
+
+    Widget bar = Container(
+      width: boxWidth,
+      height: 8,
+      decoration: deco.copyWith(color: deco.color?.withValues(alpha: opacity)),
+    );
+    if (ttftFraction != null) {
+      final double split = (boxWidth * ttftFraction).clamp(0, boxWidth);
+      bar = SizedBox(
+        width: boxWidth,
+        height: 8,
+        child: Stack(
+          children: [
+            Container(
+              width: boxWidth,
+              height: 8,
+              decoration: BoxDecoration(
+                color: deco.color?.withValues(alpha: opacity * 0.45),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            Container(
+              width: split,
+              height: 8,
+              decoration: BoxDecoration(
+                color: deco.color?.withValues(alpha: opacity),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Positioned(
       left: boxLeft,
       top: top,
       child: Tooltip(
-        message: '${span.kind.name} · ${span.isError ? 'error' : 'ok'}',
+        message: _tooltipText(context, aliases),
         waitDuration: const Duration(milliseconds: 500),
-        child: Container(
-          width: boxWidth,
-          height: 8,
-          decoration: deco.copyWith(color: deco.color?.withValues(alpha: opacity)),
-        ),
+        child: bar,
       ),
     );
+  }
+
+  /// Rich tooltip (React `timelineTooltipLabel`): kind heading, recorded
+  /// range, total duration, TTFT/decoding split when known.
+  String _tooltipText(BuildContext context, DswAliases aliases) {
+    String tr(String key) => trajectoryText(
+        Localizations.localeOf(context).languageCode, key);
+    final String heading = _kindTag(span.kind, aliases, true).$1.label;
+    final int? startedAt = span.startedAtMs;
+    final int? durationMs = span.durationMs;
+    String? range;
+    if (startedAt != null) {
+      range = durationMs != null
+          ? '${_formatClockMs(startedAt)} → ${_formatClockMs(startedAt + durationMs)}'
+          : _fillTemplate(
+              tr('timeline.started'), {'time': _formatClockMs(startedAt)});
+    }
+    String? timing;
+    if (durationMs != null) {
+      timing = _fillTemplate(
+          tr('timeline.total'), {'duration': _formatMs(durationMs)});
+    }
+    if (span.ttftMs != null && span.decodingMs != null) {
+      final segments = _fillTemplate(tr('timeline.ttftDecoding'), {
+        'ttft': _formatMs(span.ttftMs!),
+        'decoding': _formatMs(span.decodingMs!),
+      });
+      timing = timing == null ? segments : '$timing · $segments';
+    }
+    return [
+      heading,
+      if (range != null) range,
+      if (timing != null && timing.isNotEmpty) timing,
+    ].join('\n');
   }
 }
 
@@ -2724,7 +3426,16 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
   static List<String> _tabIdsFor(LedgerRow row) {
     final k = row.kind;
     if (k == TrajectoryCellKind.system) {
-      return const ['systemPrompt', 'tools'];
+      // Header rows double as request boundaries (React REQUEST_TABS) and
+      // prompt changes (system-prompt/tools tabs).
+      return const [
+        'summary',
+        'systemPrompt',
+        'tools',
+        'options',
+        'usage',
+        'timing'
+      ];
     }
     if (k == TrajectoryCellKind.compacted) {
       return const ['summary', 'rawOutput'];
@@ -2860,7 +3571,9 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
   }
 
   String _statusOf(LedgerRow row) {
-    if (row.isError) return _trajT(context, 'status.failed');
+    if (row.isError || row.requestFailed) {
+      return _trajT(context, 'status.failed');
+    }
     if (row.running) return _trajT(context, 'status.pending');
     return _trajT(context, 'status.completed');
   }
@@ -3120,8 +3833,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       return ListView(
           padding: const EdgeInsets.all(14), children: children);
     }
-    if (row.kind == TrajectoryCellKind.compacted) {
-      kv(_trajT(context, 'details.status'), _statusOf(row),
+    if (row.kind == TrajectoryCellKind.compacted) {      kv(_trajT(context, 'details.status'), _statusOf(row),
           error: row.isError);
       kv(_trajT(context, 'details.duration'),
           _durationText(row.timeSeconds));
@@ -3136,21 +3848,41 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       return ListView(
           padding: const EdgeInsets.all(14), children: children);
     }
+    // Request header rows: React request Summary (Status, Provider, Model,
+    // tool counts). Prompt/options/usage/timing live on their own tabs.
+    children.add(_kv(_trajT(context, 'details.status'), _statusOf(row),
+        aliases,
+        error: row.isError || row.requestFailed));
+    if (row.requestNumber != null) {
+      children.add(_kv(
+          _trajT(context, 'details.request'), '#${row.requestNumber}', aliases));
+    }
+    if ((row.requestProvider ?? '').isNotEmpty) {
+      children.add(
+          _kv(_trajT(context, 'details.provider'), row.requestProvider!, aliases));
+    }
+    if ((row.requestModel ?? '').isNotEmpty) {
+      children.add(
+          _kv(_trajT(context, 'details.model'), row.requestModel!, aliases));
+    }
+    children.add(_kv(_trajT(context, 'details.toolCalls'),
+        '${row.requestToolCalls}', aliases));
+    if (row.requestSubtoolCalls > 0) {
+      children.add(_kv(_trajT(context, 'details.subtoolCalls'),
+          '${row.requestSubtoolCalls}', aliases));
+    }
+    if ((row.promptDetail ?? '').isNotEmpty) {
+      children.add(const SizedBox(height: 8));
+      children.add(_sectionLink(
+        label: _trajT(context, 'tab.systemPrompt'),
+        targetId: 'systemPrompt',
+        preview: _previewPre(row.promptDetail!, aliases, maxLines: 6),
+        aliases: aliases,
+      ));
+    }
     return ListView(
       padding: const EdgeInsets.all(14),
-      children: [
-        _kv('Kind', _kindLabel(row.kind), aliases),
-        _kv('Turn', '${row.turn}', aliases),
-        _kv('Group', row.group, aliases),
-        if (row.isError)
-          _kv(_trajT(context, 'details.status'), _statusOf(row), aliases,
-              error: true),
-        const SizedBox(height: 8),
-        Text(row.text,
-            style: TextStyle(
-                fontSize: DswTokens.fontSizeXs13,
-                color: aliases.labelPrimary)),
-      ],
+      children: children,
     );
   }
 
@@ -3205,6 +3937,19 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
   }
 
   Widget _timingTab(LedgerRow row, DswAliases aliases) {
+    // Request rows time the whole request (React RequestTiming anchor);
+    // record rows time themselves.
+    final int? started = row.isRequestHeader
+        ? (row.requestStartedAt ?? row.startedAt)
+        : row.startedAt;
+    double? secs = row.timeSeconds;
+    if (row.isRequestHeader &&
+        row.requestStartedAt != null &&
+        row.requestCompletedAt != null) {
+      final double span =
+          (row.requestCompletedAt! - row.requestStartedAt!) / 1000.0;
+      secs = span < 0 ? 0 : span;
+    }
     final children = <Widget>[
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -3221,7 +3966,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SelectableText(_startedText(row.startedAt),
+                  SelectableText(_startedText(started),
                       style: TextStyle(
                           fontFamily: DswTokens.fontFamilyCode,
                           fontSize: DswTokens.fontSizeXs13,
@@ -3249,7 +3994,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         ),
       ),
       _kv(_trajT(context, 'timing.duration'),
-          _durationText(row.timeSeconds), aliases),
+          _durationText(secs), aliases),
       _kv(_trajT(context, 'timing.source'),
           _trajT(context, 'timing.sessionTimestamps'), aliases),
     ];
@@ -3376,6 +4121,42 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
                     fontFamily: DswTokens.fontFamilyCode,
                     fontSize: 12,
                     color: aliases.labelPrimary)),
+        ],
+      );
+    }
+    if (id == 'options') {
+      final opts = row.requestOptionsJson ?? '';
+      if (opts.isEmpty) {
+        return Center(
+            child: Text(L('options.notRecorded'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return _jsonTab(opts, aliases, L('options.notRecorded'));
+    }
+    if (id == 'usage') {
+      final hasUsage = row.requestInputTokens != null ||
+          row.requestOutputTokens != null ||
+          row.requestCacheReadTokens != null;
+      if (!hasUsage) {
+        return Center(
+            child: Text(L('usage.notReported'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          if (row.requestInputTokens != null)
+            _kv(L('usage.input'), _formatInt(row.requestInputTokens!), aliases),
+          if (row.requestCacheReadTokens != null)
+            _kv(L('usage.cached'),
+                _formatInt(row.requestCacheReadTokens!), aliases),
+          if (row.requestOutputTokens != null)
+            _kv(L('usage.output'),
+                _formatInt(row.requestOutputTokens!), aliases),
         ],
       );
     }
