@@ -27,7 +27,7 @@ import '../locales.dart';
 import '../nodes/conversation_nodes.dart';
 import '../nodes/turn_navigator.dart';
 import '../hub.dart';
-import 'ansi_span.dart';
+import '../../../widgets/primitives/ansi.dart';
 import '../../tool/ui/keyed_tool_card.dart'
     show ToolNodeAdapter, ToolNodeAdapterWithSubCalls, ToolSubCallAdapter;
 import '../../tool/tool_models.dart' show ToolCall, ToolCallStatus, kindForTool;
@@ -2382,7 +2382,8 @@ class _IoCard extends StatelessWidget {
                     child: SelectableText.rich(
                       ansiToSpan(
                         out,
-                        fallbackColor: isError
+                        colors: AnsiColors.fromAliases(aliases),
+                        defaultColor: isError
                             ? aliases.stateErrorPrimary
                             : aliases.labelSecondary,
                       ),

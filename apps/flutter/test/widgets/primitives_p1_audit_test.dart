@@ -201,7 +201,9 @@ void main() {
 
         final rendered = tester
             .widgetList<Text>(find.byType(Text))
-            .map((t) => t.data ?? '')
+            .map(
+              (t) => t.data ?? t.textSpan?.toPlainText() ?? '',
+            )
             .toList();
         final lineTexts = rendered.where((l) => l.startsWith('line ')).toList();
 

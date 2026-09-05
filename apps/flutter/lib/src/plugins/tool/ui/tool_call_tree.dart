@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../widgets/primitives/ansi.dart';
 import '../../../widgets/primitives/disclosure_row.dart';
 import '../tool_models.dart';
 
@@ -340,7 +341,7 @@ class BashToolCard extends StatelessWidget {
             ),
           ),
         if (result.isNotEmpty)
-          _CodeBlock(code: result, maxLines: 40)
+          _CodeBlock(code: result, maxLines: 40, ansi: true)
         else if (command == null)
           _JsonBlock(label: 'Args', value: call.args),
       ],
@@ -645,10 +646,14 @@ class _JsonBlock extends StatelessWidget {
 }
 
 class _CodeBlock extends StatelessWidget {
-  const _CodeBlock({required this.code, this.maxLines = 40});
+  const _CodeBlock({required this.code, this.maxLines = 40, this.ansi = false});
 
   final String code;
   final int maxLines;
+
+  /// Render the code through the shared ANSI renderer (colors + cursor
+  /// replay) instead of as literal text; used by the bash tool card.
+  final bool ansi;
 
   @override
   Widget build(BuildContext context) {
@@ -663,6 +668,15 @@ class _CodeBlock extends StatelessWidget {
     final String display = truncated
         ? '${lines.take(maxLines).join('\n')}\n… (${lines.length - maxLines} more lines)'
         : code;
+    final TextStyle baseStyle = TextStyle(
+      fontSize: DswTokens.markdownCodeBlockSmallSize,
+      height:
+          DswTokens.markdownCodeBlockSmallLineHeight /
+          DswTokens.markdownCodeBlockSmallSize,
+      color: aliases.labelPrimary,
+      fontFamily: 'SF Mono',
+      fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
+    );
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -671,18 +685,16 @@ class _CodeBlock extends StatelessWidget {
         border: Border.all(color: aliases.borderL2),
       ),
       padding: const EdgeInsets.all(DswTokens.spaceSm),
-      child: SelectableText(
-        display,
-        style: TextStyle(
-          fontSize: DswTokens.markdownCodeBlockSmallSize,
-          height:
-              DswTokens.markdownCodeBlockSmallLineHeight /
-              DswTokens.markdownCodeBlockSmallSize,
-          color: aliases.labelPrimary,
-          fontFamily: 'SF Mono',
-          fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
-        ),
-      ),
+      child: ansi
+          ? SelectableText.rich(
+              ansiToSpan(
+                display,
+                colors: AnsiColors.fromAliases(aliases),
+                defaultColor: aliases.labelPrimary,
+              ),
+              style: baseStyle,
+            )
+          : SelectableText(display, style: baseStyle),
     );
   }
 }

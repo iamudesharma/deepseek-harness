@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../platform/clipboard.dart';
 import '../../theme/app_theme.dart';
+import 'ansi.dart';
 
 /// Output lines shown before the height cap collapses the middle — mirrors
 /// `DEFAULT_TERMINAL_MAX_LINES` in TerminalBlock.tsx so both front ends cut
@@ -157,7 +158,15 @@ class DsTerminalBlock extends ConsumerStatefulWidget {
   /// Localized display copy.
   final DsTerminalBlockLabels labels;
 
-  static final RegExp _ansiRegex = RegExp(r'\x1B\[[0-9;]*[A-Za-z]');
+  /// Whether a parsed line carries no visible text.
+  static bool _lineIsBlank(AnsiLine line) {
+    for (final span in line) {
+      if (span.text.trim().isNotEmpty) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   /// Prompt label: `~` for home, else the path's last segment.
   static String promptLabel(String? cwd, String? home) {
@@ -188,12 +197,18 @@ class _DsTerminalBlockState extends ConsumerState<DsTerminalBlock> {
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
 
-    // Output lines, ANSI-stripped (color rendering is a recorded gap).
-    final rawLines = widget.output.isEmpty
-        ? const <String>[]
-        : widget.output.replaceAll(DsTerminalBlock._ansiRegex, '').split('\n');
-    while (rawLines.isNotEmpty && rawLines.last.trim().isEmpty) {
-      rawLines.removeLast();
+    // Output lines, parsed with the shared ANSI renderer: cursor movements
+    // replay per line and SGR runs carry token-mapped colors, matching the
+    // React TerminalBlock.
+    var rawLines = widget.output.isEmpty
+        ? <AnsiLine>[]
+        : parseAnsiLines(
+            widget.output,
+            colors: AnsiColors.fromAliases(aliases),
+            defaultColor: aliases.labelPrimary,
+          );
+    while (rawLines.isNotEmpty && DsTerminalBlock._lineIsBlank(rawLines.last)) {
+      rawLines = rawLines.sublist(0, rawLines.length - 1);
     }
 
     final window = HeadTailWindow.compute(
@@ -271,7 +286,18 @@ class _DsTerminalBlockState extends ConsumerState<DsTerminalBlock> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             for (final line in visible)
-                              Text(line, overflow: TextOverflow.clip),
+                              Text.rich(
+                                TextSpan(
+                                  children: [
+                                    for (final span in line)
+                                      TextSpan(
+                                        text: span.text,
+                                        style: span.style,
+                                      ),
+                                  ],
+                                ),
+                                overflow: TextOverflow.clip,
+                              ),
                           ],
                         ),
                       ),
