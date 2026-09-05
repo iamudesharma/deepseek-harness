@@ -7,10 +7,10 @@ import type {
   ConsoleTerminalOwner,
   TerminalReadResult,
   TerminalSendResult,
-  TerminalSessionService,
   TerminalSignalResult,
   TerminalSpawnResult,
 } from '@deepseek-ai/dsh-terminal/types'
+import type { TerminalSessionService } from '@deepseek-ai/dsh-terminal'
 import type {
   TerminalCloseRequest,
   TerminalCloseValue,
