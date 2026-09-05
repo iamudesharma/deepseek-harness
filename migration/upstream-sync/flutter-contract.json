@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-05T07:20:29.509Z",
+  "generatedAt": "2026-09-05T08:03:00.552Z",
   "filesScanned": 355,
   "callSites": [
     {
@@ -1656,7 +1656,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-      "line": 93,
+      "line": 115,
       "api": "ConnectionClient.settingsDescribe",
       "endpoint": "settings/describe",
       "wireEndpoint": "/api/settings/describe",
@@ -1670,7 +1670,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-      "line": 130,
+      "line": 142,
       "api": "ConnectionClient.settingsDescribe",
       "endpoint": "settings/describe",
       "wireEndpoint": "/api/settings/describe",
@@ -1796,7 +1796,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-      "line": 143,
+      "line": 145,
       "api": "ConnectionClient.settingsMutate",
       "endpoint": "settings/mutate",
       "wireEndpoint": "/api/settings/mutate",
@@ -2126,7 +2126,7 @@
       "responseDecoder": null,
       "providerOrState": "workspaceSavingProvider",
       "eventConsumer": null,
-      "streamConsumer": null,
+      "streamConsumer": "session/follow",
       "model": null,
       "currentValueSource": null
     },

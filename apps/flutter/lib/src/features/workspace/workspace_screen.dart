@@ -389,17 +389,7 @@ class WorkspaceScreen extends ConsumerWidget {
       final client = ref.read(connectionClientProvider);
       final result = await client.workspaceCreate(path: trimmed);
       final workspace = result['workspace'] as Map<String, dynamic>?;
-      if (workspace != null) {
-        try {
-          upsertLiveWorkspace(
-            ref,
-            WorkspaceView.fromJson(workspace.cast<String, dynamic>()),
-          );
-        } catch (_) {
-          // Parse failure still leaves follow upsert as backstop.
-        }
-      }
-      // Invalidate to re-fetch real list including new workspace.
+      // The next workspace/follow baseline is authoritative for the list.
       ref.invalidate(workspaceListProvider);
       ref.invalidate(hostDescribeProvider);
       if (!context.mounted) return;

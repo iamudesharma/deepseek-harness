@@ -593,6 +593,11 @@ final liveSyncProvider = Provider<void>((ref) {
         final type = raw['type'] as String?;
         if (type == 'snapshot') {
           try {
+            final cursor = raw['cursor'];
+            // Host snapshot.cursor is required by the follow protocol. Do not
+            // replace history from a malformed snapshot: the cursor is the
+            // authoritative cut required by session/page.
+            if (cursor is! int) return;
             final records = (raw['records'] as List? ?? const [])
                 .whereType<Map>()
                 .map((m) => m.cast<String, dynamic>())
@@ -615,7 +620,6 @@ final liveSyncProvider = Provider<void>((ref) {
                 } catch (_) {}
               }
             }
-            final int cursor = (raw['cursor'] as int?) ?? (entries.isEmpty ? -1 : entries.last.event.seq);
             final bool hasMore = raw['hasMore'] as bool? ?? false;
             // Use cursor-aware replace to fence live events <= cursor per master sequence rule.
             try {

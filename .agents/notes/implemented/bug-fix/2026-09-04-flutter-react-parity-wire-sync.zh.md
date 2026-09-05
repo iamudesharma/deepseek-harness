@@ -2,6 +2,8 @@
 
 Status: implemented
 
+[English](2026-09-04-flutter-react-parity-wire-sync.md) | 中文
+
 ## Problem
 
 2026-09-04 的 React↔Flutter parity 审计发现 Flutter 客户端调用了不存在的线协议面、
@@ -100,6 +102,8 @@ rewrap 落地后的 cursor 用例（`session_page_fix`）。reasoning 拆分有�
 `$events`/`remote.mux` `ready` 帧，generation 因此到不了 `connected`。它们在
 HEAD 上逐字复现（已在 `daa8c5aeae` 的干净 worktree 验证），且位于
 `connection_controller.dart` / `live_sync.dart` / `_LifecycleHost` —— 均带在途
-编辑，控制器与 fixture 的契约归属该工作流，不属于本次同步。生成的 parity 输入
-（`migration/upstream-sync/parity.json`、`flutter-impact.json`）仍报告修复前的
-判定，需要下一次再生成运行来反映本次变更。
+编辑，控制器与 fixture 的契约归属该工作流，不属于本次同步。Flutter 仅从携带整数
+`cursor` 的 `session/follow` snapshot 替换历史，因此任何 `session/page` 请求都不会继承
+合成切点。Busy Enter 行共享接受列表、映射和具名映射形式的 settings namespace reader。上游
+extractor 识别 Typert remote subclass 中的每个 `super(ctx, serviceKey)`，其 fallback 使用
+`subagents` service key，因此重新生成的 contract 保留实际的 subagent endpoint。

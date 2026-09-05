@@ -1,4 +1,9 @@
+// oxlint-disable ban-ts-comment -- tsx-run tooling outside the repo TS programs; intentionally unchecked.
 // @ts-nocheck
+/**
+ * Upstream API contract extractor: scans Typert remote services for operations.
+ * Runs through tsx outside the repository TypeScript programs.
+ */
 import { execSync } from 'node:child_process'
 import type { ApiContract, ApiOperation } from './types.ts'
 import { fileAtRev, listFilesAtRev, grepFilesAtRev } from './git.ts'
@@ -73,14 +78,10 @@ function parseFileForOperations(file: string, content: string, _rev: string): Ap
   const ops: ApiOperation[] = []
   // Find service bindings: extends TypertRemoteService or bindTypertRemote(this, 'serviceKey', {namespace: 'ns'})
   // We capture serviceKey and namespace per file
-  const serviceBindings: { serviceKey: string, namespace: string, line: number }[] = []
+  const serviceBindings: { serviceKey: string; namespace: string; line: number }[] = []
 
   // Pattern 1: class Foo extends TypertRemoteService  -> then constructor super(ctx, 'serviceKey') or TypertRemoteService param
   // Actually TypertRemoteService constructor takes serviceKey as second param: super(ctx, 'agentTeams') etc.
-  // Extract via regex
-  const superRegex = /super\(\s*ctx,\s*['"]([^'"]+)['"]\s*(?:,\s*\{[^}]*namespace:\s*['"]([^'"]+)['"]\s*\})?/g
-  // Also direct TypertRemoteService subclass header
-  const classExtendsRegex = /class\s+(\w+)\s+extends\s+TypertRemoteService/g
   // We'll approximate: find all bindTypertRemote occurrences
   const bindRegex = /bindTypertRemote\s*\(\s*this\s*,\s*['"]([^'"]+)['"]\s*(?:,\s*\{\s*namespace:\s*['"]([^'"]+)['"]\s*\})?/g
 
@@ -96,9 +97,11 @@ function parseFileForOperations(file: string, content: string, _rev: string): Ap
   if (serviceBindings.length === 0) {
     const superMatchGlobal = /super\(\s*ctx,\s*['"]([^'"]+)['"]\s*(?:,\s*\{\s*namespace:\s*['"]([^'"]+)['"]\s*\})?/g
     while ((match = superMatchGlobal.exec(content)) !== null) {
-      // only consider files that have extends TypertRemoteService nearby
-      const before = content.slice(Math.max(0, match.index - 500), match.index)
-      if (!before.includes('TypertRemoteService')) continue
+      // A class body may separate its `extends TypertRemoteService` clause
+      // from `super(ctx, serviceKey)` by fields and documentation. The exact
+      // `super(ctx, ...)` form is remote-service-specific, so scope by file
+      // rather than an arbitrary proximity window.
+      if (!content.includes('extends TypertRemoteService')) continue
       const serviceKey = match[1]
       const namespace = match[2] ?? serviceKey
       const line = content.slice(0, match.index).split('\n').length
@@ -120,15 +123,9 @@ function parseFileForOperations(file: string, content: string, _rev: string): Ap
 
   if (serviceBindings.length === 0) return []
 
-  // For each binding, find @Remote methods
-  // Use regex to find @Remote(...) or @Remote then next method definition
-  const remoteRegex = /@Remote\s*(?:\(\s*(?:['"]([^'"]+)['"]|{[^}]*mode:\s*['"]stream['"][^}]*})\s*\))?\s*(?:@RemoteScope\([^)]+\)\s*)*\n?\s*(?:async\s+\*?|\*?)\s*(\w+)\s*\(/g
-  // Also need to handle @RemoteScope decorated methods
-  const remoteScopeRegex = /@RemoteScope\s*\(\s*['"]([^'"]+)['"]/g
-
-  // Simpler: iterate lines and track decorators
+  // For each binding, find @Remote methods by iterating lines and tracking decorators.
   const lines = content.split('\n')
-  let pendingDecorator: { exportName: string | null, mode: 'unary' | 'stream', line: number, decoratorLine: string } | null = null
+  let pendingDecorator: { exportName: string | null; mode: 'unary' | 'stream'; line: number; decoratorLine: string } | null = null
 
   for (let i = 0; i < lines.length; i++) {
     const lineText = lines[i]
@@ -269,7 +266,7 @@ function inferAuth(file: string, namespace: string): 'none' | 'browser' | 'beare
   return 'browser'
 }
 
-function inferNamespaceFromPath(file: string): { serviceKey: string, namespace: string } | null {
+function inferNamespaceFromPath(file: string): { serviceKey: string; namespace: string } | null {
   // Map common package paths to namespace
   const mappings: Record<string, string> = {
     'packages/api/session-controller/src/index.ts': 'session',
@@ -285,7 +282,7 @@ function inferNamespaceFromPath(file: string): { serviceKey: string, namespace: 
     'packages/workspace/workspace/src/index.ts': 'workspace',
     'packages/settings/settings/src/index.ts': 'settings',
     'packages/llm/llm/src/index.ts': 'llm',
-    'packages/subagent/subagent/src/index.ts': 'subagent',
+    'packages/subagent/subagent/src/index.ts': 'subagents',
     'packages/goal/goal/src/index.ts': 'goal',
     'packages/interaction/commands/src/index.ts': 'commands',
     'packages/feedback/message-feedback/src/index.ts': 'messageFeedback',

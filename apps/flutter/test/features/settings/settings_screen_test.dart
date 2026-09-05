@@ -216,6 +216,29 @@ void main() {
     expect(find.text('Queue'), findsOneWidget);
   });
 
+  testWidgets('General tab accepts map-shaped settings namespaces', (tester) async {
+    final client = _FakeClient()
+      ..describeAnswer = <String, Object?>{
+        'namespaces': <String, Object?>{
+          'locale': <String, Object?>{
+            'ns': 'locale',
+            'value': <String, Object?>{'preference': 'en'},
+            'revision': 1,
+          },
+          'conversation': <String, Object?>{
+            'ns': 'conversation',
+            'value': <String, Object?>{'busyEnter': 'steer'},
+            'revision': 1,
+          },
+        },
+      };
+
+    await _pumpScreen(tester, client);
+
+    expect(find.text('Enter behavior while busy'), findsOneWidget);
+    expect(find.text('Steer'), findsOneWidget);
+  });
+
   testWidgets('General tab carries notifications and workspace sections', (
     tester,
   ) async {

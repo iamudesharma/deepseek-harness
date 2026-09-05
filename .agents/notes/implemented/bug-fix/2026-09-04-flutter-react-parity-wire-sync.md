@@ -2,6 +2,8 @@
 
 Status: implemented
 
+English | [中文](2026-09-04-flutter-react-parity-wire-sync.zh.md)
+
 ## Problem
 
 A React↔Flutter parity audit (2026-09-04) found the Flutter client calling wire
@@ -127,7 +129,4 @@ send, so generations never reach `connected`. They reproduce identically at
 HEAD (verified in a clean worktree at `daa8c5aeae`) and sit in
 `connection_controller.dart` / `live_sync.dart` / `_LifecycleHost`, all
 carrying in-flight edits — their controller-vs-fixture contract is the
-owning workstream's call, not this sync's. The generated parity inputs
-(`migration/upstream-sync/parity.json`, `flutter-impact.json`) still report
-the pre-fix verdicts and need their next regeneration run to reflect this
-change.
+owning workstream's call, not this sync's. Flutter replaces history only from a `session/follow` snapshot carrying an integer `cursor`, so no `session/page` request inherits a synthesized cut. The Busy Enter row shares a settings-namespace reader that accepts the list, map, and named-map forms. The upstream extractor recognizes every `super(ctx, serviceKey)` in a Typert remote subclass, and its fallback uses the `subagents` service key, so regenerated contracts retain the actual subagent endpoints.

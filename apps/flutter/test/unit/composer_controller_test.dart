@@ -17,6 +17,7 @@ class _FakeSuccessClient extends ConnectionClient {
     String mode = 'queue',
     String? clientTimeZone,
     List<Map<String, dynamic>> images = const [],
+    String? requestId,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 1));
   }
@@ -31,6 +32,7 @@ class _FakeFailureClient extends ConnectionClient {
     String mode = 'queue',
     String? clientTimeZone,
     List<Map<String, dynamic>> images = const [],
+    String? requestId,
   }) async {
     throw Exception('host unreachable');
   }
@@ -631,6 +633,7 @@ class _FakeCaptureClient extends ConnectionClient {
     String mode = 'queue',
     String? clientTimeZone,
     List<Map<String, dynamic>> images = const [],
+    String? requestId,
   }) async {
     onSend(images, content);
     await Future<void>.delayed(const Duration(milliseconds: 1));

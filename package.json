@@ -127,6 +127,7 @@
     "verify-cordis-inspect-catalog": "tsx scripts/gen-cordis-inspect-catalog.ts --check",
     "verify-client-catalog": "tsx scripts/gen-client-catalog.ts --check",
     "verify-export-jsdoc": "tsx scripts/verify-export-jsdoc.ts",
+    "verify-flutter-tracker": "tsx scripts/verify-flutter-tracker.ts",
     "gen-tool-catalog": "tsx scripts/gen-tool-catalog.ts",
     "verify-tool-catalog": "tsx scripts/gen-tool-catalog.ts --check",
     "gen-config-catalog": "tsx scripts/gen-config-catalog.ts",

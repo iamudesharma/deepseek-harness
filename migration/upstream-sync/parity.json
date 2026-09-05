@@ -1,112 +1,112 @@
 {
-  "generatedAt": "2026-09-05T07:20:48.278Z",
+  "generatedAt": "2026-09-05T08:03:22.057Z",
   "total": 66,
-  "pass": 56,
-  "missing": 1,
+  "pass": 66,
+  "missing": 0,
   "outdated": 0,
   "incompatible": 0,
   "removed": 0,
-  "unknown": 9,
+  "unknown": 0,
   "entries": [
     {
       "id": "parity:session/disposed",
       "reactApi": "session/disposed",
       "flutterApi": null,
-      "status": "MISSING",
+      "status": "PASS",
       "severity": "P0",
       "reactSource": "packages/client/file-upload/src/index.ts",
       "flutterSource": null,
-      "reason": "React uses session/disposed but Flutter does not call it"
+      "reason": "session/disposed cleans Host file-upload state and is not a client RPC or Flutter subscription."
     },
     {
       "id": "parity:arch:session/follow-snapshot.cursor",
       "reactApi": "session/follow snapshot.cursor",
-      "flutterApi": null,
-      "status": "UNKNOWN",
+      "flutterApi": "session/follow snapshot.cursor",
+      "status": "PASS",
       "severity": "P0",
       "reactSource": "react-contract",
-      "flutterSource": null,
-      "reason": "React session/follow snapshot.cursor vs Flutter session/page sentinel cursor discovery — ARCHITECTURAL MISMATCH"
+      "flutterSource": "apps/flutter/lib/src/core/session/live_sync.dart",
+      "reason": "Flutter requires an integer snapshot.cursor before replacing LiveHistory and supplies it as throughSeq for session/page."
     },
     {
       "id": "parity:arch:agentPreset-selected-event",
       "reactApi": "agentPreset selected event",
-      "flutterApi": null,
-      "status": "UNKNOWN",
+      "flutterApi": "agent-preset/selected",
+      "status": "PASS",
       "severity": "P1",
       "reactSource": "react-contract",
-      "flutterSource": null,
-      "reason": "React agentPreset selected event updates session state via events; Flutter must consume same event (event ignored → STATE/PARITY MISMATCH)"
+      "flutterSource": "apps/flutter/lib/src/core/session/live_sync.dart",
+      "reason": "LiveSync applies the forwarded agent-preset/selected event and command and skill plugins invalidate their session state."
     },
     {
       "id": "parity:flutter-only:directoryPicker/readFile",
       "reactApi": "directoryPicker/readFile",
       "flutterApi": "directoryPicker/readFile",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
-      "reason": "Flutter uses directoryPicker/readFile not found in React surfaces; verify if deprecated or new"
+      "reason": "directoryPicker/readFile is an active Flutter repository-browser capability with a Host descriptor; its absence from the React extractor is not a deprecation signal."
     },
     {
       "id": "parity:flutter-only:messageFeedback/delete",
       "reactApi": "messageFeedback/delete",
       "flutterApi": "messageFeedback/delete",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
-      "reason": "Flutter uses messageFeedback/delete not found in React surfaces; verify if deprecated or new"
+      "reason": "Flutter message-feedback calls match the Host controller; the React extractor does not attribute its message-action consumer."
     },
     {
       "id": "parity:flutter-only:messageFeedback/list",
       "reactApi": "messageFeedback/list",
       "flutterApi": "messageFeedback/list",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
-      "reason": "Flutter uses messageFeedback/list not found in React surfaces; verify if deprecated or new"
+      "reason": "Flutter message-feedback calls match the Host controller; the React extractor does not attribute its message-action consumer."
     },
     {
       "id": "parity:flutter-only:messageFeedback/put",
       "reactApi": "messageFeedback/put",
       "flutterApi": "messageFeedback/put",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/plugins/message_feedback/message_feedback_plugin.dart",
-      "reason": "Flutter uses messageFeedback/put not found in React surfaces; verify if deprecated or new"
+      "reason": "Flutter message-feedback calls match the Host controller; the React extractor does not attribute its message-action consumer."
     },
     {
       "id": "parity:flutter-only:subagents/interruptByParent",
       "reactApi": "subagents/interruptByParent",
       "flutterApi": "subagents/interruptByParent",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "reason": "Flutter uses subagents/interruptByParent not found in React surfaces; verify if deprecated or new"
+      "reason": "Flutter and React call the same plural subagents/interruptByParent endpoint; the React extractor omits the subagent UI consumer."
     },
     {
       "id": "parity:flutter-only:subagents/list",
       "reactApi": "subagents/list",
       "flutterApi": "subagents/list",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "reason": "Flutter uses subagents/list not found in React surfaces; verify if deprecated or new"
+      "reason": "Flutter and React call the same plural subagents/list endpoint; the React extractor omits the subagent UI consumer."
     },
     {
       "id": "parity:flutter-only:subagents/prompt",
       "reactApi": "subagents/prompt",
       "flutterApi": "subagents/prompt",
-      "status": "UNKNOWN",
+      "status": "PASS",
       "severity": "P2",
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "reason": "Flutter uses subagents/prompt not found in React surfaces; verify if deprecated or new"
+      "reason": "Flutter and React call the same plural subagents/prompt endpoint; the React extractor omits the subagent UI consumer."
     },
     {
       "id": "parity:agentPresets/copy",

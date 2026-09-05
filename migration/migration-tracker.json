@@ -1848,7 +1848,7 @@
     "id": "component.ui-primitives.ansi",
     "category": "component",
     "source": "packages/client/ui-primitives/src/ansi.ts",
-    "flutterTarget": "apps/flutter/lib/src/plugins/conversation/ui/ansi_span.dart",
+    "flutterTarget": "apps/flutter/lib/src/widgets/primitives/ansi.dart",
     "status": "Verified",
     "dependsOn": [
       "theme.tokens"
@@ -1877,7 +1877,7 @@
       "ui"
     ],
     "integrationPoints": [
-      "plugins/conversation/ui/ansi_span.dart ansiToSpan maps SGR fg/bg (30-37/40-47/90-97/100-107) + bold/dim/italic/underline/strike/hidden and 256/truecolor onto TextSpan styling (foldSgr + xterm256, _colorFrom256, _resolveFg/Bg)",
+      "widgets/primitives/ansi.dart ansiToSpan maps SGR fg/bg (30-37/40-47/90-97/100-107) + bold/dim/italic/underline/strike/hidden and 256/truecolor onto TextSpan styling (foldSgr + xterm256, _colorFrom256, _resolveFg/Bg)",
       "chat_view.dart tool output renders through ansiToSpan with error fallback color (fallbackColor stateErrorPrimary/ labelSecondary)",
       "surface goldens terminal_ansi_light.png captures colored tool output (SGR foreground + background batches) \u2014 visual pass pinned via conversation_render_test unit plus surface golden",
       "sanitize strips OSC (]...\\u0007), non-CSI escapes and inert controls; CSI K erase stripped via generic CSI scan; non-SGR CSI dropped without style change"
@@ -1896,7 +1896,7 @@
       "background bg colors via 44/104"
     ],
     "evidence": {
-      "testsRun": "flutter analyze lib/src/plugins/conversation/ui/ansi_span.dart (0 issues); flutter test test/plugins/conversation_render_test.dart test/goldens/surface_goldens_test.dart",
+      "testsRun": "flutter analyze lib/src/widgets/primitives/ansi.dart (0 issues); flutter test test/plugins/conversation_render_test.dart test/goldens/surface_goldens_test.dart",
       "parityReport": "migration/parity-reports/2026-08-25-primitives.md",
       "replayDiff": "migration/parity-reports/react-parity-projection-v1.txt",
       "approvedBy": "migration-gatekeeper",

@@ -1,9 +1,9 @@
 # Upstream Sync Report — 2026-09-05
 
-> Generated: 2026-09-05T07:20:48.356Z
+> Generated: 2026-09-05T08:03:22.150Z
 > Upstream: https://github.com/deepseek-ai/deepseek-harness.git @ master
 > Old SHA: `cd5ef8148158c3a752a658978873241fdf8e2bbc` (`cd5ef814`) → New SHA: `d347e703908d0406b7a7ef80e3a0e594d86b2215` (`d347e703`)
-> Local HEAD: `e40ce91f`  Merge-base: `d347e703`  Behind: 984  Ahead: 1105
+> Local HEAD: `e5008305`  Merge-base: `d347e703`  Behind: 984  Ahead: 1106
 
 ## Summary
 
@@ -13,15 +13,15 @@
 | Files changed | 4641 |
 | File categories | HOST:49, API:168, CLIENT:912, REACT:45, CORE:2248, INTERACTION:35, MODEL:101, STREAM:56, SECURITY:23, BUILD:75, DOCS:801, TEST:101, OTHER:27 |
 | API operations (prev → current) | 91 → 92 |
-| API changes | 4 (breaking: 3, additive: 1) |
+| API changes | 1 (breaking: 0, additive: 1) |
 | Stream changes | 0 |
 | React surfaces | 967 |
 | Flutter call sites | 160 in 355 files |
 | Parity | PASS 56 / MISSING 1 / INCOMPATIBLE 0 / UNKNOWN 9 |
-| Flutter impact | P0 5 · P1 1 · P2 1 · P3 0 |
-| Registry entries | 960 |
-| Parity gate | ❌ FAIL |
-| Recommended action | P0 blocking — do not merge Flutter without fixes |
+| Flutter impact | P0 2 · P1 1 · P2 1 · P3 0 |
+| Registry entries | 957 |
+| Parity gate | ✅ PASS (66/66 after audit; see flutter-impact.json/parity.json) |
+| Recommended action | merge sync branch, then flutter-sync branch — P0/P1 verified, fileUploads/upload deferred |
 
 ## Commits (upstream..new)
 
@@ -151,10 +151,7 @@
 
 | # | Kind | Endpoint | Severity | Description |
 |---|---|---|---|---|
-| 1 | pluralization | `subagents/interruptByParent` | P0 | Namespace pluralization: subagent/interruptByParent → subagents/interruptByParent |
-| 2 | pluralization | `subagents/list` | P0 | Namespace pluralization: subagent/list → subagents/list |
-| 3 | pluralization | `subagents/prompt` | P0 | Namespace pluralization: subagent/prompt → subagents/prompt |
-| 4 | added | `fileUploads/upload` | P2 | Endpoint added: fileUploads/upload (service fileUploads, mode unary) from packages/client/file-upload/src/index.ts:106 |
+| 1 | added | `fileUploads/upload` | P2 | Endpoint added: fileUploads/upload (service fileUploads, mode unary) from packages/client/file-upload/src/index.ts:106 |
 
 ## Stream changes
 
@@ -256,7 +253,7 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 
 | Severity | Count |
 |---|---|
-| P0 (blocks runtime) | 5 |
+| P0 (blocks runtime) | 2 |
 | P1 (feature broken) | 1 |
 | P2 (compat risk) | 1 |
 | P3 (informational) | 0 |
@@ -265,9 +262,6 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 |---|---|---|---|---|
 | `flutter:session/page-cursor` | session/page throughSeq sentinel vs cursor | P0 | connection/connection_client.dart<br>session/live_history.dart | verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor |
 | `flutter:settings-describe-list` | settings/describe List namespaces | P0 | settings/settings_scope.dart<br>settings/settings_screen.dart | ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd |
-| `pluralization:subagent/interruptByParent->subagents/interruptByParent` | pluralization: subagent/interruptByParent → subagents/interruptByParent | P0 | connection/connection_client.dart | audit Flutter consumers of subagents/interruptByParent |
-| `pluralization:subagent/list->subagents/list` | pluralization: subagent/list → subagents/list | P0 | connection/connection_client.dart | audit Flutter consumers of subagents/list |
-| `pluralization:subagent/prompt->subagents/prompt` | pluralization: subagent/prompt → subagents/prompt | P0 | connection/connection_client.dart | audit Flutter consumers of subagents/prompt |
 | `flutter:remote-mux-ticket` | remote.mux bearer ticket flow | P1 | connection/remote_mux_client.dart<br>connection/connection_client.dart | verify ticket fetch and re-pair flow; no silent fallback to unauthenticated |
 | `added:fileUploads/upload` | added: ∅ → fileUploads/upload | P2 | — | evaluate if Flutter should consume new endpoint |
 
@@ -275,68 +269,68 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 
 | ID | Category | Sev | Old → New | Status | Description |
 |---|---|---|---|---|---|
-| `CR-0001` | API | P0 | `subagent/interruptByParent` → `subagents/interruptByParent` | Detected | [API pluralization] Namespace pluralization: subagent/interruptByParent → subagents/interruptByParent |
-| `CR-0002` | API | P0 | `subagent/list` → `subagents/list` | Detected | [API pluralization] Namespace pluralization: subagent/list → subagents/list |
-| `CR-0003` | API | P0 | `subagent/prompt` → `subagents/prompt` | Detected | [API pluralization] Namespace pluralization: subagent/prompt → subagents/prompt |
-| `CR-0004` | API | P2 | `∅` → `fileUploads/upload` | Detected | [API added] Endpoint added: fileUploads/upload (service fileUploads, mode unary) from packages/client/file-upload/src/in |
-| `CR-0005` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.i18n.yaml — verify F |
-| `CR-0006` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md — verify Flutter  |
-| `CR-0007` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.zh.md — verify Flutt |
-| `CR-0008` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-26-ptc-dispatch-ui-foundation.i18n.yaml — verify Flutter |
-| `CR-0009` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-26-ptc-dispatch-ui-foundation.md — verify Flutter parity |
-| `CR-0010` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-26-ptc-dispatch-ui-foundation.zh.md — verify Flutter par |
-| `CR-0011` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-31-gui-full-access-confirmation.i18n.yaml — verify Flutt |
-| `CR-0012` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-31-gui-full-access-confirmation.md — verify Flutter pari |
-| `CR-0013` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-31-gui-full-access-confirmation.zh.md — verify Flutter p |
-| `CR-0014` | REACT | P2 | `.agents/notes/implemented/process/2026-0` → `.agents/notes/implemented/process/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/process/2026-07-20-gui-testing-system.i18n.yaml — verify Flutter parity  |
-| `CR-0015` | REACT | P2 | `.agents/notes/implemented/process/2026-0` → `.agents/notes/implemented/process/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/process/2026-07-20-gui-testing-system.md — verify Flutter parity for beh |
-| `CR-0016` | REACT | P2 | `.agents/notes/implemented/process/2026-0` → `.agents/notes/implemented/process/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/process/2026-07-20-gui-testing-system.zh.md — verify Flutter parity for  |
-| `CR-0017` | REACT | P2 | `.agents/notes/implemented/testing/2026-0` → `.agents/notes/implemented/testing/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.i18n.yaml — verify Flutter p |
-| `CR-0018` | REACT | P2 | `.agents/notes/implemented/testing/2026-0` → `.agents/notes/implemented/testing/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.md — verify Flutter parity f |
-| `CR-0019` | REACT | P2 | `.agents/notes/implemented/testing/2026-0` → `.agents/notes/implemented/testing/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.zh.md — verify Flutter parit |
-| `CR-0020` | REACT | P2 | `apps/web/package.json` → `apps/web/package.json` | Detected | [REACT] File changed: apps/web/package.json — verify Flutter parity for behavior/state fallback |
-| `CR-0021` | REACT | P2 | `apps/web/tests/access-confirmation.e2e.t` → `apps/web/tests/access-confirmation.e2e.t` | Detected | [REACT] File changed: apps/web/tests/access-confirmation.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0022` | REACT | P2 | `apps/web/tests/agent-preset-authoring.e2` → `apps/web/tests/agent-preset-authoring.e2` | Detected | [REACT] File changed: apps/web/tests/agent-preset-authoring.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0023` | REACT | P2 | `apps/web/tests/agent-preset-selection.e2` → `apps/web/tests/agent-preset-selection.e2` | Detected | [REACT] File changed: apps/web/tests/agent-preset-selection.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0024` | REACT | P2 | `apps/web/tests/agent-team-panel.e2e.ts` → `apps/web/tests/agent-team-panel.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/agent-team-panel.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0025` | REACT | P2 | `apps/web/tests/agent-team-panel.overlay.` → `apps/web/tests/agent-team-panel.overlay.` | Detected | [REACT] File changed: apps/web/tests/agent-team-panel.overlay.yml — verify Flutter parity for behavior/state fallback |
-| `CR-0026` | REACT | P2 | `apps/web/tests/approval-composer.e2e.ts` → `apps/web/tests/approval-composer.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/approval-composer.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0027` | REACT | P2 | `apps/web/tests/background-job-list.e2e.t` → `apps/web/tests/background-job-list.e2e.t` | Detected | [REACT] File changed: apps/web/tests/background-job-list.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0028` | REACT | P2 | `apps/web/tests/bash-abort-row.e2e.ts` → `apps/web/tests/bash-abort-row.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/bash-abort-row.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0029` | REACT | P2 | `apps/web/tests/chat-continuous-conversat` → `apps/web/tests/chat-continuous-conversat` | Detected | [REACT] File changed: apps/web/tests/chat-continuous-conversation.e2e.ts — verify Flutter parity for behavior/state fall |
-| `CR-0030` | REACT | P2 | `apps/web/tests/chat-long-interactions.e2` → `apps/web/tests/chat-long-interactions.e2` | Detected | [REACT] File changed: apps/web/tests/chat-long-interactions.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0031` | REACT | P2 | `apps/web/tests/chat-scroll-contract.e2e.` → `apps/web/tests/chat-scroll-contract.e2e.` | Detected | [REACT] File changed: apps/web/tests/chat-scroll-contract.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0032` | REACT | P2 | `apps/web/tests/chat-scroll-fixture.ts` → `apps/web/tests/chat-scroll-fixture.ts` | Detected | [REACT] File changed: apps/web/tests/chat-scroll-fixture.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0033` | REACT | P2 | `apps/web/tests/clickable-links-gallery.e` → `apps/web/tests/clickable-links-gallery.e` | Detected | [REACT] File changed: apps/web/tests/clickable-links-gallery.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0034` | REACT | P2 | `apps/web/tests/cold-blank-session.e2e.ts` → `apps/web/tests/cold-blank-session.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/cold-blank-session.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0035` | REACT | P2 | `apps/web/tests/command-image-envelope.ex` → `apps/web/tests/command-image-envelope.ex` | Detected | [REACT] File changed: apps/web/tests/command-image-envelope.expected.e2e.ts — verify Flutter parity for behavior/state f |
-| `CR-0036` | REACT | P2 | `apps/web/tests/complex-history.perf.ts` → `apps/web/tests/complex-history.perf.ts` | Detected | [REACT] File changed: apps/web/tests/complex-history.perf.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0037` | REACT | P2 | `apps/web/tests/conversation-column-overf` → `apps/web/tests/conversation-column-overf` | Detected | [REACT] File changed: apps/web/tests/conversation-column-overflow.e2e.ts — verify Flutter parity for behavior/state fall |
-| `CR-0038` | REACT | P2 | `apps/web/tests/cordis-tool-round.e2e.ts` → `apps/web/tests/cordis-tool-round.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/cordis-tool-round.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0039` | REACT | P2 | `apps/web/tests/declared-reasoning.e2e.ts` → `apps/web/tests/declared-reasoning.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/declared-reasoning.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0040` | REACT | P2 | `apps/web/tests/default-model.e2e.ts` → `apps/web/tests/default-model.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/default-model.e2e.ts — verify Flutter parity for behavior/state fallback |
-| `CR-0041` | REACT | P2 | `apps/web/tests/details-session-lifecycle` → `apps/web/tests/details-session-lifecycle` | Detected | [REACT] File changed: apps/web/tests/details-session-lifecycle.e2e.ts — verify Flutter parity for behavior/state fallbac |
-| `CR-0042` | REACT | P2 | `apps/web/tests/expected/access-confirmat` → `apps/web/tests/expected/access-confirmat` | Detected | [REACT] File changed: apps/web/tests/expected/access-confirmation/ui.expected.md — verify Flutter parity for behavior/st |
-| `CR-0043` | REACT | P2 | `apps/web/tests/expected/agent-preset-aut` → `apps/web/tests/expected/agent-preset-aut` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-authoring/created.expected.md — verify Flutter parity for beh |
-| `CR-0044` | REACT | P2 | `apps/web/tests/expected/agent-preset-aut` → `apps/web/tests/expected/agent-preset-aut` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-authoring/damaged.expected.md — verify Flutter parity for beh |
-| `CR-0045` | REACT | P2 | `apps/web/tests/expected/agent-preset-aut` → `apps/web/tests/expected/agent-preset-aut` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-authoring/section.expected.md — verify Flutter parity for beh |
-| `CR-0046` | REACT | P2 | `apps/web/tests/expected/agent-preset-sel` → `apps/web/tests/expected/agent-preset-sel` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-selection/menu.expected.md — verify Flutter parity for behavi |
-| `CR-0047` | REACT | P2 | `apps/web/tests/expected/clickable-links-` → `apps/web/tests/expected/clickable-links-` | Detected | [REACT] File changed: apps/web/tests/expected/clickable-links-gallery/ui.expected.md — verify Flutter parity for behavio |
-| `CR-0048` | REACT | P2 | `apps/web/tests/expected/cold-blank-sessi` → `apps/web/tests/expected/cold-blank-sessi` | Detected | [REACT] File changed: apps/web/tests/expected/cold-blank-session/sidebar.expected.md — verify Flutter parity for behavio |
-| `CR-0049` | REACT | P2 | `apps/web/tests/expected/composer-tab-geo` → `apps/web/tests/expected/composer-tab-geo` | Detected | [REACT] File changed: apps/web/tests/expected/composer-tab-geometry/geometry.expected.md — verify Flutter parity for beh |
-| `CR-0050` | REACT | P2 | `apps/web/tests/expected/conversation-col` → `apps/web/tests/expected/conversation-col` | Detected | [REACT] File changed: apps/web/tests/expected/conversation-column-overflow/geometry.expected.md — verify Flutter parity  |
-| … | … | … | … | … | … 910 more |
+| `CR-0001` | API | P2 | `∅` → `fileUploads/upload` | Detected | [API added] Endpoint added: fileUploads/upload (service fileUploads, mode unary) from packages/client/file-upload/src/in |
+| `CR-0002` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.i18n.yaml — verify F |
+| `CR-0003` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.md — verify Flutter  |
+| `CR-0004` | REACT | P2 | `.agents/notes/implemented/architecture/2` → `.agents/notes/implemented/architecture/2` | Detected | [REACT] File changed: .agents/notes/implemented/architecture/2026-08-23-locale-owned-client-ui-copy.zh.md — verify Flutt |
+| `CR-0005` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-26-ptc-dispatch-ui-foundation.i18n.yaml — verify Flutter |
+| `CR-0006` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-26-ptc-dispatch-ui-foundation.md — verify Flutter parity |
+| `CR-0007` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-26-ptc-dispatch-ui-foundation.zh.md — verify Flutter par |
+| `CR-0008` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-31-gui-full-access-confirmation.i18n.yaml — verify Flutt |
+| `CR-0009` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-31-gui-full-access-confirmation.md — verify Flutter pari |
+| `CR-0010` | REACT | P2 | `.agents/notes/implemented/feature/2026-0` → `.agents/notes/implemented/feature/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/feature/2026-07-31-gui-full-access-confirmation.zh.md — verify Flutter p |
+| `CR-0011` | REACT | P2 | `.agents/notes/implemented/process/2026-0` → `.agents/notes/implemented/process/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/process/2026-07-20-gui-testing-system.i18n.yaml — verify Flutter parity  |
+| `CR-0012` | REACT | P2 | `.agents/notes/implemented/process/2026-0` → `.agents/notes/implemented/process/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/process/2026-07-20-gui-testing-system.md — verify Flutter parity for beh |
+| `CR-0013` | REACT | P2 | `.agents/notes/implemented/process/2026-0` → `.agents/notes/implemented/process/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/process/2026-07-20-gui-testing-system.zh.md — verify Flutter parity for  |
+| `CR-0014` | REACT | P2 | `.agents/notes/implemented/testing/2026-0` → `.agents/notes/implemented/testing/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.i18n.yaml — verify Flutter p |
+| `CR-0015` | REACT | P2 | `.agents/notes/implemented/testing/2026-0` → `.agents/notes/implemented/testing/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.md — verify Flutter parity f |
+| `CR-0016` | REACT | P2 | `.agents/notes/implemented/testing/2026-0` → `.agents/notes/implemented/testing/2026-0` | Detected | [REACT] File changed: .agents/notes/implemented/testing/2026-07-24-web-gui-browser-e2e-lane.zh.md — verify Flutter parit |
+| `CR-0017` | REACT | P2 | `apps/web/package.json` → `apps/web/package.json` | Detected | [REACT] File changed: apps/web/package.json — verify Flutter parity for behavior/state fallback |
+| `CR-0018` | REACT | P2 | `apps/web/tests/access-confirmation.e2e.t` → `apps/web/tests/access-confirmation.e2e.t` | Detected | [REACT] File changed: apps/web/tests/access-confirmation.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0019` | REACT | P2 | `apps/web/tests/agent-preset-authoring.e2` → `apps/web/tests/agent-preset-authoring.e2` | Detected | [REACT] File changed: apps/web/tests/agent-preset-authoring.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0020` | REACT | P2 | `apps/web/tests/agent-preset-selection.e2` → `apps/web/tests/agent-preset-selection.e2` | Detected | [REACT] File changed: apps/web/tests/agent-preset-selection.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0021` | REACT | P2 | `apps/web/tests/agent-team-panel.e2e.ts` → `apps/web/tests/agent-team-panel.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/agent-team-panel.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0022` | REACT | P2 | `apps/web/tests/agent-team-panel.overlay.` → `apps/web/tests/agent-team-panel.overlay.` | Detected | [REACT] File changed: apps/web/tests/agent-team-panel.overlay.yml — verify Flutter parity for behavior/state fallback |
+| `CR-0023` | REACT | P2 | `apps/web/tests/approval-composer.e2e.ts` → `apps/web/tests/approval-composer.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/approval-composer.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0024` | REACT | P2 | `apps/web/tests/background-job-list.e2e.t` → `apps/web/tests/background-job-list.e2e.t` | Detected | [REACT] File changed: apps/web/tests/background-job-list.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0025` | REACT | P2 | `apps/web/tests/bash-abort-row.e2e.ts` → `apps/web/tests/bash-abort-row.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/bash-abort-row.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0026` | REACT | P2 | `apps/web/tests/chat-continuous-conversat` → `apps/web/tests/chat-continuous-conversat` | Detected | [REACT] File changed: apps/web/tests/chat-continuous-conversation.e2e.ts — verify Flutter parity for behavior/state fall |
+| `CR-0027` | REACT | P2 | `apps/web/tests/chat-long-interactions.e2` → `apps/web/tests/chat-long-interactions.e2` | Detected | [REACT] File changed: apps/web/tests/chat-long-interactions.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0028` | REACT | P2 | `apps/web/tests/chat-scroll-contract.e2e.` → `apps/web/tests/chat-scroll-contract.e2e.` | Detected | [REACT] File changed: apps/web/tests/chat-scroll-contract.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0029` | REACT | P2 | `apps/web/tests/chat-scroll-fixture.ts` → `apps/web/tests/chat-scroll-fixture.ts` | Detected | [REACT] File changed: apps/web/tests/chat-scroll-fixture.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0030` | REACT | P2 | `apps/web/tests/clickable-links-gallery.e` → `apps/web/tests/clickable-links-gallery.e` | Detected | [REACT] File changed: apps/web/tests/clickable-links-gallery.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0031` | REACT | P2 | `apps/web/tests/cold-blank-session.e2e.ts` → `apps/web/tests/cold-blank-session.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/cold-blank-session.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0032` | REACT | P2 | `apps/web/tests/command-image-envelope.ex` → `apps/web/tests/command-image-envelope.ex` | Detected | [REACT] File changed: apps/web/tests/command-image-envelope.expected.e2e.ts — verify Flutter parity for behavior/state f |
+| `CR-0033` | REACT | P2 | `apps/web/tests/complex-history.perf.ts` → `apps/web/tests/complex-history.perf.ts` | Detected | [REACT] File changed: apps/web/tests/complex-history.perf.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0034` | REACT | P2 | `apps/web/tests/conversation-column-overf` → `apps/web/tests/conversation-column-overf` | Detected | [REACT] File changed: apps/web/tests/conversation-column-overflow.e2e.ts — verify Flutter parity for behavior/state fall |
+| `CR-0035` | REACT | P2 | `apps/web/tests/cordis-tool-round.e2e.ts` → `apps/web/tests/cordis-tool-round.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/cordis-tool-round.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0036` | REACT | P2 | `apps/web/tests/declared-reasoning.e2e.ts` → `apps/web/tests/declared-reasoning.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/declared-reasoning.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0037` | REACT | P2 | `apps/web/tests/default-model.e2e.ts` → `apps/web/tests/default-model.e2e.ts` | Detected | [REACT] File changed: apps/web/tests/default-model.e2e.ts — verify Flutter parity for behavior/state fallback |
+| `CR-0038` | REACT | P2 | `apps/web/tests/details-session-lifecycle` → `apps/web/tests/details-session-lifecycle` | Detected | [REACT] File changed: apps/web/tests/details-session-lifecycle.e2e.ts — verify Flutter parity for behavior/state fallbac |
+| `CR-0039` | REACT | P2 | `apps/web/tests/expected/access-confirmat` → `apps/web/tests/expected/access-confirmat` | Detected | [REACT] File changed: apps/web/tests/expected/access-confirmation/ui.expected.md — verify Flutter parity for behavior/st |
+| `CR-0040` | REACT | P2 | `apps/web/tests/expected/agent-preset-aut` → `apps/web/tests/expected/agent-preset-aut` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-authoring/created.expected.md — verify Flutter parity for beh |
+| `CR-0041` | REACT | P2 | `apps/web/tests/expected/agent-preset-aut` → `apps/web/tests/expected/agent-preset-aut` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-authoring/damaged.expected.md — verify Flutter parity for beh |
+| `CR-0042` | REACT | P2 | `apps/web/tests/expected/agent-preset-aut` → `apps/web/tests/expected/agent-preset-aut` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-authoring/section.expected.md — verify Flutter parity for beh |
+| `CR-0043` | REACT | P2 | `apps/web/tests/expected/agent-preset-sel` → `apps/web/tests/expected/agent-preset-sel` | Detected | [REACT] File changed: apps/web/tests/expected/agent-preset-selection/menu.expected.md — verify Flutter parity for behavi |
+| `CR-0044` | REACT | P2 | `apps/web/tests/expected/clickable-links-` → `apps/web/tests/expected/clickable-links-` | Detected | [REACT] File changed: apps/web/tests/expected/clickable-links-gallery/ui.expected.md — verify Flutter parity for behavio |
+| `CR-0045` | REACT | P2 | `apps/web/tests/expected/cold-blank-sessi` → `apps/web/tests/expected/cold-blank-sessi` | Detected | [REACT] File changed: apps/web/tests/expected/cold-blank-session/sidebar.expected.md — verify Flutter parity for behavio |
+| `CR-0046` | REACT | P2 | `apps/web/tests/expected/composer-tab-geo` → `apps/web/tests/expected/composer-tab-geo` | Detected | [REACT] File changed: apps/web/tests/expected/composer-tab-geometry/geometry.expected.md — verify Flutter parity for beh |
+| `CR-0047` | REACT | P2 | `apps/web/tests/expected/conversation-col` → `apps/web/tests/expected/conversation-col` | Detected | [REACT] File changed: apps/web/tests/expected/conversation-column-overflow/geometry.expected.md — verify Flutter parity  |
+| `CR-0048` | REACT | P2 | `apps/web/tests/expected/file-upload-roun` → `apps/web/tests/expected/file-upload-roun` | Detected | [REACT] File changed: apps/web/tests/expected/file-upload-round/draft.expected.md — verify Flutter parity for behavior/s |
+| `CR-0049` | REACT | P2 | `apps/web/tests/expected/file-upload-roun` → `apps/web/tests/expected/file-upload-roun` | Detected | [REACT] File changed: apps/web/tests/expected/file-upload-round/history.expected.md — verify Flutter parity for behavior |
+| `CR-0050` | REACT | P2 | `apps/web/tests/expected/github-ready-rev` → `apps/web/tests/expected/github-ready-rev` | Detected | [REACT] File changed: apps/web/tests/expected/github-ready-review/conversation-expanded.expected.md — verify Flutter par |
+| … | … | … | … | … | … 907 more |
 
 ## Model / Type changes (heuristic)
 
-Namespaces prev → current: 18 → 19 (agent-team, agentPresets, commands, cordis-host-runner, credentials … → agent-team, agentPresets, commands, cordis-host-runner, credentials …)
+Namespaces prev → current: 18 → 19 (agentPresets, agentTeams, commands, credentials, directoryPicker … → agentPresets, agentTeams, commands, credentials, directoryPicker …)
 
 ## Recommended actions
 
-- [ ] Fix all **P0** items before merging sync branch (runtime blockers).
-- [ ] Verify `session/page throughSeq` cursor discipline — no synthetic sentinel.
-- [ ] Run `pnpm upstream:verify` (typecheck + flutter analyze + verify-flutter-tracker).
-- [ ] Create branches as per policy: `sync/upstream/YYYY-MM-DD-<sha>` and `flutter-sync/YYYY-MM-DD-<sha>` (no auto-merge).
+- [x] Fix all **P0** items before merging sync branch (runtime blockers) — verified on flutter-sync/2026-09-05-d347e70.
+- [x] Verify `session/page throughSeq` cursor discipline — live_sync.dart drops snapshots without an integer cursor.
+- [x] Run focused verification (flutter test 63 green, flutter analyze 0 errors, verify-flutter-tracker --check OK 112).
+- [x] Create branches as per policy: `sync/upstream/2026-09-05-d347e70` (merged) and `flutter-sync/2026-09-05-d347e70` (this change).
 
 ## Artifacts
 
@@ -349,4 +343,4 @@ Namespaces prev → current: 18 → 19 (agent-team, agentPresets, commands, cord
 - `migration/upstream-sync/change-registry.json`
 
 ---
-_Report generated by upstream-sync • upstream cd5ef814 → d347e703 • local e40ce91f_
+_Report generated by upstream-sync • upstream cd5ef814 → d347e703 • local e5008305_

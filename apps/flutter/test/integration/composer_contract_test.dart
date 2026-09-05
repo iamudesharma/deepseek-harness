@@ -58,6 +58,7 @@ class QaClient extends conn.ConnectionClient {
     String mode = 'queue',
     String? clientTimeZone,
     List<Map<String, dynamic>> images = const [],
+    String? requestId,
   }) async {
     sends.add((
       sessionId: sessionId.value,
@@ -350,9 +351,8 @@ void main() {
           .map((c) => c.payload)
           .toList();
       expect(executed, hasLength(1));
-      final args = executed.single['args'] as Map;
-      expect(args['agentId'], qaSession);
-      expect(args['line'], '/permission danger-full-access');
+      expect(executed.single['agentId'], qaSession);
+      expect(executed.single['line'], '/permission danger-full-access');
     },
   );
 
@@ -375,7 +375,7 @@ void main() {
         .map((c) => c.payload)
         .toList();
     expect(executed, hasLength(1));
-    expect((executed.single['args'] as Map)['line'], '/plan off');
+    expect(executed.single['line'], '/plan off');
   });
 
   testWidgets(
@@ -417,15 +417,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // A host command without an input hint executes detached through the
-      // prompt channel (the menu pick consumes the token; no draft splice).
-      final prompts = client.calls
-          .where((c) => c.method == 'session.prompt')
+      // command channel (the menu pick consumes the token; no draft splice).
+      final commands = client.calls
+          .where((c) => c.method == 'commands/execute')
           .map((c) => c.payload)
           .toList();
-      expect(prompts, hasLength(1));
-      expect(prompts.single['sessionId'], qaSession);
-      final content = prompts.single['content'] as List;
-      expect((content.single as Map)['text'], '/plan');
+      expect(commands, hasLength(1));
+      expect(commands.single['agentId'], qaSession);
+      expect(commands.single['line'], '/plan');
       // The trigger menu closed after the pick.
       expect(find.text('plan'), findsNothing);
     },

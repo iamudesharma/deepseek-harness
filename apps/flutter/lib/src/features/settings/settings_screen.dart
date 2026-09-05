@@ -52,6 +52,28 @@ final workspaceDirectoryProvider = StateProvider<String?>((ref) => null);
 /// (`queue` = queue the message, `steer` = steer the running turn).
 enum BusyEnterBehavior { queue, steer }
 
+/// Finds one namespace view in either settings.describe representation.
+Map<String, dynamic>? _settingsNamespace(
+  Map<String, dynamic> describe,
+  String namespace,
+) {
+  final namespaces = describe['namespaces'];
+  if (namespaces is List) {
+    for (final entry in namespaces) {
+      if (entry is Map && entry['ns'] == namespace) {
+        return entry.cast<String, dynamic>();
+      }
+    }
+    return null;
+  }
+  if (namespaces is Map) {
+    final entry = namespaces[namespace];
+    if (entry is Map) return entry.cast<String, dynamic>();
+  }
+  final entry = describe[namespace];
+  return entry is Map ? entry.cast<String, dynamic>() : null;
+}
+
 /// State for the busy Enter preference row.
 class BusyEnterState {
   const BusyEnterState({
@@ -91,17 +113,7 @@ class BusyEnterController extends Notifier<BusyEnterState> {
     final client = ref.read(connectionClientProvider);
     try {
       final describe = await client.settingsDescribe();
-      final namespaces = (describe['namespaces'] as List<dynamic>? ?? [])
-          .whereType<Map>()
-          .map((e) => e.cast<String, dynamic>())
-          .toList();
-      Map<String, dynamic>? convNs;
-      for (final ns in namespaces) {
-        if (ns['ns'] == 'conversation') {
-          convNs = ns;
-          break;
-        }
-      }
+      final convNs = _settingsNamespace(describe, 'conversation');
       final value = convNs?['value'] as Map<String, dynamic>?;
       final raw = value?['busyEnter'] as String?;
       final behavior = raw == 'steer'
@@ -128,17 +140,7 @@ class BusyEnterController extends Notifier<BusyEnterState> {
     final client = ref.read(connectionClientProvider);
     try {
       final describe = await client.settingsDescribe();
-      final namespaces = (describe['namespaces'] as List<dynamic>? ?? [])
-          .whereType<Map>()
-          .map((e) => e.cast<String, dynamic>())
-          .toList();
-      Map<String, dynamic>? convNs;
-      for (final ns in namespaces) {
-        if (ns['ns'] == 'conversation') {
-          convNs = ns;
-          break;
-        }
-      }
+      final convNs = _settingsNamespace(describe, 'conversation');
       final expectedRevision = convNs?['revision'] as int?;
       await client.settingsMutate(
         ns: 'conversation',
