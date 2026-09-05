@@ -54,6 +54,15 @@ String newRpcId() {
       '${hex(b[10])}${hex(b[11])}${hex(b[12])}${hex(b[13])}${hex(b[14])}${hex(b[15])}';
 }
 
+/// Readable message for a `$events/result` rejection outcome.
+String _rejectionMessage(Map<String, Object?>? error) {
+  final dynamic message = error?['message'];
+  if (message is String && message.isNotEmpty) return message;
+  final dynamic code = error?['code'];
+  if (code is String && code.isNotEmpty) return code;
+  return 'request rejected';
+}
+
 /// Thrown when the host rejects a bearer token (401) or scope (403).
 ///
 /// The controller maps 401 → [ConnectionState.needsReauth] (stop reconnect,
@@ -108,14 +117,14 @@ class ConnectionClient {
   String? eventsClientId;
 
   RemoteMuxClient createRemoteMuxClient() => RemoteMuxClient(
-        baseUrl: baseUrl,
-        target: target,
-        tokenStore: tokenStore,
-        httpFetch: (method, payload) async {
-          final body = await _postTypert(method, payload);
-          return _unwrapValue(body, method);
-        },
-      );
+    baseUrl: baseUrl,
+    target: target,
+    tokenStore: tokenStore,
+    httpFetch: (method, payload) async {
+      final body = await _postTypert(method, payload);
+      return _unwrapValue(body, method);
+    },
+  );
 
   final http.Client _http;
 
@@ -173,7 +182,9 @@ class ConnectionClient {
     // `Uri.parse('$base$path')` produced `http://host?token=…/api/…` (405).
     // Use Uri.replace so `http://host?token=abc` + `/api/list` → `/api/list?token=abc`.
     final baseUri = Uri.parse(
-      baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl,
+      baseUrl.endsWith('/')
+          ? baseUrl.substring(0, baseUrl.length - 1)
+          : baseUrl,
     );
     final mergedQuery = <String, String>{
       ...baseUri.queryParameters,
@@ -280,9 +291,7 @@ class ConnectionClient {
     final decoded = jsonDecode(resp.body);
     if (decoded is Map<String, dynamic>) return decoded;
     if (decoded is Map) return decoded.cast<String, dynamic>();
-    throw FormatException(
-      'Expected JSON object from /api/$wire, got $decoded',
-    );
+    throw FormatException('Expected JSON object from /api/$wire, got $decoded');
   }
 
   /// Backward-compat shim for legacy `/api/sessions/*` callers: delegates to Typert.
@@ -334,7 +343,9 @@ class ConnectionClient {
   /// Mirrors `session.list` (`SessionsApi.list`). Each call mints a fresh
   /// initiator `rpcId`.
   Future<List<SessionSummary>> getSessions() async {
-    final body = await _postTypert('session/list', {'args': {'_request': {}}});
+    final body = await _postTypert('session/list', {
+      'args': {'_request': {}},
+    });
     // Host returns `RpcResponse { rpcId, result: { ok, value: { items } } }`
     // Unwrap leniently to tolerate raw vs wrapped forms.
     final items = _extractItems(body);
@@ -397,10 +408,9 @@ class ConnectionClient {
       // ignore: use_null_aware_elements
       if (maxMessages case final v?) 'maxMessages': v,
     };
-    final Map<String, dynamic> body = await _postTypert(
-      'session/page',
-      {'request': payload},
-    );
+    final Map<String, dynamic> body = await _postTypert('session/page', {
+      'request': payload,
+    });
     final entries = _extractEvents(body).map(HistoryEntry.fromJson).toList();
     // Tail projections block carries the current title etc. under `projections`.
     SessionProjectionsBlock? block;
@@ -434,6 +444,7 @@ class ConnectionClient {
     String mode = 'queue',
     String? clientTimeZone,
     List<Map<String, dynamic>> images = const [],
+    String? requestId,
   }) async {
     final List<Map<String, dynamic>> contentParts = <Map<String, dynamic>>[
       ...images,
@@ -441,15 +452,19 @@ class ConnectionClient {
     ];
     // CURRENT master `session/prompt` requires `requestId` (client-minted
     // `SessionRequestId` correlating echo). React `SessionsApi.prompt` mints
-    // one per `RpcId`. Use the same `newRpcId()` helper.
-    await _postTypert('session/prompt', {'request': {
-      'requestId': newRpcId(),
-      'sessionId': sessionId.value,
-      'mode': mode,
-      'content': contentParts,
-      // ignore: use_null_aware_elements
-      if (clientTimeZone case final v?) 'clientTimeZone': v,
-    }});
+    // one per `RpcId`. Callers pass the same id they stored on the optimistic
+    // message so the host echo (`user/message` `source.rpcId`) retires it;
+    // direct callers without an optimistic still get a fresh id.
+    await _postTypert('session/prompt', {
+      'request': {
+        'requestId': requestId ?? newRpcId(),
+        'sessionId': sessionId.value,
+        'mode': mode,
+        'content': contentParts,
+        // ignore: use_null_aware_elements
+        if (clientTimeZone case final v?) 'clientTimeZone': v,
+      },
+    });
   }
 
   /// Create a new session (Typert `session.create`).
@@ -459,10 +474,9 @@ class ConnectionClient {
   /// [RemoteMethodException] via [_unwrapValue] so callers can classify
   /// retryable workspace-binding rejections without parsing strings.
   Future<SessionId> createSession({String? workspaceId, String? cwd}) async {
-    final body = await _postTypert(
-      'session/create',
-      {'request': sessionCreatePayload(workspaceId: workspaceId, cwd: cwd)},
-    );
+    final body = await _postTypert('session/create', {
+      'request': sessionCreatePayload(workspaceId: workspaceId, cwd: cwd),
+    });
     final value = _unwrapValue(body, 'session/create');
     final sid = value['sessionId'];
     if (sid is String) return SessionId(sid);
@@ -472,7 +486,9 @@ class ConnectionClient {
   /// `session.cancel { sessionId }` — cancel the in-flight turn; queued
   /// items resume in FIFO order after cancellation settles.
   Future<void> cancelTurn(SessionId sessionId) async {
-    await _postTypert('session/cancel', {'request': {'sessionId': sessionId.value}});
+    await _postTypert('session/cancel', {
+      'request': {'sessionId': sessionId.value},
+    });
   }
 
   /// `session.updateQueue { sessionId, itemId, action }` — edit/remove/steer
@@ -483,11 +499,13 @@ class ConnectionClient {
     required MessageId itemId,
     required QueueAction action,
   }) async {
-    await _postTypert('session/updateQueue', {'request': {
-      'sessionId': sessionId.value,
-      'itemId': itemId.value,
-      'action': action.toJson(),
-    }});
+    await _postTypert('session/updateQueue', {
+      'request': {
+        'sessionId': sessionId.value,
+        'itemId': itemId.value,
+        'action': action.toJson(),
+      },
+    });
   }
 
   /// Read one durable image attachment: `session.attachment {sessionId, attachmentId}`.
@@ -496,10 +514,9 @@ class ConnectionClient {
     SessionId sessionId,
     String attachmentId,
   ) async {
-    final body = await _postTypert('session/attachment', {'request': {
-      'sessionId': sessionId.value,
-      'attachmentId': attachmentId,
-    }});
+    final body = await _postTypert('session/attachment', {
+      'request': {'sessionId': sessionId.value, 'attachmentId': attachmentId},
+    });
     dynamic cur = body;
     if (cur is Map && cur.containsKey('result')) cur = cur['result'];
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
@@ -511,18 +528,52 @@ class ConnectionClient {
   }
 
   /// Respond to one answerable server-request (`approval/requested` /
-  /// `question/requested`): POST `/api/respond` with the full
-  /// `client-response` message echoing the request's [rpcId] — the initiator
-  /// mints, the responder echoes. [ok] carries the business result slot
-  /// (`value` on success, `error` on rejection). Returns the carrier receipt;
-  /// a rejected receipt means the response never paired with a pending
-  /// request.
+  /// `question/requested`).
+  ///
+  /// Two carriers by transport generation: when [$events] `ready` established
+  /// [eventsClientId], the answer rides `$events/result` (`{clientId, eventId,
+  /// outcome}` with `outcome:{kind:result,value}` on success); otherwise it
+  /// posts the legacy `/api/respond` `client-response` echoing [rpcId].
+  /// [ok] carries the business result slot (`value` on success, `error` on
+  /// rejection). Returns the carrier receipt; a rejected receipt means the
+  /// response never paired with a pending request.
   Future<RpcReceipt> respond({
     required RpcId rpcId,
     required bool ok,
     Object? value,
     Map<String, Object?>? error,
   }) async {
+    final String? clientId = eventsClientId;
+    if (clientId != null && clientId.isNotEmpty) {
+      if (rpcId.value.isEmpty) {
+        throw StateError(
+          'approval response missing correlation: the request expired before '
+          'an answer was attached (wait for a fresh request)',
+        );
+      }
+      final Map<String, dynamic> outcome = ok
+          ? {'kind': 'result', if (value != null) 'value': value}
+          : {
+              'kind': 'rejected',
+              'error': {
+                'name': 'Error',
+                'message': _rejectionMessage(error),
+                if (error != null && error['code'] is String)
+                  'code': error['code'],
+              },
+            };
+      try {
+        final Map<String, dynamic> body = await _postTypert(r'$events/result', {
+          'clientId': clientId,
+          'eventId': rpcId.value,
+          'outcome': outcome,
+        });
+        _unwrapValue(body, r'$events/result');
+        return const RpcReceiptAccepted();
+      } on RemoteMethodException catch (e) {
+        return RpcReceiptRejected(e.message);
+      }
+    }
     final message = <String, dynamic>{
       'type': 'client-response',
       'rpcId': rpcId.toJson(),
@@ -581,6 +632,11 @@ class ConnectionClient {
   }
 
   /// Helper: extract `events` / `HistoryEntry[]` from various shapes.
+  ///
+  /// Every returned element is `HistoryEntry` JSON — `{event, view?}` — the
+  /// shape [HistoryEntry.fromJson] consumes. Legacy `events` rows already
+  /// carry the wrapper; `session/page` records (`SessionEventEntry`) hold the
+  /// event under `event` and must be rewrapped, not unwrapped.
   List<Map<String, dynamic>> _extractEvents(Map<String, dynamic> body) {
     dynamic cur = body;
     if (cur is Map && cur.containsKey('result')) cur = cur['result'];
@@ -603,12 +659,16 @@ class ConnectionClient {
         for (final r in records) {
           if (r is! Map) continue;
           if (r['type'] == 'event' && r['event'] is Map) {
-            out.add((r['event'] as Map).cast<String, dynamic>());
+            out.add({
+              'event': (r['event'] as Map).cast<String, dynamic>(),
+              if (r['view'] is Map) 'view': r['view'],
+            });
           } else if (r['type'] == 'chunks') {
             // Packed chunk runs — live streaming handles deltas; ignore for history window
             continue;
           } else if (r.containsKey('type') && r.containsKey('seq')) {
-            out.add(r.cast<String, dynamic>());
+            // Bare wire event record — wrap it as the HistoryEntry JSON.
+            out.add({'event': r.cast<String, dynamic>()});
           }
         }
         return out;
@@ -627,11 +687,14 @@ class ConnectionClient {
       for (final r in records) {
         if (r is! Map) continue;
         if (r['type'] == 'event' && r['event'] is Map) {
-          out.add((r['event'] as Map).cast<String, dynamic>());
+          out.add({
+            'event': (r['event'] as Map).cast<String, dynamic>(),
+            if (r['view'] is Map) 'view': r['view'],
+          });
         } else if (r['type'] == 'chunks') {
           continue;
         } else if (r.containsKey('type') && r.containsKey('seq')) {
-          out.add(r.cast<String, dynamic>());
+          out.add({'event': r.cast<String, dynamic>()});
         }
       }
       return out;
@@ -693,11 +756,7 @@ class ConnectionClient {
             // `agentPresets/select` returns `RemoteResult<string>` (the selected
             // preset id); wrap as `{value, agentPreset}` so callers can read
             // `result['agentPreset'] ?? result['value'] ?? id`.
-            return {
-              'value': cur,
-              '_value': cur,
-              'agentPreset': cur,
-            };
+            return {'value': cur, '_value': cur, 'agentPreset': cur};
           }
           if (cur is Map<String, dynamic>) return cur;
           if (cur is Map) return Map<String, dynamic>.from(cur);
@@ -720,7 +779,8 @@ class ConnectionClient {
           ? err['message'] as String
           : '$err';
       final code = err is Map && err['code'] is String
-          ? RpcErrorCode.tryParse(err['code'] as String) ?? RpcErrorCode.internal
+          ? RpcErrorCode.tryParse(err['code'] as String) ??
+                RpcErrorCode.internal
           : RpcErrorCode.internal;
       final details = err is Map && err['details'] is Map
           ? Map<String, Object?>.from(err['details'] as Map)
@@ -732,11 +792,7 @@ class ConnectionClient {
       return {'value': cur, '_value': cur};
     }
     if (cur is String) {
-      return {
-        'value': cur,
-        '_value': cur,
-        'agentPreset': cur,
-      };
+      return {'value': cur, '_value': cur, 'agentPreset': cur};
     }
     if (cur is Map<String, dynamic>) return cur;
     if (cur is Map) return cur.cast<String, dynamic>();
@@ -744,6 +800,41 @@ class ConnectionClient {
     if (cur == null) return <String, dynamic>{};
     throw FormatException(
       'Expected object value from $method, got $cur in $body',
+    );
+  }
+
+  /// Unwrap a `RemoteResult<SettingsNamespaceView>` without the legacy
+  /// `value`-layer collapse.
+  ///
+  /// [_unwrapValue] strips one `value` key for the historical
+  /// `{value: {...}}` wrapper shape, which would also strip a namespace
+  /// view's own `value` field and lose `ns`/`revision` with it. Write faces
+  /// whose answer IS a namespace view (currently `settings/replace`) unwrap
+  /// here so the returned revision stays available for the next fence.
+  Map<String, dynamic> _unwrapNamespaceView(
+    Map<String, dynamic> body,
+    String method,
+  ) {
+    if (!body.containsKey('result')) return _unwrapValue(body, method);
+    final message = parseRpcMessage(Map<String, Object?>.from(body));
+    if (message is! ServerResponse) {
+      throw FormatException(
+        'Expected server-response from $method, got ${message.typeWire}',
+      );
+    }
+    return message.result.fold(
+      ok: (value) {
+        if (value is Map<String, dynamic>) return value;
+        if (value is Map) return Map<String, dynamic>.from(value);
+        throw FormatException(
+          'Expected object value from $method, got $value in $body',
+        );
+      },
+      failure: (error) => throw RemoteMethodException(
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      ),
     );
   }
 
@@ -785,7 +876,145 @@ class ConnectionClient {
     return _unwrapValue(body, 'settings/update');
   }
 
-  /// `credentials.describe` — batched ref lookup.
+  /// `settings/replace` — replace one namespace's stored user section
+  /// wholesale (React `ctx.remote.settings.replace`). Mirrors `settingsUpdate`
+  /// payload shape: positional params as request keys. Unlike the sibling
+  /// write faces (whose callers re-`describe` after every write), this
+  /// returns the complete `SettingsNamespaceView` — `ns`, `value`,
+  /// `revision`, … — because the returned revision is what the caller fences
+  /// the next `expectedRevision` against.
+  Future<Map<String, dynamic>> settingsReplace({
+    required String ns,
+    required Map<String, dynamic> section,
+    int? expectedRevision,
+  }) async {
+    final payload = <String, dynamic>{
+      'ns': ns,
+      'section': section,
+      if (expectedRevision != null) 'expectedRevision': expectedRevision,
+    };
+    final body = await _postTypert('settings/replace', payload);
+    return _unwrapNamespaceView(body, 'settings/replace');
+  }
+
+  /// `settings/openSettingsDocument` — materialize the provider-owned document
+  /// and open it in a native text editor (React `settings-document-store.ts`).
+  /// Pathless remote; gate UI on loopback `hasDocument` from `describe`.
+  Future<Map<String, dynamic>> settingsOpenDocument() async {
+    final body = await _postTypert('settings/openSettingsDocument', {
+      'args': {},
+    });
+    return _unwrapValue(body, 'settings/openSettingsDocument');
+  }
+
+  /// `session/canOpenWorkspacePath` — whether this deployment can hand a
+  /// workspace path to a native desktop opener.
+  Future<bool> canOpenWorkspacePath() async {
+    final body = await _postTypert('session/canOpenWorkspacePath', {
+      'args': {},
+    });
+    final value = _unwrapValue(body, 'session/canOpenWorkspacePath');
+    return value['value'] as bool? ?? false;
+  }
+
+  /// `session/openWorkspacePath { path }` — open one session-aware path on
+  /// the host desktop. Never a client-side launcher open: the path lives on
+  /// the host machine.
+  Future<Map<String, dynamic>> openWorkspacePath({
+    required String path,
+  }) async {
+    final body = await _postTypert('session/openWorkspacePath', {
+      'request': {'path': path},
+    });
+    return _unwrapValue(body, 'session/openWorkspacePath');
+  }
+
+  /// `session/fork { sessionId, atSeq? }` — fork one completed-turn prefix
+  /// into a new session. Typed face so both call sites share one wire shape
+  /// (React `manager.fork` sends `{ sessionId, atSeq? }` under `request`).
+  Future<String> forkSession({
+    required String sessionId,
+    int? atSeq,
+  }) async {
+    final body = await _postTypert('session/fork', {
+      'request': {
+        'sessionId': sessionId,
+        if (atSeq != null) 'atSeq': atSeq,
+      },
+    });
+    final value = _unwrapValue(body, 'session/fork');
+    final sid = value['sessionId'];
+    if (sid is String) return sid;
+    throw FormatException('session.fork: missing sessionId in $body');
+  }
+
+  /// `session/rename { sessionId, title }` — typed face (React
+  /// `session.rename` sends `{ sessionId, title }` under `request`).
+  Future<Map<String, dynamic>> renameSession({
+    required String sessionId,
+    required String title,
+  }) async {
+    final body = await _postTypert('session/rename', {
+      'request': {'sessionId': sessionId, 'title': title},
+    });
+    return _unwrapValue(body, 'session/rename');
+  }
+
+  /// `subagents/list { parentSessionId }` — direct-child catalog for one
+  /// parent (React `ClientSessions.refreshSubagents`). Previously Flutter
+  /// derived children locally from `sessionsProvider`; this unary is the
+  /// host-authoritative face for follow-up routing decisions.
+  Future<Map<String, dynamic>> subagentList({
+    required String parentSessionId,
+  }) async {
+    final body = await _postTypert('subagents/list', {
+      'parentSessionId': parentSessionId,
+    });
+    return _unwrapValue(body, 'subagents/list');
+  }
+
+  /// `subagents/prompt { requestId, parentSessionId, childSessionId, mode,
+  /// content, clientTimeZone? }` — deliver one message to a continuable
+  /// child through its live direct parent (React routes continuable children
+  /// here, not via `session/prompt`).
+  Future<String> subagentPrompt({
+    required String requestId,
+    required String parentSessionId,
+    required String childSessionId,
+    required List<Map<String, dynamic>> content,
+    String? clientTimeZone,
+  }) async {
+    final body = await _postTypert('subagents/prompt', {
+      'request': {
+        'requestId': requestId,
+        'parentSessionId': parentSessionId,
+        'childSessionId': childSessionId,
+        'mode': 'continuable',
+        'content': content,
+        if (clientTimeZone != null) 'clientTimeZone': clientTimeZone,
+      },
+    });
+    final value = _unwrapValue(body, 'subagents/prompt');
+    final mid = value['messageId'];
+    if (mid is String) return mid;
+    throw FormatException('subagents.prompt: missing messageId in $body');
+  }
+
+  /// `subagents/interruptByParent { childSessionId, parentSessionId, mode }`
+  /// — cancel one continuable child under its direct parent's authority
+  /// (React `Session.stop` routes addressed children here, not via
+  /// `session/cancel`).
+  Future<void> subagentInterrupt({
+    required String childSessionId,
+    required String parentSessionId,
+  }) async {
+    final body = await _postTypert('subagents/interruptByParent', {
+      'childSessionId': childSessionId,
+      'parentSessionId': parentSessionId,
+      'mode': 'continuable',
+    });
+    _unwrapValue(body, 'subagents/interruptByParent');
+  }
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async {
     final body = await _postTypert('credentials/describe', {'refs': refs});
     return _unwrapValue(body, 'credentials/describe');
@@ -828,9 +1057,15 @@ class ConnectionClient {
     try {
       final body = await _postTypert('llm/listProviders', {});
       final value = _unwrapValue(body, 'llm/listProviders');
-      final list = value['_list'] as List<dynamic>? ?? value['providers'] as List<dynamic>? ?? const [];
+      final list =
+          value['_list'] as List<dynamic>? ??
+          value['providers'] as List<dynamic>? ??
+          const [];
       if (list is List) {
-        return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        return list
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
       }
     } catch (_) {}
     // Fallback to legacy llm.providers
@@ -842,9 +1077,15 @@ class ConnectionClient {
     try {
       final body = await _postTypert('llm/listConfigurableProviders', {});
       final value = _unwrapValue(body, 'llm/listConfigurableProviders');
-      final list = value['_list'] as List<dynamic>? ?? value['providers'] as List<dynamic>? ?? const [];
+      final list =
+          value['_list'] as List<dynamic>? ??
+          value['providers'] as List<dynamic>? ??
+          const [];
       if (list is List) {
-        return list.whereType<Map>().map((e) => e.cast<String, dynamic>()).toList();
+        return list
+            .whereType<Map>()
+            .map((e) => e.cast<String, dynamic>())
+            .toList();
       }
     } catch (_) {}
     return const [];
@@ -933,14 +1174,25 @@ class ConnectionClient {
   // Workspace, Skills, Agent Presets, Host — for remaining screens
   // ---------------------------------------------------------------------------
 
+  // `workspace/list` was removed in master: `WorkspaceController` serves only
+  // `workspace/follow` baseline + increments. There is no unary to call —
+  // read `workspaceListProvider` (follow-backed) instead. This stub stays to
+  // fail loud at the earliest resolvable point rather than 404.
+  @Deprecated(
+    'WorkspaceController has no list unary; watch workspaceListProvider '
+    '(workspace/follow baseline) instead.',
+  )
   Future<Map<String, dynamic>> workspaceList() async {
-    final body = await _postTypert('workspace/list', {});
-    return _unwrapValue(body, 'workspace/list');
+    throw UnsupportedError(
+      'workspace/list unary does not exist; watch workspaceListProvider '
+      '(workspace/follow baseline + increments) instead.',
+    );
   }
 
   Future<Map<String, dynamic>> workspaceCreate({required String path}) async {
-    final body = await _postTypert('workspace/create', {'request': {'path': path}});
-    return _unwrapValue(body, 'workspace/create');
+    // Wire args must match WorkspaceCreateRequest { path }; wrapping in
+    // { request: ... } fails descriptor validation (missing 'path').
+    return callMethod('workspace/create', {'path': path});
   }
 
   /// `workspace.insertBefore { workspaceId, beforeWorkspaceId? }` — durable workspace display order.
@@ -952,7 +1204,9 @@ class ConnectionClient {
       'workspaceId': workspaceId,
       if (beforeWorkspaceId != null) 'beforeWorkspaceId': beforeWorkspaceId,
     };
-    final body = await _postTypert('workspace/insertBefore', {'request': payload});
+    final body = await _postTypert('workspace/insertBefore', {
+      'request': payload,
+    });
     _unwrapValue(body, 'workspace/insertBefore');
   }
 
@@ -967,7 +1221,9 @@ class ConnectionClient {
       'sessionId': sessionId,
       if (beforeSessionId != null) 'beforeSessionId': beforeSessionId,
     };
-    final body = await _postTypert('workspace/insertSessionBefore', {'request': payload});
+    final body = await _postTypert('workspace/insertSessionBefore', {
+      'request': payload,
+    });
     _unwrapValue(body, 'workspace/insertSessionBefore');
   }
 
@@ -976,19 +1232,28 @@ class ConnectionClient {
     required String workspaceId,
     required String title,
   }) async {
-    final body = await _postTypert('workspace/rename', {'request': {
-      'workspaceId': workspaceId,
-      'title': title,
-    }});
+    final body = await _postTypert('workspace/rename', {
+      'request': {'workspaceId': workspaceId, 'title': title},
+    });
     return _unwrapValue(body, 'workspace/rename');
   }
 
   /// `workspace.delete { workspaceId }`
   Future<void> workspaceDelete({required String workspaceId}) async {
-    final body = await _postTypert('workspace/delete', {'request': {
-      'workspaceId': workspaceId,
-    }});
+    final body = await _postTypert('workspace/delete', {
+      'request': {'workspaceId': workspaceId},
+    });
     _unwrapValue(body, 'workspace/delete');
+  }
+
+  /// `workspace.archiveSession { sessionId }`
+  Future<Map<String, dynamic>> workspaceArchiveSession({
+    required String sessionId,
+  }) async {
+    final body = await _postTypert('workspace/archiveSession', {
+      'request': {'sessionId': sessionId},
+    });
+    return _unwrapValue(body, 'workspace/archiveSession');
   }
 
   // ---------------------------------------------------------------------------
@@ -996,56 +1261,84 @@ class ConnectionClient {
   // Every verb operates the host's single console principal; wire args are
   // `{ request: {...} }` per the generated Typert descriptors.
   // ---------------------------------------------------------------------------
+
   /// `terminal/list` — the console principal's live sessions, in publication
   /// order. Returns `{ sessions: [{ sessionId, name?, type, pid?, status }] }`.
   Future<Map<String, dynamic>> terminalList() async {
     final body = await _postTypert('terminal/list', {});
     return _unwrapValue(body, 'terminal/list');
+  }
+
   /// `terminal/open { name?, cwd?, type? }` — one console session through a
   /// registered backend. Returns the snapshot plus bounded `motd`.
   Future<Map<String, dynamic>> terminalOpen({
     String? name,
     String? cwd,
     String? type,
+  }) async {
     final body = await _postTypert('terminal/open', {
       'request': {
         if (name != null) 'name': name,
         if (cwd != null) 'cwd': cwd,
         if (type != null) 'type': type,
       },
+    });
     return _unwrapValue(body, 'terminal/open');
+  }
+
   /// `terminal/send { sessionId, text, submit }` — one foreground line send.
   /// Returns `{ viewport, waitReason, sessionStatus, truncated }`.
   Future<Map<String, dynamic>> terminalSend({
+    required String sessionId,
     required String text,
     required bool submit,
+  }) async {
     final body = await _postTypert('terminal/send', {
       'request': {'sessionId': sessionId, 'text': text, 'submit': submit},
+    });
     return _unwrapValue(body, 'terminal/send');
+  }
+
   /// `terminal/read { sessionId, offset?, count? }` — one bounded scrollback
   /// page. Returns `{ text, totalLines, lineBegin, lineEnd, truncated }`.
   Future<Map<String, dynamic>> terminalRead({
+    required String sessionId,
     int? offset,
     int? count,
+  }) async {
     final body = await _postTypert('terminal/read', {
       'request': {
         'sessionId': sessionId,
         if (offset != null) 'offset': offset,
         if (count != null) 'count': count,
       },
+    });
     return _unwrapValue(body, 'terminal/read');
+  }
+
   /// `terminal/signal { sessionId, signal }` — one allowed signal to the
   /// foreground process group. Returns `{ delivered, targetPgid }`.
   Future<Map<String, dynamic>> terminalSignal({
+    required String sessionId,
     required String signal,
+  }) async {
     final body = await _postTypert('terminal/signal', {
       'request': {'sessionId': sessionId, 'signal': signal},
+    });
     return _unwrapValue(body, 'terminal/signal');
+  }
+
   /// `terminal/close { sessionId }` — close and await quiescence.
   /// Returns `{ closed }`.
   Future<Map<String, dynamic>> terminalClose({
+    required String sessionId,
+  }) async {
     final body = await _postTypert('terminal/close', {
+      'request': {'sessionId': sessionId},
+    });
     return _unwrapValue(body, 'terminal/close');
+  }
+
   /// `session.search { query }` — ranked host search with snippet overlay.
   /// Returns `{ items: [{ sessionId, snippet }], hasMore }` bounded by `SESSION_SEARCH_RESULT_LIMIT` (20).
   Future<Map<String, dynamic>> sessionSearch({
@@ -1053,12 +1346,16 @@ class ConnectionClient {
     String? signal,
   }) async {
     // Host `session.search` is Typert unary, abort via signal is caller-side debounce.
-    final body = await _postTypert('session/search', {'request': {'query': query}});
+    final body = await _postTypert('session/search', {
+      'request': {'query': query},
+    });
     return _unwrapValue(body, 'session/search');
   }
 
   Future<Map<String, dynamic>> skillList({required String sessionId}) async {
-    final body = await _postTypert('skills/list', {'request': {'sessionId': sessionId}});
+    final body = await _postTypert('skills/list', {
+      'request': {'sessionId': sessionId},
+    });
     return _unwrapValue(body, 'skills/list');
   }
 
@@ -1138,6 +1435,16 @@ class ConnectionClient {
           headers: headers,
           body: jsonEncode(envelope),
         );
+        // Same status contract as `_postTypert`: 401/403 must reach the
+        // controller as RemoteAuthException (needsReauth), never dissolve
+        // into the empty compat stub. Other non-2xx keep the retired-
+        // endpoint fallback.
+        if (resp.statusCode == 401 || resp.statusCode == 403) {
+          throw RemoteAuthException(
+            resp.statusCode,
+            'POST /api/host.describe rejected: ${resp.statusCode}',
+          );
+        }
         if (resp.statusCode >= 200 && resp.statusCode < 300) {
           final decoded = jsonDecode(resp.body);
           if (decoded is Map<String, dynamic>) {
@@ -1145,6 +1452,10 @@ class ConnectionClient {
           }
           if (decoded is Map) return decoded.cast<String, dynamic>();
         }
+      } on RemoteAuthException {
+        // The legacy compat host rejected the bearer — propagate so the
+        // generation ends in needsReauth instead of a fake-ready stub.
+        rethrow;
       } catch (_) {}
       // `host.describe` is retired — the authoritative host facts now come
       // from the `$events` `ready { host: { home } }` frame. Return an

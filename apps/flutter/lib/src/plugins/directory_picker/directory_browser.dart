@@ -18,6 +18,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/services/runtime_services.dart' show DirectoryListSignal;
 import '../../theme/app_theme.dart';
+import '../../widgets/layout/responsive.dart';
 
 // ---------------------------------------------------------------------------
 // Models — mirrors `host/directory-picker/src/index.ts`
@@ -875,528 +876,593 @@ class _DirectoryBrowserState extends State<DirectoryBrowser> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DswTokens.radiusLg),
       ),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 680,
-          maxHeight: 500,
-          minWidth: 320,
-          minHeight: 240,
-        ),
-        child: SizedBox(
-          width: 680,
-          height: 500,
-          child: Stack(
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double maxWidth = ResponsiveBreakpoints.responsiveValue(
+            constraints.maxWidth,
+            narrow: constraints.maxWidth - 32,
+            medium: 560,
+            wide: 680,
+          );
+          final double maxHeight = ResponsiveBreakpoints.responsiveValue(
+            constraints.maxWidth,
+            narrow: constraints.maxHeight - 32,
+            medium: 420,
+            wide: 500,
+          );
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+              minWidth: constraints.maxWidth < ResponsiveBreakpoints.narrow
+                  ? 0
+                  : 320,
+              minHeight: constraints.maxWidth < ResponsiveBreakpoints.narrow
+                  ? 0
+                  : 240,
+            ),
+            child: SizedBox(
+              width: maxWidth,
+              height: maxHeight,
+              child: Stack(
                 children: [
-                  // Header
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 14, 8),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: aliases.borderL3),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _t('browser.title'),
-                          style: TextStyle(
-                            fontSize: DswTokens.fontSizeBase16,
-                            fontWeight: FontWeight.w600,
-                            color: aliases.labelPrimary,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 14, 8),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: aliases.borderL3),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 28,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: _pathDraft != null
-                                  ? aliases.borderL2
-                                  : DswTokens.transparent,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: _pathDraft == null
-                              ? Row(
-                                  children: [
-                                    Expanded(
-                                      child: SingleChildScrollView(
-                                        controller: _crumbTrail,
-                                        scrollDirection: Axis.horizontal,
-                                        child: Row(
-                                          children: [
-                                            for (
-                                              int i = 0;
-                                              i < crumbs.length;
-                                              i++
-                                            ) ...[
-                                              if (i > 0)
-                                                Icon(
-                                                  Icons.chevron_right,
-                                                  size: 12,
-                                                  color: aliases.labelTertiary,
-                                                ),
-                                              TextButton(
-                                                onPressed: parentInert
-                                                    ? null
-                                                    : () => _navigate(
-                                                        crumbs[i].path,
-                                                      ),
-                                                style: TextButton.styleFrom(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 4,
-                                                      ),
-                                                  minimumSize: Size.zero,
-                                                  tapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                ),
-                                                child: Text(
-                                                  crumbs[i].name,
-                                                  style: TextStyle(
-                                                    fontSize:
-                                                        DswTokens.fontSizeXs13,
-                                                    fontWeight: FontWeight.w500,
-                                                    color:
-                                                        aliases.labelTertiary,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    // edit zone — pencil affordance (focus target for re-park)
-                                    IconButton(
-                                      key: const ValueKey('crumbEditZone'),
-                                      focusNode: _editZoneFocus,
-                                      tooltip: _t('browser.editPath'),
-                                      onPressed: parentInert
-                                          ? null
-                                          : () {
-                                              _supersede();
-                                              _previewSuspended = false;
-                                              if (_parent == null) {
-                                                setState(() {
-                                                  _pathDraft = '';
-                                                  _pathCtrl.text = '';
-                                                });
-                                                WidgetsBinding.instance
-                                                    .addPostFrameCallback(
-                                                      (_) => _pathFocus
-                                                          .requestFocus(),
-                                                    );
-                                                return;
-                                              }
-                                              final base =
-                                                  _selected?.path ??
-                                                  _parent!.path;
-                                              final sep = separatorOf(_parent!);
-                                              final seed = base.endsWith(sep)
-                                                  ? base
-                                                  : '$base$sep';
-                                              setState(() {
-                                                _pathDraft = seed;
-                                                _pathCtrl.text = seed;
-                                              });
-                                              WidgetsBinding.instance
-                                                  .addPostFrameCallback(
-                                                    (_) => _pathFocus
-                                                        .requestFocus(),
-                                                  );
-                                            },
-                                      icon: Icon(
-                                        Icons.edit_outlined,
-                                        size: 14,
-                                        color: aliases.labelTertiary,
-                                      ),
-                                      style: IconButton.styleFrom(
-                                        minimumSize: const Size(34, 22),
-                                        tapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : TextField(
-                                  key: const ValueKey('pathInput'),
-                                  controller: _pathCtrl,
-                                  focusNode: _pathFocus,
-                                  autofocus: true,
-                                  enabled: !parentInert,
-                                  style: TextStyle(
-                                    fontSize: DswTokens.fontSizeXs13,
-                                    color: aliases.labelPrimary,
-                                  ),
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      vertical: 6,
-                                    ),
-                                  ),
-                                  onChanged: (v) {
-                                    // IME composition guard — TextEditingValue.composing.isValid
-                                    // mirrors React composingRef + isComposing check.
-                                    _isComposing =
-                                        _pathCtrl.value.composing.isValid;
-                                    _onDraftChanged(v);
-                                  },
-                                  onSubmitted: (value) {
-                                    // IME confirmation (Enter selecting candidate) must not submit.
-                                    if (_pathCtrl.value.composing.isValid ||
-                                        _isComposing)
-                                      return;
-                                    if (value.trim().isEmpty) return;
-                                    _previewSuspended = true;
-                                    // Park focus on edit zone after submission — only if
-                                    // focus was actually in input; mirrors
-                                    // refocusEditZone.current = document.activeElement === pathInput
-                                    if (_pathFocus.hasFocus)
-                                      _refocusEditZone = true;
-                                    _navigate(value);
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Miller content
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  controller: _millerRow,
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (_parent != null)
-                                        SizedBox(
-                                          width: twoPane ? 320 : 632,
-                                          child: _LevelColumn(
-                                            key: const ValueKey('parentColumn'),
-                                            entries: _parent!.entries,
-                                            selectedPath: _selected?.path,
-                                            busy: parentInert,
-                                            onPick: _select,
-                                            showHidden: _showHidden,
-                                            filterPrefix: _child == null
-                                                ? typedPrefix
-                                                : null,
-                                            pathEditing: draftPending,
-                                          ),
-                                        ),
-                                      if (twoPane)
-                                        Container(
-                                          width: 1,
-                                          color: aliases.borderL3,
-                                          margin: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                          ),
-                                        ),
-                                      if (twoPane && _child != null)
-                                        SizedBox(
-                                          width: 320,
-                                          child: _LevelColumn(
-                                            key: const ValueKey('childColumn'),
-                                            entries: _child!.entries,
-                                            selectedPath: null,
-                                            busy: parentInert,
-                                            onPick: _advance,
-                                            showHidden: _showHidden,
-                                            filterPrefix: typedPrefix,
-                                            pathEditing: draftPending,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _t('browser.title'),
+                              style: TextStyle(
+                                fontSize: DswTokens.fontSizeBase16,
+                                fontWeight: FontWeight.w600,
+                                color: aliases.labelPrimary,
                               ),
-                              if ((_parent?.truncated ?? false) ||
-                                  (_child?.truncated ?? false))
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 8,
-                                    right: 120,
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 28,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: _pathDraft != null
+                                      ? aliases.borderL2
+                                      : DswTokens.transparent,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: _pathDraft == null
+                                  ? Row(
+                                      children: [
+                                        Expanded(
+                                          child: SingleChildScrollView(
+                                            controller: _crumbTrail,
+                                            scrollDirection: Axis.horizontal,
+                                            child: Row(
+                                              children: [
+                                                for (
+                                                  int i = 0;
+                                                  i < crumbs.length;
+                                                  i++
+                                                ) ...[
+                                                  if (i > 0)
+                                                    Icon(
+                                                      Icons.chevron_right,
+                                                      size: 12,
+                                                      color:
+                                                          aliases.labelTertiary,
+                                                    ),
+                                                  TextButton(
+                                                    onPressed: parentInert
+                                                        ? null
+                                                        : () => _navigate(
+                                                            crumbs[i].path,
+                                                          ),
+                                                    style: TextButton.styleFrom(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 4,
+                                                          ),
+                                                      minimumSize: Size.zero,
+                                                      tapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                    ),
+                                                    child: Text(
+                                                      crumbs[i].name,
+                                                      style: TextStyle(
+                                                        fontSize: DswTokens
+                                                            .fontSizeXs13,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: aliases
+                                                            .labelTertiary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // edit zone — pencil affordance (focus target for re-park)
+                                        IconButton(
+                                          key: const ValueKey('crumbEditZone'),
+                                          focusNode: _editZoneFocus,
+                                          tooltip: _t('browser.editPath'),
+                                          onPressed: parentInert
+                                              ? null
+                                              : () {
+                                                  _supersede();
+                                                  _previewSuspended = false;
+                                                  if (_parent == null) {
+                                                    setState(() {
+                                                      _pathDraft = '';
+                                                      _pathCtrl.text = '';
+                                                    });
+                                                    WidgetsBinding.instance
+                                                        .addPostFrameCallback(
+                                                          (_) => _pathFocus
+                                                              .requestFocus(),
+                                                        );
+                                                    return;
+                                                  }
+                                                  final base =
+                                                      _selected?.path ??
+                                                      _parent!.path;
+                                                  final sep = separatorOf(
+                                                    _parent!,
+                                                  );
+                                                  final seed =
+                                                      base.endsWith(sep)
+                                                      ? base
+                                                      : '$base$sep';
+                                                  setState(() {
+                                                    _pathDraft = seed;
+                                                    _pathCtrl.text = seed;
+                                                  });
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback(
+                                                        (_) => _pathFocus
+                                                            .requestFocus(),
+                                                      );
+                                                },
+                                          icon: Icon(
+                                            Icons.edit_outlined,
+                                            size: 14,
+                                            color: aliases.labelTertiary,
+                                          ),
+                                          style: IconButton.styleFrom(
+                                            minimumSize: const Size(34, 22),
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : TextField(
+                                      key: const ValueKey('pathInput'),
+                                      controller: _pathCtrl,
+                                      focusNode: _pathFocus,
+                                      autofocus: true,
+                                      enabled: !parentInert,
+                                      style: TextStyle(
+                                        fontSize: DswTokens.fontSizeXs13,
+                                        color: aliases.labelPrimary,
+                                      ),
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
+                                      ),
+                                      onChanged: (v) {
+                                        // IME composition guard — TextEditingValue.composing.isValid
+                                        // mirrors React composingRef + isComposing check.
+                                        _isComposing =
+                                            _pathCtrl.value.composing.isValid;
+                                        _onDraftChanged(v);
+                                      },
+                                      onSubmitted: (value) {
+                                        // IME confirmation (Enter selecting candidate) must not submit.
+                                        if (_pathCtrl.value.composing.isValid ||
+                                            _isComposing)
+                                          return;
+                                        if (value.trim().isEmpty) return;
+                                        _previewSuspended = true;
+                                        // Park focus on edit zone after submission — only if
+                                        // focus was actually in input; mirrors
+                                        // refocusEditZone.current = document.activeElement === pathInput
+                                        if (_pathFocus.hasFocus)
+                                          _refocusEditZone = true;
+                                        _navigate(value);
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Miller content
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                24,
+                                16,
+                                16,
+                                16,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: SingleChildScrollView(
+                                      controller: _millerRow,
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (_parent != null)
+                                            SizedBox(
+                                              width:
+                                                  ResponsiveBreakpoints.responsiveValue(
+                                                    MediaQuery.sizeOf(context)
+                                                        .width,
+                                                    narrow:
+                                                        MediaQuery.sizeOf(
+                                                          context,
+                                                        ).width -
+                                                        64,
+                                                    medium: twoPane ? 280 : 500,
+                                                    wide: twoPane ? 320 : 632,
+                                                  ),
+                                              child: _LevelColumn(
+                                                key: const ValueKey(
+                                                  'parentColumn',
+                                                ),
+                                                entries: _parent!.entries,
+                                                selectedPath: _selected?.path,
+                                                busy: parentInert,
+                                                onPick: _select,
+                                                showHidden: _showHidden,
+                                                filterPrefix: _child == null
+                                                    ? typedPrefix
+                                                    : null,
+                                                pathEditing: draftPending,
+                                              ),
+                                            ),
+                                          if (twoPane)
+                                            Container(
+                                              width: 1,
+                                              color: aliases.borderL3,
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                  ),
+                                            ),
+                                          if (twoPane && _child != null)
+                                            SizedBox(
+                                              width: 320,
+                                              child: _LevelColumn(
+                                                key: const ValueKey(
+                                                  'childColumn',
+                                                ),
+                                                entries: _child!.entries,
+                                                selectedPath: null,
+                                                busy: parentInert,
+                                                onPick: _advance,
+                                                showHidden: _showHidden,
+                                                filterPrefix: typedPrefix,
+                                                pathEditing: draftPending,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
+                                  if ((_parent?.truncated ?? false) ||
+                                      (_child?.truncated ?? false))
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: 8,
+                                        right: 120,
+                                      ),
+                                      child: Text(
+                                        _t('browser.truncated'),
+                                        style: TextStyle(
+                                          fontSize: DswTokens.fontSizeXxs12,
+                                          color: aliases.labelSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  if (_error != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: 4,
+                                        right: 120,
+                                      ),
+                                      child: Text(
+                                        _error!,
+                                        style: TextStyle(
+                                          fontSize: DswTokens.fontSizeXxs12,
+                                          color: aliases.stateErrorPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            if (_loading && _slowScan)
+                              Positioned(
+                                right: 16,
+                                bottom: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  color: aliases.bgLayer2,
                                   child: Text(
-                                    _t('browser.truncated'),
+                                    _t('browser.loading'),
                                     style: TextStyle(
                                       fontSize: DswTokens.fontSizeXxs12,
                                       color: aliases.labelSecondary,
                                     ),
                                   ),
                                 ),
-                              if (_error != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 4,
-                                    right: 120,
-                                  ),
-                                  child: Text(
-                                    _error!,
-                                    style: TextStyle(
-                                      fontSize: DswTokens.fontSizeXxs12,
-                                      color: aliases.stateErrorPrimary,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        if (_loading && _slowScan)
-                          Positioned(
-                            right: 16,
-                            bottom: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
                               ),
-                              color: aliases.bgLayer2,
-                              child: Text(
-                                _t('browser.loading'),
-                                style: TextStyle(
-                                  fontSize: DswTokens.fontSizeXxs12,
-                                  color: aliases.labelSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  // Footer
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: aliases.borderL3)),
-                    ),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed:
-                                  (_parent == null ||
-                                      _loading ||
-                                      parentInert ||
-                                      draftPending)
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _folderDraft = '';
-                                        _folderCtrl.text = '';
-                                        _createError = null;
-                                      });
-                                    },
-                              icon: const Icon(
-                                Icons.create_new_folder_outlined,
-                                size: 14,
-                              ),
-                              label: Text(_t('browser.newFolder')),
-                            ),
-                            TextButton.icon(
-                              onPressed: parentInert
-                                  ? null
-                                  : () => setState(
-                                      () => _showHidden = !_showHidden,
-                                    ),
-                              icon: _showHidden
-                                  ? const Icon(Icons.check, size: 14)
-                                  : const SizedBox.shrink(),
-                              label: Text(_t('browser.showHidden')),
-                              style: TextButton.styleFrom(
-                                foregroundColor: _showHidden
-                                    ? aliases.labelPrimary
-                                    : aliases.labelSecondary,
-                              ),
-                            ),
                           ],
                         ),
-                        Wrap(
+                      ),
+                      // Footer
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: aliases.borderL3),
+                          ),
+                        ),
+                        child: Wrap(
                           spacing: 8,
                           runSpacing: 8,
+                          alignment: WrapAlignment.spaceBetween,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            OutlinedButton(
-                              onPressed: parentInert ? null : widget.onClose,
-                              child: Text(_t('browser.cancel')),
-                            ),
-                            FilledButton(
-                              onPressed:
-                                  (targetPath == null ||
-                                      _loading ||
-                                      parentInert ||
-                                      draftPending)
-                                  ? null
-                                  : () => widget.onOpen(targetPath),
-                              child: Text(_t('browser.open')),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Keyboard handling for Escape to cancel path edit or dialog
-                  Focus(
-                    onKeyEvent: (node, event) {
-                      if (event is KeyDownEvent &&
-                          event.logicalKey == LogicalKeyboardKey.escape) {
-                        if (_pathDraft != null) {
-                          _cancelPathEdit();
-                          return KeyEventResult.handled;
-                        }
-                        if (_folderDraft == null && !widget.busy) {
-                          widget.onClose();
-                          return KeyEventResult.handled;
-                        }
-                      }
-                      return KeyEventResult.ignored;
-                    },
-                    child: const SizedBox.shrink(),
-                  ),
-                ],
-              ),
-              if (showCreateDialog)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.32),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 380),
-                        child: Material(
-                          color: aliases.bgLayer2,
-                          borderRadius: BorderRadius.circular(
-                            DswTokens.radiusLg,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Text(
-                                  _t('browser.newFolder'),
-                                  style: TextStyle(
-                                    fontSize: DswTokens.fontSizeBase16,
-                                    fontWeight: FontWeight.w600,
-                                    color: aliases.labelPrimary,
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      (_parent == null ||
+                                          _loading ||
+                                          parentInert ||
+                                          draftPending)
+                                      ? null
+                                      : () {
+                                          setState(() {
+                                            _folderDraft = '';
+                                            _folderCtrl.text = '';
+                                            _createError = null;
+                                          });
+                                        },
+                                  icon: const Icon(
+                                    Icons.create_new_folder_outlined,
+                                    size: 14,
+                                  ),
+                                  label: Text(_t('browser.newFolder')),
+                                ),
+                                TextButton.icon(
+                                  onPressed: parentInert
+                                      ? null
+                                      : () => setState(
+                                          () => _showHidden = !_showHidden,
+                                        ),
+                                  icon: _showHidden
+                                      ? const Icon(Icons.check, size: 14)
+                                      : const SizedBox.shrink(),
+                                  label: Text(_t('browser.showHidden')),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: _showHidden
+                                        ? aliases.labelPrimary
+                                        : aliases.labelSecondary,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  _t('browser.createIn').contains('{name}')
-                                      ? _t('browser.createIn')
-                                            .replaceAll('{name}', targetName)
-                                      : 'New folder in "$targetName"',
-                                  style: TextStyle(
-                                    fontSize: DswTokens.fontSizeS14,
-                                    color: aliases.labelPrimary,
-                                  ),
+                              ],
+                            ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                OutlinedButton(
+                                  onPressed: parentInert
+                                      ? null
+                                      : widget.onClose,
+                                  child: Text(_t('browser.cancel')),
                                 ),
-                                const SizedBox(height: 12),
-                                TextField(
-                                  key: const ValueKey('createFolderInput'),
-                                  controller: _folderCtrl,
-                                  autofocus: true,
-                                  enabled: !_creatingFolder,
-                                  decoration: InputDecoration(
-                                    hintText: _t('browser.untitledFolder'),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(22),
-                                    ),
-                                  ),
-                                  onChanged: (v) {
-                                    _isComposing =
-                                        _folderCtrl.value.composing.isValid;
-                                    setState(() => _folderDraft = v);
-                                  },
-                                  onSubmitted: (_) {
-                                    if (_folderCtrl.value.composing.isValid ||
-                                        _isComposing)
-                                      return;
-                                    _confirmCreate();
-                                  },
+                                FilledButton(
+                                  onPressed:
+                                      (targetPath == null ||
+                                          _loading ||
+                                          parentInert ||
+                                          draftPending)
+                                      ? null
+                                      : () => widget.onOpen(targetPath),
+                                  child: Text(_t('browser.open')),
                                 ),
-                                if (_createError != null) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _createError!,
-                                    style: TextStyle(
-                                      fontSize: DswTokens.fontSizeXxs12,
-                                      color: aliases.stateErrorPrimary,
-                                    ),
-                                  ),
-                                ],
-                                const SizedBox(height: 20),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Keyboard handling for Escape to cancel path edit or dialog
+                      Focus(
+                        onKeyEvent: (node, event) {
+                          if (event is KeyDownEvent &&
+                              event.logicalKey == LogicalKeyboardKey.escape) {
+                            if (_pathDraft != null) {
+                              _cancelPathEdit();
+                              return KeyEventResult.handled;
+                            }
+                            if (_folderDraft == null && !widget.busy) {
+                              widget.onClose();
+                              return KeyEventResult.handled;
+                            }
+                          }
+                          return KeyEventResult.ignored;
+                        },
+                        child: const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                  if (showCreateDialog)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.32),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 380),
+                            child: Material(
+                              color: aliases.bgLayer2,
+                              borderRadius: BorderRadius.circular(
+                                DswTokens.radiusLg,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  22,
+                                  24,
+                                  20,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    TextButton(
-                                      onPressed: _creatingFolder
-                                          ? null
-                                          : () => setState(
-                                              () => _folderDraft = null,
-                                            ),
-                                      child: Text(_t('browser.cancel')),
+                                    Text(
+                                      _t('browser.newFolder'),
+                                      style: TextStyle(
+                                        fontSize: DswTokens.fontSizeBase16,
+                                        fontWeight: FontWeight.w600,
+                                        color: aliases.labelPrimary,
+                                      ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    FilledButton(
-                                      onPressed:
-                                          (_creatingFolder ||
-                                              (_folderDraft?.trim().isEmpty ??
-                                                  true))
-                                          ? null
-                                          : _confirmCreate,
-                                      child: _creatingFolder
-                                          ? SizedBox(
-                                              width: 14,
-                                              height: 14,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: aliases
-                                                    .labelPrimaryForeground,
-                                              ),
-                                            )
-                                          : Text(_t('browser.create')),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _t('browser.createIn').contains('{name}')
+                                          ? _t(
+                                              'browser.createIn',
+                                            ).replaceAll('{name}', targetName)
+                                          : 'New folder in "$targetName"',
+                                      style: TextStyle(
+                                        fontSize: DswTokens.fontSizeS14,
+                                        color: aliases.labelPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextField(
+                                      key: const ValueKey('createFolderInput'),
+                                      controller: _folderCtrl,
+                                      autofocus: true,
+                                      enabled: !_creatingFolder,
+                                      decoration: InputDecoration(
+                                        hintText: _t('browser.untitledFolder'),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            22,
+                                          ),
+                                        ),
+                                      ),
+                                      onChanged: (v) {
+                                        _isComposing =
+                                            _folderCtrl.value.composing.isValid;
+                                        setState(() => _folderDraft = v);
+                                      },
+                                      onSubmitted: (_) {
+                                        if (_folderCtrl
+                                                .value
+                                                .composing
+                                                .isValid ||
+                                            _isComposing)
+                                          return;
+                                        _confirmCreate();
+                                      },
+                                    ),
+                                    if (_createError != null) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        _createError!,
+                                        style: TextStyle(
+                                          fontSize: DswTokens.fontSizeXxs12,
+                                          color: aliases.stateErrorPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 20),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton(
+                                          onPressed: _creatingFolder
+                                              ? null
+                                              : () => setState(
+                                                  () => _folderDraft = null,
+                                                ),
+                                          child: Text(_t('browser.cancel')),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        FilledButton(
+                                          onPressed:
+                                              (_creatingFolder ||
+                                                  (_folderDraft
+                                                          ?.trim()
+                                                          .isEmpty ??
+                                                      true))
+                                              ? null
+                                              : _confirmCreate,
+                                          child: _creatingFolder
+                                              ? SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: aliases
+                                                        .labelPrimaryForeground,
+                                                  ),
+                                                )
+                                              : Text(_t('browser.create')),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

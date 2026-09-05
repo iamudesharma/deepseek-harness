@@ -20,6 +20,7 @@ import '../../../core/session/sessions_controller.dart';
 import '../../../platform/clipboard.dart';
 import '../../../theme/app_theme.dart';
 import '../../../features/conversation/message_provider.dart';
+import '../../../widgets/layout/responsive_constraints.dart';
 import '../../../widgets/primitives/disclosure_row.dart';
 import '../../../widgets/primitives/markdown.dart';
 import '../../../widgets/primitives/state_dot.dart';
@@ -146,7 +147,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
       // Fallback to first key proxy
       if (_firstKey != null) {
         final gk = _rowKeys[_firstKey!];
-        if (gk != null) return _PagingAnchor(key: _firstKey!, top: _flowTop(gk));
+        if (gk != null)
+          return _PagingAnchor(key: _firstKey!, top: _flowTop(gk));
       }
       return null;
     }
@@ -381,8 +383,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
     if (!_controller.hasClients) return;
     final items = _cachedTurnItems;
     // Bottom-pinned owns last mark.
-    final isAtBottom = _controller.position.maxScrollExtent -
-            _controller.position.pixels <=
+    final isAtBottom =
+        _controller.position.maxScrollExtent - _controller.position.pixels <=
         _followThreshold + 1;
     if (isAtBottom) {
       final lastTurn = items.last.turn;
@@ -394,8 +396,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
     if (outerBox != null) {
       final outerTop = outerBox.localToGlobal(Offset.zero).dy;
       final viewportHeight = _controller.position.viewportDimension;
-      final readingLine = outerTop +
-          (viewportHeight * 0.2).clamp(0, 96).toDouble();
+      final readingLine =
+          outerTop + (viewportHeight * 0.2).clamp(0, 96).toDouble();
       int? foundTurn;
       // Anchor order equals turn order (appearance).
       for (final item in items) {
@@ -405,8 +407,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
         final box = ctx.findRenderObject() as RenderBox?;
         if (box == null) continue;
         final top = box.localToGlobal(Offset.zero).dy;
-        if (top <= readingLine) foundTurn = item.turn;
-        else break;
+        if (top <= readingLine)
+          foundTurn = item.turn;
+        else
+          break;
       }
       foundTurn ??= items.first.turn;
       // Map readingTurn to nearest rail item <= reading (already done via anchors).
@@ -415,7 +419,9 @@ class _ChatViewState extends ConsumerState<ChatView> {
     }
     // Fallback: scroll fraction.
     final max = _controller.position.maxScrollExtent;
-    final ratio = max <= 0 ? 0 : (_controller.position.pixels / max).clamp(0, 1).toDouble();
+    final ratio = max <= 0
+        ? 0
+        : (_controller.position.pixels / max).clamp(0, 1).toDouble();
     final idx = (ratio * (items.length - 1)).round().clamp(0, items.length - 1);
     final turn = items[idx].turn;
     if (turn != _activeTurn) setState(() => _activeTurn = turn);
@@ -449,7 +455,9 @@ class _ChatViewState extends ConsumerState<ChatView> {
     // Fallback: fraction-based estimate then fine-adjust on next frame.
     final max = _controller.position.maxScrollExtent;
     if (max <= 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToTurn(item));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _navigateToTurn(item),
+      );
       return;
     }
     final fraction = _cachedTurnItems.length <= 1
@@ -472,8 +480,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
           final outerTop = outer.localToGlobal(Offset.zero).dy;
           final delta = boxTop - outerTop - 24;
           if (delta.abs() > 0.5) {
-            final next = (_controller.position.pixels + delta)
-                .clamp(0.0, _controller.position.maxScrollExtent);
+            final next = (_controller.position.pixels + delta).clamp(
+              0.0,
+              _controller.position.maxScrollExtent,
+            );
             _controller.animateTo(
               next,
               duration: const Duration(milliseconds: 150),
@@ -498,40 +508,23 @@ class _ChatViewState extends ConsumerState<ChatView> {
     }
     final client = ref.read(connectionClientProvider);
     try {
-      final res = await client.callMethod('session/fork', {
-        'sessionId': widget.sessionId,
-        'atSeq': seq,
-      });
-      String? childId;
-      if (res.containsKey('sessionId') && res['sessionId'] is String) {
-        childId = res['sessionId'] as String;
-      } else if (res.containsKey('value') && res['value'] is String) {
-        childId = res['value'] as String;
-      } else if (res.containsKey('_primitive') && res['_primitive'] is String) {
-        childId = res['_primitive'] as String;
-      } else if (res['value'] is Map && (res['value'] as Map)['sessionId'] is String) {
-        childId = (res['value'] as Map)['sessionId'] as String;
-      }
-      // Legacy fallback shape where callMethod unwraps via result.value
-      childId ??= res['_list'] is List ? null : null;
+      final childId = await client.forkSession(
+        sessionId: widget.sessionId,
+        atSeq: seq,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(childId != null ? 'Forked to $childId' : 'Fork at seq $seq'),
-          ),
+          SnackBar(content: Text('Forked to $childId')),
         );
-        if (childId != null) {
-          try {
-            final all = await client.getSessions();
-            ref.read(sessionsProvider.notifier).setAll(all);
-          } catch (_) {}
-        }
+        try {
+          final all = await client.getSessions();
+          ref.read(sessionsProvider.notifier).setAll(all);
+        } catch (_) {}
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fork failed: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Fork failed: $e')));
       }
     }
   }
@@ -606,30 +599,21 @@ class _ChatViewState extends ConsumerState<ChatView> {
     // Optimistic user messages — React parity via `session.beginSubmission`
     // (composer clears draft + yields one paint with echo before `session/prompt`).
     // Flutter's `ComposerController.submit` writes to `optimisticMessagesProvider`
-    // and `liveMessageListProvider` already merges it, but `ChatView` (the
-    // active transcript via `ConversationNodeFolder`) did not — so a new `hi`
-    // was invisible until host `user/message` echoed (or until reopen which
-    // replays persisted history). Now `ChatView` also renders pending optimistic
-    // bubbles and dedupes on host echo (content-trim match), mirroring
-    // `liveMessageListProvider`'s dedup and React's echo retirement.
-    final optimistic = ref.watch(optimisticMessagesProvider(widget.sessionId));
-    if (optimistic.isNotEmpty) {
-      // Deduplicate only when the tail is already the host echo of this
-      // optimistic (immediate `user/message` after `session/prompt`). Before
-      // echo, `items` ends with the previous turn's assistant, so the new
-      // `hi` optimistic is shown. After the echo lands via `appendLive`,
-      // `items.last` becomes that same `hi` user node — then we hide the
-      // optimistic to avoid a duplicate tail bubble. Checking only the tail
-      // (not `any` user) preserves repeated `hi` across turns.
-      for (final o in optimistic) {
+    // with the `session/prompt` request id; the host echo (`user/message`
+    // `source.rpcId`) retires it via `retireOptimisticWithHistory`. Any-match
+    // retirement (not tail-only) keeps the optimistic hidden after the turn
+    // progresses to assistant/tool content — tail-only re-showed it as a
+    // duplicate bubble. `LiveHistory` also evicts on confirmed history; this
+    // filter is the pure-view safety net for the same frame.
+    final List<Message> visibleOptimistic = retireOptimisticWithHistory(
+      entries,
+      ref.watch(optimisticMessagesProvider(widget.sessionId)),
+    );
+    if (visibleOptimistic.isNotEmpty) {
+      for (final o in visibleOptimistic) {
         final t = o.content.trim();
         final hasImages = o.imageUrls.isNotEmpty;
         if (t.isEmpty && !hasImages) continue;
-        final tailIsSameUser =
-            items.isNotEmpty &&
-            items.last.node is UserMessageNode &&
-            (items.last.node as UserMessageNode).text.trim() == t;
-        if (tailIsSameUser) continue;
         final synth = UserMessageNode(
           key: 'optimistic-${o.id}',
           sourceSeqs: const [],
@@ -748,14 +732,20 @@ class _ChatViewState extends ConsumerState<ChatView> {
     }
     final int? effectiveActiveTurn =
         _activeTurn != null && turnItems.any((e) => e.turn == _activeTurn)
-            ? _activeTurn
-            : (turnItems.isNotEmpty ? turnItems.last.turn : null);
+        ? _activeTurn
+        : (turnItems.isNotEmpty ? turnItems.last.turn : null);
 
     // ---- StatsLine parity: window fold vs durable sessionStats/tokenUsage projections
     final _WindowStats windowStats = _deriveWindowStats(rawNodes);
     _WindowStats effectiveStats = windowStats;
-    TurnTokenUsage? effectiveUsage = _aggregateTokenUsage(rawNodes.whereType<TurnTailNode>().toList());
-    final bool hasStats = effectiveStats.steps > 0 || (effectiveUsage != null && (effectiveUsage.billedInputTokens > 0 || effectiveUsage.outputTokens > 0));
+    TurnTokenUsage? effectiveUsage = _aggregateTokenUsage(
+      rawNodes.whereType<TurnTailNode>().toList(),
+    );
+    final bool hasStats =
+        effectiveStats.steps > 0 ||
+        (effectiveUsage != null &&
+            (effectiveUsage.billedInputTokens > 0 ||
+                effectiveUsage.outputTokens > 0));
 
     return Stack(
       children: [
@@ -950,43 +940,52 @@ class _ChatViewState extends ConsumerState<ChatView> {
   ) {
     switch (node) {
       case UserMessageNode(:final text, :final imageAttachmentIds):
-        final int forkSeq = node.sourceSeqs.isNotEmpty ? node.sourceSeqs.first : 0;
+        final int forkSeq = node.sourceSeqs.isNotEmpty
+            ? node.sourceSeqs.first
+            : 0;
         return Align(
           alignment: Alignment.centerRight,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                constraints: const BoxConstraints(maxWidth: 560),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: aliases.bgLayer2,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (imageAttachmentIds.isNotEmpty)
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        alignment: WrapAlignment.end,
-                        children: [
-                          for (final id in imageAttachmentIds)
-                            _UserImage(
-                              sessionId: widget.sessionId,
-                              attachmentId: id,
-                            ),
-                        ],
-                      ),
-                    if (imageAttachmentIds.isNotEmpty && text.isNotEmpty)
-                      const SizedBox(height: 8),
-                    if (text.isNotEmpty) SelectableText(text),
-                    if (text.isEmpty && imageAttachmentIds.isEmpty)
-                      const SelectableText('(empty message)'),
-                  ],
+              ResponsiveConstraints(
+                narrow: const BoxConstraints(maxWidth: 560),
+                medium: const BoxConstraints(maxWidth: 600),
+                wide: const BoxConstraints(maxWidth: 640),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: aliases.bgLayer2,
+                    borderRadius: BorderRadius.circular(DswTokens.radiusXl),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (imageAttachmentIds.isNotEmpty)
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.end,
+                          children: [
+                            for (final id in imageAttachmentIds)
+                              _UserImage(
+                                sessionId: widget.sessionId,
+                                attachmentId: id,
+                              ),
+                          ],
+                        ),
+                      if (imageAttachmentIds.isNotEmpty && text.isNotEmpty)
+                        const SizedBox(height: 8),
+                      if (text.isNotEmpty) SelectableText(text),
+                      if (text.isEmpty && imageAttachmentIds.isEmpty)
+                        const SelectableText('(empty message)'),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -996,10 +995,15 @@ class _ChatViewState extends ConsumerState<ChatView> {
                   Tooltip(
                     message: 'Copy',
                     child: IconButton(
-                      icon: Icon(Icons.copy_outlined, size: 14, color: aliases.labelTertiary),
+                      icon: Icon(
+                        Icons.copy_outlined,
+                        size: 14,
+                        color: aliases.labelTertiary,
+                      ),
                       onPressed: text.isEmpty
                           ? null
-                          : () => ClipboardHelper.copyWithFeedback(context, text),
+                          : () =>
+                                ClipboardHelper.copyWithFeedback(context, text),
                       style: IconButton.styleFrom(
                         minimumSize: const Size(28, 28),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1011,7 +1015,11 @@ class _ChatViewState extends ConsumerState<ChatView> {
                   Tooltip(
                     message: 'Fork',
                     child: IconButton(
-                      icon: Icon(Icons.call_split, size: 14, color: aliases.labelTertiary),
+                      icon: Icon(
+                        Icons.call_split,
+                        size: 14,
+                        color: aliases.labelTertiary,
+                      ),
                       onPressed: forkSeq == 0 ? null : () => _forkAt(forkSeq),
                       style: IconButton.styleFrom(
                         minimumSize: const Size(28, 28),
@@ -1042,8 +1050,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
         // hierarchy: Think row + prose as separate siblings, prose via markdown.
         return Align(
           alignment: Alignment.centerLeft,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
+          child: ResponsiveConstraints(
+            narrow: const BoxConstraints(maxWidth: 640),
+            medium: const BoxConstraints(maxWidth: 680),
+            wide: const BoxConstraints(maxWidth: 720),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1366,7 +1376,11 @@ String _formatExactTokens(int value) {
   return groups.join(',');
 }
 
-int _roundedPercentUnits(int cacheReadTokens, int denominator, int decimalPlaces) {
+int _roundedPercentUnits(
+  int cacheReadTokens,
+  int denominator,
+  int decimalPlaces,
+) {
   final unitsPerPercent = decimalPlaces == 0 ? 1 : 10;
   final scale = unitsPerPercent * 100;
   final doubledScale = scale * 2;
@@ -1377,7 +1391,8 @@ int _roundedPercentUnits(int cacheReadTokens, int denominator, int decimalPlaces
   while (lower < upper) {
     final candidate = (lower + upper + 1) ~/ 2;
     final factor = candidate * 2 - 1;
-    final threshold = factor * denominatorQuotient +
+    final threshold =
+        factor * denominatorQuotient +
         ((factor * denominatorRemainder + doubledScale - 1) ~/ doubledScale);
     if (cacheReadTokens >= threshold) {
       lower = candidate;
@@ -1395,13 +1410,22 @@ String _displayPercentUnits(int units, int decimalPlaces) {
   return tenths == 0 ? whole.toString() : '$whole.$tenths';
 }
 
-String? _formatCacheHitPercent(int cacheReadTokens, int promptTokens, [int decimalPlaces = 0]) {
+String? _formatCacheHitPercent(
+  int cacheReadTokens,
+  int promptTokens, [
+  int decimalPlaces = 0,
+]) {
   if (promptTokens == 0) return null;
   final missed = promptTokens - cacheReadTokens;
   if (missed == 0) return '100';
-  final roundedUnits = _roundedPercentUnits(cacheReadTokens, promptTokens, decimalPlaces);
+  final roundedUnits = _roundedPercentUnits(
+    cacheReadTokens,
+    promptTokens,
+    decimalPlaces,
+  );
   final fullHitUnits = decimalPlaces == 0 ? 100 : 1000;
-  if (roundedUnits < fullHitUnits) return _displayPercentUnits(roundedUnits, decimalPlaces);
+  if (roundedUnits < fullHitUnits)
+    return _displayPercentUnits(roundedUnits, decimalPlaces);
   int distinguishingPlaces = 1;
   int scaledDoubleGap = missed * 200;
   final denominatorTens = promptTokens ~/ 10;
@@ -1413,7 +1437,8 @@ String? _formatCacheHitPercent(int cacheReadTokens, int promptTokens, [int decim
   int roundedLoss = 5;
   for (int loss = 1; loss < 5; loss += 1) {
     final factor = loss * 2 + 1;
-    final threshold = factor * denominatorTens + (factor * denominatorOnes ~/ 10);
+    final threshold =
+        factor * denominatorTens + (factor * denominatorOnes ~/ 10);
     if (scaledDoubleGap <= threshold) {
       roundedLoss = loss;
       break;
@@ -1453,7 +1478,9 @@ String _formatDuration(int ms) {
   final s = ms / 1000;
   if (s < 60) {
     final r = (s * 10).round() / 10;
-    final secStr = r == r.roundToDouble() ? r.round().toString() : r.toStringAsFixed(1);
+    final secStr = r == r.roundToDouble()
+        ? r.round().toString()
+        : r.toStringAsFixed(1);
     return '${secStr}s';
   }
   final whole = s.round();
@@ -1464,7 +1491,9 @@ String _formatDuration(int ms) {
 
 String _formatMessageClock(int timeMs, {int? nowMs}) {
   final d = DateTime.fromMillisecondsSinceEpoch(timeMs);
-  final n = nowMs != null ? DateTime.fromMillisecondsSinceEpoch(nowMs) : DateTime.now();
+  final n = nowMs != null
+      ? DateTime.fromMillisecondsSinceEpoch(nowMs)
+      : DateTime.now();
   String pad2(int v) => v.toString().padLeft(2, '0');
   final clock = '${pad2(d.hour)}:${pad2(d.minute)}';
   if (d.year == n.year && d.month == n.month && d.day == n.day) return clock;
@@ -1490,16 +1519,23 @@ class _TurnTailCardState extends State<_TurnTailCard> {
     final aliases = widget.aliases;
     final usage = node.tokenUsage;
     final timeLabel = _formatMessageClock(node.time);
-    final runLabel = node.runMs == null ? null : _formatRunDuration(node.runMs!);
-    final ttftLabel = node.ttftMs == null ? null : _formatLatencySeconds(node.ttftMs!);
-    final tpsLabel = node.tokensPerSecond == null ? null : _formatTokensPerSecond(node.tokensPerSecond!);
+    final runLabel = node.runMs == null
+        ? null
+        : _formatRunDuration(node.runMs!);
+    final ttftLabel = node.ttftMs == null
+        ? null
+        : _formatLatencySeconds(node.ttftMs!);
+    final tpsLabel = node.tokensPerSecond == null
+        ? null
+        : _formatTokensPerSecond(node.tokensPerSecond!);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (usage != null) _TurnUsageDisclosure(usage: usage, aliases: aliases),
+          if (usage != null)
+            _TurnUsageDisclosure(usage: usage, aliases: aliases),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1511,25 +1547,68 @@ class _TurnTailCardState extends State<_TurnTailCard> {
                   children: [
                     Text(
                       timeLabel,
-                      style: TextStyle(fontSize: 12, color: aliases.labelTertiary, height: 20 / 12),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: aliases.labelTertiary,
+                        height: 20 / 12,
+                      ),
                     ),
                     if (runLabel != null) ...[
                       const SizedBox(width: 6),
-                      Container(width: 2, height: 2, decoration: BoxDecoration(color: aliases.labelCaption, shape: BoxShape.circle)),
+                      Container(
+                        width: 2,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: aliases.labelCaption,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text('Ran for $runLabel', style: TextStyle(fontSize: 12, color: aliases.labelTertiary)),
+                      Text(
+                        'Ran for $runLabel',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: aliases.labelTertiary,
+                        ),
+                      ),
                     ],
                     if (ttftLabel != null) ...[
                       const SizedBox(width: 6),
-                      Container(width: 2, height: 2, decoration: BoxDecoration(color: aliases.labelCaption, shape: BoxShape.circle)),
+                      Container(
+                        width: 2,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: aliases.labelCaption,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text('TTFT ${ttftLabel}s', style: TextStyle(fontSize: 12, color: aliases.labelTertiary)),
+                      Text(
+                        'TTFT ${ttftLabel}s',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: aliases.labelTertiary,
+                        ),
+                      ),
                     ],
                     if (tpsLabel != null) ...[
                       const SizedBox(width: 6),
-                      Container(width: 2, height: 2, decoration: BoxDecoration(color: aliases.labelCaption, shape: BoxShape.circle)),
+                      Container(
+                        width: 2,
+                        height: 2,
+                        decoration: BoxDecoration(
+                          color: aliases.labelCaption,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Text('$tpsLabel tok/s', style: TextStyle(fontSize: 12, color: aliases.labelTertiary)),
+                      Text(
+                        '$tpsLabel tok/s',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: aliases.labelTertiary,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -1538,11 +1617,23 @@ class _TurnTailCardState extends State<_TurnTailCard> {
               _CopyButton(text: node.closingText ?? '', aliases: aliases),
               const SizedBox(width: 4),
               Tooltip(
-                message: node.branchUnavailable ? 'Available only on the last message of a completed turn' : 'Branch into a new conversation',
+                message: node.branchUnavailable
+                    ? 'Available only on the last message of a completed turn'
+                    : 'Branch into a new conversation',
                 child: IconButton(
-                  icon: Icon(Icons.account_tree_outlined, size: 16, color: node.branchUnavailable ? aliases.labelCaption : aliases.labelTertiary),
+                  icon: Icon(
+                    Icons.account_tree_outlined,
+                    size: 16,
+                    color: node.branchUnavailable
+                        ? aliases.labelCaption
+                        : aliases.labelTertiary,
+                  ),
                   onPressed: node.branchUnavailable ? null : widget.onFork,
-                  style: IconButton.styleFrom(minimumSize: const Size(28, 28), tapTargetSize: MaterialTapTargetSize.shrinkWrap, padding: EdgeInsets.zero),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(28, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ],
@@ -1587,9 +1678,17 @@ class _CopyButtonState extends State<_CopyButton> {
     return Tooltip(
       message: _copied ? 'Copied' : 'Copy',
       child: IconButton(
-        icon: Icon(_copied ? Icons.check : Icons.copy_outlined, size: 16, color: widget.aliases.labelTertiary),
+        icon: Icon(
+          _copied ? Icons.check : Icons.copy_outlined,
+          size: 16,
+          color: widget.aliases.labelTertiary,
+        ),
         onPressed: _copy,
-        style: IconButton.styleFrom(minimumSize: const Size(28, 28), tapTargetSize: MaterialTapTargetSize.shrinkWrap, padding: EdgeInsets.zero),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(28, 28),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: EdgeInsets.zero,
+        ),
       ),
     );
   }
@@ -1651,8 +1750,13 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
         Tooltip(
           message: 'Copy',
           child: IconButton(
-            icon: Icon(Icons.copy_outlined, size: 14, color: aliases.labelTertiary),
-            onPressed: () => ClipboardHelper.copyWithFeedback(context, widget.text),
+            icon: Icon(
+              Icons.copy_outlined,
+              size: 14,
+              color: aliases.labelTertiary,
+            ),
+            onPressed: () =>
+                ClipboardHelper.copyWithFeedback(context, widget.text),
             style: IconButton.styleFrom(
               minimumSize: const Size(28, 28),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1667,7 +1771,9 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
             icon: Icon(
               _thumbsUp ? Icons.thumb_up : Icons.thumb_up_outlined,
               size: 14,
-              color: _thumbsUp ? aliases.stateBusinessPrimary : aliases.labelTertiary,
+              color: _thumbsUp
+                  ? aliases.stateBusinessPrimary
+                  : aliases.labelTertiary,
             ),
             onPressed: _toggleUp,
             style: IconButton.styleFrom(
@@ -1684,7 +1790,9 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
             icon: Icon(
               _thumbsDown ? Icons.thumb_down : Icons.thumb_down_outlined,
               size: 14,
-              color: _thumbsDown ? aliases.stateBusinessPrimary : aliases.labelTertiary,
+              color: _thumbsDown
+                  ? aliases.stateBusinessPrimary
+                  : aliases.labelTertiary,
             ),
             onPressed: _toggleDown,
             style: IconButton.styleFrom(
@@ -1698,7 +1806,11 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
         Tooltip(
           message: 'Share',
           child: IconButton(
-            icon: Icon(Icons.ios_share_outlined, size: 14, color: aliases.labelTertiary),
+            icon: Icon(
+              Icons.ios_share_outlined,
+              size: 14,
+              color: aliases.labelTertiary,
+            ),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Share not yet implemented')),
@@ -1731,22 +1843,52 @@ class _TurnUsageDisclosureState extends State<_TurnUsageDisclosure> {
     final usage = widget.usage;
     final aliases = widget.aliases;
     final totalStr = '${_formatTokens(usage.totalTokens)} tok';
-    final cacheHit = usage.cacheReadTokens == null ? null : _formatCacheHitPercent(usage.cacheReadTokens!, usage.totalTokens - usage.outputTokens, 1);
-    final summary = cacheHit == null ? totalStr : '$totalStr · Cache hit $cacheHit%';
-    final routes = usage.routes?.map((r) => '${r.provider}/${r.model}').join(', ') ?? '';
+    final cacheHit = usage.cacheReadTokens == null
+        ? null
+        : _formatCacheHitPercent(
+            usage.cacheReadTokens!,
+            usage.totalTokens - usage.outputTokens,
+            1,
+          );
+    final summary = cacheHit == null
+        ? totalStr
+        : '$totalStr · Cache hit $cacheHit%';
+    final routes =
+        usage.routes?.map((r) => '${r.provider}/${r.model}').join(', ') ?? '';
     final collapsed = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 2, height: 2, decoration: BoxDecoration(color: aliases.labelCaption, shape: BoxShape.circle)),
+        Container(
+          width: 2,
+          height: 2,
+          decoration: BoxDecoration(
+            color: aliases.labelCaption,
+            shape: BoxShape.circle,
+          ),
+        ),
         const SizedBox(width: 8),
-        Flexible(child: Text(summary, style: TextStyle(fontSize: 13, color: aliases.labelTertiary, height: 24 / 13), overflow: TextOverflow.ellipsis)),
+        Flexible(
+          child: Text(
+            summary,
+            style: TextStyle(
+              fontSize: 13,
+              color: aliases.labelTertiary,
+              height: 24 / 13,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DisclosureRow(
-          icon: Icon(Icons.data_usage_outlined, size: 16, color: aliases.labelTertiary),
+          icon: Icon(
+            Icons.data_usage_outlined,
+            size: 16,
+            color: aliases.labelTertiary,
+          ),
           title: 'Turn usage',
           open: _open,
           expandable: true,
@@ -1757,33 +1899,59 @@ class _TurnUsageDisclosureState extends State<_TurnUsageDisclosure> {
           child: Container(
             margin: const EdgeInsets.only(left: 22, top: 4, right: 0),
             padding: const EdgeInsets.fromLTRB(12, 10, 16, 12),
-            decoration: BoxDecoration(color: aliases.markdownCodeBlock, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: aliases.markdownCodeBlock,
+              borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (routes.isNotEmpty) ...[
-                  _UsageRow(label: 'Provider / model', value: routes, aliases: aliases, isRoute: true),
+                  _UsageRow(
+                    label: 'Provider / model',
+                    value: routes,
+                    aliases: aliases,
+                    isRoute: true,
+                  ),
                   const SizedBox(height: 6),
                 ],
-                _UsageRow(label: 'Uncached input', value: '${_formatExactTokens(usage.uncachedInputTokens)} tok', aliases: aliases),
+                _UsageRow(
+                  label: 'Uncached input',
+                  value: '${_formatExactTokens(usage.uncachedInputTokens)} tok',
+                  aliases: aliases,
+                ),
                 if (usage.cacheReadTokens != null) ...[
                   const SizedBox(height: 6),
-                  _UsageRow(label: 'Cached input', value: '${_formatExactTokens(usage.cacheReadTokens!)} tok', aliases: aliases),
+                  _UsageRow(
+                    label: 'Cached input',
+                    value: '${_formatExactTokens(usage.cacheReadTokens!)} tok',
+                    aliases: aliases,
+                  ),
                 ],
                 if (usage.cacheWriteTokens != null) ...[
                   const SizedBox(height: 6),
-                  _UsageRow(label: 'Cache write', value: '${_formatExactTokens(usage.cacheWriteTokens!)} tok', aliases: aliases),
+                  _UsageRow(
+                    label: 'Cache write',
+                    value: '${_formatExactTokens(usage.cacheWriteTokens!)} tok',
+                    aliases: aliases,
+                  ),
                 ],
                 const SizedBox(height: 6),
                 _UsageRow(
                   label: 'Output',
-                  value: '${_formatExactTokens(usage.outputTokens)} tok${usage.reasoningTokens == null ? '' : ' (${_formatExactTokens(usage.reasoningTokens!)} tok reasoning)'}',
+                  value:
+                      '${_formatExactTokens(usage.outputTokens)} tok${usage.reasoningTokens == null ? '' : ' (${_formatExactTokens(usage.reasoningTokens!)} tok reasoning)'}',
                   aliases: aliases,
                 ),
                 const SizedBox(height: 6),
                 Container(height: 1, color: aliases.borderL1),
                 const SizedBox(height: 6),
-                _UsageRow(label: 'Total', value: '${_formatExactTokens(usage.totalTokens)} tok', aliases: aliases, isTotal: true),
+                _UsageRow(
+                  label: 'Total',
+                  value: '${_formatExactTokens(usage.totalTokens)} tok',
+                  aliases: aliases,
+                  isTotal: true,
+                ),
               ],
             ),
           ),
@@ -1794,7 +1962,13 @@ class _TurnUsageDisclosureState extends State<_TurnUsageDisclosure> {
 }
 
 class _UsageRow extends StatelessWidget {
-  const _UsageRow({required this.label, required this.value, required this.aliases, this.isRoute = false, this.isTotal = false});
+  const _UsageRow({
+    required this.label,
+    required this.value,
+    required this.aliases,
+    this.isRoute = false,
+    this.isTotal = false,
+  });
   final String label;
   final String value;
   final DswAliases aliases;
@@ -1802,14 +1976,24 @@ class _UsageRow extends StatelessWidget {
   final bool isTotal;
   @override
   Widget build(BuildContext context) {
-    final labelStyle = TextStyle(fontSize: 12, color: isTotal ? aliases.labelPrimary : aliases.labelTertiary, height: 18 / 12);
-    final valueStyle = TextStyle(fontSize: 12, color: isTotal ? aliases.labelPrimary : aliases.labelSecondary, height: 18 / 12);
+    final labelStyle = TextStyle(
+      fontSize: 12,
+      color: isTotal ? aliases.labelPrimary : aliases.labelTertiary,
+      height: 18 / 12,
+    );
+    final valueStyle = TextStyle(
+      fontSize: 12,
+      color: isTotal ? aliases.labelPrimary : aliases.labelSecondary,
+      height: 18 / 12,
+    );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(width: 92, child: Text(label, style: labelStyle)),
         const SizedBox(width: 16),
-        Expanded(child: Text(value, style: valueStyle, textAlign: TextAlign.right)),
+        Expanded(
+          child: Text(value, style: valueStyle, textAlign: TextAlign.right),
+        ),
       ],
     );
   }
@@ -1879,11 +2063,23 @@ _WindowStats _deriveWindowStats(List<ConversationNode> nodes) {
   int toolMs = 0;
   // Tool durations are tracked in the folder's private map; we cannot access it here,
   // so we leave toolMs at 0. The dock still renders counts/speeds/token groups.
-  return _WindowStats(turns: turns, steps: steps, llmMs: llmMs, toolMs: toolMs, ttftMs: ttftMs, ttftSteps: ttftSteps, decodeMs: decodeMs, decodeTokens: decodeTokens);
+  return _WindowStats(
+    turns: turns,
+    steps: steps,
+    llmMs: llmMs,
+    toolMs: toolMs,
+    ttftMs: ttftMs,
+    ttftSteps: ttftSteps,
+    decodeMs: decodeMs,
+    decodeTokens: decodeTokens,
+  );
 }
 
 TurnTokenUsage? _aggregateTokenUsage(List<TurnTailNode> tails) {
-  final withUsage = tails.where((t) => t.tokenUsage != null).map((t) => t.tokenUsage!).toList();
+  final withUsage = tails
+      .where((t) => t.tokenUsage != null)
+      .map((t) => t.tokenUsage!)
+      .toList();
   if (withUsage.isEmpty) return null;
   int sumInput = 0;
   int sumOutput = 0;
@@ -1900,7 +2096,10 @@ TurnTokenUsage? _aggregateTokenUsage(List<TurnTailNode> tails) {
     sumInput += u.uncachedInputTokens;
     sumOutput += u.outputTokens;
     sumTotal += u.totalTokens;
-    if (sumInput > 9007199254740991 || sumOutput > 9007199254740991 || sumTotal > 9007199254740991) return null;
+    if (sumInput > 9007199254740991 ||
+        sumOutput > 9007199254740991 ||
+        sumTotal > 9007199254740991)
+      return null;
   }
   if (allCacheRead) {
     sumCacheRead = withUsage.fold<int>(0, (s, u) => s + u.cacheReadTokens!);
@@ -1941,13 +2140,18 @@ class _StatsLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final DswAliases aliases = theme.extension<DswThemeExtension>()?.aliases ?? (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
     final List<String> groups = [];
     if (stats.steps > 0) {
       groups.add('${stats.turns} turns · ${stats.steps} steps');
       final durations = <String>[];
       if (stats.llmMs > 0) durations.add('LLM ${_formatDuration(stats.llmMs)}');
-      if (stats.toolMs > 0) durations.add('Tool call ${_formatDuration(stats.toolMs)}');
+      if (stats.toolMs > 0)
+        durations.add('Tool call ${_formatDuration(stats.toolMs)}');
       if (durations.isNotEmpty) groups.add(durations.join(' · '));
       final speeds = <String>[];
       if (stats.ttftSteps > 0) {
@@ -1960,10 +2164,18 @@ class _StatsLine extends StatelessWidget {
       }
       if (speeds.isNotEmpty) groups.add(speeds.join(' · '));
     }
-    if (usage != null && (usage!.billedInputTokens > 0 || usage!.outputTokens > 0)) {
-      final cacheHit = usage!.cacheReadTokens == null ? null : _formatCacheHitPercent(usage!.cacheReadTokens!, usage!.billedInputTokens);
+    if (usage != null &&
+        (usage!.billedInputTokens > 0 || usage!.outputTokens > 0)) {
+      final cacheHit = usage!.cacheReadTokens == null
+          ? null
+          : _formatCacheHitPercent(
+              usage!.cacheReadTokens!,
+              usage!.billedInputTokens,
+            );
       if (cacheHit != null) groups.add('Cache hit $cacheHit%');
-      groups.add('Input ${_formatTokens(usage!.billedInputTokens)} tok · Output ${_formatTokens(usage!.outputTokens)} tok');
+      groups.add(
+        'Input ${_formatTokens(usage!.billedInputTokens)} tok · Output ${_formatTokens(usage!.outputTokens)} tok',
+      );
     }
     if (groups.isEmpty) return const SizedBox.shrink();
     final line = groups.join(' | ');
@@ -1975,7 +2187,11 @@ class _StatsLine extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 748),
           child: Text(
             line,
-            style: TextStyle(fontSize: 13, color: aliases.labelTertiary, height: 20 / 13),
+            style: TextStyle(
+              fontSize: 13,
+              color: aliases.labelTertiary,
+              height: 20 / 13,
+            ),
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
             maxLines: 1,
@@ -2112,7 +2328,7 @@ class _ReasoningRowState extends State<_ReasoningRow> {
     return Container(
       decoration: BoxDecoration(
         color: widget.aliases.bgOverlay.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
         border: Border.all(color: widget.aliases.borderL2),
       ),
       child: Column(
@@ -2120,7 +2336,7 @@ class _ReasoningRowState extends State<_ReasoningRow> {
         children: [
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
@@ -2355,7 +2571,7 @@ class _IoCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: aliases.markdownCodeBlock,
-        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+        borderRadius: BorderRadius.circular(DswTokens.radiusXl),
         border: Border.all(color: aliases.borderL1),
       ),
       child: Column(
@@ -2404,8 +2620,13 @@ class _IoCard extends StatelessWidget {
                 Tooltip(
                   message: 'Copy',
                   child: IconButton(
-                    icon: Icon(Icons.copy_outlined, size: 14, color: aliases.labelTertiary),
-                    onPressed: () => ClipboardHelper.copyWithFeedback(context, out),
+                    icon: Icon(
+                      Icons.copy_outlined,
+                      size: 14,
+                      color: aliases.labelTertiary,
+                    ),
+                    onPressed: () =>
+                        ClipboardHelper.copyWithFeedback(context, out),
                     style: IconButton.styleFrom(
                       minimumSize: const Size(28, 28),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -2449,6 +2670,7 @@ class _SubCallRow extends StatelessWidget {
                   subCall.name,
                   style: TextStyle(
                     fontSize: 11,
+                    height: 1.5,
                     fontWeight: FontWeight.w600,
                     color: subCall.isError
                         ? aliases.stateErrorPrimary
@@ -2460,6 +2682,7 @@ class _SubCallRow extends StatelessWidget {
                     subCall.result!,
                     style: TextStyle(
                       fontSize: 11,
+                      height: 1.5,
                       color: subCall.isError
                           ? aliases.stateErrorPrimary
                           : aliases.labelTertiary,
@@ -2636,7 +2859,9 @@ class _ContextRowState extends State<_ContextRow> {
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: widget.aliases.markdownCodeBlock,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(
+                              DswTokens.radiusLg,
+                            ),
                             border: Border.all(color: widget.aliases.borderL1),
                           ),
                           child: Text(
@@ -2710,8 +2935,7 @@ class _SystemPromptRowState extends State<_SystemPromptRow> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: widget.aliases.markdownCodeBlock,
-                      borderRadius:
-                          BorderRadius.circular(DswTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(DswTokens.radiusLg),
                       border: Border.all(color: widget.aliases.borderL1),
                     ),
                     child: ConstrainedBox(
@@ -2750,7 +2974,8 @@ class _ModelRetryRow extends StatefulWidget {
 class _ModelRetryRowState extends State<_ModelRetryRow> {
   bool _expanded = false;
 
-  int _retrySeconds(int ms) => ms <= 0 ? 1 : (ms / 1000).ceil().clamp(1, 1 << 30);
+  int _retrySeconds(int ms) =>
+      ms <= 0 ? 1 : (ms / 1000).ceil().clamp(1, 1 << 30);
   @override
   Widget build(BuildContext context) {
     final node = widget.node;
@@ -2773,7 +2998,9 @@ class _ModelRetryRowState extends State<_ModelRetryRow> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InkWell(
-          onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
+          onTap: hasDetails
+              ? () => setState(() => _expanded = !_expanded)
+              : null,
           borderRadius: BorderRadius.circular(DswTokens.radiusXs),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
@@ -2885,22 +3112,35 @@ class _TurnProcessRowState extends State<_TurnProcessRow> {
 
   @override
   Widget build(BuildContext context) {
-    final bool foldable = widget.messageCount > 0 || widget.toolCallCount > 0 || widget.subagentCount > 0;
+    final bool foldable =
+        widget.messageCount > 0 ||
+        widget.toolCallCount > 0 ||
+        widget.subagentCount > 0;
     final String title;
     if (!foldable) {
       title = 'Thought for a while';
     } else {
       final parts = <String>[];
       if (widget.toolCallCount > 0 && widget.subagentCount == 0) {
-        parts.add('${widget.toolCallCount} tool${widget.toolCallCount == 1 ? '' : 's'}');
+        parts.add(
+          '${widget.toolCallCount} tool${widget.toolCallCount == 1 ? '' : 's'}',
+        );
       } else if (widget.subagentCount > 0 && widget.toolCallCount == 0) {
-        parts.add('${widget.subagentCount} subagent${widget.subagentCount == 1 ? '' : 's'}');
+        parts.add(
+          '${widget.subagentCount} subagent${widget.subagentCount == 1 ? '' : 's'}',
+        );
       } else if (widget.toolCallCount > 0 && widget.subagentCount > 0) {
-        parts.add('${widget.toolCallCount} tool${widget.toolCallCount == 1 ? '' : 's'}');
-        parts.add('${widget.subagentCount} subagent${widget.subagentCount == 1 ? '' : 's'}');
+        parts.add(
+          '${widget.toolCallCount} tool${widget.toolCallCount == 1 ? '' : 's'}',
+        );
+        parts.add(
+          '${widget.subagentCount} subagent${widget.subagentCount == 1 ? '' : 's'}',
+        );
       }
       if (widget.messageCount > 0) {
-        parts.add('${widget.messageCount} reply${widget.messageCount == 1 ? '' : 'ies'}');
+        parts.add(
+          '${widget.messageCount} reply${widget.messageCount == 1 ? '' : 'ies'}',
+        );
       }
       title = parts.isEmpty ? 'Thought for a while' : parts.join(' · ');
     }
@@ -2931,7 +3171,11 @@ class _TurnProcessRowState extends State<_TurnProcessRow> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DisclosureRow(
-          icon: Icon(Icons.psychology_outlined, size: 14, color: widget.aliases.labelTertiary),
+          icon: Icon(
+            Icons.psychology_outlined,
+            size: 14,
+            color: widget.aliases.labelTertiary,
+          ),
           title: 'Process',
           open: _open,
           expandable: foldable,
@@ -2945,12 +3189,15 @@ class _TurnProcessRowState extends State<_TurnProcessRow> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: widget.aliases.bgLayer2,
-                      borderRadius: BorderRadius.circular(DswTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(DswTokens.radiusLg),
                       border: Border.all(color: widget.aliases.borderL2),
                     ),
                     child: Text(
                       'Turn ${widget.turn} process: $title',
-                      style: TextStyle(fontSize: 11, color: widget.aliases.labelSecondary),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: widget.aliases.labelSecondary,
+                      ),
                     ),
                   ),
                 )
@@ -3027,12 +3274,12 @@ class _CompactionCardState extends State<_CompactionCard> {
         children: [
           Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
             child: InkWell(
               onTap: canExpand
                   ? () => setState(() => _expanded = !_expanded)
                   : null,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(DswTokens.radiusLg),
               hoverColor: widget.aliases.interactiveBgHover,
               child: Container(
                 height: 24,
@@ -3073,6 +3320,7 @@ class _CompactionCardState extends State<_CompactionCard> {
                         summary,
                         style: TextStyle(
                           fontSize: 14,
+                          height: 1.4,
                           color: widget.aliases.labelTertiary,
                         ),
                         overflow: TextOverflow.ellipsis,

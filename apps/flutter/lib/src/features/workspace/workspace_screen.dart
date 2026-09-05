@@ -16,8 +16,8 @@ import 'workspace_provider.dart';
 /// menu listing, `Add workspace` via directory pick (real `workspace.create`),
 /// error dialog, selected check, empty/loading.
 /// Also augments the existing sidebar workspace selector (shared providers).
-/// Uses real `workspaceList()` via [workspaceListProvider] (parses `items` and
-/// `archivedSessionIds` via `ref.watch(connectionClientProvider).workspaceList()`)
+/// Uses the live `workspaceListProvider` (`workspace/follow` baseline +
+/// increments; there is no `workspace/list` unary in master)
 /// and shows `hostDescribe` cwd. Keeps `kWorkspaceOptions` as offline fallback
 /// and provides a `TextField` for new workspace path with `workspaceCreate` on
 /// submit.
@@ -388,11 +388,21 @@ class WorkspaceScreen extends ConsumerWidget {
     try {
       final client = ref.read(connectionClientProvider);
       final result = await client.workspaceCreate(path: trimmed);
+      final workspace = result['workspace'] as Map<String, dynamic>?;
+      if (workspace != null) {
+        try {
+          upsertLiveWorkspace(
+            ref,
+            WorkspaceView.fromJson(workspace.cast<String, dynamic>()),
+          );
+        } catch (_) {
+          // Parse failure still leaves follow upsert as backstop.
+        }
+      }
       // Invalidate to re-fetch real list including new workspace.
       ref.invalidate(workspaceListProvider);
       ref.invalidate(hostDescribeProvider);
       if (!context.mounted) return;
-      final workspace = result['workspace'] as Map<String, dynamic>?;
       final title = workspace?['title'] as String? ?? trimmed;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Workspace "$title" created')));

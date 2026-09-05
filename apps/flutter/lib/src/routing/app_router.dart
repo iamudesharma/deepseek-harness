@@ -220,7 +220,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: aliases.stateBusinessTertiary,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(
+                              DswTokens.radiusFull,
+                            ),
                             border: Border.all(
                               color: aliases.stateBusinessPrimary.withValues(
                                 alpha: 0.18,
@@ -250,6 +252,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Choose a workspace to start',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
                         color: aliases.labelTertiary,

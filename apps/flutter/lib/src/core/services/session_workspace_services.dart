@@ -123,6 +123,13 @@ class WorkspacesService {
   Future<DirectoryPickerKind> probeDirectoryPickerKind() async {
     final cached = _directoryPickerKind;
     if (cached != null) return cached;
+    if (isRemote) {
+      // A remote device never hosts the native chooser, and the probe
+      // (`directoryPicker/pick`) would pop the host's OS dialog on the
+      // user's desktop. Browse is the only kind a remote caller can drive.
+      _directoryPickerKind = DirectoryPickerKind.browse;
+      return DirectoryPickerKind.browse;
+    }
     try {
       // `directoryPicker/pick` is the universal "is the host alive" probe
       // because both kinds accept an empty args body. A native host returns
@@ -151,6 +158,39 @@ class WorkspacesService {
   /// may swap the composition under our feet.
   void invalidateDirectoryPickerKind() {
     _directoryPickerKind = null;
+  }
+
+  /// Resolves the picker kind for web clients without opening a native dialog.
+  ///
+  /// Web must not use [probeDirectoryPickerKind] — that probes via
+  /// `directoryPicker/pick`, which pops the host OS chooser on a native
+  /// composition. This probes via `directoryPicker/list` (home level, no
+  /// dialog side effect): success means `browse`, a typed
+  /// `directory-picker-unavailable {capability:native}` failure means
+  /// `native`. Remote targets always serve `browse` without a probe.
+  /// Other failures return `browse` so the Miller dialog surfaces them as
+  /// before.
+  ///
+  /// @returns the host picker kind the web caller must drive.
+  Future<DirectoryPickerKind> resolvePickerKindForWeb() async {
+    final cached = _directoryPickerKind;
+    if (cached != null) return cached;
+    if (isRemote) {
+      _directoryPickerKind = DirectoryPickerKind.browse;
+      return DirectoryPickerKind.browse;
+    }
+    try {
+      await listDirectory();
+      return DirectoryPickerKind.browse;
+    } on RemoteMethodException catch (e) {
+      if (e.code == RpcErrorCode.directoryPickerUnavailable &&
+          e.details['capability'] == 'native') {
+        return DirectoryPickerKind.native;
+      }
+      return DirectoryPickerKind.browse;
+    } catch (_) {
+      return DirectoryPickerKind.browse;
+    }
   }
 
   Future<Map<String, Object?>> _call(
