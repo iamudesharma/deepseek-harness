@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-03T02:52:17.758Z",
+  "generatedAt": "2026-09-05T07:20:29.205Z",
   "oldSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-  "newSha": "49a606bc5b5934603f22a26957a07dc799ab0291",
-  "total": 3,
+  "newSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+  "total": 4,
   "breaking": 3,
-  "additive": 0,
+  "additive": 1,
   "entries": [
     {
       "id": "pluralization:subagent/interruptByParent->subagents/interruptByParent",
@@ -46,6 +46,19 @@
       "sourceFiles": [
         "packages/subagent/subagent/src/index.ts",
         "packages/subagent/subagent/src/index.ts"
+      ]
+    },
+    {
+      "id": "added:fileUploads/upload",
+      "kind": "added",
+      "oldEndpoint": null,
+      "newEndpoint": "fileUploads/upload",
+      "oldValue": null,
+      "newValue": "fileUploads/upload",
+      "severity": "P2",
+      "description": "Endpoint added: fileUploads/upload (service fileUploads, mode unary) from packages/client/file-upload/src/index.ts:106",
+      "sourceFiles": [
+        "packages/client/file-upload/src/index.ts"
       ]
     }
   ]

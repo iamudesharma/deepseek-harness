@@ -158,6 +158,12 @@
     "demo:inspector": "node --import tsx/esm apps/cli/src/bin.ts web --patch ./packages/experimental/inspector/cordis.source.patch.yml",
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
     "dev:web": "tsx scripts/dev-web.ts --poll",
+    "upstream:check": "tsx scripts/upstream-sync/index.ts check",
+    "upstream:diff": "tsx scripts/upstream-sync/index.ts diff",
+    "upstream:report": "tsx scripts/upstream-sync/index.ts report",
+    "upstream:impact": "tsx scripts/upstream-sync/index.ts impact",
+    "upstream:sync": "tsx scripts/upstream-sync/index.ts sync",
+    "upstream:verify": "tsx scripts/upstream-sync/index.ts verify",
     "postinstall": "node scripts/install-lefthook.mjs"
   },
   "devDependencies": {

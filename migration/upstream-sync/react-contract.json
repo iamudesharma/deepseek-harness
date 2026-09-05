@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-03T02:52:18.212Z",
-  "rev": "49a606bc5b5934603f22a26957a07dc799ab0291",
+  "generatedAt": "2026-09-05T07:20:29.677Z",
+  "rev": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
   "surfaces": [
     {
       "id": "apps.web.stress-tests.reasoning-chunks.stress",
@@ -188,7 +188,9 @@
       ],
       "requestShape": "requestAnimationFrame(() => {\n      requestAnimationFrame(() => { resolve() }",
       "responseShape": "response = deltas.join('')\n  return [\n    { type: 'block-start', index: 0, blockType: 'text' }",
-      "modelUsed": [],
+      "modelUsed": [
+        "model"
+      ],
       "eventUsed": [
         "session/event"
       ],
@@ -215,6 +217,26 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "apps.web.tests.clickable-links-gallery.e2e",
+      "sourceFile": "apps/web/tests/clickable-links-gallery.e2e.ts",
+      "apiUsed": [
+        "session/title"
+      ],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [
+        "model",
+        "provider"
+      ],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
       "fallbackBehavior": "fallback present",
       "errorBehavior": null,
       "lifecycle": null
@@ -377,6 +399,28 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "apps.web.tests.file-upload-round.e2e",
+      "sourceFile": "apps/web/tests/file-upload-round.e2e.ts",
+      "apiUsed": [
+        "session/event"
+      ],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [
+        "model",
+        "modelTrigger"
+      ],
+      "eventUsed": [
+        "session/event"
+      ],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
       "fallbackBehavior": null,
       "errorBehavior": null,
       "lifecycle": null
@@ -861,8 +905,8 @@
       ],
       "eventUsed": [],
       "streamUsed": [],
-      "stateSource": null,
-      "currentValueSource": null,
+      "stateSource": "projection",
+      "currentValueSource": "snapshot cursor",
       "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
@@ -1373,6 +1417,7 @@
       "id": "apps.web.tests.subagent-conversation.e2e",
       "sourceFile": "apps/web/tests/subagent-conversation.e2e.ts",
       "apiUsed": [
+        "session/title",
         "session/event"
       ],
       "requestShape": "request', (request) => {\n      const path = new URL(request.url()).pathname\n      if (path.startsWith('/api/')) apiCalls.push(path)\n    }",
@@ -1696,7 +1741,7 @@
         "session/fork-unavailable",
         "session/attachment-invalid"
       ],
-      "requestShape": "Request {\n  readonly address: FixtureSessionAddress\n  readonly maxMessages?: number\n}",
+      "requestShape": "Request {\n  readonly address: FixtureSessionAddress\n  readonly maxMessages?: number\n  readonly assistantStream?: true\n}",
       "responseShape": null,
       "modelUsed": [
         "ModelSelection",
@@ -1764,8 +1809,8 @@
       "id": "packages.client.connection.src.http-bridge",
       "sourceFile": "packages/client/connection/src/http-bridge.ts",
       "apiUsed": [],
-      "requestShape": "RequestBodyBytes) {\n    res.writeHead(413, { connection: 'close' }",
-      "responseShape": "response.body === null) {\n    res.end()\n    return\n  }",
+      "requestShape": "requestBodyMode({ method, url }",
+      "responseShape": "Response } from 'node:http'\nimport { Readable }",
       "modelUsed": [],
       "eventUsed": [],
       "streamUsed": [],
@@ -1826,7 +1871,7 @@
       "id": "packages.client.connection.src.rpc-host",
       "sourceFile": "packages/client/connection/src/rpc-host.ts",
       "apiUsed": [],
-      "requestShape": "RequestSchema } from './rpc-schema.ts'\nimport { bridge, type FetchHandler }",
+      "requestShape": "RequestSchema } from './rpc-schema.ts'\nimport { bridge }",
       "responseShape": "Response {\n  readonly type: 'server-response'\n  readonly rpcId: RpcIdType\n  readonly result: ConnectionRpcResult<unknown>\n}",
       "modelUsed": [],
       "eventUsed": [],
@@ -2052,7 +2097,7 @@
       "id": "packages.client.connection.tests.http-bridge.host.spec",
       "sourceFile": "packages/client/connection/tests/http-bridge.host.spec.ts",
       "apiUsed": [],
-      "requestShape": "request, response, {\n      fetch: () => { throw new Error('a rejected request must never reach the handler') }",
+      "requestShape": "request, {\n      url: '/api/directoryPicker/pick',\n      method: 'POST',\n      headers: { 'content-type': 'application/json' }",
       "responseShape": "Response } from 'node:http'\nimport { describe, expect, it }",
       "modelUsed": [],
       "eventUsed": [],
@@ -2123,6 +2168,167 @@
     {
       "id": "packages.client.connection.tsdown.config",
       "sourceFile": "packages/client/connection/tsdown.config.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.client.contract",
+      "sourceFile": "packages/client/file-upload/src/client/contract.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.client.index",
+      "sourceFile": "packages/client/file-upload/src/client/index.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.client.runtime",
+      "sourceFile": "packages/client/file-upload/src/client/runtime.ts",
+      "apiUsed": [],
+      "requestShape": "RequestInit & { readonly duplex: 'half' }",
+      "responseShape": "Response {\n  readonly status: number\n  readonly body: string\n}",
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.http-route",
+      "sourceFile": "packages/client/file-upload/src/http-route.ts",
+      "apiUsed": [],
+      "requestShape": "request: Request): Promise<Response> {\n  if (request.method !== 'POST') {\n    return new Response(null, { status: 405, headers: { allow: 'POST' }",
+      "responseShape": "Response> {\n  if (request.method !== 'POST') {\n    return new Response(null, { status: 405, headers: { allow: 'POST' }",
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.index",
+      "sourceFile": "packages/client/file-upload/src/index.ts",
+      "apiUsed": [
+        "session/event",
+        "session/disposed",
+        "session/attachment-invalid",
+        "session/not-found"
+      ],
+      "requestShape": "request.name === undefined ? {}",
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [
+        "session/event"
+      ],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.protocol",
+      "sourceFile": "packages/client/file-upload/src/protocol.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.src.types",
+      "sourceFile": "packages/client/file-upload/src/types.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.tests.file-upload-http.host.spec",
+      "sourceFile": "packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+      "apiUsed": [
+        "session/attachment-invalid"
+      ],
+      "requestShape": "request(input: {\n  method?: string\n  sessionId?: string\n  name?: string\n  contentType?: string\n  body?: Uint8Array\n}",
+      "responseShape": "response.json()).toEqual({ ok: true, value }",
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.tests.file-upload.client.spec",
+      "sourceFile": "packages/client/file-upload/tests/file-upload.client.spec.ts",
+      "apiUsed": [
+        "session/attachment-invalid"
+      ],
+      "requestShape": "RequestInit & { readonly duplex: 'half' }",
+      "responseShape": "responseText: '{\"ok\":true}",
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.file-upload.tsdown.config",
+      "sourceFile": "packages/client/file-upload/tsdown.config.ts",
       "apiUsed": [],
       "requestShape": null,
       "responseShape": null,
@@ -2994,7 +3200,7 @@
       "id": "packages.client.ui-approval.src.client.contract.slots",
       "sourceFile": "packages/client/ui-approval/src/client/contract/slots.ts",
       "apiUsed": [],
-      "requestShape": "request: ApprovalPresentationRequest) {\n    nextApprovalKey += 1\n    this.key = `approval:${String(nextApprovalKey)}",
+      "requestShape": "request: ApprovalPresentationRequest) {\n    this.kind = 'approval'\n    nextApprovalKey += 1\n    this.key = `approval:${String(nextApprovalKey)}",
       "responseShape": null,
       "modelUsed": [],
       "eventUsed": [],
@@ -3106,7 +3312,7 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": "snapshot cursor",
-      "fallbackBehavior": "fallback present",
+      "fallbackBehavior": null,
       "errorBehavior": null,
       "lifecycle": "hooks lifecycle"
     },
@@ -3122,7 +3328,7 @@
       "stateSource": null,
       "currentValueSource": "snapshot cursor",
       "fallbackBehavior": null,
-      "errorBehavior": null,
+      "errorBehavior": "error handled",
       "lifecycle": "hooks lifecycle"
     },
     {
@@ -3151,7 +3357,7 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
-      "fallbackBehavior": null,
+      "fallbackBehavior": "fallback present",
       "errorBehavior": null,
       "lifecycle": null
     },
@@ -3198,6 +3404,21 @@
       "currentValueSource": "snapshot cursor",
       "fallbackBehavior": null,
       "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-attachment.src.FileCard",
+      "sourceFile": "packages/client/ui-attachment/src/FileCard.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
       "lifecycle": null
     },
     {
@@ -3258,7 +3479,7 @@
       "currentValueSource": null,
       "fallbackBehavior": null,
       "errorBehavior": null,
-      "lifecycle": "hooks lifecycle"
+      "lifecycle": null
     },
     {
       "id": "packages.client.ui-attachment.tests.composer-attachments.client.spec",
@@ -3271,8 +3492,8 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
-      "fallbackBehavior": null,
-      "errorBehavior": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
       "lifecycle": null
     },
     {
@@ -4863,6 +5084,21 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-chat.tests.skill-name-projector.client.spec",
+      "sourceFile": "packages/client/ui-chat/tests/skill-name-projector.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-chat.tests.system-prompt-row.client.spec",
       "sourceFile": "packages/client/ui-chat/tests/system-prompt-row.client.spec.tsx",
       "apiUsed": [],
@@ -5105,7 +5341,7 @@
       "eventUsed": [],
       "streamUsed": [],
       "stateSource": "projection",
-      "currentValueSource": "snapshot cursor",
+      "currentValueSource": null,
       "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
@@ -5409,8 +5645,8 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": "snapshot cursor",
-      "fallbackBehavior": null,
-      "errorBehavior": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
       "lifecycle": null
     },
     {
@@ -5888,7 +6124,7 @@
       ],
       "streamUsed": [],
       "stateSource": null,
-      "currentValueSource": null,
+      "currentValueSource": "snapshot cursor",
       "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
@@ -5988,7 +6224,7 @@
       "streamUsed": [],
       "stateSource": "projection",
       "currentValueSource": "snapshot cursor",
-      "fallbackBehavior": null,
+      "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": "hooks lifecycle"
     },
@@ -6183,10 +6419,15 @@
     {
       "id": "packages.client.ui-conversation.tests.conversation-assembler.client.spec",
       "sourceFile": "packages/client/ui-conversation/tests/conversation-assembler.client.spec.ts",
-      "apiUsed": [],
+      "apiUsed": [
+        "llm/retry"
+      ],
       "requestShape": null,
       "responseShape": null,
-      "modelUsed": [],
+      "modelUsed": [
+        "model",
+        "provider"
+      ],
       "eventUsed": [],
       "streamUsed": [],
       "stateSource": null,
@@ -6201,7 +6442,10 @@
       "apiUsed": [],
       "requestShape": "requestId: 'test-req' as never, abandon: () => {}",
       "responseShape": null,
-      "modelUsed": [],
+      "modelUsed": [
+        "provider",
+        "model"
+      ],
       "eventUsed": [],
       "streamUsed": [],
       "stateSource": "projection",
@@ -6278,11 +6522,14 @@
       "apiUsed": [],
       "requestShape": null,
       "responseShape": "response.writeHead(200, { 'content-type': 'application/json' }",
-      "modelUsed": [],
+      "modelUsed": [
+        "provider",
+        "model"
+      ],
       "eventUsed": [],
       "streamUsed": [],
       "stateSource": null,
-      "currentValueSource": "snapshot cursor",
+      "currentValueSource": null,
       "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
@@ -6338,7 +6585,7 @@
       "streamUsed": [],
       "stateSource": "projection",
       "currentValueSource": "snapshot cursor",
-      "fallbackBehavior": null,
+      "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
     },
@@ -6355,7 +6602,7 @@
       "streamUsed": [],
       "stateSource": "projection",
       "currentValueSource": "snapshot cursor",
-      "fallbackBehavior": null,
+      "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
     },
@@ -6387,7 +6634,7 @@
       "streamUsed": [],
       "stateSource": "Projection",
       "currentValueSource": "snapshot cursor",
-      "fallbackBehavior": null,
+      "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
     },
@@ -6516,7 +6763,7 @@
       ],
       "streamUsed": [],
       "stateSource": null,
-      "currentValueSource": null,
+      "currentValueSource": "snapshot cursor",
       "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
       "lifecycle": null
@@ -7108,6 +7355,21 @@
       "currentValueSource": "snapshot cursor",
       "fallbackBehavior": null,
       "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-goal.tests.goal-command-input-styles.client.spec",
+      "sourceFile": "packages/client/ui-goal/tests/goal-command-input-styles.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": "projection",
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
       "lifecycle": null
     },
     {
@@ -8671,6 +8933,36 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-primitives.src.DocumentFileIcon",
+      "sourceFile": "packages/client/ui-primitives/src/DocumentFileIcon.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.src.file-size",
+      "sourceFile": "packages/client/ui-primitives/src/file-size.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-primitives.src.FishLogo",
       "sourceFile": "packages/client/ui-primitives/src/FishLogo.tsx",
       "apiUsed": [],
@@ -8806,6 +9098,21 @@
       "lifecycle": "hooks lifecycle"
     },
     {
+      "id": "packages.client.ui-primitives.src.LinkIcon",
+      "sourceFile": "packages/client/ui-primitives/src/LinkIcon.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-primitives.src.markdown.cjkFriendlyStrong",
       "sourceFile": "packages/client/ui-primitives/src/markdown/cjkFriendlyStrong.ts",
       "apiUsed": [],
@@ -8913,21 +9220,6 @@
     {
       "id": "packages.client.ui-primitives.src.markdown.mathCompatibility",
       "sourceFile": "packages/client/ui-primitives/src/markdown/mathCompatibility.ts",
-      "apiUsed": [],
-      "requestShape": null,
-      "responseShape": null,
-      "modelUsed": [],
-      "eventUsed": [],
-      "streamUsed": [],
-      "stateSource": null,
-      "currentValueSource": null,
-      "fallbackBehavior": null,
-      "errorBehavior": null,
-      "lifecycle": null
-    },
-    {
-      "id": "packages.client.ui-primitives.src.markdown.MessageText",
-      "sourceFile": "packages/client/ui-primitives/src/markdown/MessageText.tsx",
       "apiUsed": [],
       "requestShape": null,
       "responseShape": null,
@@ -9074,6 +9366,21 @@
       "fallbackBehavior": null,
       "errorBehavior": null,
       "lifecycle": "hooks lifecycle"
+    },
+    {
+      "id": "packages.client.ui-primitives.src.rank-by-name",
+      "sourceFile": "packages/client/ui-primitives/src/rank-by-name.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
     },
     {
       "id": "packages.client.ui-primitives.src.ReadBlock",
@@ -9382,6 +9689,21 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-primitives.tests.file-size.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/file-size.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-primitives.tests.highlight-viewport.client.spec",
       "sourceFile": "packages/client/ui-primitives/tests/highlight-viewport.client.spec.tsx",
       "apiUsed": [],
@@ -9452,6 +9774,21 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.tests.link-icon.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/link-icon.client.spec.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
       "fallbackBehavior": null,
       "errorBehavior": null,
       "lifecycle": null
@@ -9549,6 +9886,21 @@
     {
       "id": "packages.client.ui-primitives.tests.onboarding-surface.client.spec",
       "sourceFile": "packages/client/ui-primitives/tests/onboarding-surface.client.spec.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.tests.rank-by-name.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/rank-by-name.client.spec.ts",
       "apiUsed": [],
       "requestShape": null,
       "responseShape": null,
@@ -15313,5 +15665,5 @@
       "lifecycle": "describe then mutate"
     }
   ],
-  "totalSurfaces": 946
+  "totalSurfaces": 967
 }
