@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef, Translate;
+import '../../../core/session/session_provider.dart' show currentSessionProvider;
+import '../../../core/session/session_models.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/primitives/ansi.dart';
 import '../../../widgets/primitives/disclosure_row.dart';
+import '../../conversation/locales.dart' show kConversationNamespace;
 import '../tool_models.dart';
+import '../presentation/diff_model.dart' as diff_model;
+import '../presentation/terminal_model.dart' as terminal_model;
+import '../presentation/todo_model.dart' as todo_model;
+import '../presentation/tool_row_model.dart' as row_model;
 
 /// Tool call tree — one [DisclosureRow] per tool call, supporting Generic,
 /// Read, Diff, Search, Bash tool cards. Use [toolCallsProvider] family keyed
@@ -89,25 +98,59 @@ class _ToolCallRowState extends ConsumerState<_ToolCallRow> {
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
 
+    final Translate t = ref.bindLocale(kConversationNamespace);
+    final SessionSummary? session = ref.watch(currentSessionProvider);
+    final String? cwd = session?.cwd;
+    final ToolCall call = widget.call;
+    final bool running = call.status == ToolCallStatus.running;
+    final model = row_model.toolRowModel(
+      toolName: call.toolName,
+      argsRaw: call.argsRaw,
+      running: running,
+      isError: call.status == ToolCallStatus.error,
+      interrupted: call.errorCode == 'interrupted',
+      resultText: call.result?.toString(),
+      cwd: cwd,
+      callId: call.id,
+    );
+    final String title = _rowTitle(t, call, model);
+    final String summary = _collapsedSummary(call, model);
+    final String? diffStat = _diffStatFor(call);
+
     final bool expandable =
-        widget.call.args.isNotEmpty || widget.call.result != null;
-    final String title =
-        '${widget.call.toolName} · ${_statusLabel(widget.call.status)}';
+        call.argsRaw.isNotEmpty || call.result != null;
 
     return DisclosureRow(
-      icon: _iconForKind(widget.call.kind, aliases),
+      icon: _iconFor(call, model, aliases),
       title: title,
       open: _open,
       expandable: expandable,
       onToggle: () => setState(() => _open = !_open),
       expandOnRowClick: true,
-      collapsedContent: Text(
-        _collapsedPreview(widget.call),
-        style: TextStyle(
-          fontSize: DswTokens.fontSizeXxs12,
-          color: aliases.labelCaption,
-        ),
-        overflow: TextOverflow.ellipsis,
+      collapsedContent: Row(
+        children: [
+          Expanded(
+            child: Text(
+              summary,
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXxs12,
+                color: aliases.labelCaption,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (diffStat != null) ...[
+            const SizedBox(width: 6),
+            Text(
+              diffStat,
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXxs12,
+                fontFamily: 'SF Mono',
+                color: aliases.labelCaption,
+              ),
+            ),
+          ],
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -121,34 +164,76 @@ class _ToolCallRowState extends ConsumerState<_ToolCallRow> {
     );
   }
 
-  String _statusLabel(ToolCallStatus s) => switch (s) {
-    ToolCallStatus.pending => 'pending',
-    ToolCallStatus.running => 'running',
-    ToolCallStatus.success => 'done',
-    ToolCallStatus.error => 'error',
-    ToolCallStatus.cancelled => 'not executed',
-  };
-
-  String _collapsedPreview(ToolCall call) {
-    final dynamic args = call.args;
-    if (args is Map && args.isNotEmpty) {
-      final String? path =
-          args['path'] as String? ??
-          args['file'] as String? ??
-          args['command'] as String?;
-      if (path != null) return path;
-      return args.keys.first.toString();
-    }
-    return call.kind.name;
+  String _titleFor(Translate t, row_model.ToolRowModel model) {
+    final localized = t(model.titleKey);
+    if (localized == model.titleKey) return model.titleFallback;
+    return localized;
   }
 
-  Widget _iconForKind(ToolCallKind kind, DswAliases aliases) {
-    final IconData data = switch (kind) {
-      ToolCallKind.read => Icons.article_outlined,
-      ToolCallKind.diff => Icons.difference_outlined,
-      ToolCallKind.search => Icons.search,
-      ToolCallKind.bash => Icons.terminal,
-      ToolCallKind.generic => Icons.build_outlined,
+  String _rowTitle(
+    Translate t,
+    ToolCall call,
+    row_model.ToolRowModel model,
+  ) {
+    if (call.toolName.toLowerCase() == 'todo_write') {
+      const key = 'todo.rowTitle';
+      final localized = t(key);
+      if (localized == key) return 'Update to-do list';
+      return localized;
+    }
+    return _titleFor(t, model);
+  }
+
+  String _collapsedSummary(ToolCall call, row_model.ToolRowModel model) {
+    if (model.state == row_model.ToolRowState.error &&
+        model.errorSummary != null) {
+      return model.errorSummary!;
+    }
+    final name = call.toolName.toLowerCase();
+    if (name == 'todo_write') return todo_model.summarizeTodos(call.argsRaw).text;
+    if ((name == 'bash' || name == 'pwsh') &&
+        !terminal_model.isBackgroundCall(call.argsRaw)) {
+      final s = terminal_model.terminalSummary(call.argsRaw);
+      if (s.isNotEmpty) return s;
+    }
+    return model.summary;
+  }
+
+  String? _diffStatFor(ToolCall call) {
+    final name = call.toolName.toLowerCase();
+    if (name != 'write' && name != 'edit' && name != 'str_replace_editor') {
+      return null;
+    }
+    if (call.status == ToolCallStatus.error) return null;
+    final diffs = diff_model.diffsFor(
+      toolName: call.toolName,
+      argsRaw: call.argsRaw,
+      running: call.status == ToolCallStatus.running,
+      meta: call.meta,
+    );
+    if (diffs == null || diffs.isEmpty) return null;
+    return diff_model.diffStat(diffs);
+  }
+
+  Widget _iconFor(
+    ToolCall call,
+    row_model.ToolRowModel model,
+    DswAliases aliases,
+  ) {
+    if (call.status == ToolCallStatus.error) {
+      return Icon(Icons.error_outline, size: 16, color: aliases.stateErrorPrimary);
+    }
+    if (call.status == ToolCallStatus.running) {
+      return Icon(Icons.pending_outlined, size: 16, color: aliases.labelTertiary);
+    }
+    final IconData data = switch (model.variant) {
+      row_model.ToolRowVariant.write ||
+      row_model.ToolRowVariant.edit => Icons.edit_outlined,
+      row_model.ToolRowVariant.bash => Icons.terminal,
+      row_model.ToolRowVariant.read => Icons.article_outlined,
+      row_model.ToolRowVariant.search => Icons.search,
+      row_model.ToolRowVariant.code => Icons.code_rounded,
+      row_model.ToolRowVariant.others => Icons.build_outlined,
     };
     return Icon(data, size: 16, color: aliases.labelTertiary);
   }
@@ -184,10 +269,9 @@ class GenericToolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _CardShell(
       children: <Widget>[
-        _JsonBlock(label: 'Args', value: call.args),
+        _JsonBlock(label: 'Args', value: call.argsRaw.isNotEmpty ? call.argsRaw : call.args),
         if (call.result != null)
           _JsonBlock(label: 'Result', value: call.result),
-        if (call.view != null) _JsonBlock(label: 'View', value: call.view!),
       ],
     );
   }
@@ -204,7 +288,9 @@ class ReadToolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? path =
-        call.args['path'] as String? ?? call.args['file'] as String?;
+        call.args['file_path'] as String? ??
+        call.args['path'] as String? ??
+        call.args['file'] as String?;
     final String content = _stringify(call.result);
     return _CardShell(
       children: <Widget>[
@@ -233,7 +319,9 @@ class DiffToolCard extends StatelessWidget {
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
     final String? path =
-        call.args['path'] as String? ?? call.args['file'] as String?;
+        call.args['file_path'] as String? ??
+        call.args['path'] as String? ??
+        call.args['file'] as String?;
     final String patch = _stringify(
       call.result ?? call.args['patch'] ?? call.args['content'] ?? '',
     );
@@ -463,7 +551,7 @@ class TodoToolCard extends StatelessWidget {
               fontStyle: FontStyle.italic,
             ),
           ),
-        if (call.result != null && _stringify(call.result).isNotEmpty)
+        if (todos is! List && call.result != null && _stringify(call.result).isNotEmpty)
           _CodeBlock(code: _stringify(call.result), maxLines: 20)
         else if (todos is! List)
           _JsonBlock(label: 'Args', value: call.args),

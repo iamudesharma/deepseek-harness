@@ -9,6 +9,8 @@
 /// required events refuse.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/events/tool_stream.dart';
@@ -210,6 +212,8 @@ class ToolNode extends ConversationNode {
     this.isError = false,
     this.subCalls = const [],
     this.argsRaw,
+    this.meta,
+    this.errorCode,
   });
 
   final ToolCallId callId;
@@ -220,11 +224,19 @@ class ToolNode extends ConversationNode {
   final List<ToolSubCall> subCalls;
   final String? argsRaw;
 
+  /// Durable presentation metadata from `tool/result.data.meta`.
+  final Object? meta;
+
+  /// Structured failure code from `tool/result.data.error.code`, if any.
+  final String? errorCode;
+
   ToolNode copyWith({
     required ToolNodeStatus status,
     String? result,
     bool isError = false,
     String? argsRaw,
+    Object? meta,
+    String? errorCode,
   }) {
     return ToolNode(
       key: key,
@@ -236,6 +248,8 @@ class ToolNode extends ConversationNode {
       isError: isError,
       subCalls: subCalls,
       argsRaw: argsRaw ?? this.argsRaw,
+      meta: meta ?? this.meta,
+      errorCode: errorCode ?? this.errorCode,
     );
   }
 }
@@ -990,10 +1004,7 @@ class ConversationNodeFolder {
       // ---- Tools ----
       case 'tool/call':
         final callId = ToolCallId(envelope.data['callId'].toString());
-        final rawArgs =
-            envelope.data['arguments']?.toString() ??
-            envelope.data['args']?.toString() ??
-            envelope.data['input']?.toString();
+        final rawArgs = _rawArgsOf(envelope.data);
         final node = ToolNode(
           key: 't$callId',
           sourceSeqs: [envelope.seq],
@@ -1028,10 +1039,18 @@ class ConversationNodeFolder {
           envelope.data,
           payloadMessage,
         );
+        final dynamic errorRaw = envelope.data['error'];
+        final String? errorCode = errorRaw is Map
+            ? errorRaw['code']?.toString()
+            : errorRaw is String && errorRaw.isNotEmpty
+            ? errorRaw
+            : null;
         final settled = node.copyWith(
           status: isError ? ToolNodeStatus.error : ToolNodeStatus.success,
           result: resultText,
           isError: isError,
+          meta: envelope.data['meta'],
+          errorCode: errorCode,
         );
         final settledWithSource = ToolNode(
           key: settled.key,
@@ -1043,6 +1062,8 @@ class ConversationNodeFolder {
           isError: settled.isError,
           subCalls: settled.subCalls,
           argsRaw: settled.argsRaw,
+          meta: settled.meta,
+          errorCode: settled.errorCode,
         );
         // Re-project subcalls from childrenByParent map (preserves any
         // out-of-order dispatches already stored).
@@ -1132,6 +1153,8 @@ class ConversationNodeFolder {
           isError: parent.isError,
           subCalls: _collectChildren(rootCallId),
           argsRaw: parent.argsRaw,
+          meta: parent.meta,
+          errorCode: parent.errorCode,
         );
         if (parentIdx != -1) {
           _nodes[parentIdx] = withSubs;
@@ -2486,6 +2509,24 @@ class ConversationNodeFolder {
     return null;
   }
 
+  /// Preserves the raw `arguments` JSON string exactly as the model produced
+  /// it. Canonical wire shape is a String; legacy/test shapes may carry a
+  /// Map/List (encoded to JSON) or another scalar (stringified).
+  static String? _rawArgsOf(Map<String, Object?> data) {
+    final dynamic raw =
+        data['arguments'] ?? data['args'] ?? data['input'];
+    if (raw == null) return null;
+    if (raw is String) return raw;
+    if (raw is Map || raw is List) {
+      try {
+        return jsonEncode(raw);
+      } catch (_) {
+        return raw.toString();
+      }
+    }
+    return raw.toString();
+  }
+
   static String _extractContextText(Map<String, Object?> data) {
     return _extractUserText(data);
   }
@@ -2793,6 +2834,8 @@ class ConversationNodeFolder {
       isError: node.isError,
       subCalls: projected,
       argsRaw: node.argsRaw,
+      meta: node.meta,
+      errorCode: node.errorCode,
     );
   }
 }

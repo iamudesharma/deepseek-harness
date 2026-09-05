@@ -16,6 +16,7 @@ import 'package:dsh_flutter/src/plugins/tool/ui/tool_call_tree.dart'
         ReadToolCard,
         SearchToolCard;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _NoopFace implements SettingsFace {
@@ -202,27 +203,29 @@ void main() {
       final (settled, running) = _foldCallAndResult();
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Column(
-              children: [
-                Builder(
-                  builder: (context) {
-                    final renderer = conversation.renderers.resolve(
-                      'tool-call',
-                    )!;
-                    return renderer(context, _dataFor(settled));
-                  },
-                ),
-                Builder(
-                  builder: (context) {
-                    final renderer = conversation.renderers.resolve(
-                      'tool-call',
-                    )!;
-                    return renderer(context, _dataFor(running));
-                  },
-                ),
-              ],
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: [
+                  Builder(
+                    builder: (context) {
+                      final renderer = conversation.renderers.resolve(
+                        'tool-call',
+                      )!;
+                      return renderer(context, _dataFor(settled));
+                    },
+                  ),
+                  Builder(
+                    builder: (context) {
+                      final renderer = conversation.renderers.resolve(
+                        'tool-call',
+                      )!;
+                      return renderer(context, _dataFor(running));
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -231,12 +234,12 @@ void main() {
       // Both rows dispatched through the single tool-call entry; each renders
       // its tool-specific card via the keyed presentation table.
       expect(find.byType(KeyedToolCard), findsNWidgets(0));
-      // The new ToolCallTree row is used for tool-call nodes.
-      expect(find.text('read'), findsNWidgets(2));
+      // The new ToolCallTree row is used for tool-call nodes (localized title).
+      expect(find.text('Read'), findsNWidgets(2));
 
       // The settled row is expandable and its expanded body IS the read card.
       // Tap the first row's header to expand.
-      await tester.tap(find.text('read').first);
+      await tester.tap(find.text('Read').first);
       await tester.pumpAndSettle();
       expect(find.byType(ReadToolCard), findsOneWidget);
 
@@ -262,35 +265,37 @@ void main() {
         toolName: toolName,
         raw: null,
       );
-      Widget pump(String toolName, String callId) => MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              final renderer = conversation.renderers.resolve('tool-call')!;
-              return renderer(context, dataFor(toolName, callId));
-            },
+      Widget pump(String toolName, String callId) => ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                final renderer = conversation.renderers.resolve('tool-call')!;
+                return renderer(context, dataFor(toolName, callId));
+              },
+            ),
           ),
         ),
       );
 
       await tester.pumpWidget(pump('bash', 'b1'));
-      await tester.tap(find.text('bash').first);
+      await tester.tap(find.text('Bash').first);
       await tester.pumpAndSettle();
       expect(find.byType(BashToolCard), findsOneWidget);
 
       await tester.pumpWidget(pump('grep', 'g1'));
-      await tester.tap(find.text('grep').first);
+      await tester.tap(find.text('Search').first);
       await tester.pumpAndSettle();
       expect(find.byType(SearchToolCard), findsOneWidget);
 
       await tester.pumpWidget(pump('edit', 'e1'));
-      await tester.tap(find.text('edit').first);
+      await tester.tap(find.text('Edit').first);
       await tester.pumpAndSettle();
       expect(find.byType(DiffToolCard), findsOneWidget);
 
       // An unclaimed name lands on the generic fallback via the tool-call renderer.
       await tester.pumpWidget(pump('mystery_tool_xyz', 't9'));
-      await tester.tap(find.text('mystery_tool_xyz').first);
+      await tester.tap(find.text('Tool call').first);
       await tester.pumpAndSettle();
       expect(find.byType(GenericToolCard), findsOneWidget);
     },

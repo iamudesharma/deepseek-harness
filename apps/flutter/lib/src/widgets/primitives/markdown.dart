@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart' as md;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../platform/open_external.dart';
 import '../../theme/dsw_tokens.dart';
+import 'code_block.dart' show PreElementBuilder;
 
 /// Markdown + code + math wrapper mirroring ui-primitives markdown.
 /// Sanitizes URLs like React `sanitizeUrl` (http/https/mailto only) and opens
@@ -25,6 +26,7 @@ class DsMarkdown extends ConsumerWidget {
     return md.MarkdownBody(
       data: data,
       selectable: selectable,
+      builders: {'pre': PreElementBuilder()},
       styleSheet: md.MarkdownStyleSheet(
         p: textStyle,
         a: TextStyle(

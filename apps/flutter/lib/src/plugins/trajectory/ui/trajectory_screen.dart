@@ -14,6 +14,8 @@ import '../../../theme/motion.dart';
 import '../../../widgets/primitives/json_tree.dart';
 import '../../../widgets/primitives/markdown.dart';
 import '../../tool/tool_models.dart';
+import '../../tool/presentation/tool_row_model.dart'
+    show classifyTool, deriveSummary;
 import '../trajectory_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -287,7 +289,12 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
             try { argsText = jsonEncode(args); } catch (_) { argsText = '$args'; }
           }
           callId = ev.data['callId'] as String? ?? ev.data['id'] as String?;
-          text = argsText.isEmpty ? name : '$name · ${_previewFor(argsText, 120)}';
+          // Args-derived one-line summary (React row parity) instead of raw
+          // JSON: `write` shows its `file_path`, `bash` its description.
+          final String summary = argsText.isEmpty
+              ? ''
+              : deriveSummary(classifyTool(name), argsText);
+          text = summary.isEmpty ? name : '$name · ${_previewFor(summary, 120)}';
           inputDetail = argsText;
           timeSeconds = toolDurationFor(callId);
           break;
@@ -296,11 +303,17 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
         {
           kind = TrajectoryCellKind.tool;
           final String name = (ev.data['name'] as String?) ?? 'tool';
-          final dynamic out = ev.data['output'] ?? ev.data['result'] ?? ev.data['content'];
+          final dynamic message = ev.data['message'];
           String outText = '';
-          if (out is String) outText = out;
-          else if (out != null) {
-            try { outText = jsonEncode(out); } catch (_) { outText = '$out'; }
+          if (message is Map) {
+            outText = flattenResultContent((message as Map)['content']);
+          }
+          if (outText.isEmpty) {
+            final dynamic out = ev.data['output'] ?? ev.data['result'] ?? ev.data['content'];
+            if (out is String) outText = out;
+            else if (out != null) {
+              try { outText = jsonEncode(out); } catch (_) { outText = '$out'; }
+            }
           }
           callId = ev.data['callId'] as String? ?? ev.data['id'] as String?;
           text = outText.isEmpty ? name : '$name · ${_previewFor(outText, 120)}';

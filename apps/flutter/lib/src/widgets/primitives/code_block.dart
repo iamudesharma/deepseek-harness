@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart' as md;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:markdown/markdown.dart' as m;
 
 import '../../platform/clipboard.dart';
 import '../../theme/dsw_tokens.dart';
+import 'code_highlight.dart' as highlight;
 
 /// Fenced code block — Flutter port of the settled arm of React
 /// `CodeBlock.tsx` (`ui-primitives`): a block container with a header row
-/// (grammar label + copy button) over verbatim monospace text.
+/// (grammar label + copy button) over syntax-highlighted monospace text.
 ///
-/// Deliberately narrower than React: no syntax highlighting (plain text in
-/// the code face) and no viewport-lazy grammar loading. Inline code is out
-/// of scope and keeps `MarkdownStyleSheet.code`.
+/// Highlighting uses the maintained `syntax_highlight` TextMate grammars (the
+/// pub equivalent of React's shiki): supported fences render themed spans,
+/// unknown languages fall back to plain text in the code face. Grammars load
+/// asynchronously from package assets, so the first frame is plain text and
+/// rebuilds highlighted once ready.
 class CodeBlock extends StatefulWidget {
   /// Creates a code block.
   const CodeBlock({super.key, required this.code, this.language});
@@ -28,10 +31,33 @@ class CodeBlock extends StatefulWidget {
 
 class _CodeBlockState extends State<CodeBlock> {
   bool _copied = false;
+  bool _highlightReady = false;
+  bool _highlightWanted = false;
 
   String get _display {
     final String code = widget.code;
     return code.endsWith('\n') ? code.substring(0, code.length - 1) : code;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final bool wanted = highlight.highlighterLanguageFor(widget.language) != null;
+    _highlightWanted = wanted;
+    if (!wanted) return;
+    highlight.ensureCodeHighlightReady(dark: dark).then((ready) {
+      if (!mounted) return;
+      if (ready != _highlightReady) setState(() => _highlightReady = ready);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CodeBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.language != widget.language || oldWidget.code != widget.code) {
+      didChangeDependencies();
+    }
   }
 
   Future<void> _copy() async {
@@ -98,8 +124,10 @@ class _CodeBlockState extends State<CodeBlock> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: SelectableText(
-              _display,
+            child: _CodeBody(
+              display: _display,
+              language: language,
+              highlightReady: _highlightReady && _highlightWanted,
               style: TextStyle(
                 fontFamily: DswTokens.fontFamilyCode,
                 fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
@@ -112,6 +140,36 @@ class _CodeBlockState extends State<CodeBlock> {
         ],
       ),
     );
+  }
+}
+
+/// Code body: highlighted spans when grammars are ready, plain text otherwise.
+class _CodeBody extends StatelessWidget {
+  const _CodeBody({
+    required this.display,
+    required this.language,
+    required this.highlightReady,
+    required this.style,
+  });
+
+  final String display;
+  final String? language;
+  final bool highlightReady;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    if (highlightReady) {
+      final bool dark = Theme.of(context).brightness == Brightness.dark;
+      final span = highlight.highlightCodeSpan(
+        display,
+        language,
+        dark: dark,
+        baseStyle: style,
+      );
+      if (span != null) return SelectableText.rich(span);
+    }
+    return SelectableText(display, style: style);
   }
 }
 

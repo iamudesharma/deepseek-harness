@@ -24,6 +24,7 @@ class _FakeComposerSuccessClient extends ConnectionClient {
     String mode = 'queue',
     String? clientTimeZone,
     List<Map<String, dynamic>> images = const [],
+    String? requestId,
   }) async {
     sent.add((sessionId: sessionId.value, content: content, mode: mode));
   }

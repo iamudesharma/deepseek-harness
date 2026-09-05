@@ -14,6 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/session/session_event_map.dart';
 import '../../../core/connection/connection_client.dart' hide ConnectionState;
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef, Translate;
 import '../../../core/session/session_models.dart';
 import '../../../core/session/session_provider.dart';
 import '../../../core/session/sessions_controller.dart';
@@ -30,8 +32,14 @@ import '../nodes/turn_navigator.dart';
 import '../hub.dart';
 import '../../../widgets/primitives/ansi.dart';
 import '../../tool/ui/keyed_tool_card.dart'
-    show ToolNodeAdapter, ToolNodeAdapterWithSubCalls, ToolSubCallAdapter;
+    show
+        ToolNodeAdapter,
+        ToolNodeAdapterWithSubCalls,
+        ToolSubCallAdapter,
+        collapsedSummary,
+        diffStatFor;
 import '../../tool/tool_models.dart' show ToolCall, ToolCallStatus, kindForTool;
+import '../../tool/presentation/tool_row_model.dart' as row_model;
 
 /// In-memory reader position resilient to transcript width reflow.
 class ChatScrollPosition {
@@ -2239,7 +2247,10 @@ class _ToolNodeRawAdapter
       kind: kindForTool(node.name),
       status: status,
       args: args,
+      argsRaw: raw ?? '',
       result: node.result,
+      meta: node.meta,
+      errorCode: node.errorCode,
       time: 0,
     );
   }
@@ -2252,6 +2263,55 @@ class _ChatListItem {
   final ConversationNode? node;
   bool get isHeader => header != null;
   String get key => header?.key ?? node!.key;
+}
+
+/// Retires optimistic user messages confirmed anywhere in [entries].
+///
+/// Any-match (not tail-only): an optimistic is hidden once its trimmed text
+/// matches any confirmed `user/message` text, so it stays hidden after the
+/// turn progresses to assistant/tool content. Image-only optimistics retire
+/// when any confirmed user message carries images.
+List<Message> retireOptimisticWithHistory(
+  List<HistoryEntry> entries,
+  List<Message> optimistic,
+) {
+  if (optimistic.isEmpty) return optimistic;
+  final confirmedTexts = <String>{};
+  var confirmedHasImages = false;
+  for (final entry in entries) {
+    if (entry.event.type != 'user/message') continue;
+    final data = entry.event.data;
+    final dynamic content = data['content'];
+    if (content is String) {
+      if (content.trim().isNotEmpty) confirmedTexts.add(content.trim());
+    } else if (content is List) {
+      final buf = StringBuffer();
+      for (final blk in content) {
+        if (blk is Map) {
+          final text = blk['text'];
+          if (text is String && text.trim().isNotEmpty) buf.writeln(text.trim());
+          if (blk['type'] == 'image') confirmedHasImages = true;
+        } else if (blk is String && blk.trim().isNotEmpty) {
+          buf.writeln(blk.trim());
+        }
+      }
+      final text = buf.toString().trim();
+      if (text.isNotEmpty) confirmedTexts.add(text);
+    } else {
+      final text = data['text'];
+      if (text is String && text.trim().isNotEmpty) {
+        confirmedTexts.add(text.trim());
+      }
+    }
+  }
+  return optimistic.where((o) {
+    if (o.content.trim().isNotEmpty) {
+      return !confirmedTexts.contains(o.content.trim());
+    }
+    // Image-only: retire once any confirmed user message carried images.
+    if (o.imageUrls.isNotEmpty) return !confirmedHasImages;
+    return true;
+  }).toList();
 }
 
 enum _ChatKind { user, assistant, tool, other }
@@ -2284,6 +2344,12 @@ class _ReasoningRowState extends State<_ReasoningRow> {
   bool _expanded = false;
   final _summaryKey = GlobalKey();
   final _scrollController = ScrollController();
+
+  String _thinkTitle(BuildContext context) {
+    final locale = Localizations.localeOf(context).languageCode;
+    if (locale == 'zh') return kConversationZh['message.think'] ?? 'Think';
+    return kConversationEn['message.think'] ?? 'Think';
+  }
 
   String _firstLine(String text) {
     final nl = text.indexOf('\n');
@@ -2354,7 +2420,7 @@ class _ReasoningRowState extends State<_ReasoningRow> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Thinking',
+                    _thinkTitle(context),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -2413,32 +2479,18 @@ class _ReasoningRowState extends State<_ReasoningRow> {
 }
 
 /// Fallback tool row when no registry override is present (tests without host).
-class _ToolFallbackRow extends StatefulWidget {
+class _ToolFallbackRow extends ConsumerStatefulWidget {
   const _ToolFallbackRow({required this.node, required this.aliases});
   final ToolNode node;
   final DswAliases aliases;
   @override
-  State<_ToolFallbackRow> createState() => _ToolFallbackRowState();
+  ConsumerState<_ToolFallbackRow> createState() => _ToolFallbackRowState();
 }
 
-class _ToolFallbackRowState extends State<_ToolFallbackRow> {
+class _ToolFallbackRowState extends ConsumerState<_ToolFallbackRow> {
   bool _expanded = false;
-  ToolRowVariant _variantFor(String name) {
-    final n = name.toLowerCase();
-    if (n.contains('search') || n.contains('grep') || n.contains('glob'))
-      return ToolRowVariant.search;
-    if (n.contains('read') || n.contains('view') || n.contains('cat'))
-      return ToolRowVariant.read;
-    if (n.contains('bash') || n.contains('shell') || n.contains('exec'))
-      return ToolRowVariant.bash;
-    if (n.contains('write')) return ToolRowVariant.write;
-    if (n.contains('edit')) return ToolRowVariant.edit;
-    if (n.contains('code') || n.contains('run_code'))
-      return ToolRowVariant.code;
-    return ToolRowVariant.others;
-  }
 
-  Widget _iconFor(ToolRowVariant variant, ToolNodeStatus status) {
+  Widget _iconFor(row_model.ToolRowVariant variant, ToolNodeStatus status) {
     if (status == ToolNodeStatus.error)
       return const StateDot(state: StateDotState.error);
     if (status == ToolNodeStatus.running)
@@ -2451,28 +2503,28 @@ class _ToolFallbackRowState extends State<_ToolFallbackRow> {
         ? widget.aliases.stateBusinessPrimary
         : widget.aliases.labelTertiary;
     return switch (variant) {
-      ToolRowVariant.search => Icon(Icons.search, size: 14, color: iconColor),
-      ToolRowVariant.read => Icon(
+      row_model.ToolRowVariant.search => Icon(Icons.search, size: 14, color: iconColor),
+      row_model.ToolRowVariant.read => Icon(
         Icons.description_outlined,
         size: 14,
         color: iconColor,
       ),
-      ToolRowVariant.bash => Icon(
+      row_model.ToolRowVariant.bash => Icon(
         Icons.terminal_rounded,
         size: 14,
         color: iconColor,
       ),
-      ToolRowVariant.write || ToolRowVariant.edit => Icon(
+      row_model.ToolRowVariant.write || row_model.ToolRowVariant.edit => Icon(
         Icons.edit_outlined,
         size: 14,
         color: iconColor,
       ),
-      ToolRowVariant.code => Icon(
+      row_model.ToolRowVariant.code => Icon(
         Icons.code_rounded,
         size: 14,
         color: iconColor,
       ),
-      ToolRowVariant.others => Icon(
+      row_model.ToolRowVariant.others => Icon(
         Icons.auto_awesome_outlined,
         size: 14,
         color: iconColor,
@@ -2482,18 +2534,52 @@ class _ToolFallbackRowState extends State<_ToolFallbackRow> {
 
   @override
   Widget build(BuildContext context) {
-    final variant = _variantFor(widget.node.name);
-    final summary = widget.node.result?.split('\n').first.trim() ?? '';
+    final Translate t = ref.bindLocale(kConversationNamespace);
+    final SessionSummary? session = ref.watch(currentSessionProvider);
+    final String? cwd = session?.cwd;
+    final node = widget.node;
+    final bool running = node.status == ToolNodeStatus.running;
+    final model = row_model.toolRowModel(
+      toolName: node.name,
+      argsRaw: node.argsRaw ?? '',
+      running: running,
+      isError: node.isError,
+      interrupted: node.errorCode == 'interrupted',
+      resultText: node.result,
+      cwd: cwd,
+      callId: node.callId,
+    );
+    final String title = () {
+      final localized = t(model.titleKey);
+      return localized == model.titleKey ? model.titleFallback : localized;
+    }();
+    // Reuse the keyed row's summary/stat derivation so fallback matches live.
+    final ToolCall call = ToolCall(
+      id: node.callId,
+      toolName: node.name,
+      kind: kindForTool(node.name),
+      status: running
+          ? ToolCallStatus.running
+          : node.isError
+          ? ToolCallStatus.error
+          : ToolCallStatus.success,
+      argsRaw: node.argsRaw ?? '',
+      result: node.result,
+      meta: node.meta,
+      errorCode: node.errorCode,
+      time: 0,
+    );
+    final String summary = collapsedSummary(call, model);
+    final String? diffStat = diffStatFor(call);
+    final displaySummary = summary.isEmpty ? node.callId : summary;
     final expandable =
-        widget.node.result != null && widget.node.result!.trim().isNotEmpty;
-    final failureLine = widget.node.status == ToolNodeStatus.error
-        ? (summary.isNotEmpty ? summary : widget.node.result)
-        : null;
-    final summaryText = failureLine ?? summary;
-    final summaryColor = failureLine != null
+        (node.result != null && node.result!.trim().isNotEmpty) ||
+        (node.argsRaw != null && node.argsRaw!.isNotEmpty);
+    final failureLine = node.status == ToolNodeStatus.error;
+    final summaryColor = failureLine
         ? widget.aliases.stateErrorPrimary
         : widget.aliases.labelTertiary;
-    final collapsed = summaryText.isNotEmpty
+    final collapsed = displaySummary.isNotEmpty
         ? Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -2510,7 +2596,7 @@ class _ToolFallbackRowState extends State<_ToolFallbackRow> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  summaryText,
+                  displaySummary,
                   style: TextStyle(
                     fontSize: 14,
                     height: 24 / 14,
@@ -2520,6 +2606,17 @@ class _ToolFallbackRowState extends State<_ToolFallbackRow> {
                   maxLines: 1,
                 ),
               ),
+              if (diffStat != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  diffStat,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontFamily: 'SF Mono',
+                    color: widget.aliases.labelCaption,
+                  ),
+                ),
+              ],
             ],
           )
         : const SizedBox.shrink();
@@ -2527,8 +2624,8 @@ class _ToolFallbackRowState extends State<_ToolFallbackRow> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DisclosureRow(
-          icon: _iconFor(variant, widget.node.status),
-          title: widget.node.name,
+          icon: _iconFor(model.variant, widget.node.status),
+          title: title,
           open: _expanded && expandable,
           expandable: expandable,
           expandOnRowClick: true,
@@ -2555,8 +2652,6 @@ class _ToolFallbackRowState extends State<_ToolFallbackRow> {
     );
   }
 }
-
-enum ToolRowVariant { search, read, bash, write, edit, code, others }
 
 class _IoCard extends StatelessWidget {
   const _IoCard({required this.aliases, this.output, this.isError = false});
