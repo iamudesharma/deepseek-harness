@@ -214,6 +214,7 @@ class ToolNode extends ConversationNode {
     this.argsRaw,
     this.meta,
     this.errorCode,
+    this.turn,
   });
 
   final ToolCallId callId;
@@ -223,6 +224,11 @@ class ToolNode extends ConversationNode {
   final bool isError;
   final List<ToolSubCall> subCalls;
   final String? argsRaw;
+
+  /// Owning turn for turn-process grouping (React `turn-process.ts`
+  /// evidence). Null when the turn could not be resolved at fold time;
+  /// such rows are never suppressed by a collapsed group.
+  final int? turn;
 
   /// Durable presentation metadata from `tool/result.data.meta`.
   final Object? meta;
@@ -237,6 +243,7 @@ class ToolNode extends ConversationNode {
     String? argsRaw,
     Object? meta,
     String? errorCode,
+    int? turn,
   }) {
     return ToolNode(
       key: key,
@@ -250,6 +257,7 @@ class ToolNode extends ConversationNode {
       argsRaw: argsRaw ?? this.argsRaw,
       meta: meta ?? this.meta,
       errorCode: errorCode ?? this.errorCode,
+      turn: turn ?? this.turn,
     );
   }
 }
@@ -594,6 +602,11 @@ class ConversationNodeFolder {
 
   /// Pending manual summaries keyed by `commandId`.
   final Map<String, _PendingCompaction> _manualPendingByCommandId = {};
+
+  /// Turn/step start seqs for request-prompt anchoring (mirrors React
+  /// `requestPromptAnchor`: a first-step request anchors at its turn start).
+  final Map<int, int> _turnStartSeq = {};
+  final Map<String, int> _stepStartSeq = {};
 
   /// Per-turn tail accumulation for `TurnTailNode` (mirrors `turn-tail.ts`
   /// `TurnTailState` + `tailData` + `deriveTurnTokenUsage` + `deriveTurnMetrics`).
@@ -954,7 +967,7 @@ class ConversationNodeFolder {
         _assertUnsettled(key);
         final interrupted = envelope.data['interrupted'] == true;
         final cited = envelope.sourceEventSeqs;
-        final seqs = (cited != null && cited.isNotEmpty) ? cited : _seqsOf(key);
+        final prior = (cited != null && cited.isNotEmpty) ? cited : _seqsOf(key);
         final bufferedText = _textOf(key);
         final durableText = _extractTextFromMessage(envelope.data['message']);
         // Durable `assistant/message` content is authoritative for replay
@@ -974,6 +987,19 @@ class ConversationNodeFolder {
         final effectiveReasoning = durableReasoning.isNotEmpty
             ? durableReasoning
             : reasoning;
+        // Include the durable seq when the node carries visible content:
+        // replayed history has no live chunks, so `_seqsOf` alone is empty
+        // and the node sorts last (after later turns). React anchors the
+        // settled node at its message seq. Empty (usage-host) messages stay
+        // seq-less: they render zero-height and are not surface nodes, so
+        // they must not join ordering or compaction shadow citation.
+        final hasVisible =
+            effectiveText.trim().isNotEmpty || effectiveReasoning.trim().isNotEmpty;
+        final seqs = !hasVisible
+            ? List<int>.unmodifiable(prior)
+            : prior.contains(envelope.seq)
+                ? List<int>.unmodifiable(prior)
+                : List<int>.unmodifiable([...prior, envelope.seq]);
         final node = AssistantNode(
           key: key,
           sourceSeqs: seqs,
@@ -1012,6 +1038,11 @@ class ConversationNodeFolder {
           name: envelope.data['name'].toString(),
           status: ToolNodeStatus.running,
           argsRaw: rawArgs,
+          // Turn attribution for turn-process grouping (React turn-process.ts
+          // evidence): prefer the event's own coordinates, else the folder's
+          // current turn; null stays ungrouped (never suppressed).
+          turn: _coordinates[envelope.seq]?.turn ??
+              (_turn == 0 ? null : _turn),
         );
         _toolsByCallId[callId] = node;
         _append(node);
@@ -1064,6 +1095,7 @@ class ConversationNodeFolder {
           argsRaw: settled.argsRaw,
           meta: settled.meta,
           errorCode: settled.errorCode,
+          turn: settled.turn,
         );
         // Re-project subcalls from childrenByParent map (preserves any
         // out-of-order dispatches already stored).
@@ -1169,6 +1201,7 @@ class ConversationNodeFolder {
       case 'step/start':
         _turn = envelope.data['turn'] as int? ?? _turn;
         _step = envelope.data['step'] as int? ?? 1;
+        _stepStartSeq.putIfAbsent('$_turn:$_step', () => envelope.seq);
         final key = 'g$_turn-$_step';
         _openGroupKey = key;
         _groupChildren[key] = [];
@@ -1414,12 +1447,30 @@ class ConversationNodeFolder {
           final isPlaceholder =
               trimmed == '{{system}}' || trimmed == '{{tools}}';
           if (!isPlaceholder) {
+            // Anchor at the start of the visible message series (React
+            // `requestPromptAnchor`): a first-step request sorts with its
+            // turn start, so the row precedes the user bubble it belongs to.
+            final int? atTurn = _coordinates[envelope.seq]?.turn;
+            final int? atStep = _coordinates[envelope.seq]?.step;
+            final int anchorSeq;
+            if (atTurn != null && atStep != null && atStep != 1) {
+              anchorSeq =
+                  _stepStartSeq['$atTurn:$atStep'] ?? envelope.seq;
+            } else if (atTurn != null) {
+              anchorSeq = _turnStartSeq[atTurn] ??
+                  (atStep != null
+                      ? _stepStartSeq['$atTurn:$atStep']
+                      : null) ??
+                  envelope.seq;
+            } else {
+              anchorSeq = envelope.seq;
+            }
             _append(
               SystemPromptNode(
                 key: 'system-${envelope.seq}',
                 sourceSeqs: [envelope.seq],
                 text: systemText,
-                anchorSeq: envelope.seq,
+                anchorSeq: anchorSeq,
               ),
             );
           }
@@ -1429,6 +1480,12 @@ class ConversationNodeFolder {
       // ---- Lossless lifecycle markers (React: structural, never a visible row) ----
       case 'turn/start':
         _turn = envelope.data['turn'] as int? ?? _turn;
+        final int? startedTurn = envelope.data['turn'] is num
+            ? (envelope.data['turn'] as num).toInt()
+            : null;
+        if (startedTurn != null) {
+          _turnStartSeq.putIfAbsent(startedTurn, () => envelope.seq);
+        }
         break;
       case 'session/end-seed':
         // Position-only marker for the trajectory boundary; no chat row.

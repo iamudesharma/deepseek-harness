@@ -647,10 +647,41 @@ class _ChatViewState extends ConsumerState<ChatView> {
     final running = summary?.running ?? false;
     final hasMore = ref.watch(liveHasMoreProvider(widget.sessionId));
     final loadingOlder = ref.watch(liveLoadingOlderProvider(widget.sessionId));
-    // React fidelity: while older history remains pagable, TurnProcess controls stay absent.
-    if (hasMore) {
-      items.removeWhere((it) => it.node is TurnProcessNode);
-    }
+    // Anchor order (React `orderedVisibleChatNodes`): request-anchored system
+    // rows sort with their turn start, ahead of the user bubble they belong
+    // to; every other node keeps event order via a stable sort.
+    final ordered = stableChatOrder(
+      items,
+      (it) => chatNodeOrderKey(it.node),
+    );
+    items
+      ..clear()
+      ..addAll(ordered);
+    // Turn-process grouping owns settled-turn tool cards (React TurnProcess
+    // disclosure): hide member rows while their group stays collapsed. Live
+    // (tail-less) turns keep streaming rows openly.
+    final groupedTurns = <int>{
+      for (final it in items)
+        if (it.node is TurnProcessNode) (it.node as TurnProcessNode).turn,
+    };
+    final settledTurns = <int>{
+      for (final n in rawNodes)
+        if (n is TurnTailNode) n.turn,
+    };
+    final openTurns = <int>{
+      for (final t in groupedTurns)
+        if (ref.watch(turnProcessOpenProvider('${widget.sessionId}:$t'))) t,
+    };
+    items.removeWhere((it) {
+      final node = it.node;
+      if (node is! ToolNode) return false;
+      return hideGroupedTool(
+        turn: node.turn,
+        groupedTurns: groupedTurns,
+        settledTurns: settledTurns,
+        openTurns: openTurns,
+      );
+    });
     // Keep key order for paging anchor scans
     _currentKeys = items.map((e) => e.key).toList(growable: false);
     // Detect tip movement.
@@ -795,10 +826,21 @@ class _ChatViewState extends ConsumerState<ChatView> {
                 final item = items[adjIndex];
                 final node = item.node!;
                 final wrapped = _buildNode(context, hub, node, aliases);
+                // Single centered content column (React ChatView
+                // `--dsh-chat-content-width: 748px`): every row shares one
+                // centered cap instead of per-row widths.
                 return Container(
                   key: _keyFor(node.key),
                   padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: KeyedSubtree(key: ValueKey(node.key), child: wrapped),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 748),
+                      child: KeyedSubtree(
+                        key: ValueKey(node.key),
+                        child: wrapped,
+                      ),
+                    ),
+                  ),
                 );
               }
               // Running indicator at tail.
@@ -1213,6 +1255,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
         :final subagentCount,
       ):
         return _TurnProcessRow(
+          sessionId: widget.sessionId,
           turn: turn,
           messageCount: messageCount,
           toolCallCount: toolCallCount,
@@ -3372,8 +3415,9 @@ class _ModelRetryRowState extends State<_ModelRetryRow> {
   }
 }
 
-class _TurnProcessRow extends StatefulWidget {
+class _TurnProcessRow extends ConsumerStatefulWidget {
   const _TurnProcessRow({
+    required this.sessionId,
     required this.turn,
     required this.messageCount,
     required this.toolCallCount,
@@ -3381,6 +3425,7 @@ class _TurnProcessRow extends StatefulWidget {
     required this.aliases,
   });
 
+  final String sessionId;
   final int turn;
   final int messageCount;
   final int toolCallCount;
@@ -3388,67 +3433,34 @@ class _TurnProcessRow extends StatefulWidget {
   final DswAliases aliases;
 
   @override
-  State<_TurnProcessRow> createState() => _TurnProcessRowState();
+  ConsumerState<_TurnProcessRow> createState() => _TurnProcessRowState();
 }
 
-class _TurnProcessRowState extends State<_TurnProcessRow> {
-  bool _open = false;
+class _TurnProcessRowState extends ConsumerState<_TurnProcessRow> {
+  String _t(String key) {
+    final locale = Localizations.localeOf(context).languageCode;
+    final map = locale == 'zh' ? kConversationZh : kConversationEn;
+    return map[key] ?? kConversationEn[key] ?? key;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool open =
+        ref.watch(turnProcessOpenProvider('${widget.sessionId}:${widget.turn}'));
+    void toggle() => ref
+        .read(turnProcessOpenProvider('${widget.sessionId}:${widget.turn}').notifier)
+        .state = !open;
     final bool foldable =
         widget.messageCount > 0 ||
         widget.toolCallCount > 0 ||
         widget.subagentCount > 0;
-    final String title;
-    if (!foldable) {
-      title = 'Thought for a while';
-    } else {
-      final parts = <String>[];
-      if (widget.toolCallCount > 0 && widget.subagentCount == 0) {
-        parts.add(
-          '${widget.toolCallCount} tool${widget.toolCallCount == 1 ? '' : 's'}',
-        );
-      } else if (widget.subagentCount > 0 && widget.toolCallCount == 0) {
-        parts.add(
-          '${widget.subagentCount} subagent${widget.subagentCount == 1 ? '' : 's'}',
-        );
-      } else if (widget.toolCallCount > 0 && widget.subagentCount > 0) {
-        parts.add(
-          '${widget.toolCallCount} tool${widget.toolCallCount == 1 ? '' : 's'}',
-        );
-        parts.add(
-          '${widget.subagentCount} subagent${widget.subagentCount == 1 ? '' : 's'}',
-        );
-      }
-      if (widget.messageCount > 0) {
-        parts.add(
-          '${widget.messageCount} reply${widget.messageCount == 1 ? '' : 'ies'}',
-        );
-      }
-      title = parts.isEmpty ? 'Thought for a while' : parts.join(' · ');
-    }
-
-    final collapsed = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 2,
-          height: 2,
-          decoration: BoxDecoration(
-            color: widget.aliases.labelCaption,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            title,
-            style: TextStyle(fontSize: 13, color: widget.aliases.labelTertiary),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
+    // Counts label mirrors React TurnProcessNodeView exactly
+    // ("N tool calls · M message(s) · K subagent(s)", non-zero only).
+    final String title = formatTurnProcessLabel(
+      toolCallCount: widget.toolCallCount,
+      messageCount: widget.messageCount,
+      subagentCount: widget.subagentCount,
+      t: _t,
     );
 
     return Column(
@@ -3460,36 +3472,20 @@ class _TurnProcessRowState extends State<_TurnProcessRow> {
             size: 14,
             color: widget.aliases.labelTertiary,
           ),
-          title: 'Process',
-          open: _open,
+          // Title carries the counts label itself (React TurnProcessNodeView
+          // shows only "{N tool calls} · {M message(s)}", no separate word).
+          title: title,
+          open: open,
           expandable: foldable,
           expandOnRowClick: true,
-          onToggle: () => setState(() => _open = !_open),
-          collapsedContent: collapsed,
-          child: _open && foldable
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 4, 0, 4),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: widget.aliases.bgLayer2,
-                      borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-                      border: Border.all(color: widget.aliases.borderL2),
-                    ),
-                    child: Text(
-                      'Turn ${widget.turn} process: $title',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: widget.aliases.labelSecondary,
-                      ),
-                    ),
-                  ),
-                )
-              : null,
+          onToggle: toggle,
+          // Expanded member tool cards render in place in the list (they are
+          // hidden while collapsed by the list filter), so no inline child.
+          child: null,
         ),
         // Divider below summary separating from answer (React TurnProcessNodeView)
-        if (_open || !foldable) const SizedBox(height: 8),
-        if (_open || !foldable)
+        if (open || !foldable) const SizedBox(height: 8),
+        if (open || !foldable)
           Container(
             height: 1,
             color: widget.aliases.borderL2,
@@ -3637,6 +3633,53 @@ final _imageBytesProvider =
         );
       },
     );
+
+/// Open state per turn-process group, keyed `$sessionId:$turn` (React
+/// TurnProcess `open` store). Lifted out of the row widget so the list can
+/// suppress a collapsed settled turn's member tool rows, mirroring the React
+/// disclosure owning its tool cards.
+final turnProcessOpenProvider =
+    StateProvider.family<bool, String>((ref, _) => false);
+
+/// Sort key placing request-anchored system rows with their turn start
+/// (React `requestPromptAnchor`); turn footers (process/tail) sort by their
+/// latest seq (emission position, not turn-start provenance); every other node
+/// keeps event order via its earliest source seq. Synthetic seq-less nodes
+/// sort last.
+int chatNodeOrderKey(ConversationNode? node) {
+  if (node is SystemPromptNode) return node.anchorSeq;
+  if (node == null || node.sourceSeqs.isEmpty) return 1 << 30;
+  if (node is TurnProcessNode || node is TurnTailNode) {
+    return node.sourceSeqs.fold<int>(0, (a, b) => a > b ? a : b);
+  }
+  return node.sourceSeqs.fold<int>(1 << 30, (a, b) => a < b ? a : b);
+}
+
+/// Stable anchor sort for chat items (React `orderedVisibleChatNodes`
+/// anchor ordering). Only system-prompt rows move (their anchor predates
+/// their event position); everything else keeps insertion order.
+List<T> stableChatOrder<T>(List<T> items, int Function(T) keyOf) {
+  final indexed = items.asMap().entries.toList();
+  indexed.sort((a, b) {
+    final int c = keyOf(a.value).compareTo(keyOf(b.value));
+    return c != 0 ? c : a.key.compareTo(b.key);
+  });
+  return indexed.map((e) => e.value).toList();
+}
+
+/// Whether a tool row hides inside its turn's collapsed group (React
+/// TurnProcess disclosure owns settled-turn tool cards when collapsed).
+/// Ungrouped turns, live (tail-less) turns, and open groups keep their rows.
+bool hideGroupedTool({
+  required int? turn,
+  required Set<int> groupedTurns,
+  required Set<int> settledTurns,
+  required Set<int> openTurns,
+}) =>
+    turn != null &&
+    groupedTurns.contains(turn) &&
+    settledTurns.contains(turn) &&
+    !openTurns.contains(turn);
 
 /// User message image — loads durable attachment via `session.attachment` and
 /// displays as 120×80 thumbnail with tap to lightbox. Mirrors React

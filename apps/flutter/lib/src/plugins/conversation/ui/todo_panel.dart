@@ -101,16 +101,21 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      decoration: BoxDecoration(
-        color: aliases.bgLayer2,
-        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-        border: Border.all(color: aliases.borderL2),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+    // Centered content-column cap (React TodoPanel rides the chat column
+    // width, not full-bleed).
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 748),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          decoration: BoxDecoration(
+            color: aliases.bgLayer2,
+            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+            border: Border.all(color: aliases.borderL2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
           InkWell(
             onTap: () => setState(() => _collapsed = !_collapsed),
             borderRadius: BorderRadius.circular(DswTokens.radiusLg),
@@ -187,6 +192,8 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
               ),
             ),
         ],
+          ),
+        ),
       ),
     );
   }

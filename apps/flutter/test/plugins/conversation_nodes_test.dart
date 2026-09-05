@@ -79,7 +79,8 @@ void main() {
         expect(settled, contains('Hello'));
         expect(settled, isNot(contains('(streaming)')));
         final node = folder.snapshot().nodes.whereType<AssistantNode>().single;
-        expect(node.sourceSeqs, [3, 4]);
+        // Settlement cites its chunk stream plus its own durable seq (anchor).
+        expect(node.sourceSeqs, [3, 4, 5]);
       },
     );
 
@@ -585,8 +586,81 @@ void main() {
       );
     });
   });
-}
 
+  group('React parity: request anchor, tool turns, process grouping', () {
+    List<ConversationNode> flat(ConversationNodeFolder folder) {
+      final out = <ConversationNode>[];
+      void walk(ConversationNode n) {
+        out.add(n);
+        if (n is StepGroupNode) {
+          for (final c in n.children) {
+            walk(c);
+          }
+        }
+      }
+
+      for (final n in folder.snapshot().nodes) {
+        walk(n);
+      }
+      return out;
+    }
+
+    List<SessionEventEnvelope> scriptBase() => [
+          _event('turn/start', 5, {'turn': 1}),
+          _event('step/start', 7, {'turn': 1, 'step': 1}),
+          _event('user/message', 8, {
+            'content': 'hi',
+            'source': {'kind': 'user'},
+          }),
+          _event('request/header', 12, {
+            'turn': 1,
+            'step': 1,
+            'system': 'You are helpful',
+          }),
+        ];
+
+    test('system prompt anchors at turn start (requestPromptAnchor)', () {
+      final folder = ConversationNodeFolder()..forEach(scriptBase());
+      final node = flat(folder).whereType<SystemPromptNode>().single;
+      // React sorts the row with its turn start (seq 5), ahead of the user
+      // bubble (seq 8), even though the header event lands at seq 12.
+      expect(node.anchorSeq, 5);
+    });
+
+    test('later-step request anchors at its step start', () {
+      final folder = ConversationNodeFolder()
+        ..forEach([
+          _event('turn/start', 5, {'turn': 1}),
+          _event('step/start', 7, {'turn': 1, 'step': 1}),
+          _event('step/start', 19, {'turn': 1, 'step': 2}),
+          _event('request/header', 21, {
+            'turn': 1,
+            'step': 2,
+            'system': 'You are helpful',
+          }),
+        ]);
+      final node = flat(folder).whereType<SystemPromptNode>().single;
+      expect(node.anchorSeq, 19);
+    });
+
+    test('tool rows carry their turn for process grouping', () {
+      final folder = ConversationNodeFolder()
+        ..forEach([
+          _event('turn/start', 5, {'turn': 1}),
+          _event('step/start', 7, {'turn': 1, 'step': 1}),
+          _event('tool/call', 13, {
+            'turn': 1,
+            'callId': 'c1',
+            'name': 'bash',
+            'arguments': '{}',
+          }),
+        ]);
+      final tool = flat(folder).whereType<ToolNode>().single;
+      expect(tool.turn, 1);
+    });
+  });
+
+}
 extension on ConversationNodeFolder {
   void forEach(Iterable<SessionEventEnvelope> events) {
     for (final e in events) {

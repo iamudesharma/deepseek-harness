@@ -44,6 +44,14 @@ const Map<String, String> kConversationZh = {
   'todo.rowTitle': '更新任务清单',
   'todo.completed': '{done}/{total} 已完成',
   'message.think': '思考',
+  'message.turnProcess.toolCalls.one': '{count} 次工具调用',
+  'message.turnProcess.toolCalls.other': '{count} 次工具调用',
+  'message.turnProcess.messages.one': '{count} 条消息',
+  'message.turnProcess.messages.other': '{count} 条消息',
+  'message.turnProcess.subagents.one': '{count} 个 subagent',
+  'message.turnProcess.subagents.other': '{count} 个 subagent',
+  'message.turnProcess.thoughtForAWhile': '已思考',
+  'message.turnProcess.separator': ' · ',
 };
 
 /// English copy — keys mirror React `en`.
@@ -84,8 +92,56 @@ const Map<String, String> kConversationEn = {
   'todo.rowTitle': 'Update to-do list',
   'todo.completed': '{done}/{total} completed',
   'message.think': 'Think',
+  'message.turnProcess.toolCalls.one': '{count} tool call',
+  'message.turnProcess.toolCalls.other': '{count} tool calls',
+  'message.turnProcess.messages.one': '{count} message',
+  'message.turnProcess.messages.other': '{count} messages',
+  'message.turnProcess.subagents.one': '{count} subagent',
+  'message.turnProcess.subagents.other': '{count} subagents',
+  'message.turnProcess.thoughtForAWhile': 'Thought for a while',
+  'message.turnProcess.separator': ' · ',
 };
 
 /// Interpolation helper for `message.compaction.completed`.
 String formatCompactionCompleted(String template, int items, int tokens) =>
     template.replaceAll('{items}', '$items').replaceAll('{tokens}', '$tokens');
+
+/// Builds the turn-process group label exactly like React
+/// `TurnProcessNodeView` (`{N tool call(s)} · {M message(s)} ·
+/// {K subagent(s)}`, non-zero counts only, else the fallback line).
+/// Counts come from the ledger's `TurnProcessNode`; [t] resolves a locale
+/// key and `{count}` is substituted by the caller side.
+String formatTurnProcessLabel({
+  required int toolCallCount,
+  required int messageCount,
+  required int subagentCount,
+  required String Function(String key) t,
+}) {
+  final parts = <String>[];
+  if (toolCallCount > 0) {
+    parts.add(
+      t(toolCallCount == 1
+              ? 'message.turnProcess.toolCalls.one'
+              : 'message.turnProcess.toolCalls.other')
+          .replaceAll('{count}', '$toolCallCount'),
+    );
+  }
+  if (messageCount > 0) {
+    parts.add(
+      t(messageCount == 1
+              ? 'message.turnProcess.messages.one'
+              : 'message.turnProcess.messages.other')
+          .replaceAll('{count}', '$messageCount'),
+    );
+  }
+  if (subagentCount > 0) {
+    parts.add(
+      t(subagentCount == 1
+              ? 'message.turnProcess.subagents.one'
+              : 'message.turnProcess.subagents.other')
+          .replaceAll('{count}', '$subagentCount'),
+    );
+  }
+  if (parts.isEmpty) return t('message.turnProcess.thoughtForAWhile');
+  return parts.join(t('message.turnProcess.separator'));
+}
