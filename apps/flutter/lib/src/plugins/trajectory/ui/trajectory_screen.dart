@@ -3415,7 +3415,7 @@ class _DetailsPane extends StatefulWidget {
 String _trajT(BuildContext context, String key) =>
     trajectoryText(Localizations.localeOf(context).languageCode, key);
 
-class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderStateMixin {
+class _DetailsPaneState extends State<_DetailsPane> with TickerProviderStateMixin {
   late TabController _tab;
   bool _showUnixTime = false;
 

@@ -37,31 +37,44 @@ class AgentPresetHeaderLabel extends ConsumerWidget {
     final display = presetDisplayText(id: presetId, builtIn: true, t: t);
     return Tooltip(
       message: t('headerHint'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DswTokens.spaceSm,
-          vertical: 4,
-        ),
-        decoration: BoxDecoration(
-          color: aliases.bgOverlay,
-          borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-          border: Border.all(color: aliases.borderL2),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.tune, size: 12, color: aliases.labelTertiary),
-            const SizedBox(width: 4),
-            Text(
-              display.name,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXxs12,
-                fontWeight: FontWeight.w600,
-                color: aliases.labelSecondary,
-              ),
+      // Narrow header slots (e.g. a 24px rail entry) cannot fit the name:
+      // collapse to a lightly-padded icon instead of overflowing the Row.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool iconOnly =
+              constraints.maxWidth < 64 && constraints.maxWidth.isFinite;
+          return Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: iconOnly ? 2 : DswTokens.spaceSm,
+              vertical: 4,
             ),
-          ],
-        ),
+            decoration: BoxDecoration(
+              color: aliases.bgOverlay,
+              borderRadius: BorderRadius.circular(DswTokens.radiusFull),
+              border: Border.all(color: aliases.borderL2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tune, size: 12, color: aliases.labelTertiary),
+                if (!iconOnly) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      display.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeXxs12,
+                        fontWeight: FontWeight.w600,
+                        color: aliases.labelSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }

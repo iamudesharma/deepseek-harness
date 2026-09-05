@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-05-flutter-inspector-ticker-overflow.md
+2026-09-05-flutter-inspector-ticker-overflow.md: ea715362f9b7e8be2c33af666c1e26a0e307ef7e
+2026-09-05-flutter-inspector-ticker-overflow.zh.md: 60d71bbad3a2bcdfaa4699c4d90f00c3250ebb9f

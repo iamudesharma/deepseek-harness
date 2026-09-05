@@ -122,6 +122,35 @@ void main() {
     expect(find.byType(Tooltip), findsNothing);
   });
 
+  testWidgets('header label collapses to icon in a 24px rail slot', (
+    tester,
+  ) async {
+    // Narrow header slots used to overflow the name Row by ~88px; the label
+    // now renders icon-only instead of throwing a RenderFlex overflow.
+    const summary = SessionSummary(
+      sessionId: SessionId('sess-1'),
+      updatedAt: 1000,
+      running: false,
+      blank: false,
+      agentPreset: 'standard',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        const SizedBox(
+          width: 24,
+          child: AgentPresetHeaderLabel(),
+        ),
+        current: summary,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byIcon(Icons.tune), findsOneWidget);
+    expect(find.text('Standard mode'), findsNothing);
+  });
+
   test(
     'presetDisplayText resolves built-in copy and passes user metadata through',
     () {
