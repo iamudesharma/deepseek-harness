@@ -2716,46 +2716,53 @@ String _trajT(BuildContext context, String key) =>
 class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderStateMixin {
   late TabController _tab;
   bool _showUnixTime = false;
-  List<String> get _tabs {
-    final k = widget.row.kind;
+
+  /// Locale-free tab ids for a row (React `detailTabs` matrix). Ids drive
+  /// the TabController, which is created in `initState` where the context
+  /// must not depend on inherited widgets (no locale lookup here); labels
+  /// resolve in `build` via `_trajT`.
+  static List<String> _tabIdsFor(LedgerRow row) {
+    final k = row.kind;
     if (k == TrajectoryCellKind.system) {
-      return [_trajT(context, 'tab.systemPrompt'), _trajT(context, 'tab.tools')];
+      return const ['systemPrompt', 'tools'];
     }
     if (k == TrajectoryCellKind.compacted) {
-      return [_trajT(context, 'tab.summary'), _trajT(context, 'tab.rawOutput')];
+      return const ['summary', 'rawOutput'];
     }
     if (k == TrajectoryCellKind.message ||
         k == TrajectoryCellKind.user ||
         k == TrajectoryCellKind.context) {
       return [
-        _trajT(context, 'tab.summary'),
-        _trajT(context, 'tab.preview'),
-        _trajT(context, 'tab.raw'),
-        if (widget.row.messageSource != null) _trajT(context, 'tab.source'),
+        'summary',
+        'preview',
+        'raw',
+        if (row.messageSource != null) 'source',
       ];
     }
     // Tool/subtool: Payload/Result tabs exist only when captured (React
     // `detailTabs` conditionals); Schema and Timing always do.
     return [
-      _trajT(context, 'tab.summary'),
-      if ((widget.row.inputDetail ?? '').isNotEmpty) _trajT(context, 'tab.payload'),
-      if ((widget.row.outputDetail ?? '').isNotEmpty) _trajT(context, 'tab.result'),
-      _trajT(context, 'tab.schema'),
-      _trajT(context, 'tab.timing'),
+      'summary',
+      if ((row.inputDetail ?? '').isNotEmpty) 'payload',
+      if ((row.outputDetail ?? '').isNotEmpty) 'result',
+      'schema',
+      'timing',
     ];
   }
+
+  List<String> get _tabIds => _tabIdsFor(widget.row);
 
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: _tabs.length, vsync: this);
+    _tab = TabController(length: _tabIds.length, vsync: this);
   }
 
   @override
   void didUpdateWidget(covariant _DetailsPane oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.row.index != widget.row.index || oldWidget.row.kind != widget.row.kind) {
-      final newLen = _tabs.length;
+      final newLen = _tabIds.length;
       if (newLen != _tab.length) {
         _tab.dispose();
         _tab = TabController(length: newLen, vsync: this);
@@ -2811,13 +2818,16 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
               indicatorColor: aliases.stateBusinessPrimary,
               indicatorWeight: 2,
               labelStyle: TextStyle(fontSize: DswTokens.fontSizeXs13, fontWeight: FontWeight.w500),
-              tabs: [for (final t in _tabs) Tab(text: t)],
+              tabs: [
+                for (final id in _tabIds)
+                  Tab(text: _trajT(context, 'tab.$id'))
+              ],
             ),
           ),
           Expanded(
             child: TabBarView(
               controller: _tab,
-              children: [for (final t in _tabs) _tabBody(t, row, aliases)],
+              children: [for (final id in _tabIds) _tabBody(id, row, aliases)],
             ),
           ),
         ],
@@ -2844,8 +2854,8 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         TrajectoryCellKind.subtool => 'SUBTOOL',
       };
 
-  void _jumpToTab(String label) {
-    final i = _tabs.indexOf(label);
+  void _jumpToId(String id) {
+    final i = _tabIds.indexOf(id);
     if (i != -1) _tab.animateTo(i);
   }
 
@@ -2897,7 +2907,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
 
   Widget _sectionLink({
     required String label,
-    required String targetTab,
+    required String targetId,
     required Widget preview,
     required DswAliases aliases,
   }) {
@@ -2910,7 +2920,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          onPressed: () => _jumpToTab(targetTab),
+          onPressed: () => _jumpToId(targetId),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -2988,7 +2998,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       if ((row.inputDetail ?? '').isNotEmpty) {
         children.add(_sectionLink(
           label: _trajT(context, 'tab.payload'),
-          targetTab: _trajT(context, 'tab.payload'),
+          targetId: 'payload',
           preview: _previewPre(row.inputDetail!, aliases),
           aliases: aliases,
         ));
@@ -2996,14 +3006,14 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       if ((row.outputDetail ?? '').isNotEmpty) {
         children.add(_sectionLink(
           label: _trajT(context, 'tab.result'),
-          targetTab: _trajT(context, 'tab.result'),
+          targetId: 'result',
           preview: _previewPre(row.outputDetail!, aliases),
           aliases: aliases,
         ));
       }
       children.add(_sectionLink(
         label: _trajT(context, 'tab.schema'),
-        targetTab: _trajT(context, 'tab.schema'),
+        targetId: 'schema',
         preview: Text(
             row.schemaDescription?.isNotEmpty == true
                 ? row.schemaDescription!
@@ -3017,7 +3027,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       ));
       children.add(_sectionLink(
         label: _trajT(context, 'tab.timing'),
-        targetTab: _trajT(context, 'tab.timing'),
+        targetId: 'timing',
         preview: Text(
             '${_trajT(context, 'timing.started')}: ${_startedText(row.startedAt)} · ${_trajT(context, 'timing.duration')}: ${_durationText(row.timeSeconds)}',
             maxLines: 2,
@@ -3050,7 +3060,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       if (previewText.isNotEmpty) {
         children.add(_sectionLink(
           label: _trajT(context, 'tab.preview'),
-          targetTab: _trajT(context, 'tab.preview'),
+          targetId: 'preview',
           preview: _previewPre(previewText, aliases, maxLines: 10),
           aliases: aliases,
         ));
@@ -3081,7 +3091,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
                     alignment: Alignment.centerLeft,
                   ),
                   onPressed: () =>
-                      _jumpToTab(_trajT(context, 'tab.source')),
+                      _jumpToId('source'),
                   child: Text('${_trajT(context, 'tab.source')} ›',
                       style: TextStyle(
                           fontSize: DswTokens.fontSizeXs13,
@@ -3102,7 +3112,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       if (previewText.isNotEmpty) {
         children.add(_sectionLink(
           label: _trajT(context, 'tab.preview'),
-          targetTab: _trajT(context, 'tab.preview'),
+          targetId: 'preview',
           preview: _previewPre(previewText, aliases, maxLines: 10),
           aliases: aliases,
         ));
@@ -3267,10 +3277,13 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         padding: const EdgeInsets.all(14), children: children);
   }
 
-  Widget _tabBody(String tab, LedgerRow row, DswAliases aliases) {
+  /// [id] is a locale-free tab id from [_tabIdsFor] (`summary`, `preview`,
+  /// `raw`, `rawOutput`, `source`, `payload`, `result`, `schema`, `timing`,
+  /// `systemPrompt`, `tools`).
+  Widget _tabBody(String id, LedgerRow row, DswAliases aliases) {
     String L(String key) => _trajT(context, key);
-    if (tab == L('tab.summary')) return _summaryTab(row, aliases);
-    if (tab == L('tab.preview')) {
+    if (id == 'summary') return _summaryTab(row, aliases);
+    if (id == 'preview') {
       final parts = <String>[
         if ((row.thinkingDetail ?? '').isNotEmpty) row.thinkingDetail!,
         if ((row.outputDetail ?? '').isNotEmpty)
@@ -3283,7 +3296,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
       return _markdownTab(
           parts.join('\n\n'), aliases, L('record.noOutput'));
     }
-    if (tab == L('tab.raw') || tab == L('tab.rawOutput')) {
+    if (id == 'raw' || id == 'rawOutput') {
       return _preTab(
           row.inputDetail ??
               ([row.thinkingDetail, row.outputDetail]
@@ -3293,7 +3306,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
           aliases,
           L('record.noOutput'));
     }
-    if (tab == L('tab.source')) {
+    if (id == 'source') {
       final src = row.messageSource ?? '';
       if (src.isEmpty) {
         return Center(
@@ -3325,15 +3338,15 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         ),
       );
     }
-    if (tab == L('tab.payload')) {
+    if (id == 'payload') {
       return _jsonTab(
           row.inputDetail ?? '', aliases, L('record.noPayload'));
     }
-    if (tab == L('tab.result')) {
+    if (id == 'result') {
       return _jsonTab(row.outputDetail ?? row.result ?? '', aliases,
           L('record.noResult'));
     }
-    if (tab == L('tab.schema')) {
+    if (id == 'schema') {
       final desc = row.schemaDescription ?? '';
       final params = row.schemaParameters ?? '';
       if (desc.isEmpty && params.isEmpty) {
@@ -3366,8 +3379,8 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         ],
       );
     }
-    if (tab == L('tab.timing')) return _timingTab(row, aliases);
-    if (tab == L('tab.systemPrompt')) {
+    if (id == 'timing') return _timingTab(row, aliases);
+    if (id == 'systemPrompt') {
       final prompt = row.promptDetail ?? '';
       if (prompt.isEmpty) {
         return Center(
@@ -3381,7 +3394,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         child: DsMarkdown(data: prompt),
       );
     }
-    if (tab == L('tab.tools')) {
+    if (id == 'tools') {
       final catalog = row.promptToolsJson ?? '';
       final dynamic decoded =
           catalog.isEmpty ? null : (jsonContainerOf(catalog) ?? catalog);
