@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-terminal` provides persistent, owner-scoped terminal sessions to the harness: a session keeps shell or REPL state across tool calls, and every operation is fenced to the exact agent that created it. It provides the `ctx.terminals` service, which mints opaque session ids, routes session creation through registered backends, and waits for quiescent cleanup when an owner or the service disposes. It defines no terminal mechanics itself: backends such as the shipped `dsh-terminal-bash` own spawning and readiness, and the model-facing tools in `dsh-tool-terminal` own presentation. Sessions are process-local: they do not survive a harness restart.
+`dsh-terminal` provides persistent, owner-scoped terminal sessions to the harness: a session keeps shell or REPL state across tool calls, and every operation is fenced to the exact owner that created it. It provides the `ctx.terminals` service, which mints opaque session ids, routes session creation through registered backends, and waits for quiescent cleanup when an owner or the service disposes. It defines no terminal mechanics itself: backends such as the shipped `dsh-terminal-bash` own spawning and readiness, and the model-facing tools in `dsh-tool-terminal` own presentation. Sessions are process-local: they do not survive a harness restart.
 
 ## Table of Contents
 
@@ -49,11 +49,11 @@ Once a session exists, consumers can open a session and receive its id and bound
 
 ### Ownership and isolation
 
-Every session is owned by the exact agent that opened it. Operations that name a session are rejected when the caller is not that agent, so the model cannot reach another agent's terminal even if it learns the id. An optional session `name` is owner-local display metadata — labels such as `main` or `gdb` — and is unique only within its owner.
+Every session is owned by the exact owner that opened it, expressed as a discriminated `TerminalOwner`: an agent owner wraps the exact live `Agent` (the model-facing surface, whose liveness is the Agent registry's entry), and a console owner is a client terminal principal with its own effect scope and no model session (its liveness is that scope's disposal). Operations that name a session are rejected when the caller is not the owning authority, so one owner cannot reach another's terminal even if it learns the id. An optional session `name` is owner-local display metadata — labels such as `main` or `gdb` — and is unique only within its owner.
 
 ### Observable outcomes and failures
 
-A successful open returns the session id, type, pid when the backend has one, status, and a bounded startup message. Sends settle with a wait reason: `stdin_read` (the shell is waiting for input), `inferred_idle` (output silence), `timeout`, or `session_exit` (the top-level shell exited). Failures carry stable machine-routable codes: a missing backend type (`NO_BACKEND`), an unknown session (`NO_SESSION`), another agent's session (`FOREIGN_SESSION`), a second concurrent send (`SEND_ACTIVE`), or an owner that is no longer live (`OWNER_NOT_LIVE`). Backend setup failures reject the open before anything is published, and a failed cleanup rejects the close rather than claiming success.
+A successful open returns the session id, type, pid when the backend has one, status, and a bounded startup message. Sends settle with a wait reason: `stdin_read` (the shell is waiting for input), `inferred_idle` (output silence), `timeout`, or `session_exit` (the top-level shell exited). Failures carry stable machine-routable codes: a missing backend type (`NO_BACKEND`), an unknown session (`NO_SESSION`), another owner's session (`FOREIGN_SESSION`), a second concurrent send (`SEND_ACTIVE`), or an owner that is no longer live (`OWNER_NOT_LIVE`). Backend setup failures reject the open before anything is published, and a failed cleanup rejects the close rather than claiming success.
 
 -----
 
@@ -83,7 +83,7 @@ Each published session is a record of its id, owner, optional name, backend type
 
 ### Ownership and cleanup rules
 
-- Fencing uses the exact `Agent` object: `hasOwnerActivity(owner)` spans unpublished setup through final close with no publication gap, so lifecycle policy can fence the owner precisely.
+- Fencing compares the owning authority — the `Agent` for agent owners, the principal object for console owners — so a re-wrapped owner of the same authority still matches. `hasOwnerActivity(owner)` spans unpublished setup through final close with no publication gap, so lifecycle policy can fence the owner precisely.
 - A backend that cannot clean partial startup resources rejects with `TerminalBackendCleanupError`; the service retains that failure as tracked owner activity until owner or service disposal consumes and reports it.
 - Caller cancellation keeps its exact `AbortSignal.reason`; `kill()` and disposal resolve only after the backend's captured process tree is quiescent.
 

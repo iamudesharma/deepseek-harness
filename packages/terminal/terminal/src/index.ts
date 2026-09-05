@@ -5,11 +5,11 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { Agent } from '@deepseek-ai/dsh-agent'
 import { TerminalBackendCleanupError } from './types.ts'
 import type {
   TerminalBackend,
   TerminalBackendSession,
+  TerminalOwner,
   TerminalReadRequest,
   TerminalReadResult,
   TerminalSendOperation,
@@ -23,9 +23,12 @@ import type {
 } from './types.ts'
 
 export type {
+  AgentTerminalOwner,
+  ConsoleTerminalOwner,
   TerminalBackend,
   TerminalBackendSession,
   TerminalBackendSpawnSpec,
+  TerminalOwner,
   TerminalReadRequest,
   TerminalReadResult,
   TerminalSendOperation,
@@ -81,7 +84,8 @@ export function TerminalSessionId(value: string): TerminalSessionId {
 
 interface SessionRecord {
   readonly id: TerminalSessionId
-  readonly owner: Agent
+  /** Fencing authority: the agent for agent owners, the principal object for console owners. */
+  readonly ownerKey: object
   readonly name: string | undefined
   readonly type: string
   readonly session: TerminalBackendSession
@@ -90,7 +94,7 @@ interface SessionRecord {
 }
 
 interface PendingSpawn {
-  readonly owner: Agent
+  readonly ownerKey: object
   readonly controller: AbortController
   readonly settled: Promise<void>
   cleanupFailure: { error: unknown } | undefined
@@ -101,14 +105,14 @@ interface SpawnReservation {
   release(cleanupFailure: { error: unknown } | undefined): void
 }
 
-/** In-process registry for replaceable PTY backends and exact-Agent sessions. */
+/** In-process registry for replaceable PTY backends and exact-owner sessions. */
 export class TerminalSessionService extends Service {
   private readonly backends = new Map<string, TerminalBackend>()
   private readonly sessions = new Map<TerminalSessionId, SessionRecord>()
-  private readonly reservedNames = new Map<Agent, Set<string>>()
-  private readonly pendingSpawns = new Map<Agent, Set<PendingSpawn>>()
-  private readonly ownerCleanups = new Map<Agent, () => Promise<void> | void>()
-  private readonly disposedOwners = new WeakSet<Agent>()
+  private readonly reservedNames = new Map<object, Set<string>>()
+  private readonly pendingSpawns = new Map<object, Set<PendingSpawn>>()
+  private readonly ownerCleanups = new Map<object, () => Promise<void> | void>()
+  private readonly disposedOwners = new WeakSet<object>()
   private nextId = 0
   private disposing = false
 
@@ -146,12 +150,12 @@ export class TerminalSessionService extends Service {
 
   /**
    * Create and publish one owner-scoped session after backend setup succeeds.
-   * @param owner - exact registered Agent that owns access and cleanup.
+   * @param owner - exact live owner that owns access and cleanup.
    * @param request - backend type plus optional owner-local name and cwd.
    * @param signal - cancellation of unpublished setup.
    * @returns published identity, metadata, status, and MOTD.
    */
-  async spawn(owner: Agent, request: TerminalSpawnRequest, signal?: AbortSignal): Promise<TerminalSpawnResult> {
+  async spawn(owner: TerminalOwner, request: TerminalSpawnRequest, signal?: AbortSignal): Promise<TerminalSpawnResult> {
     this.assertActive()
     signal?.throwIfAborted()
     this.ensureOwnerCleanup(owner)
@@ -184,7 +188,7 @@ export class TerminalSessionService extends Service {
       }
       const record: SessionRecord = {
         id: sessionId,
-        owner,
+        ownerKey: this.ownerKey(owner),
         name: request.name,
         type: request.type,
         session,
@@ -228,9 +232,10 @@ export class TerminalSessionService extends Service {
    * @param owner - exact live owner to inspect.
    * @returns true across the entire spawn-to-close interval, with no publication gap.
    */
-  hasOwnerActivity(owner: Agent): boolean {
-    return (this.pendingSpawns.get(owner)?.size ?? 0) > 0
-      || [...this.sessions.values()].some(record => record.owner === owner)
+  hasOwnerActivity(owner: TerminalOwner): boolean {
+    const key = this.ownerKey(owner)
+    return (this.pendingSpawns.get(key)?.size ?? 0) > 0
+      || [...this.sessions.values()].some(record => record.ownerKey === key)
   }
 
   /**
@@ -240,7 +245,7 @@ export class TerminalSessionService extends Service {
    * @param request - explicit text, submit behavior, and cancellation.
    * @returns live operation handle for foreground await or task registration.
    */
-  startSend(owner: Agent, id: TerminalSessionId, request: TerminalSendRequest): TerminalSendOperation {
+  startSend(owner: TerminalOwner, id: TerminalSessionId, request: TerminalSendRequest): TerminalSendOperation {
     const record = this.expectOwned(owner, id)
     if (record.closing !== undefined) throw new Error(`PTY session ${id} is closing`)
     if (record.active !== undefined) throw new TerminalError(`PTY session ${id} already has an active send`, 'SEND_ACTIVE')
@@ -260,7 +265,7 @@ export class TerminalSessionService extends Service {
    * @param request - optional newest-relative offset and line count.
    * @returns bounded retained text and pagination metadata.
    */
-  read(owner: Agent, id: TerminalSessionId, request: TerminalReadRequest = {}): TerminalReadResult {
+  read(owner: TerminalOwner, id: TerminalSessionId, request: TerminalReadRequest = {}): TerminalReadResult {
     return this.expectOwned(owner, id).session.read(request)
   }
 
@@ -271,7 +276,7 @@ export class TerminalSessionService extends Service {
    * @param signal - allowed POSIX signal name.
    * @returns delivered foreground process-group identity.
    */
-  signal(owner: Agent, id: TerminalSessionId, signal: TerminalSignal): Promise<TerminalSignalResult> {
+  signal(owner: TerminalOwner, id: TerminalSessionId, signal: TerminalSignal): Promise<TerminalSignalResult> {
     return this.expectOwned(owner, id).session.signal(signal)
   }
 
@@ -282,7 +287,7 @@ export class TerminalSessionService extends Service {
    * @param reason - diagnostic cleanup reason.
    * @returns true for a newly closed session, false when the same close is already in flight.
    */
-  async kill(owner: Agent, id: TerminalSessionId, reason: string = 'model request'): Promise<boolean> {
+  async kill(owner: TerminalOwner, id: TerminalSessionId, reason: string = 'model request'): Promise<boolean> {
     const record = this.expectOwned(owner, id)
     if (record.closing !== undefined) {
       await record.closing
@@ -305,9 +310,10 @@ export class TerminalSessionService extends Service {
    * @param owner - exact owner whose sessions are visible.
    * @returns owner-visible snapshots in publication order.
    */
-  list(owner: Agent): TerminalSessionSnapshot[] {
+  list(owner: TerminalOwner): TerminalSessionSnapshot[] {
+    const key = this.ownerKey(owner)
     return [...this.sessions.values()]
-      .filter(record => record.owner === owner)
+      .filter(record => record.ownerKey === key)
       .map(record => this.snapshot(record))
   }
 
@@ -315,45 +321,73 @@ export class TerminalSessionService extends Service {
     if (this.disposing) throw new TerminalError('PTY service is disposing', 'SERVICE_DISPOSING')
   }
 
-  private isLiveOwner(owner: Agent): boolean {
-    return !this.disposedOwners.has(owner) && this.ctx.get('agents')?.get(owner.id) === owner
+  /** The owner's stable diagnostic and child-environment id. */
+  private ownerId(owner: TerminalOwner): string {
+    return owner.kind === 'agent' ? owner.agent.id : owner.id
   }
 
-  private ensureOwnerCleanup(owner: Agent): void {
+  /** The owner scope whose disposal ends the owner's liveness. */
+  private ownerScope(owner: TerminalOwner): Context {
+    return owner.kind === 'agent' ? owner.agent.ctx : owner.ctx
+  }
+
+  /**
+   * The authority object every ownership comparison uses: the agent for agent
+   * owners, the principal object for console owners. Authorization compares
+   * the authority, never a wrapper or a name.
+   */
+  private ownerKey(owner: TerminalOwner): object {
+    return owner.kind === 'agent' ? owner.agent : owner
+  }
+
+  private isLiveOwner(owner: TerminalOwner): boolean {
+    if (this.disposedOwners.has(this.ownerKey(owner))) return false
+    // A console principal's liveness is exactly its attached cleanup: the
+    // owning controller holds the object, and the effect marks it disposed
+    // when that scope ends. An agent must additionally still be the
+    // registry's live entry for its id.
+    if (owner.kind === 'console') return true
+    return this.ctx.get('agents')?.get(owner.agent.id) === owner.agent
+  }
+
+  private ensureOwnerCleanup(owner: TerminalOwner): void {
     if (!this.isLiveOwner(owner)) {
-      throw new TerminalError(`agent "${owner.id}" is not the registered PTY owner`, 'OWNER_NOT_LIVE')
+      throw new TerminalError(`terminal owner "${this.ownerId(owner)}" is not live`, 'OWNER_NOT_LIVE')
     }
-    if (this.ownerCleanups.has(owner)) return
-    const detach = owner.ctx.effect(() => async () => {
-      this.disposedOwners.add(owner)
-      this.ownerCleanups.delete(owner)
-      await this.disposeOwned(owner)
+    const key = this.ownerKey(owner)
+    if (this.ownerCleanups.has(key)) return
+    const detach = this.ownerScope(owner).effect(() => async () => {
+      this.disposedOwners.add(key)
+      this.ownerCleanups.delete(key)
+      await this.disposeOwned(key)
     }, 'pty.ownerCleanup()')
-    this.ownerCleanups.set(owner, detach)
+    this.ownerCleanups.set(key, detach)
   }
 
-  private reserveName(owner: Agent, name: string | undefined): () => void {
+  private reserveName(owner: TerminalOwner, name: string | undefined): () => void {
     if (name === undefined) return () => {}
-    if ([...this.sessions.values()].some(record => record.owner === owner && record.name === name)) {
+    const key = this.ownerKey(owner)
+    if ([...this.sessions.values()].some(record => record.ownerKey === key && record.name === name)) {
       throw new TerminalError(`PTY session name "${name}" already exists for this owner`, 'DUPLICATE_NAME')
     }
-    const reserved = this.reservedNames.get(owner) ?? new Set<string>()
+    const reserved = this.reservedNames.get(key) ?? new Set<string>()
     if (reserved.has(name)) throw new TerminalError(`PTY session name "${name}" is already being created`, 'DUPLICATE_NAME')
     reserved.add(name)
-    this.reservedNames.set(owner, reserved)
+    this.reservedNames.set(key, reserved)
     return () => {
       reserved.delete(name)
-      if (reserved.size === 0) this.reservedNames.delete(owner)
+      if (reserved.size === 0) this.reservedNames.delete(key)
     }
   }
 
-  private reserveSpawn(owner: Agent): SpawnReservation {
+  private reserveSpawn(owner: TerminalOwner): SpawnReservation {
     const controller = new AbortController()
     const settlement = Promise.withResolvers<void>()
-    const pending: PendingSpawn = { owner, controller, settled: settlement.promise, cleanupFailure: undefined }
-    const owned = this.pendingSpawns.get(owner) ?? new Set<PendingSpawn>()
+    const key = this.ownerKey(owner)
+    const pending: PendingSpawn = { ownerKey: key, controller, settled: settlement.promise, cleanupFailure: undefined }
+    const owned = this.pendingSpawns.get(key) ?? new Set<PendingSpawn>()
     owned.add(pending)
-    this.pendingSpawns.set(owner, owned)
+    this.pendingSpawns.set(key, owned)
     return {
       signal: controller.signal,
       release: (cleanupFailure) => {
@@ -365,16 +399,16 @@ export class TerminalSessionService extends Service {
   }
 
   private removePendingSpawn(pending: PendingSpawn): void {
-    const owned = this.pendingSpawns.get(pending.owner)
+    const owned = this.pendingSpawns.get(pending.ownerKey)
     if (owned === undefined) return
     owned.delete(pending)
-    if (owned.size === 0) this.pendingSpawns.delete(pending.owner)
+    if (owned.size === 0) this.pendingSpawns.delete(pending.ownerKey)
   }
 
-  private async abortPendingSpawns(owner: Agent | undefined, reason: TerminalError): Promise<void> {
-    const pending = owner === undefined
+  private async abortPendingSpawns(ownerKey: object | undefined, reason: TerminalError): Promise<void> {
+    const pending = ownerKey === undefined
       ? [...this.pendingSpawns.values()].flatMap(owned => [...owned])
-      : [...(this.pendingSpawns.get(owner) ?? [])]
+      : [...(this.pendingSpawns.get(ownerKey) ?? [])]
     for (const spawn of pending) spawn.controller.abort(reason)
     await Promise.all(pending.map(spawn => spawn.settled))
     const failures = pending.flatMap(spawn => spawn.cleanupFailure === undefined ? [] : [spawn.cleanupFailure.error])
@@ -384,10 +418,10 @@ export class TerminalSessionService extends Service {
     }
   }
 
-  private expectOwned(owner: Agent, id: TerminalSessionId): SessionRecord {
+  private expectOwned(owner: TerminalOwner, id: TerminalSessionId): SessionRecord {
     const record = this.sessions.get(id)
     if (record === undefined) throw new TerminalError(`unknown PTY session ${id}`, 'NO_SESSION')
-    if (record.owner !== owner) throw new TerminalError(`PTY session ${id} belongs to another agent`, 'FOREIGN_SESSION')
+    if (record.ownerKey !== this.ownerKey(owner)) throw new TerminalError(`PTY session ${id} belongs to another owner`, 'FOREIGN_SESSION')
     return record
   }
 
@@ -404,14 +438,14 @@ export class TerminalSessionService extends Service {
     }
   }
 
-  private async abortAndClose(owner: Agent | undefined, abortReason: TerminalError, closeReason: string): Promise<void> {
+  private async abortAndClose(ownerKey: object | undefined, abortReason: TerminalError, closeReason: string): Promise<void> {
     const failures: unknown[] = []
     try {
-      await this.abortPendingSpawns(owner, abortReason)
+      await this.abortPendingSpawns(ownerKey, abortReason)
     } catch (error: unknown) {
       failures.push(error)
     }
-    const records = [...this.sessions.values()].filter(record => owner === undefined || record.owner === owner)
+    const records = [...this.sessions.values()].filter(record => ownerKey === undefined || record.ownerKey === ownerKey)
     try {
       await this.closeRecords(records, closeReason)
     } catch (error: unknown) {
@@ -420,15 +454,15 @@ export class TerminalSessionService extends Service {
     if (failures.length > 0) throw new AggregateError(failures, 'failed to clean up PTY lifecycle')
   }
 
-  private async disposeOwned(owner: Agent): Promise<void> {
+  private async disposeOwned(ownerKey: object): Promise<void> {
     try {
       await this.abortAndClose(
-        owner,
+        ownerKey,
         new TerminalError('PTY owner is no longer live', 'OWNER_NOT_LIVE'),
         'PTY owner disposed',
       )
     } finally {
-      this.reservedNames.delete(owner)
+      this.reservedNames.delete(ownerKey)
     }
   }
 

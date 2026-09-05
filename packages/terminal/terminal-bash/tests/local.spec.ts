@@ -139,17 +139,17 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     process.env.DSH_TEST_SECRET = 'must-not-leak'
     try {
       const { ctx, root, agent } = await harness('danger-full-access')
-      const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'main', cwd: root })
+      const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell', name: 'main', cwd: root })
       expect(created.motd).toContain('dsh> ')
 
-      const first = ctx.terminals.startSend(agent, created.sessionId, { text: 'export KEEP=ok; cd /', submit: true })
+      const first = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'export KEEP=ok; cd /', submit: true })
       expect((await first.done).waitReason).toBe('stdin_read')
-      const second = ctx.terminals.startSend(agent, created.sessionId, { text: 'printf "cwd=%s keep=%s secret=%s\\n" "$PWD" "$KEEP" "${DSH_TEST_SECRET-unset}"', submit: true })
+      const second = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'printf "cwd=%s keep=%s secret=%s\\n" "$PWD" "$KEEP" "${DSH_TEST_SECRET-unset}"', submit: true })
       expect((await second.done).viewport).toContain('cwd=/ keep=ok secret=unset')
 
-      expect(ctx.terminals.read(agent, created.sessionId, { offset: 0, count: 20 }).text).toContain('cwd=/ keep=ok secret=unset')
-      expect(await ctx.terminals.kill(agent, created.sessionId)).toBe(true)
-      expect(ctx.terminals.list(agent)).toEqual([])
+      expect(ctx.terminals.read({ kind: 'agent', agent }, created.sessionId, { offset: 0, count: 20 }).text).toContain('cwd=/ keep=ok secret=unset')
+      expect(await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)).toBe(true)
+      expect(ctx.terminals.list({ kind: 'agent', agent })).toEqual([])
     } finally {
       if (previous === undefined) delete process.env.DSH_TEST_SECRET
       else process.env.DSH_TEST_SECRET = previous
@@ -164,16 +164,16 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
       idleSilenceMs: 5_000,
       timeoutMs: 8_000,
     })
-    const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell' })
 
-    const override = ctx.terminals.startSend(agent, created.sessionId, { text: 'PS1=broken-prompt', submit: true })
+    const override = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'PS1=broken-prompt', submit: true })
     expect((await override.done).waitReason).toBe('stdin_read')
 
-    const after = ctx.terminals.startSend(agent, created.sessionId, { text: 'printf "healed=[%s]\\n" "$PS1"', submit: true })
+    const after = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'printf "healed=[%s]\\n" "$PS1"', submit: true })
     const result = await after.done
     expect(result.waitReason).toBe('stdin_read')
     expect(result.viewport).toContain('healed=[dsh> ]')
-    await ctx.terminals.kill(agent, created.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
   }, 20_000)
 
   it.skipIf(process.platform !== 'linux')('recognizes a foreground read opened through /dev/tty', async () => {
@@ -181,10 +181,10 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
       idleSilenceMs: 5_000,
       timeoutMs: 8_000,
     })
-    const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell' })
     const readerPidFile = join(root, 'tty-reader.pid')
 
-    const waiting = ctx.terminals.startSend(agent, created.sessionId, {
+    const waiting = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
       text: `bash -c 'exec </dev/tty; printf "%s" "$BASHPID" > "$1"; printf "WAITING\\n"; read -r answer; printf "ANSWER=%s\\n" "$answer"' dsh "${readerPidFile}"`,
       submit: true,
     })
@@ -194,36 +194,36 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     expect(readerPid).toBeGreaterThan(0)
     expect(result.waitReason).toBe(canReadLinuxProcessSyscall(readerPid) ? 'stdin_read' : 'inferred_idle')
 
-    const answer = ctx.terminals.startSend(agent, created.sessionId, { text: 'accepted', submit: true })
+    const answer = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'accepted', submit: true })
     const answered = await answer.done
     expect(answered.waitReason).toBe('stdin_read')
     expect(answered.viewport).toContain('ANSWER=accepted')
-    await ctx.terminals.kill(agent, created.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
   }, 20_000)
 
   it('wraps the exact shell argv under confined policy and unregisters on reload', async () => {
     const { ctx, root, agent, fiber, sandbox } = await harness('workspace-write')
-    const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell' })
     expect(sandbox.calls).toEqual([{
       argv: ['/bin/bash', '--noprofile', '--norc', '-i'],
       policy: { mode: 'workspace-write', workspaceRoot: realpathSync.native(root), sessionId: 'agent-workspace-write' },
     }])
     await fiber.dispose()
     expect(ctx.terminals.listBackends()).toEqual([])
-    expect(ctx.terminals.list(agent)).toHaveLength(1)
-    await ctx.terminals.kill(agent, created.sessionId)
+    expect(ctx.terminals.list({ kind: 'agent', agent })).toHaveLength(1)
+    await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
   }, 10_000)
 
   it('signals a foreground command and kills a TERM-ignoring background descendant', async () => {
     const { ctx, agent } = await harness('danger-full-access')
-    const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell' })
 
-    const foreground = ctx.terminals.startSend(agent, created.sessionId, { text: 'sleep 60', submit: true })
+    const foreground = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'sleep 60', submit: true })
     await new Promise(resolve => setTimeout(resolve, 50))
-    expect((await ctx.terminals.signal(agent, created.sessionId, 'SIGINT')).delivered).toBe(true)
+    expect((await ctx.terminals.signal({ kind: 'agent', agent }, created.sessionId, 'SIGINT')).delivered).toBe(true)
     expectReadyForNextSend((await foreground.done).waitReason)
 
-    const background = ctx.terminals.startSend(agent, created.sessionId, {
+    const background = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
       text: 'sh -c \'trap "" TERM; sleep 60\' & echo CHILD=$!',
       submit: true,
     })
@@ -232,17 +232,17 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     expect(child).toBeDefined()
     const pid = Number(child)
     expect(() => process.kill(pid, 0)).not.toThrow()
-    await ctx.terminals.kill(agent, created.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
     expect(() => process.kill(pid, 0)).toThrow()
   }, 10_000)
 
   it('quiesces a disowned same-session descendant after the shell exits naturally', async () => {
     const { ctx, root, agent } = await harness('danger-full-access')
-    const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell' })
     const pidFile = join(root, 'disowned.pid')
     let pid: number | undefined
     try {
-      const background = ctx.terminals.startSend(agent, created.sessionId, {
+      const background = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
         text: `sh -c 'trap "" TERM; printf "%s" "$$" > "$1"; sleep 60' dsh "${pidFile}" & disown`,
         submit: true,
       })
@@ -254,17 +254,17 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
         if (childPid > 0) break
         await new Promise(resolve => setTimeout(resolve, 10))
       }
-      expect(existsSync(pidFile), ctx.terminals.read(agent, created.sessionId, { offset: 0, count: 100 }).text).toBe(true)
+      expect(existsSync(pidFile), ctx.terminals.read({ kind: 'agent', agent }, created.sessionId, { offset: 0, count: 100 }).text).toBe(true)
       expect(childPid).toBeGreaterThan(0)
       pid = childPid
       expect(() => process.kill(childPid, 0)).not.toThrow()
-      await ctx.terminals.startSend(agent, created.sessionId, { text: 'exit', submit: true }).done
+      await ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, { text: 'exit', submit: true }).done
       const deadline = Date.now() + 2_000
-      while (ctx.terminals.list(agent)[0]?.status.kind !== 'exited' && Date.now() < deadline) {
+      while (ctx.terminals.list({ kind: 'agent', agent })[0]?.status.kind !== 'exited' && Date.now() < deadline) {
         await new Promise(resolve => setTimeout(resolve, 10))
       }
-      expect(ctx.terminals.list(agent)[0]?.status.kind).toBe('exited')
-      await ctx.terminals.kill(agent, created.sessionId)
+      expect(ctx.terminals.list({ kind: 'agent', agent })[0]?.status.kind).toBe('exited')
+      await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
       expect(processIsRunning(childPid)).toBe(false)
     } finally {
       if (pid !== undefined) {
@@ -282,7 +282,7 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
       idleSilenceMs: 10_000,
       timeoutMs: 15_000,
     })
-    const created = await ctx.terminals.spawn(agent, { type: 'shell' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell' })
     const controller = new AbortController()
     const ready = 'RAW_READY'
     // Delay readiness beyond the shared harness's short send bound so this
@@ -290,7 +290,7 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     // The interactive shell echoes the command, so only child output may contain the readiness marker.
     const command = 'python3 -c \'import signal,sys,termios,time; signal.signal(signal.SIGINT, lambda *_: (print("SIGINT_SEEN", flush=True), sys.exit(0))); attrs=termios.tcgetattr(0); attrs[3] &= ~termios.ISIG; termios.tcsetattr(0, termios.TCSANOW, attrs); time.sleep(2.1); print("RAW_" + "READY", flush=True); time.sleep(60)\''
     expect(command).not.toContain(ready)
-    const foreground = ctx.terminals.startSend(agent, created.sessionId, {
+    const foreground = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
       text: command,
       submit: true,
       signal: controller.signal,
@@ -302,13 +302,13 @@ describe.skipIf(process.platform === 'win32')('terminal-bash real shell', () => 
     const afterReady = 'AFTER_SIGINT'
     const afterCommand = 'printf "AFTER_%s\\n" SIGINT'
     expect(afterCommand).not.toContain(afterReady)
-    const after = ctx.terminals.startSend(agent, created.sessionId, {
+    const after = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
       text: afterCommand,
       submit: true,
     })
     await waitForOutput(after, afterReady, 15_000)
     expectReadyForNextSend((await after.done).waitReason)
-    await ctx.terminals.kill(agent, created.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
   }, 35_000)
 })
 
@@ -327,15 +327,15 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
         handoffGraceMs: 300,
         timeoutMs: 8_000,
       }, 'pwsh')
-      const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'main', cwd: root })
+      const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell', name: 'main', cwd: root })
       expect(created.motd).toContain('dsh> ')
 
-      const first = ctx.terminals.startSend(agent, created.sessionId, {
+      const first = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
         text: '$env:KEEP = "ok"; Set-Location /',
         submit: true,
       })
       expect((await first.done).waitReason).toBe('stdin_read')
-      const second = ctx.terminals.startSend(agent, created.sessionId, {
+      const second = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
         text: 'Write-Output "keep=$env:KEEP secret=$env:DSH_TEST_SECRET"',
         submit: true,
       })
@@ -344,9 +344,9 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
       expect(result.viewport).toContain('secret=')
       expect(result.viewport).not.toContain('must-not-leak')
 
-      expect(ctx.terminals.read(agent, created.sessionId, { offset: 0, count: 40 }).text).toContain('keep=ok')
-      expect(await ctx.terminals.kill(agent, created.sessionId)).toBe(true)
-      expect(ctx.terminals.list(agent)).toEqual([])
+      expect(ctx.terminals.read({ kind: 'agent', agent }, created.sessionId, { offset: 0, count: 40 }).text).toContain('keep=ok')
+      expect(await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)).toBe(true)
+      expect(ctx.terminals.list({ kind: 'agent', agent })).toEqual([])
     } finally {
       if (previous === undefined) delete process.env.DSH_TEST_SECRET
       else process.env.DSH_TEST_SECRET = previous
@@ -359,11 +359,11 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
       handoffGraceMs: 300,
       timeoutMs: 8_000,
     }, 'pwsh')
-    const created = await ctx.terminals.spawn(agent, { type: 'shell', name: 'main', cwd: root })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent }, { type: 'shell', name: 'main', cwd: root })
     // The bootstrap itself must have pinned both encodings: the session byte
     // decode is UTF-8, so an un-pinned console writing its host code page
     // garbles every non-ASCII byte that follows.
-    const pinned = ctx.terminals.startSend(agent, created.sessionId, {
+    const pinned = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
       text: '"console=" + [Console]::OutputEncoding.WebName + " out=" + $OutputEncoding.WebName',
       submit: true,
     })
@@ -371,12 +371,12 @@ describe.skipIf(!hasPwsh)('terminal-bash pwsh real shell', () => {
     expect(pinnedResult.viewport).toContain('console=utf-8 out=utf-8')
     // Char codes keep the submitted line ASCII-only, so the assertion is a
     // pure output-decode check.
-    const sent = ctx.terminals.startSend(agent, created.sessionId, {
+    const sent = ctx.terminals.startSend({ kind: 'agent', agent }, created.sessionId, {
       text: "[Console]::Write([char]0x4E2D + [char]0x6587 + ' encoding-ok')",
       submit: true,
     })
     const result = await sent.done
     expect(result.viewport).toContain('中文 encoding-ok')
-    await ctx.terminals.kill(agent, created.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent }, created.sessionId)
   }, 30_000)
 })

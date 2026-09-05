@@ -5,6 +5,7 @@
  */
 
 import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 
 /** Internal exported basis for the public `TerminalSessionId` type/value pair. */
@@ -50,12 +51,35 @@ export interface TerminalSpawnRequest {
   cwd?: string
 }
 
+/** Agent-owned sessions: the model-facing surface; liveness rides the Agent registry. */
+export interface AgentTerminalOwner {
+  readonly kind: 'agent'
+  /** The exact live agent; identity, cleanup scope, and sandbox policy source. */
+  readonly agent: Agent
+}
+
+/**
+ * Console-owned sessions: client terminal panels with no model session.
+ * Liveness rides the principal's own effect scope — the owning controller
+ * attaches it, and its disposal tears the principal's sessions down.
+ */
+export interface ConsoleTerminalOwner {
+  readonly kind: 'console'
+  /** Stable principal id used in diagnostics and the child environment. */
+  readonly id: string
+  /** Effect scope whose disposal ends the owner and its sessions. */
+  readonly ctx: Context
+}
+
+/** Exact owner authority over terminal sessions. */
+export type TerminalOwner = AgentTerminalOwner | ConsoleTerminalOwner
+
 /** Fully identified request handed from the registry to a backend. */
 export interface TerminalBackendSpawnSpec extends TerminalSpawnRequest {
   /** Registry-minted session identity. */
   sessionId: TerminalSessionIdValue
   /** Exact live owner for authority-aware backend setup. */
-  owner: Agent
+  owner: TerminalOwner
   /** Cancellation of unpublished backend setup. */
   signal?: AbortSignal
 }

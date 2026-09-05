@@ -137,13 +137,13 @@ try {
     workspaceRoot: process.cwd(),
   })
 
-  const terminal = await ctx.terminals.spawn(owner, { type: 'shell' })
+  const terminal = await ctx.terminals.spawn({ kind: 'agent', agent: owner }, { type: 'shell' })
   terminalId = terminal.sessionId
-  const terminalEcho = await ctx.terminals.startSend(owner, terminal.sessionId, {
+  const terminalEcho = await ctx.terminals.startSend({ kind: 'agent', agent: owner }, terminal.sessionId, {
     text: "printf 'PTY-你好\\n'",
     submit: true,
   }).done
-  const sleeping = ctx.terminals.startSend(owner, terminal.sessionId, {
+  const sleeping = ctx.terminals.startSend({ kind: 'agent', agent: owner }, terminal.sessionId, {
     text: "printf 'DSH_SLEEP_%s\\n' READY; sleep 30",
     submit: true,
   })
@@ -161,17 +161,17 @@ try {
     }
     if (Date.now() >= sleepReadyDeadline) throw new Error(`E2B PTY successor did not execute: ${sleepReadyOutput}`)
   }
-  const terminalSignal = await ctx.terminals.signal(owner, terminal.sessionId, 'SIGINT')
+  const terminalSignal = await ctx.terminals.signal({ kind: 'agent', agent: owner }, terminal.sessionId, 'SIGINT')
   const interrupted = await sleeping.done
-  const stubborn = await ctx.terminals.startSend(owner, terminal.sessionId, {
+  const stubborn = await ctx.terminals.startSend({ kind: 'agent', agent: owner }, terminal.sessionId, {
     text: "bash -c 'trap \"\" TERM; exec sleep 30' & printf 'DSH_STUBBORN_PID=%s\\n' \"$!\"",
     submit: true,
   }).done
   const stubbornMatch = /DSH_STUBBORN_PID=([1-9][0-9]*)/.exec(stubborn.viewport)
   if (stubbornMatch?.[1] === undefined) throw new Error(`E2B PTY did not report its stubborn child: ${stubborn.viewport}`)
   const stubbornPid = Number(stubbornMatch[1])
-  const terminalScrollback = ctx.terminals.read(owner, terminal.sessionId, { count: 50 })
-  await ctx.terminals.kill(owner, terminal.sessionId, 'live E2B composition complete')
+  const terminalScrollback = ctx.terminals.read({ kind: 'agent', agent: owner }, terminal.sessionId, { count: 50 })
+  await ctx.terminals.kill({ kind: 'agent', agent: owner }, terminal.sessionId, 'live E2B composition complete')
   terminalId = undefined
   const stubbornProbe = await sandbox.commands.run(`if kill -0 ${stubbornPid} 2>/dev/null; then printf alive; else printf gone; fi`)
   const terminalTreeCleanup = stubbornProbe.stdout === 'gone'
@@ -195,7 +195,7 @@ try {
     },
   })}\n`)
 } finally {
-  if (terminalId !== undefined) await ctx.terminals.kill(owner, terminalId, 'fixture cleanup').catch(() => false)
+  if (terminalId !== undefined) await ctx.terminals.kill({ kind: 'agent', agent: owner }, terminalId, 'fixture cleanup').catch(() => false)
   unregisterOwner()
   await ownerFiber.dispose()
   await ctx.fiber.dispose()

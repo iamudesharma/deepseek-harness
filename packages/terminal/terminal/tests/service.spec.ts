@@ -5,6 +5,7 @@ import AgentRegistry, { Inbox } from '@deepseek-ai/dsh-agent'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import TerminalSessionService, { TerminalBackendCleanupError, TerminalError, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
 import type {
+  AgentTerminalOwner,
   TerminalBackend,
   TerminalBackendSession,
   TerminalReadRequest,
@@ -13,6 +14,7 @@ import type {
   TerminalSessionId as TerminalSessionIdType,
   TerminalSessionStatus,
   TerminalSignal,
+  TerminalOwner,
 } from '@deepseek-ai/dsh-terminal'
 
 const agentScopeDisposers = new WeakMap<Agent, () => Promise<void>>()
@@ -45,6 +47,11 @@ async function disposeAgentScope(agent: Agent): Promise<void> {
   const dispose = agentScopeDisposers.get(agent)
   if (dispose === undefined) throw new Error('missing agent scope')
   await dispose()
+}
+
+/** Wrap one stub agent in the discriminated owner the service accepts. */
+function agentOwner(agent: Agent): AgentTerminalOwner {
+  return { kind: 'agent', agent }
 }
 
 class StubSession implements TerminalBackendSession {
@@ -157,26 +164,59 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const ctx = await harness()
     const b = backend()
     ctx.terminals.registerBackend(b.provider)
-    const owner = stubAgent(ctx, 'owner')
-    const foreign = stubAgent(ctx, 'foreign')
-    ctx.agents.register(owner)
-    ctx.agents.register(foreign)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    const foreignAgent = stubAgent(ctx, 'foreign')
+    const foreign = agentOwner(foreignAgent)
+    ctx.agents.register(owner.agent)
+    ctx.agents.register(foreign.agent)
 
     const created = await ctx.terminals.spawn(owner, { type: 'stub', name: 'main', cwd: '/tmp' })
     expect(created).toMatchObject({ sessionId: 'pty-1', name: 'main', type: 'stub', pid: 123, motd: 'stub ready', status: { kind: 'running' } })
     expect(ctx.terminals.hasOwnerActivity(owner)).toBe(true)
     expect(ctx.terminals.list(owner)).toHaveLength(1)
     expect(ctx.terminals.list(foreign)).toEqual([])
-    expect(() => ctx.terminals.read(foreign, created.sessionId)).toThrow('belongs to another agent')
-    expect(() => ctx.terminals.signal(foreign, created.sessionId, 'SIGINT')).toThrow('belongs to another agent')
-    await expect(Promise.resolve().then(() => ctx.terminals.kill(foreign, created.sessionId))).rejects.toThrow('belongs to another agent')
+    expect(() => ctx.terminals.read(foreign, created.sessionId)).toThrow('belongs to another owner')
+    expect(() => ctx.terminals.signal(foreign, created.sessionId, 'SIGINT')).toThrow('belongs to another owner')
+    await expect(Promise.resolve().then(() => ctx.terminals.kill(foreign, created.sessionId))).rejects.toThrow('belongs to another owner')
+  })
+
+  it('fences console-owned sessions to the console principal and cleans up on its disposal', async () => {
+    const ctx = await harness()
+    const b = backend()
+    ctx.terminals.registerBackend(b.provider)
+    const scopeFiber = ctx.plugin(() => {})
+    const owner: TerminalOwner = { kind: 'console', id: 'device-1', ctx: scopeFiber.ctx }
+    const created = await ctx.terminals.spawn(owner, { type: 'stub', name: 'panel' })
+    expect(created.motd).toBe('stub ready')
+    expect(ctx.terminals.list(owner)).toHaveLength(1)
+    expect(ctx.terminals.hasOwnerActivity(owner)).toBe(true)
+    // A console principal is not an agent: no registry entry, yet live.
+    expect(ctx.get('agents')?.get(SessionId('device-1'))).toBeUndefined()
+    const operation = ctx.terminals.startSend(owner, created.sessionId, { text: 'echo hi', submit: true })
+    expect(operation.cancel()).toBe(true)
+    await expect(operation.done).resolves.toMatchObject({ waitReason: 'stdin_read' })
+    await expect(ctx.terminals.signal(owner, created.sessionId, 'SIGINT')).resolves.toMatchObject({ delivered: true })
+    // Another console principal cannot touch the session.
+    const foreignScope = ctx.plugin(() => {})
+    const foreign: TerminalOwner = { kind: 'console', id: 'device-2', ctx: foreignScope.ctx }
+    expect(() => ctx.terminals.read(foreign, created.sessionId)).toThrow('belongs to another owner')
+    expect(ctx.terminals.list(foreign)).toEqual([])
+    // Principal disposal tears its sessions down, and a disposed principal
+    // cannot spawn again.
+    await scopeFiber.dispose()
+    expect(b.sessions[0]?.closed).toEqual(['PTY owner disposed'])
+    expect(ctx.terminals.list(owner)).toEqual([])
+    await expect(ctx.terminals.spawn(owner, { type: 'stub' })).rejects.toMatchObject({ code: 'OWNER_NOT_LIVE' })
+    await foreignScope.dispose()
   })
 
   it('rejects unknown backends, non-live owners, duplicate names, and active sends', async () => {
     const ctx = await harness()
-    const owner = stubAgent(ctx, 'owner')
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
     await expect(ctx.terminals.spawn(owner, { type: 'missing' })).rejects.toMatchObject({ code: 'OWNER_NOT_LIVE' })
-    ctx.agents.register(owner)
+    ctx.agents.register(owner.agent)
     await expect(ctx.terminals.spawn(owner, { type: 'missing' })).rejects.toMatchObject({ code: 'NO_BACKEND' })
     const b = backend()
     ctx.terminals.registerBackend(b.provider)
@@ -207,11 +247,12 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const gate = Promise.withResolvers<TerminalBackendSession>()
     const session = new StubSession()
     ctx.terminals.registerBackend({ type: 'slow', spawn: () => gate.promise })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const pending = ctx.terminals.spawn(owner, { type: 'slow', name: 'main' })
     await expect(ctx.terminals.spawn(owner, { type: 'slow', name: 'main' })).rejects.toMatchObject({ code: 'DUPLICATE_NAME' })
-    const disposal = disposeAgentScope(owner)
+    const disposal = disposeAgentScope(owner.agent)
     gate.resolve(session)
     await expect(pending).rejects.toMatchObject({ code: 'OWNER_NOT_LIVE' })
     await disposal
@@ -223,8 +264,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const gate = Promise.withResolvers<TerminalBackendSession>()
     const session = new StubSession()
     ctx.terminals.registerBackend({ type: 'slow', spawn: () => gate.promise })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const controller = new AbortController()
     const reason = new Error('cancelled by caller')
 
@@ -234,7 +276,7 @@ describe('TerminalSessionService ownership and lifecycle', () => {
 
     await expect(pending).rejects.toBe(reason)
     expect(session.closed).toEqual(['PTY spawn rolled back'])
-    expect(ctx.agents.get(owner.id)).toBe(owner)
+    expect(ctx.agents.get(owner.agent.id)).toBe(owner.agent)
   })
 
   it('preserves caller cancellation when unpublished rollback fails', async () => {
@@ -243,8 +285,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const session = new StubSession()
     session.rejectClose = true
     ctx.terminals.registerBackend({ type: 'slow', spawn: () => gate.promise })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const controller = new AbortController()
     const reason = new Error('cancelled by caller')
 
@@ -272,8 +315,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
         signal.addEventListener('abort', () => { reject(backendFailure) }, { once: true })
       }),
     })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const controller = new AbortController()
     const reason = new Error('cancelled by caller')
 
@@ -298,8 +342,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
         }, { once: true })
       }),
     })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const controller = new AbortController()
     const reason = new Error('cancelled by caller')
 
@@ -310,10 +355,10 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     await expect(pending).rejects.toBe(reason)
     expect(ctx.terminals.hasOwnerActivity(owner)).toBe(true)
     const internal = ctx.terminals as unknown as {
-      disposeOwned(owner: Agent): Promise<void>
+      disposeOwned(ownerKey: object): Promise<void>
       disposeAll(): Promise<void>
     }
-    const disposal = scope === 'owner' ? internal.disposeOwned(owner) : internal.disposeAll()
+    const disposal = scope === 'owner' ? internal.disposeOwned(owner.agent) : internal.disposeAll()
     await expect(disposal).rejects.toThrow('failed to clean up PTY lifecycle')
     expect(ctx.terminals.hasOwnerActivity(owner)).toBe(false)
   })
@@ -335,8 +380,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
         return gate.promise
       },
     })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
 
     const pending = ctx.terminals.spawn(owner, { type: 'slow' })
     const pendingFailure = pending.then(
@@ -345,7 +391,7 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     )
     await started.promise
     let disposalSettled = false
-    const disposal = (scope === 'owner' ? disposeAgentScope(owner) : disposeTerminalSessionService(ctx))
+    const disposal = (scope === 'owner' ? disposeAgentScope(owner.agent) : disposeTerminalSessionService(ctx))
       .then(() => { disposalSettled = true })
     await new Promise(resolve => setTimeout(resolve, 0))
     const signalAbortedBeforeRelease = backendSignal?.aborted ?? false
@@ -367,8 +413,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const session = new StubSession()
     session.rejectClose = true
     ctx.terminals.registerBackend({ type: 'slow', spawn: () => gate.promise })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
 
     const pending = ctx.terminals.spawn(owner, { type: 'slow' })
     const pendingFailure = expect(pending).rejects.toThrow('PTY spawn and rollback both failed')
@@ -400,16 +447,17 @@ describe('TerminalSessionService ownership and lifecycle', () => {
         }, { once: true })
       }),
     })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
 
     const pending = ctx.terminals.spawn(owner, { type: 'cleanup-failing' })
     await started.promise
     const internal = ctx.terminals as unknown as {
-      disposeOwned(owner: Agent): Promise<void>
+      disposeOwned(ownerKey: object): Promise<void>
       disposeAll(): Promise<void>
     }
-    const disposal = scope === 'owner' ? internal.disposeOwned(owner) : internal.disposeAll()
+    const disposal = scope === 'owner' ? internal.disposeOwned(owner.agent) : internal.disposeAll()
     const pendingError = await pending.then(
       () => { throw new Error('pending spawn unexpectedly succeeded') },
       (error: unknown) => error,
@@ -436,8 +484,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
       type: 'slow',
       spawn: () => ++count === 1 ? firstGate.promise : secondGate.promise,
     })
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const first = ctx.terminals.spawn(owner, { type: 'slow', name: 'one' })
     const second = ctx.terminals.spawn(owner, { type: 'slow', name: 'two' })
     firstGate.resolve(new StubSession())
@@ -456,8 +505,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
 
   it('omits optional pid metadata when a backend has no process id', async () => {
     const ctx = await harness()
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const session = new StubSession()
     Object.defineProperty(session, 'pid', { value: undefined })
     ctx.terminals.registerBackend({ type: 'virtual', spawn: () => Promise.resolve(session) })
@@ -466,21 +516,22 @@ describe('TerminalSessionService ownership and lifecycle', () => {
 
   it('reports rollback and close failures without publishing false success', async () => {
     const ctx = await harness()
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const failedSpawn = new StubSession()
     failedSpawn.rejectClose = true
     let ownerDisposal = Promise.resolve()
     const internal = ctx.terminals as unknown as {
-      disposedOwners: WeakSet<Agent>
-      disposeOwned(owner: Agent): Promise<void>
+      disposedOwners: WeakSet<object>
+      disposeOwned(ownerKey: object): Promise<void>
     }
     ctx.terminals.registerBackend({
       type: 'bad-spawn',
       async spawn({ signal }) {
         if (signal === undefined) throw new Error('missing spawn signal')
-        internal.disposedOwners.add(owner)
-        ownerDisposal = internal.disposeOwned(owner)
+        internal.disposedOwners.add(owner.agent)
+        ownerDisposal = internal.disposeOwned(owner.agent)
         if (!signal.aborted) {
           await new Promise<undefined>((resolve) => {
             signal.addEventListener('abort', () => { resolve(undefined) }, { once: true })
@@ -492,8 +543,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     await expect(ctx.terminals.spawn(owner, { type: 'bad-spawn' })).rejects.toThrow('spawn and rollback both failed')
     await expect(ownerDisposal).rejects.toThrow('failed to clean up PTY lifecycle')
 
-    const nextOwner = stubAgent(ctx, 'next')
-    ctx.agents.register(nextOwner)
+    const nextAgent = stubAgent(ctx, 'next')
+    const nextOwner = agentOwner(nextAgent)
+    ctx.agents.register(nextOwner.agent)
     const b = backend('bad-close')
     ctx.terminals.registerBackend(b.provider)
     const created = await ctx.terminals.spawn(nextOwner, { type: 'bad-close' })
@@ -504,8 +556,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
 
   it('joins an already-running close and refuses new sends while closing', async () => {
     const ctx = await harness()
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const b = backend()
     ctx.terminals.registerBackend(b.provider)
     const created = await ctx.terminals.spawn(owner, { type: 'stub' })
@@ -523,14 +576,15 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const ctx = await harness()
     const b = backend()
     const disposeBackend = ctx.terminals.registerBackend(b.provider)
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     const created = await ctx.terminals.spawn(owner, { type: 'stub' })
     disposeBackend()
     expect(ctx.terminals.listBackends()).toEqual([])
     expect(ctx.terminals.read(owner, created.sessionId).text).toBe('0:0')
 
-    await disposeAgentScope(owner)
+    await disposeAgentScope(owner.agent)
     expect(b.sessions[0]?.closed).toEqual(['PTY owner disposed'])
     expect(ctx.terminals.list(owner)).toEqual([])
   })
@@ -539,10 +593,12 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const ctx = await harness()
     const b = backend()
     ctx.terminals.registerBackend(b.provider)
-    const first = stubAgent(ctx, 'first')
-    const second = stubAgent(ctx, 'second')
-    ctx.agents.register(first)
-    ctx.agents.register(second)
+    const firstAgent = stubAgent(ctx, 'first')
+    const secondAgent = stubAgent(ctx, 'second')
+    const first = agentOwner(firstAgent)
+    const second = agentOwner(secondAgent)
+    ctx.agents.register(firstAgent)
+    ctx.agents.register(secondAgent)
     const a = await ctx.terminals.spawn(first, { type: 'stub' })
     await ctx.terminals.spawn(second, { type: 'stub' })
     expect(await ctx.terminals.kill(first, a.sessionId)).toBe(true)
@@ -559,8 +615,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const service = ctx.terminals
     const b = backend()
     ctx.terminals.registerBackend(b.provider)
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     await ctx.terminals.spawn(owner, { type: 'stub' })
     b.sessions[0]!.rejectClose = true
     const internal = service as unknown as {
@@ -585,8 +642,9 @@ describe('TerminalSessionService ownership and lifecycle', () => {
     const service = ctx.terminals
     const b = backend()
     service.registerBackend(b.provider)
-    const owner = stubAgent(ctx, 'owner')
-    ctx.agents.register(owner)
+    const agent = stubAgent(ctx, 'owner')
+    const owner = agentOwner(agent)
+    ctx.agents.register(owner.agent)
     await service.spawn(owner, { type: 'stub' })
     b.sessions[0]!.rejectClose = true
     const internal = service as unknown as {

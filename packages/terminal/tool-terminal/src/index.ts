@@ -9,7 +9,7 @@ import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { TerminalSessionId } from '@deepseek-ai/dsh-terminal'
-import type { TerminalSendResult, TerminalSessionId as TerminalSessionIdType, TerminalSignal } from '@deepseek-ai/dsh-terminal'
+import type { AgentTerminalOwner, TerminalSendResult, TerminalSessionId as TerminalSessionIdType, TerminalSignal } from '@deepseek-ai/dsh-terminal'
 import type {} from '@deepseek-ai/dsh-jobs'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
@@ -114,9 +114,17 @@ const BACKGROUND_TASK_OUTPUT_SCHEMA = {
   },
 } as const
 
-function requireAgent(agent: Agent | undefined): Agent {
+/** Stable per-agent owner wrappers: exact-owner fencing compares object identity. */
+const ownerCache = new WeakMap<Agent, AgentTerminalOwner>()
+
+function requireOwner(agent: Agent | undefined): AgentTerminalOwner {
   if (agent === undefined) throw new Error('terminal tools require an initiating agent')
-  return agent
+  let owner = ownerCache.get(agent)
+  if (owner === undefined) {
+    owner = { kind: 'agent', agent }
+    ownerCache.set(agent, owner)
+  }
+  return owner
 }
 
 function sessionId(args: SessionArgs): TerminalSessionIdType {
@@ -181,7 +189,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
     async execute(args: SpawnArgs, exec) {
       if (args.type.length === 0) throw new Error('type must be a non-empty string')
-      const result = await ctx.terminals.spawn(requireAgent(exec.agent), {
+      const result = await ctx.terminals.spawn(requireOwner(exec.agent), {
         type: args.type,
         ...args.name !== undefined ? { name: args.name } : {},
         ...args.cwd !== undefined ? { cwd: args.cwd } : {},
@@ -244,7 +252,7 @@ export function apply(ctx: Context, config: Config = {}): void {
         : null,
     },
     async execute(args: SendArgs, exec) {
-      const owner = requireAgent(exec.agent)
+      const owner = requireOwner(exec.agent)
       const id = sessionId(args)
       const request = { text: args.text, submit: args.submit ?? true }
       if (args.run_in_background === true) {
@@ -255,7 +263,9 @@ export function apply(ctx: Context, config: Config = {}): void {
         const jobId = jobs.start({
           kind: 'pty-send',
           label: `${id}: ${args.text || '(input)'}`,
-          owner,
+          // Jobs authorize kills against the exact Agent; the wrapped owner
+          // exists for the terminal registry's discriminated union.
+          owner: owner.agent,
           outputLimitBytes: maxResultBytes,
           run: () => {
             const operation = ctx.terminals.startSend(owner, id, request)
@@ -319,7 +329,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       render: (_args, value) => [{ type: 'text', text: renderRead(value, maxResultBytes) }],
     },
     execute(args: ReadArgs, exec) {
-      const result = ctx.terminals.read(requireAgent(exec.agent), sessionId(args), {
+      const result = ctx.terminals.read(requireOwner(exec.agent), sessionId(args), {
         ...args.offset !== undefined ? { offset: args.offset } : {},
         ...args.count !== undefined ? { count: args.count } : {},
       })
@@ -348,7 +358,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       render: (args, value) => [{ type: 'text', text: `delivered ${args.signal} to foreground process group ${value.targetPgid}` }],
     },
     async execute(args: SignalArgs, exec) {
-      return ctx.terminals.signal(requireAgent(exec.agent), sessionId(args), args.signal)
+      return ctx.terminals.signal(requireOwner(exec.agent), sessionId(args), args.signal)
     },
     presentCall: args => ({ card: 'generic', title: `Signal terminal ${args.sessionId}`, kind: 'execute', rawInput: args }),
   }))
@@ -378,7 +388,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     },
     async execute(args: SessionArgs, exec) {
       const id = sessionId(args)
-      const closed = await ctx.terminals.kill(requireAgent(exec.agent), id)
+      const closed = await ctx.terminals.kill(requireOwner(exec.agent), id)
       return { sessionId: id, outcome: closed ? 'closed' as const : 'already-closing' as const }
     },
     presentCall: args => ({ card: 'generic', title: `Close terminal ${(args).sessionId}`, kind: 'delete' }),
@@ -394,7 +404,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       render: (_args, value) => [{ type: 'text', text: renderList(value, maxResultBytes) }],
     },
     execute(_args: Record<string, never>, exec) {
-      return Promise.resolve(ctx.terminals.list(requireAgent(exec.agent)))
+      return Promise.resolve(ctx.terminals.list(requireOwner(exec.agent)))
     },
     presentCall: () => ({ card: 'generic', title: 'List terminal sessions', kind: 'read' }),
   }))

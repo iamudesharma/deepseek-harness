@@ -446,9 +446,9 @@ describe('tool-pwsh-persistent', () => {
 
     await call(ctx, owner, 'another shell')
     expect(stub.sessions).toHaveLength(3)
-    const externallyClosed = ctx.terminals.list(owner)[0]?.sessionId
+    const externallyClosed = ctx.terminals.list({ kind: 'agent', agent: owner })[0]?.sessionId
     expect(externallyClosed).toBeDefined()
-    await ctx.terminals.kill(owner, externallyClosed!, 'external cleanup')
+    await ctx.terminals.kill({ kind: 'agent', agent: owner }, externallyClosed!, 'external cleanup')
     await fiber.dispose()
     expect(stub.sessions[2]?.closed).toEqual(['external cleanup'])
   })
@@ -608,7 +608,7 @@ describe('tool-pwsh-persistent', () => {
     await fiber.dispose()
     await spawnAborted.promise
     expect((await running).isError).toBe(true)
-    expect(ctx.terminals.list(owner)).toEqual([])
+    expect(ctx.terminals.list({ kind: 'agent', agent: owner })).toEqual([])
   })
 
   it('rejects invalid config and invalid calls', async () => {

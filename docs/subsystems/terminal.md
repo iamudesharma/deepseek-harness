@@ -6,7 +6,7 @@ Types shared by PTY backends, `ctx.terminals`, and the model-facing consumer. Th
 
 ## Identity and readiness
 
-`TerminalSessionId` is a service-minted branded id. Optional names are owner-local display metadata; authorization compares the exact owning `Agent`, not a name or guessed id.
+`TerminalSessionId` is a service-minted branded id. Optional names are owner-local display metadata; authorization compares the exact owning authority — the `Agent` for agent owners, the principal object for console owners — never a name or guessed id.
 
 `TerminalWaitReason` says why one send returned. It is independent from `TerminalSessionStatus`: silence or timeout may return while the top-level shell remains alive, while `session_exit` means that shell exited rather than an arbitrary foreground child.
 

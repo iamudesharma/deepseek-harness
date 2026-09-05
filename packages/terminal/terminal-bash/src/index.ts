@@ -8,7 +8,7 @@ import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import { TerminalBackendCleanupError } from '@deepseek-ai/dsh-terminal'
-import type { TerminalBackend, TerminalBackendSpawnSpec, TerminalSendOperation } from '@deepseek-ai/dsh-terminal'
+import type { TerminalBackend, TerminalBackendSpawnSpec, TerminalOwner, TerminalSendOperation } from '@deepseek-ai/dsh-terminal'
 import type { SubprocessTerminalHandle, SubprocessTerminalSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import type { SandboxExecutionPolicy } from '@deepseek-ai/dsh-sandbox'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
@@ -34,8 +34,8 @@ interface SandboxModeFenceState {
 
 const sandboxModeFences = new WeakMap<Agent, SandboxModeFenceState>()
 
-function ensureSandboxModeFence(ctx: Context, owner: Agent): void {
-  const existing = sandboxModeFences.get(owner)
+function ensureSandboxModeFence(ctx: Context, agent: Agent): void {
+  const existing = sandboxModeFences.get(agent)
   if (existing !== undefined) {
     existing.pty = ctx.terminals
     existing.sandboxPolicy = ctx.sandboxPolicy
@@ -47,18 +47,22 @@ function ensureSandboxModeFence(ctx: Context, owner: Agent): void {
     sandboxPolicy: ctx.sandboxPolicy,
     sessionProjections: ctx.sessionProjections,
   }
-  sandboxModeFences.set(owner, state)
-  owner.ctx.on('internal/dispatch', (_mode, eventName, args) => {
+  sandboxModeFences.set(agent, state)
+  agent.ctx.on('internal/dispatch', (_mode, eventName, args) => {
     if (eventName !== 'session/event') return
     const [session, event] = args as [Session, SessionEvent]
-    if (session !== owner.session || event.type !== 'sandbox/mode') return
+    if (session !== agent.session || event.type !== 'sandbox/mode') return
     const folded = state.sessionProjections.stateOf(session, 'sandboxMode') ?? null
     const currentMode = folded ?? state.sandboxPolicy.defaultMode
-    if (event.data.mode === currentMode || !state.pty.hasOwnerActivity(owner)) return
+    if (event.data.mode === currentMode || !state.pty.hasOwnerActivity({ kind: 'agent', agent })) return
     throw new Error(
       `cannot change sandbox mode from "${currentMode}" to "${event.data.mode}" while persistent terminal sessions are open or being created; wait for creation to settle and close them first`,
     )
   }, { global: true })
+}
+
+function ownerId(owner: TerminalOwner): string {
+  return owner.kind === 'agent' ? owner.agent.id : owner.id
 }
 
 function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect): Record<string, string> {
@@ -69,7 +73,7 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
     PAGER: 'cat',
     GIT_PAGER: 'cat',
     DSH_SHELL: '1',
-    DSH_SESSION_ID: spec.owner.id,
+    DSH_SESSION_ID: ownerId(spec.owner),
     DSH_PTY_SESSION_ID: spec.sessionId,
   }
   if (dialect === 'pwsh') {
@@ -190,8 +194,14 @@ export class BashTerminalBackend implements TerminalBackend {
 
   async spawn(spec: TerminalBackendSpawnSpec): Promise<LocalPtySession> {
     spec.signal?.throwIfAborted()
-    ensureSandboxModeFence(this.ctx, spec.owner)
-    const policy = this.ctx.sandboxPolicy.resolve({ session: spec.owner.session })
+    // The sandbox-mode fence watches an agent's session events; a console
+    // principal has no session whose mode could change, so nothing to fence.
+    if (spec.owner.kind === 'agent') ensureSandboxModeFence(this.ctx, spec.owner.agent)
+    // A console principal resolves agentlessly: the deployment default mode
+    // and the configured workspace root, exactly like other agentless calls.
+    const policy = spec.owner.kind === 'agent'
+      ? this.ctx.sandboxPolicy.resolve({ session: spec.owner.agent.session })
+      : this.ctx.sandboxPolicy.resolve({})
     const argv = spawnArgv(this.ctx, this.config, policy)
     if (argv[0] === undefined) throw new Error('terminal-bash: sandbox returned empty argv')
     const terminal = await this.spawnTerminal({

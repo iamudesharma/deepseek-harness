@@ -467,7 +467,7 @@ describe('tool-terminal task integration', () => {
     const { ctx, agent, stub } = await setup(false)
     await call(ctx, 'terminal_open', { type: 'stub' }, agent)
     stub.sessions[0]!.closeGate = Promise.withResolvers<undefined>()
-    const first = ctx.terminals.kill(agent, TerminalSessionId('pty-1'))
+    const first = ctx.terminals.kill({ kind: 'agent', agent }, TerminalSessionId('pty-1'))
     const second = call(ctx, 'terminal_close', { sessionId: 'pty-1' }, agent)
     stub.sessions[0]!.closeGate?.resolve(undefined)
     await first

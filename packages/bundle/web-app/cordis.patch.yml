@@ -100,6 +100,11 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
+    # Console terminal commands over the persistent PTY service, for the
+    # client terminal panel.
+    - id: terminal-controller
+      name: '@deepseek-ai/dsh-api-terminal-controller'
+
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 

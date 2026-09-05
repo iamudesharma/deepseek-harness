@@ -105,7 +105,7 @@ describe.skipIf(!process.env.E2B_API_KEY)('E2B live Loader composition', () => {
         pollIntervalMs: 25, exactProbeAfterMs: 150, idleSilenceMs: 1_000,
         handoffGraceMs: 500, timeoutMs: 5_000, disposeGraceMs: 1_000,
       })
-      const session = await backend.spawn({ sessionId: TerminalSessionId('env'), owner, type: 'shell' })
+      const session = await backend.spawn({ sessionId: TerminalSessionId('env'), owner: { kind: 'agent', agent: owner }, type: 'shell' })
       const result = await session.startSend({
         text: "printf 'NPM=<%s> DSH=<%s> KEEP=<%s>\\n' \"$NPM_TOKEN\" \"$DSH_STALE\" \"$KEEP\"",
         submit: true,

@@ -128,6 +128,6 @@ suite('terminal real Loader composition through cordis.yml', () => {
       signal, callId: ToolCallId('read'), name: 'terminal_send', arguments: { sessionId: 'pty-1', text: 'printf "cwd=%s keep=%s\\n" "$PWD" "$KEEP"' }, agent: owner,
     })
     expect(resultText(read)).toContain('cwd=/ keep=loader')
-    expect(context.terminals.list(owner)).toHaveLength(1)
+    expect(context.terminals.list({ kind: 'agent', agent: owner })).toHaveLength(1)
   }, 15_000)
 })

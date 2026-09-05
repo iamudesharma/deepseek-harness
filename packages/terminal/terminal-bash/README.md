@@ -65,7 +65,7 @@ Both dialects expose the same readiness contract, so consumers are dialect-agnos
 
 ### Sandboxing and safe operation
 
-The shell runs under the effective sandbox boundary for its whole life. Changing the effective sandbox mode is rejected while the owner still has open sessions or a spawn in progress — wait for creation to settle and close the sessions first, so a terminal opened with wider access cannot survive a downgrade. The backend supplies only terminal-specific environment overrides; the subprocess provider applies its shared credential scrub.
+The shell runs under the effective sandbox boundary for its whole life. An agent owner resolves the boundary from its session — session cwd, session mode override, then the deployment default — and changing the effective sandbox mode is rejected while that owner still has open sessions or a spawn in progress — wait for creation to settle and close the sessions first, so a terminal opened with wider access cannot survive a downgrade. A console owner (a client terminal principal) has no session: it resolves agentlessly to the deployment default mode and the configured workspace root, and it carries no mode fence because no session of its own exists to change. The backend supplies only terminal-specific environment overrides; the subprocess provider applies its shared credential scrub.
 
 ### Observable outcomes and failures
 

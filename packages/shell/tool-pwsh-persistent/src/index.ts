@@ -9,9 +9,22 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { TerminalReadResult, TerminalSendResult, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
+import type { AgentTerminalOwner, TerminalReadResult, TerminalSendResult, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
 import { deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+
+/** Stable per-agent owner wrapper: exact-owner fencing compares the authority. */
+const ownerWrappers = new WeakMap<Agent, AgentTerminalOwner>()
+
+function terminalOwner(agent: Agent | undefined): AgentTerminalOwner {
+  if (agent === undefined) throw new Error('terminal tools require an initiating agent')
+  let owner = ownerWrappers.get(agent)
+  if (owner === undefined) {
+    owner = { kind: 'agent', agent }
+    ownerWrappers.set(agent, owner)
+  }
+  return owner
+}
 
 // TODO: Replace the file-search advice; arbitrary command output need not come from a searchable file.
 const TRUNCATED_MESSAGE = '<response clipped><NOTE>To save on context only part of this file has been shown to you. You should retry this tool after you have searched inside the file with Select-String in order to find the line numbers of what you are looking for.</NOTE>'
@@ -50,8 +63,8 @@ interface CapturedOutput {
 }
 
 interface PersistentShells {
-  get(owner: Agent, signal: AbortSignal): Promise<TerminalSessionId>
-  reset(owner: Agent, reason: string): Promise<void>
+  get(owner: AgentTerminalOwner, signal: AbortSignal): Promise<TerminalSessionId>
+  reset(owner: AgentTerminalOwner, reason: string): Promise<void>
 }
 
 function maybeTruncate(content: string, maxOutputChars: number, incomplete = false): string {
@@ -173,7 +186,7 @@ function nextScrollbackOffset(page: TerminalReadResult, offset: number): number 
 
 function retainedScrollback(
   ctx: Context,
-  owner: Agent,
+  owner: AgentTerminalOwner,
   id: TerminalSessionId,
   latest = ctx.terminals.read(owner, id, { offset: 0, count: SCROLLBACK_PAGE_LINES }),
 ): RetainedOutput {
@@ -231,7 +244,7 @@ function renderShellExitStatus(
 async function respondToSessionExit(
   ctx: Context,
   shells: PersistentShells,
-  owner: Agent,
+  owner: AgentTerminalOwner,
   id: TerminalSessionId,
   status: { exitCode: number | null; signal: NodeJS.Signals | null },
   marker: CommandMarkers,
@@ -262,13 +275,13 @@ const PWSH_PROMPT_SETUP =
   "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + SHELL_PROMPT + "' }"
 
 function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShells {
-  const pending = new WeakMap<Agent, Promise<TerminalSessionId>>()
-  const live = new Map<Agent, TerminalSessionId>()
+  const pending = new WeakMap<object, Promise<TerminalSessionId>>()
+  const live = new Map<object, { id: TerminalSessionId; owner: AgentTerminalOwner }>()
   const creating = new Set<Promise<TerminalSessionId>>()
-  const ownerCleanupInstalled = new WeakSet<Agent>()
+  const ownerCleanupInstalled = new WeakSet<object>()
   const lifecycle = new AbortController()
 
-  const close = async (owner: Agent, id: TerminalSessionId, reason: string): Promise<void> => {
+  const close = async (owner: AgentTerminalOwner, id: TerminalSessionId, reason: string): Promise<void> => {
     if (!ctx.terminals.list(owner).some(snapshot => snapshot.sessionId === id)) return
     await ctx.terminals.kill(owner, id, reason)
   }
@@ -276,33 +289,33 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
   ctx.effect(() => async () => {
     lifecycle.abort(new Error('tool-pwsh-persistent disposed during shell creation'))
     await Promise.allSettled([...creating])
-    const closing = [...live].map(async ([owner, id]) => { await close(owner, id, 'tool-pwsh-persistent disposed') })
+    const closing = [...live.values()].map(async (entry) => { await close(entry.owner, entry.id, 'tool-pwsh-persistent disposed') })
     await Promise.all(closing)
     live.clear()
   }, 'tool-pwsh-persistent shell cleanup')
 
-  const reset = async (owner: Agent, reason: string): Promise<void> => {
+  const reset = async (owner: AgentTerminalOwner, reason: string): Promise<void> => {
     pending.delete(owner)
-    const id = live.get(owner)
+    const entry = live.get(owner)
     live.delete(owner)
-    if (id !== undefined) await close(owner, id, reason)
+    if (entry !== undefined) await close(entry.owner, entry.id, reason)
   }
 
-  const get = (owner: Agent, signal: AbortSignal): Promise<TerminalSessionId> => {
+  const get = (owner: AgentTerminalOwner, signal: AbortSignal): Promise<TerminalSessionId> => {
     const existing = pending.get(owner)
     if (existing !== undefined) return existing
     const combinedSignal = AbortSignal.any([signal, lifecycle.signal])
     const creation = (async () => {
       try {
-        const cwd = owner.session.header.cwd
+        const cwd = owner.agent.session.header.cwd
         const spawned = await ctx.terminals.spawn(owner, {
           type: config.backendType,
           ...cwd === undefined ? {} : { cwd },
         }, combinedSignal)
-        live.set(owner, spawned.sessionId)
+        live.set(owner, { id: spawned.sessionId, owner })
         if (!ownerCleanupInstalled.has(owner)) {
           ownerCleanupInstalled.add(owner)
-          owner.ctx.effect(() => () => {
+          owner.agent.ctx.effect(() => () => {
             pending.delete(owner)
             live.delete(owner)
           }, 'tool-pwsh-persistent owner cache cleanup')
@@ -336,7 +349,7 @@ function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShell
 async function executeCommand(
   ctx: Context,
   shells: PersistentShells,
-  owner: Agent,
+  owner: AgentTerminalOwner,
   command: string,
   config: ResolvedConfig,
   upstream: AbortSignal,
@@ -424,9 +437,9 @@ async function executeCommand(
  */
 function registerPersistentPwsh(ctx: Context, config: ResolvedConfig): void {
   const shells = persistentShells(ctx, config)
-  const queues = new WeakMap<Agent, Promise<void>>()
+  const queues = new WeakMap<object, Promise<void>>()
 
-  const serialized = async <T>(owner: Agent, operation: () => Promise<T>): Promise<T> => {
+  const serialized = async <T>(owner: AgentTerminalOwner, operation: () => Promise<T>): Promise<T> => {
     const prior = queues.get(owner) ?? Promise.resolve()
     const run = prior.then(operation, operation)
     const tail = run.then(() => undefined, () => undefined)
@@ -454,8 +467,8 @@ function registerPersistentPwsh(ctx: Context, config: ResolvedConfig): void {
     },
     async execute(args, exec) {
       if (args.command.trim().length === 0) throw new Error('command must be a non-empty string')
-      const owner = exec.agent
-      if (owner === undefined) throw new Error('pwsh requires an owning agent session')
+      const owner = terminalOwner(exec.agent)
+      if (exec.agent === undefined) throw new Error('pwsh requires an owning agent session')
       return serialized(owner, async () => {
         exec.signal.throwIfAborted()
         return executeCommand(ctx, shells, owner, args.command, config, exec.signal)

@@ -10,7 +10,7 @@ import type { ConfinedArgv, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import SandboxPolicyService, { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import TerminalSessionService, { TerminalBackendCleanupError, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
-import type { TerminalSendRequest, TerminalWaitReason } from '@deepseek-ai/dsh-terminal'
+import type { AgentTerminalOwner, TerminalOwner, TerminalSendRequest, TerminalWaitReason } from '@deepseek-ai/dsh-terminal'
 import { BashTerminalBackend, PWSH_PROMPT_SETUP } from '@deepseek-ai/dsh-terminal-bash'
 import { ENCODING_PREAMBLE } from '@deepseek-ai/dsh-pwsh-local'
 import * as ptyLocal from '@deepseek-ai/dsh-terminal-bash'
@@ -85,7 +85,12 @@ class StubSubprocessRuntime extends SubprocessRuntime {
   }
 }
 
-function spec(owner: Agent, signal?: AbortSignal) {
+/** Wrap one stub agent in the discriminated owner the backend accepts. */
+function agentOwner(agent: Agent): AgentTerminalOwner {
+  return { kind: 'agent', agent }
+}
+
+function spec(owner: TerminalOwner, signal?: AbortSignal) {
   return {
     sessionId: TerminalSessionId('pty-1'), owner, type: 'shell',
     ...signal !== undefined ? { signal } : {},
@@ -125,8 +130,8 @@ describe('BashTerminalBackend startup rollback', () => {
     const controller = new AbortController()
     const abortReason = new Error('spawn aborted')
     controller.abort(abortReason)
-    await expect(backend.spawn(spec(agent(ctx), controller.signal))).rejects.toBe(abortReason)
-    await expect(backend.spawn(spec(agent(ctx)))).rejects.toThrow('empty argv')
+    await expect(backend.spawn(spec(agentOwner(agent(ctx)), controller.signal))).rejects.toBe(abortReason)
+    await expect(backend.spawn(spec(agentOwner(agent(ctx))))).rejects.toThrow('empty argv')
   })
 
   it('closes failed startup and aggregates cleanup failure', async () => {
@@ -138,7 +143,7 @@ describe('BashTerminalBackend startup rollback', () => {
     const closed = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
     const failed = { initialize: () => Promise.reject(new Error('startup failed')), close: closed } as unknown as LocalPtySession
     const backend = new BashTerminalBackend(ctx, config(), spawnTerminal, () => failed)
-    await expect(backend.spawn(spec(agent(ctx)))).rejects.toThrow('startup failed')
+    await expect(backend.spawn(spec(agentOwner(agent(ctx))))).rejects.toThrow('startup failed')
     expect(closed).toHaveBeenCalledWith('PTY startup failed')
 
     const startupFailure = new Error('startup failed')
@@ -148,7 +153,7 @@ describe('BashTerminalBackend startup rollback', () => {
       close: () => Promise.reject(cleanupFailure),
     } as unknown as LocalPtySession
     const aggregate = new BashTerminalBackend(ctx, config(), spawnTerminal, () => doublyFailed)
-    await expect(aggregate.spawn(spec(agent(ctx)))).rejects.toEqual(expect.objectContaining({
+    await expect(aggregate.spawn(spec(agentOwner(agent(ctx))))).rejects.toEqual(expect.objectContaining({
       name: 'TerminalBackendCleanupError',
       spawnError: startupFailure,
       cleanupError: cleanupFailure,
@@ -173,7 +178,7 @@ describe('BashTerminalBackend startup rollback', () => {
     const controller = new AbortController()
     const reason = new Error('cancel stalled startup')
 
-    const spawning = backend.spawn(spec(agent(ctx), controller.signal))
+    const spawning = backend.spawn(spec(agentOwner(agent(ctx)), controller.signal))
     await initializationStarted.promise
     controller.abort(reason)
 
@@ -204,7 +209,7 @@ describe('BashTerminalBackend startup rollback', () => {
     const previous = process.env.PTY_TEST_SECRET
     process.env.PTY_TEST_SECRET = 'must-not-leak'
     try {
-      expect(await backend.spawn({ ...spec(agent(ctx)), cwd: '/work' })).toBe(session)
+      expect(await backend.spawn({ ...spec(agentOwner(agent(ctx))), cwd: '/work' })).toBe(session)
     } finally {
       if (previous === undefined) delete process.env.PTY_TEST_SECRET
       else process.env.PTY_TEST_SECRET = previous
@@ -230,6 +235,42 @@ describe('BashTerminalBackend startup rollback', () => {
     }])
   })
 
+  it('spawns console-owned sessions with agentless policy and the principal env', async () => {
+    const ctx = new Context()
+    await ctx.plugin(RecordingSandbox)
+    await ctx.plugin(SessionProjectionRegistry)
+    await ctx.plugin(SandboxPolicyService, { mode: 'read-only', workspaceRoot: '/deployment-fallback' })
+    const terminal = terminalHandle()
+    let spawned: SubprocessTerminalSpawnSpec | undefined
+    const spawnTerminal = async (spec: SubprocessTerminalSpawnSpec): Promise<SubprocessTerminalHandle> => {
+      spawned = spec
+      return terminal
+    }
+    const initialized = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    const session = { initialize: initialized } as unknown as LocalPtySession
+    const backend = new BashTerminalBackend(
+      ctx,
+      { ...config(), shellArgs: ['-i'] },
+      spawnTerminal,
+      () => session,
+    )
+    const scopeFiber = ctx.plugin(() => {})
+    const owner: TerminalOwner = { kind: 'console', id: 'device-1', ctx: scopeFiber.ctx }
+    expect(await backend.spawn(spec(owner))).toBe(session)
+
+    // A console principal has no session: the deployment default mode and
+    // the configured workspace root apply, without a sessionId field.
+    expect((ctx.sandbox as RecordingSandbox).calls).toEqual([{
+      argv: ['/bin/bash', '-i'],
+      policy: { mode: 'read-only', workspaceRoot: resolve('/deployment-fallback') },
+    }])
+    expect(spawned).toMatchObject({
+      argv: ['/sandbox', '--', '/bin/bash', '-i'],
+      cwd: resolve('/deployment-fallback'),
+      env: { DSH_SESSION_ID: 'device-1', DSH_PTY_SESSION_ID: 'pty-1' },
+    })
+  })
+
   it('resolves session mode and root together before wrapping the shell', async () => {
     const ctx = new Context()
     await ctx.plugin(RecordingSandbox)
@@ -249,8 +290,8 @@ describe('BashTerminalBackend startup rollback', () => {
       spawnTerminal,
       () => session,
     )
-    const owner = agent(ctx, '/session-workspace')
-    setSandboxMode(owner.session, 'workspace-write')
+    const owner = agentOwner(agent(ctx, '/session-workspace'))
+    setSandboxMode(owner.agent.session, 'workspace-write')
     expect(await backend.spawn(spec(owner))).toBe(session)
 
     expect(spawned).toMatchObject({
@@ -273,7 +314,7 @@ describe('BashTerminalBackend startup rollback', () => {
       async () => { throw new Error('terminal spawn must not run') },
       () => stubLocalSession(),
     )
-    await expect(confined.spawn(spec(agent(confinedCtx)))).rejects.toThrow(
+    await expect(confined.spawn(spec(agentOwner(agent(confinedCtx))))).rejects.toThrow(
       'sandbox mode "workspace-write" requires a ctx.sandbox provider in the execution world',
     )
   })
@@ -295,7 +336,7 @@ describe('BashTerminalBackend startup rollback', () => {
       },
       () => stubLocalSession(),
     )
-    await published.spawn(spec(agent(ctx), publishedController.signal))
+    await published.spawn(spec(agentOwner(agent(ctx)), publishedController.signal))
     expect(publishedSignal).toBe(publishedController.signal)
     publishedController.abort(new Error('originating turn ended'))
     expect(publishedSignal?.aborted).toBe(true)
@@ -315,7 +356,7 @@ describe('BashTerminalBackend startup rollback', () => {
       }),
       () => stubLocalSession(),
     )
-    const spawning = pending.spawn(spec(agent(ctx), pendingController.signal))
+    const spawning = pending.spawn(spec(agentOwner(agent(ctx)), pendingController.signal))
     const pendingSignal = await seen.promise
     const reason = new Error('cancel pending allocation')
     pendingController.abort(reason)
@@ -348,7 +389,7 @@ describe('BashTerminalBackend startup rollback', () => {
       config(),
       async () => terminal,
     )
-    const session = await backend.spawn(spec(agent(ctx)))
+    const session = await backend.spawn(spec(agentOwner(agent(ctx))))
     expect(session.motd).toBe('dsh> ')
     await session.close('test complete')
   })
@@ -381,7 +422,7 @@ describe('BashTerminalBackend startup rollback', () => {
       async (spec) => { spawned = spec; return terminalHandle() },
       () => session,
     )
-    expect(await backend.spawn(spec(agent(ctx)))).toBe(session)
+    expect(await backend.spawn(spec(agentOwner(agent(ctx))))).toBe(session)
     expect(sent).toMatchObject({ text: ENCODING_PREAMBLE + PWSH_PROMPT_SETUP, submit: true })
     expect(session.motd).toBe('setup-echo dsh> ')
     expect(spawned?.env).toMatchObject({
@@ -420,7 +461,7 @@ describe('BashTerminalBackend startup rollback', () => {
       async () => terminalHandle(),
       () => session,
     )
-    await backend.spawn(spec(agent(ctx)))
+    await backend.spawn(spec(agentOwner(agent(ctx))))
     expect(sends).toHaveLength(2)
     expect(sends[1]).toMatchObject({ text: '', submit: false })
     expect(session.motd).toBe('dsh> ')
@@ -444,9 +485,9 @@ describe('BashTerminalBackend startup rollback', () => {
       close: () => Promise.resolve(),
     }) as unknown as LocalPtySession
     const exited = new BashTerminalBackend(ctx, { ...config(), shellDialect: 'pwsh' }, async () => terminalHandle(), () => sessionFor('session_exit'))
-    await expect(exited.spawn(spec(agent(ctx)))).rejects.toThrow('PTY shell exited during startup')
+    await expect(exited.spawn(spec(agentOwner(agent(ctx))))).rejects.toThrow('PTY shell exited during startup')
     const timedOut = new BashTerminalBackend(ctx, { ...config(), shellDialect: 'pwsh' }, async () => terminalHandle(), () => sessionFor('timeout'))
-    await expect(timedOut.spawn(spec(agent(ctx)))).rejects.toThrow('did not reach readiness before startup timeout')
+    await expect(timedOut.spawn(spec(agentOwner(agent(ctx))))).rejects.toThrow('did not reach readiness before startup timeout')
   })
 
   it('bounds all pwsh startup retries with one deadline', async () => {
@@ -490,7 +531,7 @@ describe('BashTerminalBackend startup rollback', () => {
         () => session,
       )
 
-      const spawning = backend.spawn(spec(agent(ctx)))
+      const spawning = backend.spawn(spec(agentOwner(agent(ctx))))
       await vi.advanceTimersByTimeAsync(0)
       expect(sends).toBe(2)
       const rejected = expect(spawning).rejects.toThrow('did not reach readiness before startup timeout')
@@ -532,7 +573,7 @@ describe('BashTerminalBackend startup rollback', () => {
       () => session,
     )
     const signal = new AbortController().signal
-    const spawned = await backend.spawn({ ...spec(agent(ctx)), signal })
+    const spawned = await backend.spawn({ ...spec(agentOwner(agent(ctx))), signal })
     expect(spawned.motd).toBe('dsh> ')
     expect(sends).toHaveLength(1)
     expect(sends[0]?.signal).toBe(signal)
@@ -592,7 +633,7 @@ describe('terminal-bash plugin shape', () => {
 
     const session = ctx.sessions.create(SessionId('mode-owner'))
     const ownerFiber = await ctx.plugin(() => {})
-    const owner: Agent = {
+    const ownerAgent: Agent = {
       id: session.id, options: {}, session, inbox: new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} }),
       status: 'idle',
       ctx: ownerFiber.ctx,
@@ -601,7 +642,8 @@ describe('terminal-bash plugin shape', () => {
       runMaintenance: task => task(new AbortController().signal),
       whenIdle: () => Promise.resolve(),
     }
-    ctx.agents.register(owner)
+    ctx.agents.register(ownerAgent)
+    const owner = agentOwner(ownerAgent)
     const providerFiber = await registerStubLocalBackend(ctx, () => stubLocalSession())
     const created = await ctx.terminals.spawn(owner, { type: 'stub' })
 
@@ -642,7 +684,7 @@ describe('terminal-bash plugin shape', () => {
 
     const session = ctx.sessions.create(SessionId('pending-mode-owner'))
     const ownerFiber = await ctx.plugin(() => {})
-    const owner: Agent = {
+    const ownerAgent: Agent = {
       id: session.id, options: {}, session, inbox: new Inbox(session, { inserted: () => {}, discarded: () => {}, claimed: () => {} }),
       status: 'idle',
       ctx: ownerFiber.ctx,
@@ -651,7 +693,8 @@ describe('terminal-bash plugin shape', () => {
       runMaintenance: task => task(new AbortController().signal),
       whenIdle: () => Promise.resolve(),
     }
-    ctx.agents.register(owner)
+    ctx.agents.register(ownerAgent)
+    const owner = agentOwner(ownerAgent)
     const gate = Promise.withResolvers<undefined>()
     await registerStubLocalBackend(ctx, () => stubLocalSession(() => gate.promise))
     const spawning = ctx.terminals.spawn(owner, { type: 'stub' })
