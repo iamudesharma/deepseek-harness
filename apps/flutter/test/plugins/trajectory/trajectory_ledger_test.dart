@@ -77,15 +77,15 @@ void main() {
       expect(rows, isEmpty);
     });
 
-    test('compaction and retry map to compacted/system', () {
+    test('compaction maps to compacted; retry has no ledger row', () {
       final rows = ledgerFromHistory([
         _entry('compaction/summary', {'summary': 'folded'}, 1, 100),
         _entry('llm/retry', {'retry': 1, 'maxRetries': 3}, 2, 200),
       ]);
+      // React projects no retry row; control-plane retries stay out.
+      expect(rows, hasLength(1));
       expect(rows[0].kind, TrajectoryCellKind.compacted);
       expect(rows[0].text, 'folded');
-      expect(rows[1].kind, TrajectoryCellKind.system);
-      expect(rows[1].text, 'retry 1/3');
     });
 
     test('compaction summary as content blocks does not throw', () {
@@ -102,12 +102,14 @@ void main() {
         }, 1, 100),
       ]);
       expect(rows.single.kind, TrajectoryCellKind.compacted);
-      expect(
-        rows.single.text,
-        contains('## Primary Request\n- build the showroom'),
-      );
+      // Ledger text runs the React preview pipeline (markdown stripped,
+      // single line); the full blocks survive in preview/outputDetail.
+      expect(rows.single.text, contains('Primary Request'));
+      expect(rows.single.text, contains('build the showroom'));
       expect(rows.single.text, contains('tail'));
       expect(rows.single.text, isNot(contains('skipped')));
+      expect(rows.single.text.contains('##'), isFalse);
+      expect(rows.single.outputDetail ?? '', contains('## Primary Request'));
     });
 
     test('compaction without a summary falls back to the event type', () {
@@ -120,12 +122,13 @@ void main() {
       expect(rows[1].text, 'compaction/prune');
     });
 
-    test('unknown types fall back to system with the type as text', () {
+    test('unknown control-plane types emit no rows', () {
+      // React only projects matched families; raw noise has no counterpart.
       final rows = ledgerFromHistory([
         _entry('session/custom-thing', {}, 1, 100),
+        _entry('permission/preset', {}, 2, 100),
       ]);
-      expect(rows.single.kind, TrajectoryCellKind.system);
-      expect(rows.single.text, 'session/custom-thing');
+      expect(rows, isEmpty);
     });
 
     test('empty window folds to no rows', () {
@@ -165,7 +168,7 @@ void main() {
   });
 
   group('ledgerFromHistory tool joining', () {
-    test('paired call and result share the recorded duration', () {
+    test('paired call and result fold into one cell', () {
       final rows = ledgerFromHistory([
         _entry('user/message', {'content': 'run it'}, 1, 1000),
         _entry('tool/call', {
@@ -181,12 +184,15 @@ void main() {
       final tools = rows
           .where((r) => r.kind == TrajectoryCellKind.tool)
           .toList();
-      expect(tools, hasLength(2));
+      // React emits one tool cell per callId (result joins the call row).
+      expect(tools, hasLength(1));
       expect(tools[0].callId, 'c1');
       expect(tools[0].timeSeconds, closeTo(1.5, 1e-9));
-      expect(tools[1].timeSeconds, closeTo(1.5, 1e-9));
-      expect(tools[1].result, 'ok');
-      expect(tools[1].isError, isFalse);
+      expect(tools[0].inputDetail ?? '', contains('ls'));
+      expect(tools[0].outputDetail, 'ok');
+      expect(tools[0].resultPreview, 'ok');
+      expect(tools[0].running, isFalse);
+      expect(tools[0].isError, isFalse);
     });
 
     test('unpaired calls keep a null duration (running)', () {

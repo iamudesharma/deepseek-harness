@@ -14,9 +14,7 @@ import '../../../theme/motion.dart';
 import '../../../widgets/primitives/json_tree.dart';
 import '../../../widgets/primitives/markdown.dart';
 import '../../tool/tool_models.dart';
-import '../../tool/presentation/tool_row_model.dart'
-    show classifyTool, deriveSummary;
-import '../../tool/presentation/todo_model.dart' show summarizeTodos;
+import '../locales.dart';
 import '../trajectory_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -54,16 +52,61 @@ class LedgerRow {
   final List<ToolCall>? toolCallsInline;
   final String? result;
   final bool isError;
+
+  /// Short result preview for the inline `→` span (React `resultPreview`).
+  final String? resultPreview;
+
+  /// Tool error code for the inline span (React shows `error.code`).
+  final String? errorCode;
+
+  /// True while a tool call has no result yet (React `running`).
+  final bool running;
+
+  /// True for text-less assistants that only drove tool calls.
+  final bool toolCallOnly;
+
+  /// CallIds of tool calls declared by an assistant message's blocks, used
+  /// for the Summary hierarchy link (React `parentRecords`).
+  final List<String> childCallIds;
   final double? timeSeconds;
   final int? startedAt;
+
+  /// First streamed token time of the step (React TTFT base), when chunks
+  /// were observed before the settled message.
+  final int? firstTokenTime;
+
+  /// Step start time (React assistant-timing anchor), when observed.
+  final int? stepStartTime;
   final String? callId;
   final int turn;
+  final int step;
   final String group;
   final bool turnStart;
   final bool turnEnd;
   final bool groupStart;
   final bool isCollapsedSummary;
   final String? collapsedSummary;
+
+  /// Token usage copied from the settled assistant message.
+  final int? inputTokens;
+  final int? outputTokens;
+  final int? reasoningTokens;
+  final int? cacheReadTokens;
+
+  /// JSON-encoded `source` of a user/context message (React Source tab).
+  final String? messageSource;
+
+  /// System-prompt text captured from `request/header` (React System Prompt tab).
+  final String? promptDetail;
+
+  /// Full tool catalog JSON captured from the `request/header` that produced
+  /// a system row (React Tools tab).
+  final String? promptToolsJson;
+
+  /// Tool catalog description/parameters captured from the latest
+  /// `request/header` preceding the call (React `schemaDetail`).
+  final String? schemaDescription;
+  final String? schemaParameters;
 
   const LedgerRow({
     required this.index,
@@ -76,16 +119,33 @@ class LedgerRow {
     this.toolCallsInline,
     this.result,
     this.isError = false,
+    this.resultPreview,
+    this.errorCode,
+    this.running = false,
+    this.toolCallOnly = false,
+    this.childCallIds = const [],
     this.timeSeconds,
     this.startedAt,
+    this.firstTokenTime,
+    this.stepStartTime,
     this.callId,
     required this.turn,
-    required this.group,
+    this.step = 0,
+    this.group = '',
     this.turnStart = false,
     this.turnEnd = false,
     this.groupStart = false,
     this.isCollapsedSummary = false,
     this.collapsedSummary,
+    this.inputTokens,
+    this.outputTokens,
+    this.reasoningTokens,
+    this.cacheReadTokens,
+    this.messageSource,
+    this.promptDetail,
+    this.promptToolsJson,
+    this.schemaDescription,
+    this.schemaParameters,
   });
 }
 
@@ -109,27 +169,111 @@ String _extractText(Map<String, dynamic> data) {
       '';
 }
 
-String _previewFor(String full, int maxLen) {
-  if (full.length <= maxLen) return full;
-  return '${full.substring(0, maxLen - 1)}…';
+/// Ledger preview text — mirrors React `trajectoryPreviewText`
+/// (`trajectory-preview.ts`): 2048-char source cap, markdown stripped to
+/// plain text, whitespace collapsed to one line, 512-char output cap with
+/// `…` exactly when the source or the compact was cut.
+String trajectoryPreviewText(String src) {
+  final cutSource = src.length > 2048;
+  final String capped = cutSource ? src.substring(0, 2048) : src;
+  final String plain =
+      _markdownPlainText(capped).replaceAll(RegExp(r'\s+'), ' ').trim();
+  final bool cut = cutSource || plain.length > 512;
+  final String out =
+      plain.length > 512 ? plain.substring(0, 512).trimRight() : plain;
+  return cut ? '$out…' : out;
 }
 
-/// Strips common markdown chrome for one-line ledger previews — React ledger
-/// rows show plain summaries while full markdown lives in the details
-/// Rendered tab. Minimal and safe: bold/italic/code/strike markers and
-/// link URLs, never touching prose words.
-String _stripMarkdown(String src) {
-  var s = src.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
-  s = s.replaceAll('**', '').replaceAll('__', '');
-  s = s.replaceAll('~~', '');
-  // [label](url) -> label
+/// Reduces markdown to plain words for one-line ledger previews. Keeps code
+/// and prose content, drops markers, links/URLs, images, and HTML tags.
+String _markdownPlainText(String src) {
+  var s = src;
+  // Fenced blocks keep their content, drop the fences.
+  s = s.replaceAll(RegExp(r'```[a-zA-Z0-9+-]*'), '');
+  // Images drop entirely; links keep their label.
+  s = s.replaceAllMapped(
+      RegExp(r'!\[([^\]]*)\]\([^)]+\)'), (m) => m.group(1) ?? '');
   s = s.replaceAllMapped(
       RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1) ?? '');
-  // Inline code stays as bare text in the ledger row.
-  s = s.replaceAll('`', '');
-  return s.trim();
+  // Headings, quotes, list markers, table pipes, rules.
+  s = s.replaceAllMapped(
+      RegExp(r'(^|\n)\s{0,3}#{1,6}\s+'), (m) => '${m.group(1)}');
+  s = s.replaceAllMapped(
+      RegExp(r'(^|\n)\s{0,3}>\s?'), (m) => '${m.group(1)}');
+  s = s.replaceAllMapped(
+      RegExp(r'(^|\n)\s*([-*+]|\d+[.)])\s+'), (m) => '${m.group(1)}');
+  s = s.replaceAll('|', ' ');
+  s = s.replaceAll(RegExp(r'(^|\n)\s*([-_*]{3,})\s*'), ' ');
+  // Inline markers.
+  s = s.replaceAll('**', '').replaceAll('__', '');
+  s = s.replaceAll('~~', '').replaceAll('`', '');
+  s = s.replaceAll(RegExp(r'<[^>]*>'), '');
+  // Footnote references.
+  s = s.replaceAll(RegExp(r'\[\^[^\]]+\]'), '');
+  return s;
 }
 
+/// Joined tool-result projection — mirrors React `summarizeResult` +
+/// `detailResult`: errors surface `error.code`, otherwise the first text
+/// block feeds the inline preview while the full text feeds Result.
+({String text, String preview, bool isError, String? errorCode})
+    _joinToolResult(SessionEvent ev) {
+  String outText = '';
+  String? code;
+  bool error = ev.data['isError'] == true || ev.data['error'] != null;
+  final dynamic message = ev.data['message'];
+  List<dynamic> blocks = const [];
+  if (message is Map) {
+    final content = message['content'];
+    if (content is List) blocks = content;
+  }
+  for (final blk in blocks) {
+    if (blk is! Map) continue;
+    final String btype = (blk['type'] ?? '').toString();
+    if (btype.contains('error')) {
+      error = true;
+      code ??= (blk['code'] ?? blk['error'])?.toString();
+      final t = (blk['text'] ?? blk['message'])?.toString() ?? '';
+      if (t.isNotEmpty) outText = outText.isEmpty ? t : '$outText\n$t';
+      continue;
+    }
+    if (btype == 'tool-result') {
+      final inner = blk['content'];
+      if (inner is List) {
+        for (final inBlk in inner) {
+          if (inBlk is Map && inBlk['type'] == 'text' && inBlk['text'] is String) {
+            final t = (inBlk['text'] as String);
+            outText = outText.isEmpty ? t : '$outText\n$t';
+          }
+        }
+      } else if (inner is String && inner.isNotEmpty) {
+        outText = outText.isEmpty ? inner : '$outText\n$inner';
+      }
+    } else if (blk['type'] == 'text' && blk['text'] is String) {
+      final t = blk['text'] as String;
+      outText = outText.isEmpty ? t : '$outText\n$t';
+    }
+  }
+  if (outText.isEmpty) {
+    final dynamic out = ev.data['output'] ?? ev.data['result'] ?? ev.data['content'];
+    if (out is String) {
+      outText = out;
+    } else if (out != null) {
+      try {
+        outText = jsonEncode(out);
+      } catch (_) {
+        outText = '$out';
+      }
+    }
+  }
+  if (error) return (text: outText, preview: code ?? 'error', isError: true, errorCode: code);
+  return (
+    text: outText,
+    preview: outText.isEmpty ? '' : trajectoryPreviewText(outText),
+    isError: false,
+    errorCode: null
+  );
+}
 /// Flattens a compaction `summary` payload to display text. The host logs
 /// the summary as a plain string for manual compactions but as content
 /// blocks (`[{type: 'text', text: ...}]`) for automatic checkpoints, so a
@@ -174,27 +318,131 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
   if (entries.isEmpty) return const [];
   final rows = <LedgerRow>[];
   int idx = 0;
-  // Join tool durations by callId from host event times (no fabrication:
-  // only pairs the host actually logged).
-  final Map<String, int> callStartById = {};
-  final Map<String, int> resultTimeById = {};
+  // Index tool calls, results, schemas, settled steps, chunk tails, and step
+  // starts from host event times (no fabrication: only what the host logged).
+  // React folds one tool cell per callId (`expandAssistant`); schemas come
+  // from the latest `request/header` tool catalog (`callSchemas`).
+  final Map<String, Map<String, dynamic>> callById = {};
+  final Map<String, Map<String, dynamic>> resultById = {};
+  final Map<String, Map<String, String>> schemaByName = {};
+  final Set<String> settledAssistantSteps = {};
+  final Map<String, StringBuffer> chunkTextByStep = {};
+  final Map<String, int> chunkFirstTimeByStep = {};
+  final Map<String, int> stepStartTimeByStep = {};
+  String? stepKeyOf(Map<String, dynamic> data) {
+    final dynamic t = data['turn'];
+    final dynamic s = data['step'];
+    if (t is num && s is num) return '${t.toInt()}:${s.toInt()}';
+    return null;
+  }
+
+  String? callIdOf(SessionEvent ev) {
+    final direct = ev.data['callId'];
+    if (direct is String && direct.isNotEmpty) return direct;
+    final id = ev.data['id'];
+    if (id is String && id.isNotEmpty) return id;
+    final message = ev.data['message'];
+    if (message is Map) {
+      final source = message['source'];
+      if (source is Map) {
+        final cid = source['callId'];
+        if (cid is String && cid.isNotEmpty) return cid;
+      }
+      final content = message['content'];
+      if (content is List) {
+        for (final blk in content) {
+          if (blk is Map && blk['type'] == 'tool-result') {
+            final cid = blk['toolCallId'];
+            if (cid is String && cid.isNotEmpty) return cid;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  String argsTextOf(Map<String, dynamic> data) {
+    final dynamic args = data['args'] ?? data['arguments'] ?? data['input'];
+    if (args == null) return '';
+    if (args is String) return args;
+    try {
+      return jsonEncode(args);
+    } catch (_) {
+      return '$args';
+    }
+  }
+
   for (final entry in entries) {
     final ev = entry.event;
-    final String? callId =
-        ev.data['callId'] as String? ?? ev.data['id'] as String?;
-    if (callId == null) continue;
-    if (ev.type == 'tool/call') {
-      callStartById.putIfAbsent(callId, () => ev.time);
+    if (ev.type == 'request/header') {
+      final header = ev.data['header'];
+      if (header is Map) {
+        final tools = header['tools'];
+        if (tools is List) {
+          for (final t in tools) {
+            if (t is Map && t['name'] is String) {
+              schemaByName[t['name'] as String] = {
+                'description': (t['description'] ?? '').toString(),
+                'parameters': t['parameters'] is String
+                    ? t['parameters'] as String
+                    : jsonEncode(t['parameters'] ?? {}),
+              };
+            }
+          }
+        }
+      }
+    } else if (ev.type == 'tool/call') {
+      final callId = callIdOf(ev);
+      if (callId != null) {
+        callById.putIfAbsent(callId, () => {
+              'name': (ev.data['name'] ?? ev.data['toolName'] ?? 'tool').toString(),
+              'args': argsTextOf(ev.data),
+              'time': ev.time,
+              'turn': (ev.data['turn'] as num?)?.toInt(),
+              'step': (ev.data['step'] as num?)?.toInt(),
+              'seq': ev.seq,
+            });
+      }
     } else if (ev.type == 'tool/result') {
-      resultTimeById.putIfAbsent(callId, () => ev.time);
+      final callId = callIdOf(ev);
+      if (callId != null) {
+        resultById.putIfAbsent(callId, () => {
+              'event': ev,
+              'time': ev.time,
+              'turn': (ev.data['turn'] as num?)?.toInt(),
+              'step': (ev.data['step'] as num?)?.toInt(),
+              'seq': ev.seq,
+            });
+      }
+    } else if (ev.type == 'assistant/message') {
+      final key = stepKeyOf(ev.data);
+      if (key != null) settledAssistantSteps.add(key);
+    } else if (ev.type == 'assistant/chunk') {
+      final key = stepKeyOf(ev.data);
+      if (key != null) {
+        final raw = ev.data['chunk'] ?? ev.data['delta'] ?? ev.data['text'];
+        String delta = '';
+        if (raw is String) {
+          delta = raw;
+        } else if (raw is Map) {
+          delta = (raw['text'] ?? raw['delta'] ?? '').toString();
+        }
+        if (delta.isNotEmpty) {
+          chunkTextByStep.putIfAbsent(key, StringBuffer.new).write(delta);
+          chunkFirstTimeByStep.putIfAbsent(key, () => ev.time);
+        }
+      }
+    } else if (ev.type == 'step/start') {
+      final key = stepKeyOf(ev.data);
+      if (key != null) stepStartTimeByStep.putIfAbsent(key, () => ev.time);
     }
   }
   double? toolDurationFor(String? callId) {
     if (callId == null) return null;
-    final int? start = callStartById[callId];
-    final int? end = resultTimeById[callId];
-    if (start == null || end == null) return null;
-    final double secs = (end - start) / 1000.0;
+    final call = callById[callId];
+    final result = resultById[callId];
+    if (call == null || result == null) return null;
+    final double secs = ((result['time'] as int) - (call['time'] as int)) / 1000.0;
     return secs < 0 ? 0 : secs;
   }
   final hasEnvelope = entries.any((e) => e.event.type == 'turn/start');
@@ -228,15 +476,27 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
     final type = ev.type;
     // Location brackets and projection echoes are not ledger rows — React
     // Trajectory derives boundaries from step/turn but never renders them,
-    // and todos live in the Todo dock. Matches ui-trajectory definitions
-    // which only match user/assistant/tool/compaction/retry/request.
+    // and todos live in the Todo dock. Only matched event families project:
+    // user/assistant/tool/compaction/request-header prompt changes. Raw
+    // control-plane noise (permission/preset, sandbox/mode, approval/policy,
+    // inbox splices, session/title, model/selection, retries) has no React
+    // counterpart and stays out; chunks accumulate into one tail row per
+    // unsettled step instead of one row per delta.
     if (type == 'turn/start' ||
         type == 'turn/end' ||
         type == 'turn/error' ||
         type == 'step/start' ||
         type == 'step/end' ||
         type == 'session/end-seed' ||
-        type == 'todo/write') {
+        type == 'todo/write' ||
+        type == 'permission/preset' ||
+        type == 'sandbox/mode' ||
+        type == 'approval/policy' ||
+        type == 'agent/inbox/spliced' ||
+        type == 'model/selection' ||
+        type == 'llm/retry' ||
+        type.startsWith('permission/') ||
+        type.startsWith('session/')) {
       continue;
     }
     TrajectoryCellKind kind;
@@ -245,10 +505,30 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
     String? outputDetail;
     String? thinkingDetail;
     String? preview;
+    String? resultPreview;
+    String? errorCode;
+    bool running = false;
+    bool toolCallOnly = false;
+    List<String> childCallIds = const [];
     bool isError = ev.data['isError'] == true;
     String? callId;
     String? result;
     double? timeSeconds;
+    int step = (ev.data['step'] as num?)?.toInt() ?? 0;
+    int? firstTokenTime;
+    int? stepStartTime;
+    int? inputTokens;
+    int? outputTokens;
+    int? reasoningTokens;
+    int? cacheReadTokens;
+    String? messageSource;
+    String? promptDetail;
+    String? promptToolsJson;
+    String? schemaDescription;
+    String? schemaParameters;
+    // Emitted below, or merged into an earlier row (tool results join their
+    // call row; chunk deltas accumulate per step and emit once).
+    bool emitRow = true;
     switch (type) {
       case 'user/message':
         {
@@ -260,10 +540,15 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
             kind = TrajectoryCellKind.context;
           }
           final String t = _extractText(ev.data);
-          text = _previewFor(t.isEmpty ? '(empty message)' : t, 160);
+          text = t.isEmpty ? '(empty message)' : trajectoryPreviewText(t);
           inputDetail = t;
-          if (kind == TrajectoryCellKind.context) {
-            preview = t;
+          preview = t.isEmpty ? null : t;
+          if (src is Map) {
+            try {
+              messageSource = jsonEncode(src);
+            } catch (_) {
+              messageSource = '$src';
+            }
           }
           break;
         }
@@ -274,82 +559,125 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
               ? (ev.data['message'] as Map).cast<String, dynamic>()
               : ev.data;
           final String t = _extractText(msg);
-          text = _previewFor(t.isEmpty ? '' : _stripMarkdown(t), 160);
           outputDetail = t;
           final rawContent = msg['content'];
+          final List<String> callIds = [];
+          bool hasToolCallBlock = false;
           if (rawContent is List) {
             for (final blk in rawContent) {
               if (blk is Map && blk['type'] == 'reasoning' && blk['text'] is String) {
-                thinkingDetail = (thinkingDetail ?? '') + (blk['text'] as String) + '\n';
+                thinkingDetail = '${thinkingDetail ?? ''}${blk['text']}\n';
+              }
+              if (blk is Map && blk['type'] == 'tool-call') {
+                hasToolCallBlock = true;
+                final id = blk['id'];
+                if (id is String && id.isNotEmpty) callIds.add(id);
               }
             }
-            if (thinkingDetail != null) thinkingDetail = thinkingDetail.trim();
+            thinkingDetail = thinkingDetail?.trim();
           }
-          preview = t;
+          childCallIds = List<String>.unmodifiable(callIds);
+          // Text-less assistants that only drove tool calls label like React
+          // (`layout.toolCallOnly`); the step's own tool calls are the
+          // fallback signal when blocks are absent from the message.
+          final stepKey = stepKeyOf(ev.data);
+          final bool stepHasTools = stepKey != null &&
+              callById.values.any((c) =>
+                  c['turn'] == ev.data['turn'] && c['step'] == ev.data['step']);
+          if (t.trim().isEmpty &&
+              (thinkingDetail ?? '').trim().isEmpty &&
+              (hasToolCallBlock || stepHasTools)) {
+            toolCallOnly = true;
+            text = '(tool call only)';
+          } else {
+            text = t.isEmpty ? '' : trajectoryPreviewText(t);
+          }
+          preview = t.isEmpty ? null : t;
+          final usage = ev.data['usage'];
+          if (usage is Map) {
+            inputTokens = (usage['inputTokens'] as num?)?.toInt();
+            outputTokens = (usage['outputTokens'] as num?)?.toInt();
+            reasoningTokens = (usage['reasoningTokens'] as num?)?.toInt();
+            cacheReadTokens = (usage['cacheReadTokens'] as num?)?.toInt();
+          }
+          if (stepKey != null) {
+            firstTokenTime = chunkFirstTimeByStep[stepKey];
+            stepStartTime = stepStartTimeByStep[stepKey];
+          }
           break;
         }
       case 'assistant/chunk':
-        {
-          kind = TrajectoryCellKind.message;
-          final raw = ev.data['chunk'] ?? ev.data['delta'] ?? ev.data['text'];
-          String delta = '';
-          if (raw is String) delta = raw;
-          else if (raw is Map) delta = (raw['text'] as String?) ?? (raw['delta'] as String?) ?? '';
-          if (delta.isEmpty) continue;
-          text = _previewFor(delta, 160);
-          preview = delta;
-          break;
-        }
+        // Deltas accumulate per step in the pre-pass and emit once below
+        // for steps with no settled message; never one row per delta.
+        emitRow = false;
+        kind = TrajectoryCellKind.message;
+        break;
       case 'tool/call':
         {
           kind = TrajectoryCellKind.tool;
-          final String name = (ev.data['name'] as String?) ??
-              (ev.data['toolName'] as String?) ??
-              'tool';
-          final dynamic args = ev.data['args'] ?? ev.data['arguments'] ?? ev.data['input'];
-          String argsText = '';
-          if (args is String) argsText = args;
-          else if (args is Map || args is List) {
-            try { argsText = jsonEncode(args); } catch (_) { argsText = '$args'; }
-          }
-          callId = ev.data['callId'] as String? ?? ev.data['id'] as String?;
-          // Args-derived one-line summary (React row parity) instead of raw
-          // JSON: `write` shows its `file_path`, `bash` its description,
-          // `todo_write` its done/total + active item (plan-summary parity).
-          final String summary;
-          if (name == 'todo_write' && argsText.isNotEmpty) {
-            summary = summarizeTodos(argsText).text;
-          } else {
-            summary = argsText.isEmpty
-                ? ''
-                : deriveSummary(classifyTool(name), argsText);
-          }
-          text = summary.isEmpty ? name : '$name · ${_previewFor(summary, 120)}';
+          callId = callIdOf(ev);
+          final stored = callId != null ? callById[callId] : null;
+          final String name = (stored?['name'] ??
+                  ev.data['name'] ??
+                  ev.data['toolName'] ??
+                  'tool')
+              .toString();
+          // Raw args verbatim (React `summarizeCall`): no per-tool semantic
+          // summary, no key filtering; the 2048→512 preview cap applies.
+          final String argsText =
+              stored != null ? (stored['args'] as String) : argsTextOf(ev.data);
+          text = argsText.isEmpty ? name : '$name ${trajectoryPreviewText(argsText)}';
           inputDetail = argsText;
-          timeSeconds = toolDurationFor(callId);
+          preview = argsText.isEmpty ? null : argsText;
+          final schema = schemaByName[name];
+          if (schema != null) {
+            schemaDescription = schema['description'];
+            schemaParameters = schema['parameters'];
+          }
+          final res = callId != null ? resultById[callId] : null;
+          if (res != null) {
+            final joined = _joinToolResult(res['event'] as SessionEvent);
+            outputDetail = joined.text;
+            result = joined.text;
+            resultPreview = joined.preview;
+            isError = joined.isError;
+            errorCode = joined.errorCode;
+            timeSeconds = toolDurationFor(callId);
+          } else {
+            running = true;
+          }
           break;
         }
       case 'tool/result':
         {
+          // Results join their call row above (React: one cell per callId).
+          // Only orphan results (call outside the window) emit standalone.
+          callId = callIdOf(ev);
+          final bool hasCallRow =
+              callId != null && callById.containsKey(callId);
+          if (hasCallRow) {
+            emitRow = false;
+            kind = TrajectoryCellKind.tool;
+            break;
+          }
           kind = TrajectoryCellKind.tool;
           final String name = (ev.data['name'] as String?) ?? 'tool';
-          final dynamic message = ev.data['message'];
-          String outText = '';
-          if (message is Map) {
-            outText = flattenResultContent((message as Map)['content']);
+          final joined = _joinToolResult(ev);
+          text = joined.preview.isEmpty
+              ? name
+              : '$name ${trajectoryPreviewText(joined.preview)}';
+          inputDetail = null;
+          outputDetail = joined.text.isEmpty ? null : joined.text;
+          preview = joined.preview.isEmpty ? null : joined.preview;
+          result = joined.text.isEmpty ? null : joined.text;
+          resultPreview = joined.preview.isEmpty ? null : joined.preview;
+          isError = joined.isError;
+          errorCode = joined.errorCode;
+          final schema = schemaByName[name];
+          if (schema != null) {
+            schemaDescription = schema['description'];
+            schemaParameters = schema['parameters'];
           }
-          if (outText.isEmpty) {
-            final dynamic out = ev.data['output'] ?? ev.data['result'] ?? ev.data['content'];
-            if (out is String) outText = out;
-            else if (out != null) {
-              try { outText = jsonEncode(out); } catch (_) { outText = '$out'; }
-            }
-          }
-          callId = ev.data['callId'] as String? ?? ev.data['id'] as String?;
-          text = outText.isEmpty ? name : '$name · ${_previewFor(outText, 120)}';
-          result = outText;
-          isError = ev.data['isError'] == true || ev.data['error'] != null;
-          timeSeconds = toolDurationFor(callId);
           break;
         }
       case 'compaction/start':
@@ -358,36 +686,43 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
       case 'compaction/prune':
         kind = TrajectoryCellKind.compacted;
         final String summaryText = _summaryBlocksText(ev.data['summary']);
-        text = summaryText.isEmpty ? type : summaryText;
+        text = summaryText.isEmpty ? type : trajectoryPreviewText(summaryText);
         preview = summaryText.isEmpty ? null : summaryText;
+        outputDetail = summaryText.isEmpty ? null : summaryText;
+        running = summaryText.isEmpty && type == 'compaction/start';
         break;
       case 'request/header':
-      case 'session/title':
-      case 'session/title-llm-request':
-      case 'model/selection':
-        kind = TrajectoryCellKind.system;
-        text = _previewFor(_extractText(ev.data).isEmpty ? type : _extractText(ev.data), 160);
-        inputDetail = jsonEncode(ev.data);
-        break;
-      case 'llm/retry':
-        kind = TrajectoryCellKind.system;
-        final retry = ev.data['retry'];
-        final maxRetries = ev.data['maxRetries'];
-        text = 'retry $retry/${maxRetries ?? '?'}';
-        break;
-      default:
-        if (type.startsWith('system') || type == 'session/end-seed') {
+        {
+          // System rows project prompt changes only (React
+          // `requestPromptAnchor` + promptChangeLabel): the initial header
+          // labels the row; later headers mark updates.
           kind = TrajectoryCellKind.system;
-        } else if (type.contains('context') || type == 'request/context') {
-          kind = TrajectoryCellKind.context;
-        } else {
-          kind = TrajectoryCellKind.system;
+          final header = ev.data['header'];
+          String system = '';
+          if (header is Map) system = (header['system'] ?? '').toString();
+          final bool initial =
+              (ev.data['reason'] ?? 'initial').toString() == 'initial';
+          text = initial ? 'Initial System Prompt' : 'System Prompt Updated';
+          promptDetail = system;
+          final headerTools = header['tools'];
+          if (headerTools is List) {
+            try {
+              promptToolsJson = jsonEncode(headerTools);
+            } catch (_) {
+              promptToolsJson = null;
+            }
+          }
+          preview = system.isEmpty ? null : system;
+          break;
         }
-        final String t = _extractText(ev.data);
-        text = t.isEmpty ? type : _previewFor(_stripMarkdown(t), 160);
-        if (t.isNotEmpty) preview = t;
+      default:
+        // Raw control-plane noise has no React counterpart — drop it.
+        emitRow = false;
+        kind = TrajectoryCellKind.system;
         break;
     }
+
+    if (!emitRow) continue;
 
     final int turn = turnForSeq(ev.seq);
     final int gcount = (turnGroupCounter[turn] ?? 0) + 1;
@@ -406,17 +741,61 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
       outputDetail: outputDetail,
       thinkingDetail: thinkingDetail,
       isError: isError,
+      resultPreview: resultPreview,
+      errorCode: errorCode,
+      running: running,
+      toolCallOnly: toolCallOnly,
+      childCallIds: childCallIds,
       timeSeconds: timeSeconds,
       startedAt: startedAt,
+      firstTokenTime: firstTokenTime,
+      stepStartTime: stepStartTime,
       callId: callId,
       result: result,
       turn: turn,
+      step: step,
       group: 'Turn $turn',
       turnStart: isFirstInTurn,
       groupStart: isGroupStart,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      reasoningTokens: reasoningTokens,
+      cacheReadTokens: cacheReadTokens,
+      messageSource: messageSource,
+      promptDetail: promptDetail,
+      promptToolsJson: promptToolsJson,
+      schemaDescription: schemaDescription,
+      schemaParameters: schemaParameters,
     );
     rows.add(row);
   }
+
+  // Accumulated chunk tails emit once per step with no settled message
+  // (React appends the in-flight partial instead of one row per delta).
+  chunkTextByStep.forEach((stepKey, buf) {
+    if (settledAssistantSteps.contains(stepKey)) return;
+    final String tail = buf.toString().trim();
+    if (tail.isEmpty) return;
+    final parts = stepKey.split(':');
+    final int turn = int.tryParse(parts[0]) ?? turnForSeq(1 << 30);
+    final int step = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    final bool isFirstInTurn = rows.isEmpty || rows.last.turn != turn;
+    rows.add(LedgerRow(
+      index: idx++,
+      kind: TrajectoryCellKind.message,
+      text: trajectoryPreviewText(tail),
+      previewMarkdown: tail,
+      outputDetail: tail,
+      running: true,
+      turn: turn,
+      step: step,
+      group: 'Turn $turn',
+      turnStart: isFirstInTurn,
+      groupStart: isFirstInTurn,
+      firstTokenTime: chunkFirstTimeByStep[stepKey],
+      stepStartTime: stepStartTimeByStep[stepKey],
+    ));
+  });
 
   for (int i = 0; i < rows.length; i++) {
     final cur = rows[i];
@@ -432,15 +811,32 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
         outputDetail: cur.outputDetail,
         thinkingDetail: cur.thinkingDetail,
         isError: cur.isError,
+        resultPreview: cur.resultPreview,
+        errorCode: cur.errorCode,
+        running: cur.running,
+        toolCallOnly: cur.toolCallOnly,
+        childCallIds: cur.childCallIds,
         timeSeconds: cur.timeSeconds,
         startedAt: cur.startedAt,
+        firstTokenTime: cur.firstTokenTime,
+        stepStartTime: cur.stepStartTime,
         callId: cur.callId,
         result: cur.result,
         turn: cur.turn,
+        step: cur.step,
         group: cur.group,
         turnStart: cur.turnStart,
         turnEnd: true,
         groupStart: cur.groupStart,
+        inputTokens: cur.inputTokens,
+        outputTokens: cur.outputTokens,
+        reasoningTokens: cur.reasoningTokens,
+        cacheReadTokens: cur.cacheReadTokens,
+        messageSource: cur.messageSource,
+        promptDetail: cur.promptDetail,
+        promptToolsJson: cur.promptToolsJson,
+        schemaDescription: cur.schemaDescription,
+        schemaParameters: cur.schemaParameters,
       );
     }
   }
@@ -779,17 +1175,56 @@ class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
     return actualTime ? 'time' : 'sequence';
   }
 
+  /// Search corpus mirror of React `trajectory-search-index`: turn/group
+  /// labels, kind, text, previews, payload, result, thinking, schema,
+  /// callId, and message source — multi-term AND, case-insensitive.
+  static bool _rowMatches(LedgerRow r, List<String> terms) {
+    final buf = StringBuffer()
+      ..write('turn ${r.turn} ')
+      ..write(r.group)
+      ..write(' ')
+      ..write(r.kind.name)
+      ..write(' ')
+      ..write(r.text)
+      ..write(' ')
+      ..write(r.previewMarkdown ?? '')
+      ..write(' ')
+      ..write(r.inputDetail ?? '')
+      ..write(' ')
+      ..write(r.outputDetail ?? '')
+      ..write(' ')
+      ..write(r.thinkingDetail ?? '')
+      ..write(' ')
+      ..write(r.result ?? '')
+      ..write(' ')
+      ..write(r.resultPreview ?? '')
+      ..write(' ')
+      ..write(r.callId ?? '')
+      ..write(' ')
+      ..write(r.schemaDescription ?? '')
+      ..write(' ')
+      ..write(r.messageSource ?? '');
+    final hay = buf.toString().toLowerCase();
+    return terms.every((t) => hay.contains(t));
+  }
+
+  List<String> get _searchTerms => searchQuery
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+
   List<LedgerRow> get _filteredRows {
     if (searchQuery.trim().isEmpty) return widget.rows;
-    final q = searchQuery.toLowerCase();
-    return widget.rows.where((r) => r.text.toLowerCase().contains(q) || (r.previewMarkdown?.toLowerCase().contains(q) ?? false)).toList();
+    final terms = _searchTerms;
+    return widget.rows.where((r) => _rowMatches(r, terms)).toList();
   }
 
   Set<int> get _searchMatchIndexes {
     if (searchQuery.trim().isEmpty) return {};
-    final q = searchQuery.toLowerCase();
+    final terms = _searchTerms;
     return widget.rows
-        .where((r) => r.text.toLowerCase().contains(q))
+        .where((r) => _rowMatches(r, terms))
         .map((r) => r.index)
         .toSet();
   }
@@ -996,7 +1431,12 @@ class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
                     Container(width: 1, color: aliases.borderL2),
                     SizedBox(
                       width: 380,
-                      child: _DetailsPane(row: selRow, onClose: () => setState(() => selectedIndex = null)),
+                      child: _DetailsPane(
+                        row: selRow,
+                        onClose: () => setState(() => selectedIndex = null),
+                        allRows: widget.rows,
+                        onSelectRow: (idx) => setState(() => selectedIndex = idx),
+                      ),
                     ),
                   ],
                 );
@@ -1008,7 +1448,12 @@ class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
             LayoutBuilder(builder: (context, constraints) {
               if (constraints.maxWidth > 760) return const SizedBox.shrink();
               final LedgerRow selRow = widget.rows.firstWhere((r) => r.index == selectedIndex, orElse: () => rows.firstWhere((r) => r.index == selectedIndex, orElse: () => widget.rows.first));
-              return _DetailsPane(row: selRow, onClose: () => setState(() => selectedIndex = null));
+              return _DetailsPane(
+                row: selRow,
+                onClose: () => setState(() => selectedIndex = null),
+                allRows: widget.rows,
+                onSelectRow: (idx) => setState(() => selectedIndex = idx),
+              );
             }),
           _TrajectoryFooter(trajectory: widget.trajectory, rows: widget.rows),
         ],
@@ -1999,9 +2444,12 @@ class _RowContent extends StatelessWidget {
     final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
         (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
     if (row.kind == TrajectoryCellKind.tool || row.kind == TrajectoryCellKind.subtool) {
-      final parts = row.text.split(' · ');
-      final name = parts.isNotEmpty ? parts.first : row.text;
-      final args = parts.length > 1 ? parts.sublist(1).join(' · ') : null;
+      // Ledger text is `name args…` (React `name + ' ' + args`); the result
+      // preview rides the separate `→` span (React `resultText`).
+      final sep = row.text.indexOf(' ');
+      final name = sep == -1 ? row.text : row.text.substring(0, sep);
+      final args = sep == -1 ? null : row.text.substring(sep + 1);
+      final String? resultSpan = row.resultPreview ?? row.result;
       final bool isSub = row.kind == TrajectoryCellKind.subtool;
       return Padding(
         padding: EdgeInsets.only(left: isSub ? 22 : 0),
@@ -2019,12 +2467,12 @@ class _RowContent extends StatelessWidget {
                 ),
               ),
             ),
-            if (row.result != null && row.result!.isNotEmpty) ...[
+            if (resultSpan != null && resultSpan.isNotEmpty) ...[
               const SizedBox(width: 8),
               Icon(Icons.arrow_forward, size: 12, color: aliases.labelCaption),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(row.result!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: aliases.labelSecondary)),
+                child: Text(resultSpan, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: row.isError ? aliases.stateErrorPrimary : aliases.labelSecondary)),
               ),
             ],
           ],
@@ -2034,6 +2482,10 @@ class _RowContent extends StatelessWidget {
     final String display = row.previewMarkdown ?? row.text;
     if (display.isEmpty) {
       return Text('—', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary));
+    }
+    // Tool-call-only assistants render dimmed like React's `.toolCallOnly`.
+    if (row.toolCallOnly) {
+      return Text(display, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, fontStyle: FontStyle.italic, color: aliases.labelTertiary));
     }
     return Text(display, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelPrimary));
   }
@@ -2240,23 +2692,57 @@ class TrajectoryTimeline extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _DetailsPane extends StatefulWidget {
-  const _DetailsPane({required this.row, required this.onClose});
+  const _DetailsPane({
+    required this.row,
+    required this.onClose,
+    this.allRows = const [],
+    this.onSelectRow,
+  });
   final LedgerRow row;
   final VoidCallback onClose;
+
+  /// All ledger rows for hierarchy navigation (React `parentRecords`).
+  final List<LedgerRow> allRows;
+
+  /// Jumps the inspector to another row (hierarchy links).
+  final ValueChanged<int>? onSelectRow;
   @override
   State<_DetailsPane> createState() => _DetailsPaneState();
 }
 
+String _trajT(BuildContext context, String key) =>
+    trajectoryText(Localizations.localeOf(context).languageCode, key);
+
 class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderStateMixin {
   late TabController _tab;
+  bool _showUnixTime = false;
   List<String> get _tabs {
     final k = widget.row.kind;
-    if (k == TrajectoryCellKind.system) return ['Overview', 'Raw'];
-    if (k == TrajectoryCellKind.compacted) return ['Overview', 'Raw'];
-    if (k == TrajectoryCellKind.message || k == TrajectoryCellKind.user || k == TrajectoryCellKind.context) {
-      return ['Overview', 'Rendered', 'Raw'];
+    if (k == TrajectoryCellKind.system) {
+      return [_trajT(context, 'tab.systemPrompt'), _trajT(context, 'tab.tools')];
     }
-    return ['Overview', 'Input', 'Output', 'Timing'];
+    if (k == TrajectoryCellKind.compacted) {
+      return [_trajT(context, 'tab.summary'), _trajT(context, 'tab.rawOutput')];
+    }
+    if (k == TrajectoryCellKind.message ||
+        k == TrajectoryCellKind.user ||
+        k == TrajectoryCellKind.context) {
+      return [
+        _trajT(context, 'tab.summary'),
+        _trajT(context, 'tab.preview'),
+        _trajT(context, 'tab.raw'),
+        if (widget.row.messageSource != null) _trajT(context, 'tab.source'),
+      ];
+    }
+    // Tool/subtool: Payload/Result tabs exist only when captured (React
+    // `detailTabs` conditionals); Schema and Timing always do.
+    return [
+      _trajT(context, 'tab.summary'),
+      if ((widget.row.inputDetail ?? '').isNotEmpty) _trajT(context, 'tab.payload'),
+      if ((widget.row.outputDetail ?? '').isNotEmpty) _trajT(context, 'tab.result'),
+      _trajT(context, 'tab.schema'),
+      _trajT(context, 'tab.timing'),
+    ];
   }
 
   @override
@@ -2309,7 +2795,7 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
                 const SizedBox(width: 8),
                 Text(_kindLabel(row.kind), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, fontFamily: DswTokens.fontFamilyCode, color: aliases.labelPrimary)),
                 const SizedBox(width: 8),
-                Expanded(child: Text('#${row.index} · Turn ${row.turn}', style: TextStyle(fontSize: 11, fontFamily: DswTokens.fontFamilyCode, color: aliases.labelTertiary), overflow: TextOverflow.ellipsis)),
+                Expanded(child: Text(_locationLabel(context, row), style: TextStyle(fontSize: 11, fontFamily: DswTokens.fontFamilyCode, color: aliases.labelTertiary), overflow: TextOverflow.ellipsis)),
                 IconButton(icon: const Icon(Icons.close, size: 18), onPressed: widget.onClose, tooltip: 'Close'),
               ],
             ),
@@ -2339,6 +2825,15 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
     );
   }
 
+  String _locationLabel(BuildContext context, LedgerRow row) {
+    // React shows `Turn N · Step M` (badge and location are separate spans);
+    // compacted rows without a turn show their group instead.
+    if (row.kind == TrajectoryCellKind.compacted && row.turn == 0) {
+      return row.group.isEmpty ? '—' : row.group;
+    }
+    return row.step > 0 ? 'Turn ${row.turn} · Step ${row.step}' : 'Turn ${row.turn}';
+  }
+
   String _kindLabel(TrajectoryCellKind k) => switch (k) {
         TrajectoryCellKind.system => 'SYSTEM',
         TrajectoryCellKind.user => 'USER',
@@ -2349,72 +2844,604 @@ class _DetailsPaneState extends State<_DetailsPane> with SingleTickerProviderSta
         TrajectoryCellKind.subtool => 'SUBTOOL',
       };
 
-  Widget _tabBody(String tab, LedgerRow row, DswAliases aliases) {
-    switch (tab) {
-      case 'Overview':
-        return ListView(
-          padding: const EdgeInsets.all(14),
-          children: [
-            _kv('Kind', _kindLabel(row.kind), aliases),
-            _kv('Turn', '${row.turn}', aliases),
-            _kv('Group', row.group, aliases),
-            _kv('Started', row.startedAt != null ? DateTime.fromMillisecondsSinceEpoch(row.startedAt!).toIso8601String() : '—', aliases),
-            _kv('Duration', row.timeSeconds != null ? '${(row.timeSeconds! * 1000).round()}ms' : '—', aliases),
-            if (row.callId != null) _kv('CallId', row.callId!, aliases),
-            if (row.isError) _kv('Status', 'Error', aliases, error: true),
-            const SizedBox(height: 8),
-            Text(row.text, style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: aliases.labelPrimary)),
-          ],
-        );
-      case 'Rendered':
-        {
-          final String md = row.outputDetail ?? row.previewMarkdown ?? row.text;
-          if (md.isEmpty) return Center(child: Text('No content', style: TextStyle(color: aliases.labelTertiary, fontSize: DswTokens.fontSizeXs13)));
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(14),
-            child: DsMarkdown(data: md),
-          );
-        }
-      case 'Raw':
-        {
-          final String raw = row.inputDetail ?? row.outputDetail ?? row.previewMarkdown ?? row.text;
-          if (raw.isEmpty) return Center(child: Text('No payload', style: TextStyle(color: aliases.labelTertiary, fontSize: DswTokens.fontSizeXs13)));
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(14),
-            child: SelectableText(raw, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, height: 19/12, color: aliases.labelPrimary)),
-          );
-        }
-      case 'Input':
-        {
-          final String raw = row.inputDetail ?? '';
-          if (raw.isEmpty) return Center(child: Text('No input', style: TextStyle(color: aliases.labelTertiary, fontSize: DswTokens.fontSizeXs13)));
-          final dynamic decoded = jsonContainerOf(raw) ?? raw;
-          if (decoded is Map || decoded is List) {
-            return SingleChildScrollView(padding: const EdgeInsets.all(14), child: DsJsonTree(data: decoded, initiallyExpanded: true));
-          }
-          return SingleChildScrollView(padding: const EdgeInsets.all(14), child: SelectableText(raw, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: aliases.labelPrimary)));
-        }
-      case 'Output':
-        {
-          final String raw = row.result ?? row.outputDetail ?? '';
-          if (raw.isEmpty) return Center(child: Text('No output', style: TextStyle(color: aliases.labelTertiary, fontSize: DswTokens.fontSizeXs13)));
-          final dynamic decoded = jsonContainerOf(raw) ?? raw;
-          if (decoded is Map || decoded is List) {
-            return SingleChildScrollView(padding: const EdgeInsets.all(14), child: DsJsonTree(data: decoded, initiallyExpanded: true));
-          }
-          return SingleChildScrollView(padding: const EdgeInsets.all(14), child: SelectableText(raw, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: aliases.labelPrimary)));
-        }
-      case 'Timing':
-        return ListView(
-          padding: const EdgeInsets.all(14),
-          children: [
-            _kv('Started', row.startedAt != null ? DateTime.fromMillisecondsSinceEpoch(row.startedAt!).toString() : '—', aliases),
-            _kv('Duration', row.timeSeconds != null ? '${row.timeSeconds}s' : '—', aliases),
-          ],
-        );
-      default:
-        return const SizedBox.shrink();
+  void _jumpToTab(String label) {
+    final i = _tabs.indexOf(label);
+    if (i != -1) _tab.animateTo(i);
+  }
+
+  String _statusOf(LedgerRow row) {
+    if (row.isError) return _trajT(context, 'status.failed');
+    if (row.running) return _trajT(context, 'status.pending');
+    return _trajT(context, 'status.completed');
+  }
+
+  String _formatInt(int v) {
+    final neg = v < 0;
+    var s = v.abs().toString();
+    final buf = StringBuffer();
+    while (s.length > 3) {
+      buf.write(',${s.substring(s.length - 3)}');
+      s = s.substring(0, s.length - 3);
     }
+    buf.write(s);
+    final out = buf.toString().split(',').reversed.join(',');
+    return neg ? '-$out' : out;
+  }
+
+  String _startedText(int? ms) {
+    if (ms == null) return _trajT(context, 'timing.notAvailable');
+    if (_showUnixTime) return (ms / 1000.0).toStringAsFixed(3);
+    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+    String two(int n) => n.toString().padLeft(2, '0');
+    String three(int n) => n.toString().padLeft(3, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}.${three(dt.millisecond)}';
+  }
+
+  String _durationText(double? secs) {
+    if (secs == null) return '—';
+    return '${_formatInt((secs * 1000).round())} ms';
+  }
+
+  /// First assistant row in the same turn whose blocks declared [callId].
+  LedgerRow? _parentAssistantOf(String? callId, int turn) {
+    if (callId == null || callId.isEmpty) return null;
+    for (final r in widget.allRows) {
+      if (r.kind == TrajectoryCellKind.message &&
+          r.turn == turn &&
+          r.childCallIds.contains(callId)) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  Widget _sectionLink({
+    required String label,
+    required String targetTab,
+    required Widget preview,
+    required DswAliases aliases,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextButton(
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: () => _jumpToTab(targetTab),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: DswTokens.fontSizeXs13,
+                      fontWeight: FontWeight.w600,
+                      color: aliases.labelPrimary)),
+              Text(' ›',
+                  style: TextStyle(
+                      fontSize: DswTokens.fontSizeXs13,
+                      color: aliases.labelTertiary)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        preview,
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _previewPre(String text, DswAliases aliases, {int maxLines = 6}) =>
+      Text(text,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontFamily: DswTokens.fontFamilyCode,
+              fontSize: 12,
+              height: 19 / 12,
+              color: aliases.labelSecondary));
+
+  Widget _summaryTab(LedgerRow row, DswAliases aliases) {
+    final children = <Widget>[];
+    void kv(String k, String v, {bool error = false}) =>
+        children.add(_kv(k, v, aliases, error: error));
+    if (row.kind == TrajectoryCellKind.tool ||
+        row.kind == TrajectoryCellKind.subtool) {
+      final parent = _parentAssistantOf(row.callId, row.turn);
+      if (parent != null && widget.onSelectRow != null) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                  width: 96,
+                  child: Text(_trajT(context, 'details.hierarchy'),
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.labelTertiary))),
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: () => widget.onSelectRow!(parent.index),
+                  child: Text(
+                      '${_trajT(context, 'details.assistantMessage')} ›',
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.stateBusinessPrimary)),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      children.add(const SizedBox(height: 8));
+      if ((row.inputDetail ?? '').isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.payload'),
+          targetTab: _trajT(context, 'tab.payload'),
+          preview: _previewPre(row.inputDetail!, aliases),
+          aliases: aliases,
+        ));
+      }
+      if ((row.outputDetail ?? '').isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.result'),
+          targetTab: _trajT(context, 'tab.result'),
+          preview: _previewPre(row.outputDetail!, aliases),
+          aliases: aliases,
+        ));
+      }
+      children.add(_sectionLink(
+        label: _trajT(context, 'tab.schema'),
+        targetTab: _trajT(context, 'tab.schema'),
+        preview: Text(
+            row.schemaDescription?.isNotEmpty == true
+                ? row.schemaDescription!
+                : _trajT(context, 'record.schemaUnavailable'),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelSecondary)),
+        aliases: aliases,
+      ));
+      children.add(_sectionLink(
+        label: _trajT(context, 'tab.timing'),
+        targetTab: _trajT(context, 'tab.timing'),
+        preview: Text(
+            '${_trajT(context, 'timing.started')}: ${_startedText(row.startedAt)} · ${_trajT(context, 'timing.duration')}: ${_durationText(row.timeSeconds)}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelSecondary)),
+        aliases: aliases,
+      ));
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    if (row.kind == TrajectoryCellKind.message) {
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      if (row.outputTokens != null) {
+        kv(_trajT(context, 'details.tokens'), _formatInt(row.outputTokens!));
+      }
+      if (row.reasoningTokens != null) {
+        kv(_trajT(context, 'details.reasoning'),
+            _formatInt(row.reasoningTokens!));
+      }
+      if (row.outputTokens != null && row.reasoningTokens != null) {
+        kv(_trajT(context, 'details.content'), _formatInt(
+            (row.outputTokens! - row.reasoningTokens!).clamp(0, 1 << 30)));
+      }
+      children.add(const SizedBox(height: 8));
+      final String previewText =
+          row.outputDetail ?? row.previewMarkdown ?? row.text;
+      if (previewText.isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.preview'),
+          targetTab: _trajT(context, 'tab.preview'),
+          preview: _previewPre(previewText, aliases, maxLines: 10),
+          aliases: aliases,
+        ));
+      }
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    if (row.kind == TrajectoryCellKind.user ||
+        row.kind == TrajectoryCellKind.context) {
+      if (row.messageSource != null) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                  width: 96,
+                  child: Text(_trajT(context, 'details.source'),
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.labelTertiary))),
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: () =>
+                      _jumpToTab(_trajT(context, 'tab.source')),
+                  child: Text('${_trajT(context, 'tab.source')} ›',
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.stateBusinessPrimary)),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      kv(_trajT(context, 'details.duration'),
+          _durationText(row.timeSeconds));
+      children.add(const SizedBox(height: 8));
+      final String previewText =
+          row.inputDetail ?? row.previewMarkdown ?? row.text;
+      if (previewText.isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.preview'),
+          targetTab: _trajT(context, 'tab.preview'),
+          preview: _previewPre(previewText, aliases, maxLines: 10),
+          aliases: aliases,
+        ));
+      }
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    if (row.kind == TrajectoryCellKind.compacted) {
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      kv(_trajT(context, 'details.duration'),
+          _durationText(row.timeSeconds));
+      kv(_trajT(context, 'details.tokens'), '—');
+      if ((row.outputDetail ?? '').isNotEmpty) {
+        children.add(const SizedBox(height: 8));
+        children.add(SelectableText(row.outputDetail!,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelPrimary)));
+      }
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: [
+        _kv('Kind', _kindLabel(row.kind), aliases),
+        _kv('Turn', '${row.turn}', aliases),
+        _kv('Group', row.group, aliases),
+        if (row.isError)
+          _kv(_trajT(context, 'details.status'), _statusOf(row), aliases,
+              error: true),
+        const SizedBox(height: 8),
+        Text(row.text,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelPrimary)),
+      ],
+    );
+  }
+
+  Widget _markdownTab(String md, DswAliases aliases, String emptyLabel) {
+    if (md.isEmpty) {
+      return Center(
+          child: Text(emptyLabel,
+              style: TextStyle(
+                  color: aliases.labelTertiary,
+                  fontSize: DswTokens.fontSizeXs13)));
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(14),
+      child: DsMarkdown(data: md),
+    );
+  }
+
+  Widget _preTab(String raw, DswAliases aliases, String emptyLabel) {
+    if (raw.isEmpty) {
+      return Center(
+          child: Text(emptyLabel,
+              style: TextStyle(
+                  color: aliases.labelTertiary,
+                  fontSize: DswTokens.fontSizeXs13)));
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(14),
+      child: SelectableText(raw,
+          style: TextStyle(
+              fontFamily: DswTokens.fontFamilyCode,
+              fontSize: 12,
+              height: 19 / 12,
+              color: aliases.labelPrimary)),
+    );
+  }
+
+  Widget _jsonTab(String raw, DswAliases aliases, String emptyLabel) {
+    if (raw.isEmpty) {
+      return Center(
+          child: Text(emptyLabel,
+              style: TextStyle(
+                  color: aliases.labelTertiary,
+                  fontSize: DswTokens.fontSizeXs13)));
+    }
+    final dynamic decoded = jsonContainerOf(raw) ?? raw;
+    if (decoded is Map || decoded is List) {
+      return SingleChildScrollView(
+          padding: const EdgeInsets.all(14),
+          child: DsJsonTree(data: decoded, initiallyExpanded: true));
+    }
+    return _preTab(raw, aliases, emptyLabel);
+  }
+
+  Widget _timingTab(LedgerRow row, DswAliases aliases) {
+    final children = <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+                width: 96,
+                child: Text(_trajT(context, 'timing.started'),
+                    style: TextStyle(
+                        fontSize: DswTokens.fontSizeXs13,
+                        color: aliases.labelTertiary))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SelectableText(_startedText(row.startedAt),
+                      style: TextStyle(
+                          fontFamily: DswTokens.fontFamilyCode,
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.labelPrimary)),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () =>
+                        setState(() => _showUnixTime = !_showUnixTime),
+                    child: Text(
+                        _showUnixTime
+                            ? _trajT(context, 'timing.showLocal')
+                            : _trajT(context, 'timing.showUnix'),
+                        style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            color: aliases.stateBusinessPrimary)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      _kv(_trajT(context, 'timing.duration'),
+          _durationText(row.timeSeconds), aliases),
+      _kv(_trajT(context, 'timing.source'),
+          _trajT(context, 'timing.sessionTimestamps'), aliases),
+    ];
+    // Assistant TTFT / generation / throughput (React AssistantTimingPanel).
+    final int? first = row.firstTokenTime;
+    final int? stepStart = row.stepStartTime;
+    if (row.kind == TrajectoryCellKind.message &&
+        first != null &&
+        stepStart != null &&
+        row.startedAt != null) {
+      final double ttftSec = (first - stepStart) / 1000.0;
+      final double genSec = (row.startedAt! - first) / 1000.0;
+      children.add(_kv(_trajT(context, 'timing.ttft'),
+          _durationText(ttftSec < 0 ? 0 : ttftSec), aliases));
+      children.add(_kv(_trajT(context, 'timing.generation'),
+          _durationText(genSec < 0 ? 0 : genSec), aliases));
+      if (row.outputTokens != null && genSec > 0) {
+        children.add(_kv(
+            _trajT(context, 'timing.throughput'),
+            '${_formatInt((row.outputTokens! / genSec).round())} tok/s',
+            aliases));
+      }
+    }
+    return ListView(
+        padding: const EdgeInsets.all(14), children: children);
+  }
+
+  Widget _tabBody(String tab, LedgerRow row, DswAliases aliases) {
+    String L(String key) => _trajT(context, key);
+    if (tab == L('tab.summary')) return _summaryTab(row, aliases);
+    if (tab == L('tab.preview')) {
+      final parts = <String>[
+        if ((row.thinkingDetail ?? '').isNotEmpty) row.thinkingDetail!,
+        if ((row.outputDetail ?? '').isNotEmpty)
+          row.outputDetail!
+        else if ((row.inputDetail ?? '').isNotEmpty)
+          row.inputDetail!
+        else
+          row.previewMarkdown ?? row.text,
+      ].where((s) => s.isNotEmpty).toList();
+      return _markdownTab(
+          parts.join('\n\n'), aliases, L('record.noOutput'));
+    }
+    if (tab == L('tab.raw') || tab == L('tab.rawOutput')) {
+      return _preTab(
+          row.inputDetail ??
+              ([row.thinkingDetail, row.outputDetail]
+                      .whereType<String>()
+                      .where((s) => s.isNotEmpty)
+                      .join('\n\n')),
+          aliases,
+          L('record.noOutput'));
+    }
+    if (tab == L('tab.source')) {
+      final src = row.messageSource ?? '';
+      if (src.isEmpty) {
+        return Center(
+            child: Text(L('record.noOutput'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      final dynamic decoded = jsonContainerOf(src) ?? src;
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(L('record.sourceJson'),
+                style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    color: aliases.labelTertiary)),
+            const SizedBox(height: 8),
+            if (decoded is Map || decoded is List)
+              DsJsonTree(data: decoded, initiallyExpanded: true)
+            else
+              SelectableText(src,
+                  style: TextStyle(
+                      fontFamily: DswTokens.fontFamilyCode,
+                      fontSize: 12,
+                      color: aliases.labelPrimary)),
+          ],
+        ),
+      );
+    }
+    if (tab == L('tab.payload')) {
+      return _jsonTab(
+          row.inputDetail ?? '', aliases, L('record.noPayload'));
+    }
+    if (tab == L('tab.result')) {
+      return _jsonTab(row.outputDetail ?? row.result ?? '', aliases,
+          L('record.noResult'));
+    }
+    if (tab == L('tab.schema')) {
+      final desc = row.schemaDescription ?? '';
+      final params = row.schemaParameters ?? '';
+      if (desc.isEmpty && params.isEmpty) {
+        return Center(
+            child: Text(L('record.schemaUnavailable'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      final dynamic decoded =
+          params.isEmpty ? null : (jsonContainerOf(params) ?? params);
+      return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          if (desc.isNotEmpty)
+            SelectableText(desc,
+                style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    color: aliases.labelPrimary)),
+          if (desc.isNotEmpty && decoded != null)
+            const SizedBox(height: 12),
+          if (decoded is Map || decoded is List)
+            DsJsonTree(data: decoded, initiallyExpanded: true)
+          else if (decoded is String)
+            SelectableText(decoded,
+                style: TextStyle(
+                    fontFamily: DswTokens.fontFamilyCode,
+                    fontSize: 12,
+                    color: aliases.labelPrimary)),
+        ],
+      );
+    }
+    if (tab == L('tab.timing')) return _timingTab(row, aliases);
+    if (tab == L('tab.systemPrompt')) {
+      final prompt = row.promptDetail ?? '';
+      if (prompt.isEmpty) {
+        return Center(
+            child: Text(L('record.noOutput'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(14),
+        child: DsMarkdown(data: prompt),
+      );
+    }
+    if (tab == L('tab.tools')) {
+      final catalog = row.promptToolsJson ?? '';
+      final dynamic decoded =
+          catalog.isEmpty ? null : (jsonContainerOf(catalog) ?? catalog);
+      final List<dynamic> tools =
+          decoded is List ? decoded : const [];
+      if (tools.isEmpty) {
+        return Center(
+            child: Text(L('record.noOutput'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          for (final t in tools)
+            if (t is Map)
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: Text((t['name'] ?? '').toString(),
+                    style: TextStyle(
+                        fontFamily: DswTokens.fontFamilyCode,
+                        fontSize: DswTokens.fontSizeXs13,
+                        color: aliases.labelPrimary)),
+                subtitle: t['description'] is String &&
+                        (t['description'] as String).isNotEmpty
+                    ? Text((t['description'] as String).split('\n').first,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            color: aliases.labelSecondary))
+                    : null,
+                children: [
+                  if (t['description'] is String &&
+                      (t['description'] as String).isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SelectableText(t['description'] as String,
+                          style: TextStyle(
+                              fontSize: DswTokens.fontSizeXs13,
+                              color: aliases.labelPrimary)),
+                    ),
+                  Builder(builder: (context) {
+                    final p = t['parameters'];
+                    final dynamic pd = p is String
+                        ? (jsonContainerOf(p) ?? p)
+                        : p;
+                    if (pd is Map || pd is List) {
+                      return DsJsonTree(
+                          data: pd, initiallyExpanded: false);
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                ],
+              ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _kv(String k, String v, DswAliases a, {bool error = false}) {
