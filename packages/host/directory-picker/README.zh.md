@@ -33,11 +33,11 @@ web GUI 宿主通过一份约定让操作者选择工作区目录：一个只提
 
 ### 能力约定
 
-`capability()` 返回一个可辨识联合类型，说明操作者如何选择目录：OS 选择器为 `{ kind: 'native', pick(signal) }`，应用内浏览器为 `{ kind: 'browse', list(path?), createDirectory(path, name) }`。消费方按 `kind` 分支；某个组合没有实现的能力类型意味着界面隐藏选择入口，而不是失败。浏览失败抛出带类型的 `DirectoryPickerError`，其错误码集合是封闭的——`directory-unreadable`、`directory-exists` 或 `directory-create-failed`——每个都携带出错对象的路径，选目录 Remote controller 将其 1:1 映射为协议错误码。
+`capability()` 返回一个可辨识联合类型，说明操作者如何选择目录：OS 选择器为 `{ kind: 'native', pick(signal) }`，应用内浏览器为 `{ kind: 'browse', list(path?, options?), createDirectory(path, name), readFile(path, options?) }`。消费方按 `kind` 分支；某个组合没有实现的能力类型意味着界面隐藏选择入口，而不是失败。浏览失败抛出带类型的 `DirectoryPickerError`，其错误码集合是封闭的——`directory-unreadable`、`directory-exists`、`directory-create-failed` 或 `file-unreadable`——每个都携带出错对象的路径，选目录 Remote controller 将其 1:1 映射为协议错误码。
 
 ### 行携带什么
 
-`DirectoryEntry` 行暴露绝对 `path` 与宿主判定的 `hidden` 标志（POSIX 上为点前缀约定），展示策略留在客户端；客户端绝不自行拼接路径段。`DirectoryListing.crumbs` 是从文件系统根到被列举目录的祖先链——每个 crumb 都是跳转目标，根 crumb 以完整路径标注。
+`DirectoryEntry` 行暴露绝对 `path`、`kind` 戳（`'directory'`，列举要求文件时还有 `'file'`）与宿主判定的 `hidden` 标志（POSIX 上为点前缀约定），展示策略留在客户端；客户端绝不自行拼接路径段。`DirectoryListing.crumbs` 是从文件系统根到被列举目录的祖先链——每个 crumb 都是跳转目标，根 crumb 以完整路径标注。
 
 -----
 

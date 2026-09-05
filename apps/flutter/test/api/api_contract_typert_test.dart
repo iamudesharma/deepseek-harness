@@ -298,6 +298,84 @@ void main() {
         });
       },
     );
+
+    test(
+      'directoryPicker/list with includeFiles sends {args:{path,includeFiles}}',
+      () async {
+        final host = _ScriptedHost((_, envelope, _) {
+          return _ok(
+            {
+              'path': '/Users/me',
+              'home': '/Users/me',
+              'crumbs': [],
+              'entries': <Map<String, Object?>>[
+                {
+                  'name': 'notes.txt',
+                  'path': '/Users/me/notes.txt',
+                  'hidden': false,
+                  'kind': 'file',
+                },
+              ],
+              'truncated': false,
+            },
+            envelope['rpcId'] as String,
+          );
+        });
+        final client = ConnectionClient(baseUrl: await host.start());
+        addTearDown(client.dispose);
+        addTearDown(host.stop);
+
+        final svc = WorkspacesService(client);
+        final value = await svc.listDirectory(
+          path: '/Users/me',
+          includeFiles: true,
+        );
+
+        final call = host.requests.single;
+        expect(call.path, '/api/directoryPicker/list');
+        expect(call.body['payload'], {
+          'args': {'path': '/Users/me', 'includeFiles': true},
+        });
+        final entries = value['entries'] as List;
+        expect((entries.single as Map)['kind'], 'file');
+      },
+    );
+
+    test(
+      'directoryPicker/readFile sends {args:{path,offset,count}} and unwraps the page',
+      () async {
+        final host = _ScriptedHost((_, envelope, _) {
+          return _ok(
+            {
+              'path': '/Users/me/notes.txt',
+              'text': 'two\nthree',
+              'truncated': true,
+              'totalBytes': 15,
+            },
+            envelope['rpcId'] as String,
+          );
+        });
+        final client = ConnectionClient(baseUrl: await host.start());
+        addTearDown(client.dispose);
+        addTearDown(host.stop);
+
+        final svc = WorkspacesService(client);
+        final value = await svc.readFile(
+          path: '/Users/me/notes.txt',
+          offset: 1,
+          count: 2,
+        );
+
+        final call = host.requests.single;
+        expect(call.path, '/api/directoryPicker/readFile');
+        expect(call.body['payload'], {
+          'args': {'path': '/Users/me/notes.txt', 'offset': 1, 'count': 2},
+        });
+        expect(value['text'], 'two\nthree');
+        expect(value['truncated'], true);
+        expect(value['totalBytes'], 15);
+      },
+    );
   });
 
   group('directoryPicker capability detection', () {

@@ -29,21 +29,26 @@ kind: "package-reference"
 
 ### 列举目录
 
-`list(path?)` 返回一个目录层级：按名称排序的子目录及其绝对路径、`hidden` 标志（POSIX 上为点前缀）、`home` 锚点，以及 `crumbs`——从根到目标的祖先链，其中每个 crumb 都是跳转目标，根以完整路径标注。不带路径时列举宿主账户的家目录。单次调用至多返回 `maxEntries` 行（配置项，默认 1,000——GitHub 网页端对目录列举采用的同一上限），被截断的层级会报告 `truncated: true`，供客户端提示层级不完整。指向目录的符号链接会被跟随；断链与循环链接被跳过。
+`list(path?)` 返回一个目录层级：按名称排序的子目录及其绝对路径、`hidden` 标志（POSIX 上为点前缀）、`home` 锚点，以及 `crumbs`——从根到目标的祖先链，其中每个 crumb 都是跳转目标，根以完整路径标注。每行都携带 `kind: 'directory'`；调用时传入 `{ includeFiles: true }` 还会一并列出普通文件（`kind: 'file'`）。不带路径时列举宿主账户的家目录。单次调用至多返回 `maxEntries` 行（配置项，默认 1,000——GitHub 网页端对目录列举采用的同一上限），被截断的层级会报告 `truncated: true`，供客户端提示层级不完整。指向目录的符号链接会被跟随；断链与循环链接被跳过。
 
 ### 创建目录
 
 `createDirectory(path, name)` 在既有父目录下创建一个子目录。它不递归——父目录缺失是真实失败，不是要补造的层级——并且拒绝任何非单个非空白路径段的内容（`name` 不得包含分隔符，也不得为 `.` 或 `..`）。
 
+### 读取文件
+
+`readFile(path, options?)` 返回一个普通文件的有界文本页：页文本与 `truncated`、`totalBytes`，以及仅在整个文件装入本页时才出现的 `totalLines`，供翻页器导航。选项选择行窗口（`offset`、`count`）并缩小页字节上限（`maxBytes`，永不超过配置的 `maxReadBytes`）。只返回完整行——被预算截断的尾部残行会被丢弃，在下一页被完整重读。二进制内容（头部含 NUL 字节）、目录、缺失路径与非完全限定路径回答 `file-unreadable`。
+
 ### 可观察的失败
 
-两个原语都拒绝非完全限定的路径——相对形态，以及 Windows 上 `isAbsolute` 会放行的无盘符有根形态（`\foo`、`/foo`）与不完整的 UNC 前缀——报 `directory-unreadable` 或 `directory-create-failed`，而不是把它解析到宿主进程工作目录之下。创建已存在的子目录回答 `directory-exists`。调用方的 `AbortSignal` 会停止进行中的扫描，因此断连或超时不会让扫描比调用方活得更久。
+三个原语都拒绝非完全限定的路径——相对形态，以及 Windows 上 `isAbsolute` 会放行的无盘符有根形态（`\foo`、`/foo`）与不完整的 UNC 前缀——报 `directory-unreadable`、`directory-create-failed` 或 `file-unreadable`，而不是把它解析到宿主进程工作目录之下。创建已存在的子目录回答 `directory-exists`。调用方的 `AbortSignal` 会停止进行中的扫描，因此断连或超时不会让扫描比调用方活得更久。
 
 ### 配置
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `maxEntries` | `1,000` | 单个列举层级的完整结果上限；隐藏行计入该上限 |
+| `maxReadBytes` | `262,144` | 单次 `readFile` 调用的页字节上限；线协议 `maxBytes` 只能缩小页面 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-host-directory-picker-browse)是每个受支持字段及其 JSDoc 的穷尽式真源。
 

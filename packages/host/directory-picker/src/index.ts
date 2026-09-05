@@ -12,9 +12,9 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { DirectoryListing } from './types.ts'
+import type { DirectoryFilePage, DirectoryListing, DirectoryListOptions, DirectoryReadOptions } from './types.ts'
 
-export type { DirectoryEntry, DirectoryListing } from './types.ts'
+export type { DirectoryEntry, DirectoryFilePage, DirectoryListing, DirectoryListOptions, DirectoryReadOptions } from './types.ts'
 
 /** The native interaction: one OS directory chooser on the host display. */
 export interface DirectoryPickerNativeCapability {
@@ -40,13 +40,14 @@ export interface DirectoryPickerBrowseCapability {
    * @param signal - caller lifetime; abort stops the scan (a stalled network
    * directory must not outlive a disconnected caller) and rejects with the
    * abort reason.
+   * @param options - optional file-row inclusion; absent lists directories only.
    * @returns the level's listing with ancestry; backends bound the complete
    * result, and a cut level reports `truncated`.
    * @throws {DirectoryPickerError} `directory-unreadable` when the target is not fully
    * qualified (a wire value must never resolve against the host cwd or, on
    * Windows, its current drive) or cannot be listed.
    */
-  list(path?: string, signal?: AbortSignal): Promise<DirectoryListing>
+  list(path?: string, signal?: AbortSignal, options?: DirectoryListOptions): Promise<DirectoryListing>
   /**
    * Create one child directory under an existing parent.
    * @param path - absolute existing parent directory.
@@ -56,6 +57,18 @@ export interface DirectoryPickerBrowseCapability {
    * `directory-create-failed` for a parent that is not fully qualified or any other failure.
    */
   createDirectory(path: string, name: string): Promise<string>
+  /**
+   * Read one bounded text page of a regular file.
+   * @param path - absolute file path; the same fully-qualified fence as `list` applies.
+   * @param options - line window and page byte cap; absent reads from the
+   * start up to the backend's configured maximum.
+   * @param signal - caller lifetime; abort stops the read.
+   * @returns the page with truncation facts for the pager.
+   * @throws {DirectoryPickerError} `file-unreadable` when the target is not a
+   * fully qualified path, is not a regular file, cannot be read, holds binary
+   * content, or exceeds the backend's readable size.
+   */
+  readFile(path: string, options?: DirectoryReadOptions, signal?: AbortSignal): Promise<DirectoryFilePage>
 }
 
 /**
@@ -72,7 +85,7 @@ export interface DirectoryPickerCapabilities {
 export type DirectoryPickerCapability = DirectoryPickerCapabilities[keyof DirectoryPickerCapabilities]
 
 /** Closed failure vocabulary of the browse primitives (mirrored onto the wire by consumers). */
-export type DirectoryPickerErrorCode = 'directory-unreadable' | 'directory-exists' | 'directory-create-failed'
+export type DirectoryPickerErrorCode = 'directory-unreadable' | 'directory-exists' | 'directory-create-failed' | 'file-unreadable'
 
 /** Typed failure thrown by browse primitives so consumers can map business codes without string matching. */
 export class DirectoryPickerError extends Error {

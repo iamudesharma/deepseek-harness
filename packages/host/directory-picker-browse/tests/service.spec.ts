@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { DirectoryPickerError } from '@deepseek-ai/dsh-host-directory-picker'
 import type { DirectoryPickerBrowseCapability } from '@deepseek-ai/dsh-host-directory-picker'
-import BrowseDirectoryPicker, { boundedInsert, fullyQualified, raceAbort } from '../src/index.ts'
+import BrowseDirectoryPicker, { boundedInsert, directoryRow, fullyQualified, probedRow, raceAbort } from '../src/index.ts'
 import type { ListingCandidate } from '../src/index.ts'
 
 let root: string
@@ -51,6 +51,8 @@ describe('BrowseDirectoryPicker', () => {
     expect(listing.home).toBe(homedir())
     expect(listing.entries.map(entry => entry.name)).toEqual(['.hidden-dir', 'linked', 'projects'])
     expect(listing.entries.map(entry => entry.hidden)).toEqual([true, false, false])
+    // Every row carries its kind; a plain listing holds directories only.
+    expect(listing.entries.map(entry => entry.kind)).toEqual(['directory', 'directory', 'directory'])
     // Every entry path is absolute and host-joined — clients never join segments.
     expect(listing.entries.every(entry => entry.path === join(root, entry.name))).toBe(true)
     // Well under the default bound: the complete level, not a cut one.
@@ -59,7 +61,7 @@ describe('BrowseDirectoryPicker', () => {
 
   it('cuts a level at maxEntries keeping the name-sorted head, and flags the cut', async () => {
     const ctx = new Context()
-    const fiber = ctx.plugin(BrowseDirectoryPicker, { maxEntries: 1 })
+    const fiber = ctx.plugin(BrowseDirectoryPicker, { maxEntries: 1, maxReadBytes: 262144 })
     await fiber.await()
     const bounded = ctx.get('directoryPicker')!.capability()
     if (bounded.kind !== 'browse') throw new Error('browse backend must advertise the browse capability')
@@ -137,7 +139,7 @@ describe('BrowseDirectoryPicker', () => {
   })
 
   it('boundedInsert keeps the window name-sorted and bounded, reporting evictions', () => {
-    const candidate = (name: string): ListingCandidate => ({ name, isDirectory: true, isSymbolicLink: false })
+    const candidate = (name: string): ListingCandidate => ({ name, isDirectory: true, isFile: false, isSymbolicLink: false })
     const window: ListingCandidate[] = []
     expect(boundedInsert(window, candidate('m'), 2)).toBe(false)
     expect(boundedInsert(window, candidate('z'), 2)).toBe(false)
@@ -154,7 +156,7 @@ describe('BrowseDirectoryPicker', () => {
   it('reports the ancestry as jump-target crumbs ending at the listed directory', async () => {
     const listing = await capability.list(join(root, 'projects'))
     const tail = listing.crumbs.at(-1)!
-    expect(tail).toMatchObject({ name: 'projects', path: join(root, 'projects'), hidden: false })
+    expect(tail).toMatchObject({ name: 'projects', path: join(root, 'projects'), hidden: false, kind: 'directory' })
     expect(listing.crumbs.at(-2)!.path).toBe(root)
     expect(listing.crumbs.at(-2)!.name).toBe(basename(root))
     // The chain starts at the filesystem root, whose crumb is labeled by its full path.
@@ -227,5 +229,103 @@ describe('BrowseDirectoryPicker', () => {
     // Missing parent is a real failure, not a level to invent.
     const missingParent = await capability.createDirectory(join(root, 'no-such-dir'), 'child').catch((error: unknown) => error)
     expect((missingParent as DirectoryPickerError).code).toBe('directory-create-failed')
+  })
+
+  it('lists file rows only when asked, name-sorted beside directories', async () => {
+    const withFiles = await capability.list(root, undefined, { includeFiles: true })
+    const byName = new Map(withFiles.entries.map(entry => [entry.name, entry.kind]))
+    expect(byName.get('notes.txt')).toBe('file')
+    expect(byName.get('projects')).toBe('directory')
+    expect(byName.get('linked')).toBe('directory')
+    // The file symlink only exists where the platform allows creating one.
+    if (process.platform !== 'win32') expect(byName.get('file-link')).toBe('file')
+    expect(withFiles.truncated).toBe(false)
+  })
+
+  it('reads a whole text file with its byte facts', async () => {
+    const page = await capability.readFile(join(root, 'notes.txt'))
+    expect(page).toMatchObject({ path: join(root, 'notes.txt'), text: 'not a directory', truncated: false })
+    expect(page.totalBytes).toBe('not a directory'.length)
+    expect(page.totalLines).toBe(1)
+  })
+
+  it('reads an empty file as one empty complete page', async () => {
+    await writeFile(join(root, 'empty.txt'), '')
+    const page = await capability.readFile(join(root, 'empty.txt'))
+    expect(page).toMatchObject({ text: '', truncated: false, totalBytes: 0, totalLines: 0 })
+  })
+
+  it('pages a multi-line file by line window and flags the cut', async () => {
+    await writeFile(join(root, 'lines.txt'), 'one\ntwo\nthree\nfour\n')
+    const first = await capability.readFile(join(root, 'lines.txt'), { offset: 1, count: 2 })
+    expect(first.text).toBe('two\nthree')
+    expect(first.truncated).toBe(true)
+    expect(first.totalLines).toBeUndefined()
+    const tail = await capability.readFile(join(root, 'lines.txt'), { offset: 3 })
+    expect(tail.text).toBe('four')
+    expect(tail.truncated).toBe(true)
+  })
+
+  it('caps a page at the byte bound and drops the cut line whole', async () => {
+    await writeFile(join(root, 'rows.txt'), Array.from({ length: 10 }, (_, i) => `row-0${i}`).join('\n') + '\n')
+    const ctx = new Context()
+    const fiber = ctx.plugin(BrowseDirectoryPicker, { maxEntries: 1000, maxReadBytes: 64 })
+    await fiber.await()
+    const bounded = ctx.get('directoryPicker')!.capability()
+    if (bounded.kind !== 'browse') throw new Error('browse backend must advertise the browse capability')
+    try {
+      const page = await bounded.readFile(join(root, 'rows.txt'))
+      // Ten 7-byte rows are 70 bytes: 64 bytes hold nine rows plus a cut
+      // tenth, which is dropped whole.
+      expect(page.text).toBe(Array.from({ length: 9 }, (_, i) => `row-0${i}`).join('\n'))
+      expect(page.truncated).toBe(true)
+      expect(page.totalBytes).toBe(70)
+      expect(page.totalLines).toBeUndefined()
+      // A wire maxBytes below the deployment bound shrinks the page.
+      const smaller = await bounded.readFile(join(root, 'rows.txt'), { maxBytes: 10 })
+      expect(smaller.text).toBe('row-00')
+      expect(smaller.truncated).toBe(true)
+      // A cut exactly on a line boundary drops nothing.
+      const exact = await bounded.readFile(join(root, 'rows.txt'), { maxBytes: 63 })
+      expect(exact.text).toBe(Array.from({ length: 9 }, (_, i) => `row-0${i}`).join('\n'))
+      expect(exact.truncated).toBe(true)
+    } finally {
+      await fiber.dispose()
+    }
+  })
+
+  it('reads under a live signal and decides probed rows without the filesystem', async () => {
+    const live = new AbortController()
+    const page = await capability.readFile(join(root, 'notes.txt'), undefined, live.signal)
+    expect(page.truncated).toBe(false)
+    expect(probedRow('linked', join(root, 'linked'), false, true, false, false))
+      .toMatchObject({ kind: 'directory' })
+    expect(probedRow('file-link', join(root, 'file-link'), false, false, true, true))
+      .toMatchObject({ kind: 'file' })
+    expect(probedRow('file-link', join(root, 'file-link'), false, false, true, false)).toBeNull()
+    expect(probedRow('fifo', join(root, 'fifo'), false, false, false, true)).toBeNull()
+    // Non-regular, non-directory dirents never become rows, with or
+    // without the file flag; the level scan pre-filters them, so this pins
+    // the row decision itself without a platform fifo.
+    expect(await directoryRow(root, 'fifo', false, false, false, undefined, true)).toBeNull()
+    expect(await directoryRow(root, 'fifo', false, false, false, undefined, false)).toBeNull()
+  })
+
+  it('refuses binary content, directories, missing paths, and relative paths', async () => {
+    await writeFile(join(root, 'binary.bin'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x0a]))
+    const binary = await capability.readFile(join(root, 'binary.bin')).catch((error: unknown) => error)
+    expect(binary).toBeInstanceOf(DirectoryPickerError)
+    expect((binary as DirectoryPickerError).code).toBe('file-unreadable')
+    const directory = await capability.readFile(root).catch((error: unknown) => error)
+    expect((directory as DirectoryPickerError).code).toBe('file-unreadable')
+    const missing = await capability.readFile(join(root, 'no-such-file')).catch((error: unknown) => error)
+    expect((missing as DirectoryPickerError).code).toBe('file-unreadable')
+    expect((missing as DirectoryPickerError).path).toBe(join(root, 'no-such-file'))
+    const relative = await capability.readFile('notes.txt').catch((error: unknown) => error)
+    expect((relative as DirectoryPickerError).code).toBe('file-unreadable')
+    // An aborted read rejects with the caller's reason, not a file failure.
+    const gone = new AbortController()
+    gone.abort(new Error('caller left'))
+    await expect(capability.readFile(join(root, 'notes.txt'), undefined, gone.signal)).rejects.toThrow('caller left')
   })
 })

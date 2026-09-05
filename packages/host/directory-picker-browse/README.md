@@ -29,21 +29,26 @@ Compose this backend when a workspace directory must be chosen without an OS cho
 
 ### Listing a directory
 
-`list(path?)` returns one directory level: name-sorted child directories with their absolute paths, a `hidden` flag (dot-prefixed on POSIX), a `home` anchor, and `crumbs` — the root-to-target ancestor chain where every crumb is a jump target and the root is labeled by its full path. An absent path lists the host account's home directory. One call returns at most `maxEntries` rows (config, default 1,000 — the bound GitHub's web UI applies to directory listings), and a cut level reports `truncated: true` so the client can say the level is incomplete. Symlinks to directories are followed; broken and cyclic links are skipped.
+`list(path?)` returns one directory level: name-sorted child directories with their absolute paths, a `hidden` flag (dot-prefixed on POSIX), a `home` anchor, and `crumbs` — the root-to-target ancestor chain where every crumb is a jump target and the root is labeled by its full path. Every row carries `kind: 'directory'`, or `'file'` when the call passes `{ includeFiles: true }` to also list regular files. An absent path lists the host account's home directory. One call returns at most `maxEntries` rows (config, default 1,000 — the bound GitHub's web UI applies to directory listings), and a cut level reports `truncated: true` so the client can say the level is incomplete. Symlinks to directories are followed; broken and cyclic links are skipped.
 
 ### Creating a directory
 
 `createDirectory(path, name)` creates one child directory under an existing parent. It is non-recursive — a missing parent is a real failure, not a level to invent — and rejects anything but a single non-blank path segment (`name` must not contain separators and must not be `.` or `..`).
 
+### Reading a file
+
+`readFile(path, options?)` returns one bounded text page of a regular file: the page text with `truncated`, `totalBytes`, and `totalLines` (present only when the whole file fit in the page) so a pager can navigate. Options select a line window (`offset`, `count`) and shrink the page byte cap (`maxBytes`, never above the configured `maxReadBytes`). Only whole lines are returned — a trailing partial line cut by the budget is dropped and re-read whole on the next page. Binary content (a NUL byte in the head), directories, missing paths, and non-fully-qualified paths answer `file-unreadable`.
+
 ### Observable failures
 
-Both primitives refuse a path that is not fully qualified — relative forms, and on Windows the rooted drive-less forms (`\foo`, `/foo`) and incomplete UNC prefixes that `isAbsolute` accepts — with `directory-unreadable` or `directory-create-failed`, instead of resolving it under the host process working directory. Creation of an existing child answers `directory-exists`. A caller's `AbortSignal` stops an in-flight scan, so a disconnect or timeout does not leave the scan outliving the caller.
+All three primitives refuse a path that is not fully qualified — relative forms, and on Windows the rooted drive-less forms (`\foo`, `/foo`) and incomplete UNC prefixes that `isAbsolute` accepts — with `directory-unreadable`, `directory-create-failed`, or `file-unreadable`, instead of resolving it under the host process working directory. Creation of an existing child answers `directory-exists`. A caller's `AbortSignal` stops an in-flight scan, so a disconnect or timeout does not leave the scan outliving the caller.
 
 ### Configuration
 
 | Field | Default | Meaning |
 |---|---|---|
 | `maxEntries` | `1,000` | Complete-result bound of one listing level; hidden rows count toward it |
+| `maxReadBytes` | `262,144` | Page byte cap for one `readFile` call; a wire `maxBytes` only shrinks the page |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-host-directory-picker-browse) is the exhaustive source for every accepted field and its JSDoc.
 

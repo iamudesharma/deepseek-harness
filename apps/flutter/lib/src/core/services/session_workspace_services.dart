@@ -211,8 +211,10 @@ class WorkspacesService {
   Future<Map<String, Object?>> listDirectory({
     String? path,
     DirectoryListSignal? signal,
+    bool includeFiles = false,
   }) async {
     final payload = <String, Object?>{'path': ?path};
+    if (includeFiles) payload['includeFiles'] = true;
     if (signal?.aborted ?? false) {
       throw Exception('listDirectory aborted');
     }
@@ -235,6 +237,26 @@ class WorkspacesService {
       }
       rethrow;
     }
+  }
+
+  /// `directoryPicker.readFile { path, offset?, count?, maxBytes? }` → one
+  /// bounded text page of a regular file (browse capability).
+  ///
+  /// Throws [RemoteMethodException] with code
+  /// [RpcErrorCode.directoryPickerUnreadable] when the path is not a fully
+  /// qualified readable text file.
+  Future<Map<String, Object?>> readFile({
+    required String path,
+    int? offset,
+    int? count,
+    int? maxBytes,
+  }) async {
+    return _client.callMethod('directoryPicker/readFile', {
+      'path': path,
+      if (offset != null) 'offset': offset,
+      if (count != null) 'count': count,
+      if (maxBytes != null) 'maxBytes': maxBytes,
+    });
   }
 
   /// `directoryPicker.createDirectory { path, name }` → created directory absolute path.

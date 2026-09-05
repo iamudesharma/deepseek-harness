@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection_client.dart';
+import '../../core/connection/connection_controller.dart';
+import '../../core/services/session_workspace_services.dart';
 import '../../core/session/session_models.dart';
+import '../../plugins/directory_picker/directory_browser.dart';
+import '../../plugins/directory_picker/file_browser.dart';
 import '../../theme/app_theme.dart';
 import 'workspace_provider.dart';
 
@@ -243,6 +247,9 @@ class WorkspaceScreen extends ConsumerWidget {
                     onTap: () =>
                         ref.read(selectedWorkspaceProvider.notifier).state =
                             w.workspaceId,
+                    onBrowse: w.cwd == null
+                        ? null
+                        : () => _openFileBrowser(context, ref, w),
                   ),
                 ),
               const SizedBox(height: DswTokens.spaceMd),
@@ -501,6 +508,43 @@ class WorkspaceScreen extends ConsumerWidget {
   }
 }
 
+/// Pushes the repo file browser for one workspace root.
+///
+/// Readers close over a [WorkspacesService] bound to the live connection
+/// client; the browser screen owns navigation and preview state.
+void _openFileBrowser(
+  BuildContext context,
+  WidgetRef ref,
+  WorkspaceView workspace,
+) {
+  final String? root = workspace.cwd;
+  if (root == null) return;
+  final svc = WorkspacesService(ref.read(connectionClientProvider));
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (context) => FileBrowserScreen(
+        rootPath: root,
+        title: workspace.name,
+        listLevel: ({required String path}) async {
+          final map = await svc.listDirectory(
+            path: path,
+            includeFiles: true,
+          );
+          return DirectoryListing.fromJson(map.cast<String, dynamic>());
+        },
+        readFile: ({required String path, int? offset, int? count}) async {
+          final map = await svc.readFile(
+            path: path,
+            offset: offset,
+            count: count,
+          );
+          return map;
+        },
+      ),
+    ),
+  );
+}
+
 /// Inline TextField for quick workspace creation — also tests workspaceCreate reachability.
 class _InlineCreateField extends StatefulWidget {
   const _InlineCreateField({
@@ -724,11 +768,15 @@ class _WorkspaceTile extends StatelessWidget {
     required this.selected,
     required this.aliases,
     required this.onTap,
+    this.onBrowse,
   });
   final WorkspaceView workspace;
   final bool selected;
   final DswAliases aliases;
   final VoidCallback onTap;
+
+  /// Opens the repo file browser at this workspace root; null hides it.
+  final VoidCallback? onBrowse;
 
   @override
   Widget build(BuildContext context) {
@@ -789,6 +837,16 @@ class _WorkspaceTile extends StatelessWidget {
                   Icons.check,
                   size: 16,
                   color: aliases.stateBusinessPrimary,
+                ),
+              if (onBrowse != null)
+                IconButton(
+                  tooltip: 'Browse files',
+                  icon: Icon(
+                    Icons.folder_open_outlined,
+                    size: 16,
+                    color: aliases.labelTertiary,
+                  ),
+                  onPressed: onBrowse,
                 ),
             ],
           ),

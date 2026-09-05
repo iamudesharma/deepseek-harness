@@ -12,6 +12,7 @@ import type {
 // The seam owns the listing declaration; the generator requires the reference
 // site to name that package rather than this package's re-export of it.
 import type { DirectoryListing } from '@deepseek-ai/dsh-host-directory-picker/types'
+import type { DirectoryFilePage, DirectoryListOptions, DirectoryReadOptions } from '@deepseek-ai/dsh-host-directory-picker/types'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { RemoteErrorCode } from '@deepseek-ai/dsh-typert-protocol'
 
@@ -23,6 +24,13 @@ const createDirectoryRequestSchema = z.object({
     && !/[/\\]/.test(request.name),
   { message: 'host.createDirectory requires a single non-blank path segment name' },
 )
+
+const readFileRequestSchema = z.object({
+  path: z.string(),
+  offset: z.number().int().nonnegative().optional(),
+  count: z.number().int().positive().optional(),
+  maxBytes: z.number().int().positive().optional(),
+})
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -64,17 +72,55 @@ export class DirectoryPickerController extends TypertRemoteService {
   /**
    * List one directory level for a Remote caller's in-app browser.
    * @param path - absolute directory to list; absent lists the home directory.
+   * @param includeFiles - include regular-file rows alongside directories.
    * @param signal - caller lifetime; abort stops the backend's scan instead of
    *   letting it outlive a disconnected caller.
    * @returns the level's listing with its ancestry.
    */
   @Remote('list')
-  async list(path: string | undefined, signal: AbortSignal): Promise<DirectoryListing> {
+  async list(path: string | undefined, includeFiles: boolean | undefined, signal: AbortSignal): Promise<DirectoryListing> {
     const capability = this.requireCapability('browse', 'list')
     try {
-      return await capability.list(path, signal)
+      const options: DirectoryListOptions | undefined = includeFiles === true ? { includeFiles: true } : undefined
+      return await capability.list(path, signal, options)
     } catch (error: unknown) {
       throw cancellableFailure(error, signal, 'directory listing was aborted')
+    }
+  }
+
+  /**
+   * Read one bounded text page of a regular file for a Remote caller's
+   * in-app preview.
+   * @param path - absolute file path to read.
+   * @param options - line window and page byte cap; absent reads from the
+   *   start up to the backend's configured maximum.
+   * @param signal - caller lifetime; abort stops the backend's read instead
+   *   of letting it outlive a disconnected caller.
+   * @returns the page with truncation facts for the pager.
+   */
+  @Remote('readFile')
+  async readFile(path: string, options: DirectoryReadOptions | undefined, signal: AbortSignal): Promise<DirectoryFilePage> {
+    const request = readFileRequestSchema.safeParse({ path, ...options })
+    if (!request.success) {
+      throw new RemoteError(
+        'gateway/bad-request',
+        'invalid payload for host.readFile',
+        { issues: request.error.issues },
+      )
+    }
+    const capability = this.requireCapability('browse', 'readFile')
+    const hasWindow = request.data.offset !== undefined || request.data.count !== undefined || request.data.maxBytes !== undefined
+    const readOptions: DirectoryReadOptions | undefined = !hasWindow
+      ? undefined
+      : {
+        ...request.data.offset !== undefined ? { offset: request.data.offset } : {},
+        ...request.data.count !== undefined ? { count: request.data.count } : {},
+        ...request.data.maxBytes !== undefined ? { maxBytes: request.data.maxBytes } : {},
+      }
+    try {
+      return await capability.readFile(request.data.path, readOptions, signal)
+    } catch (error: unknown) {
+      throw cancellableFailure(error, signal, 'file read was aborted')
     }
   }
 
@@ -128,6 +174,7 @@ const BROWSE_FAILURE_CODES = {
   'directory-unreadable': 'directory-picker/unreadable',
   'directory-exists': 'directory-picker/exists',
   'directory-create-failed': 'directory-picker/create-failed',
+  'file-unreadable': 'directory-picker/unreadable',
 } as const satisfies Record<DirectoryPickerErrorCode, RemoteErrorCode>
 
 /**

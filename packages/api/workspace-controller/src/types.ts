@@ -40,7 +40,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     }
     /** The verb needs an interaction the composed backend does not serve. */
     'directory-picker/unavailable': { readonly capability: string }
-    /** The target is not fully qualified, or the backend cannot list it. */
+    /** The target is not fully qualified, or the backend cannot list or read it. */
     'directory-picker/unreadable': { readonly path: string }
     /** A child of that name is already there. */
     'directory-picker/exists': { readonly path: string }

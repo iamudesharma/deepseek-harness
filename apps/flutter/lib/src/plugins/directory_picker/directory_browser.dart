@@ -29,23 +29,69 @@ class DirectoryEntry {
     required this.name,
     required this.path,
     required this.hidden,
+    this.kind = DirectoryEntryKind.directory,
   });
 
   final String name;
   final String path;
   final bool hidden;
 
+  /// Row kind stamped by the host; absent on older hosts means directory.
+  final DirectoryEntryKind kind;
+
+  /// True for regular-file rows, which preview instead of entering.
+  bool get isFile => kind == DirectoryEntryKind.file;
+
   factory DirectoryEntry.fromJson(Map<String, dynamic> j) => DirectoryEntry(
     name: j['name'] as String? ?? '',
     path: j['path'] as String? ?? '',
     hidden: j['hidden'] as bool? ?? false,
+    kind: j['kind'] == 'file'
+        ? DirectoryEntryKind.file
+        : DirectoryEntryKind.directory,
   );
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'path': path,
     'hidden': hidden,
+    'kind': kind == DirectoryEntryKind.file ? 'file' : 'directory',
   };
+}
+
+/// Listing row kinds from `ctx.remote.directoryPicker`.
+enum DirectoryEntryKind {
+  /// Enterable directory row.
+  directory,
+
+  /// Regular-file row for preview.
+  file,
+}
+
+/// One bounded text page of a file from `directoryPicker/readFile`.
+class DirectoryFilePage {
+  const DirectoryFilePage({
+    required this.path,
+    required this.text,
+    required this.truncated,
+    required this.totalBytes,
+    this.totalLines,
+  });
+
+  final String path;
+  final String text;
+  final bool truncated;
+  final int totalBytes;
+  final int? totalLines;
+
+  factory DirectoryFilePage.fromJson(Map<String, dynamic> j) =>
+      DirectoryFilePage(
+        path: j['path'] as String? ?? '',
+        text: j['text'] as String? ?? '',
+        truncated: j['truncated'] as bool? ?? false,
+        totalBytes: (j['totalBytes'] as num?)?.toInt() ?? 0,
+        totalLines: (j['totalLines'] as num?)?.toInt(),
+      );
 }
 
 /// One directory level plus its ancestry.
