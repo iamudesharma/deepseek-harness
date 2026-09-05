@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as fmd;
 import 'package:markdown/markdown.dart' as md;
 
 import '../../../platform/clipboard.dart';
 import '../../../platform/open_external.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/primitives/markdown.dart' show DsMarkdown;
 import '../message_provider.dart';
 
 /// Message list with virtualization via [ListView.builder]. Optionally
@@ -379,60 +379,10 @@ class _MarkdownBody extends StatelessWidget {
         ),
       );
     }
-    // For assistant/system, use MarkdownBody with DswTokens styling for
-    // headers, code, inline code, etc., matching React's Markdown + CodeBlock.
-    return fmd.MarkdownBody(
-      data: text,
-      selectable: true,
-      styleSheet: fmd.MarkdownStyleSheet(
-        p: TextStyle(
-          fontSize: DswTokens.markdownBaseSize,
-          height: DswTokens.markdownBaseLineHeight / DswTokens.markdownBaseSize,
-          color: aliases.labelPrimary,
-          fontFamily: 'SF Pro',
-          fontFamilyFallback: DswTokens.fontFamilyFallback,
-        ),
-        h1: TextStyle(
-          fontSize: DswTokens.markdownH1Size,
-          height: DswTokens.markdownH1LineHeight / DswTokens.markdownH1Size,
-          fontWeight: FontWeight.w700,
-          color: aliases.labelPrimary,
-        ),
-        h2: TextStyle(
-          fontSize: DswTokens.markdownH2Size,
-          height: DswTokens.markdownH2LineHeight / DswTokens.markdownH2Size,
-          fontWeight: FontWeight.w700,
-          color: aliases.labelPrimary,
-        ),
-        h3: TextStyle(
-          fontSize: DswTokens.markdownH3Size,
-          height: DswTokens.markdownH3LineHeight / DswTokens.markdownH3Size,
-          fontWeight: FontWeight.w700,
-          color: aliases.labelPrimary,
-        ),
-        code: TextStyle(
-          fontSize: DswTokens.markdownCodeSize,
-          color: aliases.labelPrimary,
-          backgroundColor: aliases.markdownInlineCode,
-          fontFamily: 'SF Mono',
-        ),
-        codeblockDecoration: BoxDecoration(
-          color: aliases.markdownCodeBlock,
-          borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-          border: Border.all(color: aliases.borderL2),
-        ),
-        codeblockPadding: const EdgeInsets.all(DswTokens.spaceSm),
-        blockquote: TextStyle(
-          color: aliases.labelSecondary,
-          fontStyle: FontStyle.italic,
-        ),
-        listBullet: TextStyle(color: aliases.labelTertiary),
-      ),
-      onTapLink: (String href, _, __) {
-        final safe = sanitizeUrl(href);
-        if (safe != null) openExternal(safe);
-      },
-    );
+    // For assistant/system, reuse the shared DsMarkdown primitive so chat
+    // bubbles, trajectory previews, and conversation nodes share one
+    // pill + code-block + link implementation (React MarkdownText parity).
+    return DsMarkdown(data: text, selectable: true);
   }
 
   String _nodesToPlain(List<md.Node> nodes) {

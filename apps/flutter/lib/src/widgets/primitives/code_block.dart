@@ -3,7 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart' as md;
 import 'package:markdown/markdown.dart' as m;
 
 import '../../platform/clipboard.dart';
-import '../../theme/dsw_tokens.dart';
+import '../../theme/app_theme.dart';
 import 'code_highlight.dart' as highlight;
 
 /// Fenced code block — Flutter port of the settled arm of React
@@ -71,56 +71,58 @@ class _CodeBlockState extends State<CodeBlock> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme colors = theme.colorScheme;
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
     final String? language = widget.language?.trim();
+    final String langLabel =
+        language != null && language.isNotEmpty ? language : 'code';
     return Container(
       key: const ValueKey('code-block'),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-        border: Border.all(color: colors.outlineVariant),
+        color: aliases.markdownCodeBlock,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: aliases.borderL2),
       ),
+      clipBehavior: Clip.hardEdge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+          Container(
+            color: aliases.markdownCodeBlockBanner,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            child: Row(
+              children: [
+                Expanded(
                   child: Text(
-                    language != null && language.isNotEmpty ? language : 'code',
+                    langLabel,
                     style: TextStyle(
-                      fontSize: 11,
-                      color: colors.onSurfaceVariant,
+                      fontFamily: DswTokens.fontFamilyCode,
+                      fontFamilyFallback:
+                          DswTokens.fontFamilyCodeFallback,
+                      fontSize: 12,
+                      height: 18 / 12,
+                      color: aliases.labelPrimary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              IconButton(
-                key: const ValueKey('code-block-copy'),
-                tooltip: 'Copy',
-                icon: Icon(
-                  _copied ? Icons.check_rounded : Icons.copy_outlined,
-                  size: 14,
-                  color: colors.onSurfaceVariant,
+                _CopyTextButton(
+                  copied: _copied,
+                  aliases: aliases,
+                  onPressed: _copy,
                 ),
-                onPressed: _copy,
-                style: IconButton.styleFrom(
-                  minimumSize: const Size(28, 28),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  padding: const EdgeInsets.all(6),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-          Divider(height: 1, color: colors.outlineVariant),
+          Divider(height: 1, color: aliases.borderL2),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -131,10 +133,55 @@ class _CodeBlockState extends State<CodeBlock> {
               style: TextStyle(
                 fontFamily: DswTokens.fontFamilyCode,
                 fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
-                fontSize: 13,
-                height: 1.5,
-                color: colors.onSurface,
+                fontSize: DswTokens.markdownCodeBlockSize,
+                height: DswTokens.markdownCodeBlockLineHeight /
+                    DswTokens.markdownCodeBlockSize,
+                color: aliases.labelPrimary,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banner copy control — text button like React `CodeBlock.tsx` (`Copy` /
+/// `Copied`), not an icon-only button.
+class _CopyTextButton extends StatelessWidget {
+  const _CopyTextButton({
+    required this.copied,
+    required this.aliases,
+    required this.onPressed,
+  });
+  final bool copied;
+  final DswAliases aliases;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      key: const ValueKey('code-block-copy'),
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        minimumSize: const Size(0, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            copied ? Icons.check_rounded : Icons.copy_outlined,
+            size: 13,
+            color: aliases.labelSecondary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            copied ? 'Copied' : 'Copy',
+            style: TextStyle(
+              fontSize: 12,
+              color: aliases.labelSecondary,
             ),
           ),
         ],
