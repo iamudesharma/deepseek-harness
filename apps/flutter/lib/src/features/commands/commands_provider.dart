@@ -48,6 +48,11 @@ List<CommandItem> _demoCommands() => const <CommandItem>[
     description: 'List background jobs',
     category: 'Jobs',
   ),
+  CommandItem(
+    name: 'terminal',
+    description: 'Open a console terminal on the host',
+    category: 'Terminal',
+  ),
   CommandItem(name: 'skill', description: 'Invoke a skill', category: 'Skills'),
   CommandItem(
     name: 'compact',

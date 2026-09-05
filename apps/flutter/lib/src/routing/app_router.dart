@@ -26,6 +26,7 @@ import '../features/input_trigger/input_trigger_screen.dart'
     as input_trigger_feature;
 import '../features/reference/reference_screen.dart' as reference_feature;
 import '../plugins/subagent/ui/subagent_screen.dart' as subagent_feature;
+import '../plugins/terminal/ui/terminal_screen.dart' as terminal_feature;
 import '../features/workspace/workspace_provider.dart'
     show selectedWorkspaceProvider, workspaceListProvider;
 import '../features/workflow_run/workflow_screen.dart' as workflow_feature;
@@ -369,6 +370,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (BuildContext context, GoRouterState state) {
                       final sid = state.pathParameters['sid']!;
                       return jobs_feature.JobsScreen(sessionId: sid);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'terminal',
+                    builder: (BuildContext context, GoRouterState state) {
+                      final sid = state.pathParameters['sid']!;
+                      return terminal_feature.TerminalScreen(sessionId: sid);
                     },
                   ),
                   GoRoute(

@@ -991,6 +991,61 @@ class ConnectionClient {
     _unwrapValue(body, 'workspace/delete');
   }
 
+  // ---------------------------------------------------------------------------
+  // Console terminal — `ctx.remote.terminal` over the persistent PTY service.
+  // Every verb operates the host's single console principal; wire args are
+  // `{ request: {...} }` per the generated Typert descriptors.
+  // ---------------------------------------------------------------------------
+  /// `terminal/list` — the console principal's live sessions, in publication
+  /// order. Returns `{ sessions: [{ sessionId, name?, type, pid?, status }] }`.
+  Future<Map<String, dynamic>> terminalList() async {
+    final body = await _postTypert('terminal/list', {});
+    return _unwrapValue(body, 'terminal/list');
+  /// `terminal/open { name?, cwd?, type? }` — one console session through a
+  /// registered backend. Returns the snapshot plus bounded `motd`.
+  Future<Map<String, dynamic>> terminalOpen({
+    String? name,
+    String? cwd,
+    String? type,
+    final body = await _postTypert('terminal/open', {
+      'request': {
+        if (name != null) 'name': name,
+        if (cwd != null) 'cwd': cwd,
+        if (type != null) 'type': type,
+      },
+    return _unwrapValue(body, 'terminal/open');
+  /// `terminal/send { sessionId, text, submit }` — one foreground line send.
+  /// Returns `{ viewport, waitReason, sessionStatus, truncated }`.
+  Future<Map<String, dynamic>> terminalSend({
+    required String text,
+    required bool submit,
+    final body = await _postTypert('terminal/send', {
+      'request': {'sessionId': sessionId, 'text': text, 'submit': submit},
+    return _unwrapValue(body, 'terminal/send');
+  /// `terminal/read { sessionId, offset?, count? }` — one bounded scrollback
+  /// page. Returns `{ text, totalLines, lineBegin, lineEnd, truncated }`.
+  Future<Map<String, dynamic>> terminalRead({
+    int? offset,
+    int? count,
+    final body = await _postTypert('terminal/read', {
+      'request': {
+        'sessionId': sessionId,
+        if (offset != null) 'offset': offset,
+        if (count != null) 'count': count,
+      },
+    return _unwrapValue(body, 'terminal/read');
+  /// `terminal/signal { sessionId, signal }` — one allowed signal to the
+  /// foreground process group. Returns `{ delivered, targetPgid }`.
+  Future<Map<String, dynamic>> terminalSignal({
+    required String signal,
+    final body = await _postTypert('terminal/signal', {
+      'request': {'sessionId': sessionId, 'signal': signal},
+    return _unwrapValue(body, 'terminal/signal');
+  /// `terminal/close { sessionId }` — close and await quiescence.
+  /// Returns `{ closed }`.
+  Future<Map<String, dynamic>> terminalClose({
+    final body = await _postTypert('terminal/close', {
+    return _unwrapValue(body, 'terminal/close');
   /// `session.search { query }` — ranked host search with snippet overlay.
   /// Returns `{ items: [{ sessionId, snippet }], hasMore }` bounded by `SESSION_SEARCH_RESULT_LIMIT` (20).
   Future<Map<String, dynamic>> sessionSearch({

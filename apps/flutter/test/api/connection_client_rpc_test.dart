@@ -243,4 +243,211 @@ void main() {
       await expectLater(client.getSessions(), throwsA(isA<Exception>()));
     },
   );
+
+  group('console terminal wire faces (ctx.remote.terminal)', () {
+    /// Extracts the `request` object a scripted terminal call carried.
+    Map<String, dynamic> terminalRequestOf(Map<String, dynamic> body) {
+      final payload = (body['payload'] as Map).cast<String, dynamic>();
+      final args = (payload['args'] as Map?)?.cast<String, dynamic>();
+      if (args == null) return payload;
+      final request = args['request'];
+      if (request is Map) return request.cast<String, dynamic>();
+      return args;
+    }
+
+    test('terminal/list posts bare payload and unwraps the session pool', () async {
+      final host = _ScriptedRpcHost(
+        (path, envelope, _) => path == '/api/terminal/list'
+            ? {
+                'type': 'server-response',
+                'rpcId': envelope['rpcId'],
+                'result': {
+                  'ok': true,
+                  'value': {
+                    'sessions': [
+                      {
+                        'sessionId': 'pty-1',
+                        'name': 'panel',
+                        'type': 'shell',
+                        'pid': 42,
+                        'status': {'kind': 'running'},
+                      },
+                    ],
+                  },
+                },
+              }
+            : null,
+      );
+      final client = ConnectionClient(baseUrl: await host.start());
+      addTearDown(client.dispose);
+      addTearDown(host.stop);
+
+      final value = await client.terminalList();
+
+      final call = host.requests.single;
+      expect(call.path, '/api/terminal/list');
+      final sessions = value['sessions'] as List;
+      expect(sessions.single['sessionId'], 'pty-1');
+      expect(sessions.single['status'], {'kind': 'running'});
+    });
+
+    test('terminal/open carries only set fields and unwraps snapshot plus motd', () async {
+      final host = _ScriptedRpcHost(
+        (path, envelope, _) => path == '/api/terminal/open'
+            ? {
+                'type': 'server-response',
+                'rpcId': envelope['rpcId'],
+                'result': {
+                  'ok': true,
+                  'value': {
+                    'sessionId': 'pty-2',
+                    'type': 'shell',
+                    'status': {'kind': 'running'},
+                    'motd': 'ready',
+                  },
+                },
+              }
+            : null,
+      );
+      final client = ConnectionClient(baseUrl: await host.start());
+      addTearDown(client.dispose);
+      addTearDown(host.stop);
+
+      final value = await client.terminalOpen(name: 'panel');
+
+      final call = host.requests.single;
+      expect(call.path, '/api/terminal/open');
+      expect(terminalRequestOf(call.body), {'name': 'panel'});
+      expect(value['sessionId'], 'pty-2');
+      expect(value['motd'], 'ready');
+    });
+
+    test('terminal/send carries the line and unwraps the settled viewport', () async {
+      final host = _ScriptedRpcHost(
+        (path, envelope, _) => path == '/api/terminal/send'
+            ? {
+                'type': 'server-response',
+                'rpcId': envelope['rpcId'],
+                'result': {
+                  'ok': true,
+                  'value': {
+                    'viewport': 'ran:echo hi',
+                    'waitReason': 'stdin_read',
+                    'sessionStatus': {'kind': 'running'},
+                    'truncated': false,
+                  },
+                },
+              }
+            : null,
+      );
+      final client = ConnectionClient(baseUrl: await host.start());
+      addTearDown(client.dispose);
+      addTearDown(host.stop);
+
+      final value = await client.terminalSend(
+        sessionId: 'pty-1',
+        text: 'echo hi',
+        submit: true,
+      );
+
+      final call = host.requests.single;
+      expect(call.path, '/api/terminal/send');
+      expect(terminalRequestOf(call.body), {
+        'sessionId': 'pty-1',
+        'text': 'echo hi',
+        'submit': true,
+      });
+      expect(value['viewport'], 'ran:echo hi');
+      expect(value['waitReason'], 'stdin_read');
+    });
+
+    test('terminal/read carries the page window and unwraps pagination', () async {
+      final host = _ScriptedRpcHost(
+        (path, envelope, _) => path == '/api/terminal/read'
+            ? {
+                'type': 'server-response',
+                'rpcId': envelope['rpcId'],
+                'result': {
+                  'ok': true,
+                  'value': {
+                    'text': 'out',
+                    'totalLines': 3,
+                    'lineBegin': 0,
+                    'lineEnd': 1,
+                    'truncated': false,
+                  },
+                },
+              }
+            : null,
+      );
+      final client = ConnectionClient(baseUrl: await host.start());
+      addTearDown(client.dispose);
+      addTearDown(host.stop);
+
+      final value = await client.terminalRead(sessionId: 'pty-1', count: 20);
+
+      final call = host.requests.single;
+      expect(call.path, '/api/terminal/read');
+      expect(terminalRequestOf(call.body), {'sessionId': 'pty-1', 'count': 20});
+      expect(value['text'], 'out');
+      expect(value['totalLines'], 3);
+    });
+
+    test('terminal/signal carries the signal and unwraps the delivery receipt', () async {
+      final host = _ScriptedRpcHost(
+        (path, envelope, _) => path == '/api/terminal/signal'
+            ? {
+                'type': 'server-response',
+                'rpcId': envelope['rpcId'],
+                'result': {
+                  'ok': true,
+                  'value': {'delivered': true, 'targetPgid': 7},
+                },
+              }
+            : null,
+      );
+      final client = ConnectionClient(baseUrl: await host.start());
+      addTearDown(client.dispose);
+      addTearDown(host.stop);
+
+      final value = await client.terminalSignal(
+        sessionId: 'pty-1',
+        signal: 'SIGINT',
+      );
+
+      final call = host.requests.single;
+      expect(call.path, '/api/terminal/signal');
+      expect(terminalRequestOf(call.body), {
+        'sessionId': 'pty-1',
+        'signal': 'SIGINT',
+      });
+      expect(value['delivered'], true);
+      expect(value['targetPgid'], 7);
+    });
+
+    test('terminal/close carries the id and unwraps the receipt', () async {
+      final host = _ScriptedRpcHost(
+        (path, envelope, _) => path == '/api/terminal/close'
+            ? {
+                'type': 'server-response',
+                'rpcId': envelope['rpcId'],
+                'result': {
+                  'ok': true,
+                  'value': {'closed': true},
+                },
+              }
+            : null,
+      );
+      final client = ConnectionClient(baseUrl: await host.start());
+      addTearDown(client.dispose);
+      addTearDown(host.stop);
+
+      final value = await client.terminalClose(sessionId: 'pty-1');
+
+      final call = host.requests.single;
+      expect(call.path, '/api/terminal/close');
+      expect(terminalRequestOf(call.body), {'sessionId': 'pty-1'});
+      expect(value['closed'], true);
+    });
+  });
 }

@@ -60,6 +60,7 @@ import '../../plugins/settings/children/plugins/plugins_settings_plugin.dart';
 import '../../plugins/settings/children/plugin_inventory/plugin_inventory_plugin.dart';
 // WS-Tasks: jobs / workflow runs / deliverables / goal / permission presets.
 import '../../plugins/jobs/jobs_plugin.dart';
+import '../../plugins/terminal/terminal_plugin.dart';
 import '../../plugins/workflow_run/workflow_run_plugin.dart';
 import '../../plugins/deliverables/deliverables_plugin.dart';
 import '../../plugins/goal/goal_plugin.dart';
@@ -436,8 +437,9 @@ PluginHost buildAppHost(WidgetRef ref) {
     ..register(const PluginsSettingsPlugin())
     ..register(const PluginInventoryPlugin());
   // WS-Tasks — jobs / workflow runs / deliverables / goal / permission
-  // presets.
+  // presets — plus the console terminal panel.
   host.register(const JobsPlugin());
+  host.register(const TerminalPlugin());
   // Navigation face mirrors React `ctx.sessions.open`: selecting the child
   // row through the shared sessions list (unknown ids are ignored by the
   // controller guard). Kept ctor-injected so the panel never reaches ctx.
