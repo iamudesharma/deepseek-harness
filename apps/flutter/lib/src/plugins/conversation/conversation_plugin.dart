@@ -38,6 +38,10 @@ const Map<String, SlotSpec> kConversationChildSlots = {
     kind: SlotKind.list,
     scope: SlotScope.session,
   ),
+  'conversation.session.header.utilities': SlotSpec(
+    kind: SlotKind.list,
+    scope: SlotScope.session,
+  ),
   'conversation.composer.dock': SlotSpec(
     kind: SlotKind.list,
     scope: SlotScope.session,

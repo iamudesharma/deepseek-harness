@@ -133,10 +133,19 @@ class MobileSessionHeader extends ConsumerWidget {
               ),
             ),
           ),
-          // Same dependent-actions hole the desktop header exposes.
-          HoleOutlet(
-            registry: activatedHub?.slots ?? SlotRegistry(),
-            slotKey: 'conversation.session.header.actions',
+          // Same dependent-actions hole the desktop header exposes —
+          // horizontal so entries sit side-by-side inside the 48px bar.
+          Flexible(
+            fit: FlexFit.loose,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: HoleOutlet(
+                registry: activatedHub?.slots ?? SlotRegistry(),
+                slotKey: 'conversation.session.header.actions',
+                direction: Axis.horizontal,
+                spacing: 4,
+              ),
+            ),
           ),
           if (running)
             IconButton(

@@ -118,31 +118,65 @@ class SessionHeaderView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // Dependent actions (list hole) + utilities
-                HoleOutlet(
-                  registry: activatedHub?.slots ?? SlotRegistry(),
-                  slotKey: 'conversation.session.header.actions',
-                ),
-                HoleOutlet(
-                  registry: activatedHub?.slots ?? SlotRegistry(),
-                  slotKey: 'conversation.session.header.utilities',
+                // Dependent actions (list hole) + utilities — horizontal row
+                // so multiple header entries sit side-by-side. Flexible lets
+                // the title shrink instead of overflowing the 44px row
+                // (React header utilities are a horizontal flex row).
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        fit: FlexFit.loose,
+                        child: HoleOutlet(
+                          registry: activatedHub?.slots ?? SlotRegistry(),
+                          slotKey:
+                              'conversation.session.header.actions',
+                          direction: Axis.horizontal,
+                          spacing: 4,
+                        ),
+                      ),
+                      HoleOutlet(
+                        registry: activatedHub?.slots ?? SlotRegistry(),
+                        slotKey:
+                            'conversation.session.header.utilities',
+                        direction: Axis.horizontal,
+                        spacing: 4,
+                      ),
+                    ],
+                  ),
                 ),
                 if (!isTrajectory)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        side: BorderSide(color: aliases.borderL2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DswTokens.radiusFull)),
-                      ),
-                      onPressed: () {},
-                      icon: Icon(Icons.download_rounded, size: 14, color: aliases.labelTertiary),
-                      label: Text(
-                        'Session log',
-                        style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary),
-                      ),
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Narrow headers hide the text label to avoid overflow;
+                      // the download affordance stays as an icon.
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            side: BorderSide(color: aliases.borderL2),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                    DswTokens.radiusFull)),
+                          ),
+                          onPressed: () {},
+                          icon: Icon(Icons.download_rounded,
+                              size: 14, color: aliases.labelTertiary),
+                          label: Text(
+                            'Session log',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: DswTokens.fontSizeXxs12,
+                                color: aliases.labelSecondary),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 if (running)
                   IconButton(
