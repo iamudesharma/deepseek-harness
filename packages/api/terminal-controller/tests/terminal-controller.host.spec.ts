@@ -70,6 +70,17 @@ async function harness(): Promise<Context> {
   return ctx
 }
 
+async function bareHarness(): Promise<Context> {
+  const ctx = new Context()
+  roots.push(ctx)
+  ctx.provide('typert', {
+    lookups: { configure: () => () => {} },
+    contexts: { configureHost: () => () => {} },
+  } as never)
+  await ctx.plugin(TerminalController)
+  return ctx
+}
+
 describe('the terminal Remote namespace a console panel calls', () => {
   it('publishes the terminal namespace from its own service key', async () => {
     const ctx = await harness()
@@ -138,6 +149,19 @@ describe('the terminal Remote namespace a console panel calls', () => {
       code: 'terminal/unavailable',
       message: 'no terminal backend is mounted',
     })
+  })
+
+  it('answers unavailable on every verb while no terminal service is mounted', async () => {
+    const ctx = await bareHarness()
+    expect(ctx.terminalController.typertRemote.namespace).toBe('terminal')
+    const listed = await ctx.terminalController.list().catch((error: unknown) => error)
+    expect(remoteErrorOf(listed)).toMatchObject({ code: 'terminal/unavailable' })
+    const opened = await ctx.terminalController.open({}).catch((error: unknown) => error)
+    expect(remoteErrorOf(opened)).toMatchObject({ code: 'terminal/unavailable' })
+    const sent = await ctx.terminalController
+      .send({ sessionId: 'pty-1', text: 'x', submit: true })
+      .catch((error: unknown) => error)
+    expect(remoteErrorOf(sent)).toMatchObject({ code: 'terminal/unavailable' })
   })
 
   it('rejects a duplicate console name and a duplicate open as unavailable', async () => {

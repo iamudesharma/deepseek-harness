@@ -25,7 +25,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this controller when a Remote client should reach a console terminal on the host. It requires `ctx.terminals` with a mounted backend (compose `@deepseek-ai/dsh-terminal-bash`); without a backend, `terminal/open` rejects with `terminal/unavailable` and every other verb still answers its closed-session codes. Authorization rides the Remote transport: a caller that may reach `ctx.remote.workspace` may reach `ctx.remote.terminal`.
+Mount this controller when a Remote client should reach a console terminal on the host. The web-app bundle composes it with `@deepseek-ai/dsh-terminal` and `@deepseek-ai/dsh-terminal-bash`; without a backend, `terminal/open` rejects with `terminal/unavailable` and every other verb still answers its closed-session codes. Compositions without the PTY service still boot — every verb then answers `terminal/unavailable` (the settingsController absent-provider pattern). Authorization rides the Remote transport: a caller that may reach `ctx.remote.workspace` may reach `ctx.remote.terminal`.
 
 ### The six verbs
 

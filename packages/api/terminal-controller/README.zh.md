@@ -25,7 +25,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用本包
 
-当 Remote 客户端需要访问宿主上的 console 终端时挂载本控制器。它要求 `ctx.terminals` 已挂载后端（组合 `@deepseek-ai/dsh-terminal-bash`）；没有后端时 `terminal/open` 以 `terminal/unavailable` 拒绝，其余动词仍按会话不存在返回各自代码。授权依赖 Remote 传输：能访问 `ctx.remote.workspace` 的调用方即可访问 `ctx.remote.terminal`。
+当 Remote 客户端需要访问宿主上的 console 终端时挂载本控制器。web-app bundle 将它与 `@deepseek-ai/dsh-terminal`、`@deepseek-ai/dsh-terminal-bash` 一起组合；没有后端时 `terminal/open` 以 `terminal/unavailable` 拒绝，其余动词仍按会话不存在返回各自代码。没有 PTY 服务的组合仍能启动——此时每个动词都回答 `terminal/unavailable`（settingsController 缺 provider 模式）。授权依赖 Remote 传输：能访问 `ctx.remote.workspace` 的调用方即可访问 `ctx.remote.terminal`。
 
 ### 六个动词
 

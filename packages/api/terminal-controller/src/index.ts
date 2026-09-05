@@ -7,6 +7,7 @@ import type {
   ConsoleTerminalOwner,
   TerminalReadResult,
   TerminalSendResult,
+  TerminalSessionService,
   TerminalSignalResult,
   TerminalSpawnResult,
 } from '@deepseek-ai/dsh-terminal/types'
@@ -36,14 +37,16 @@ const CONSOLE_OWNER_ID = 'console'
  * Host service backing the generated `ctx.remote.terminal` namespace. Every
  * verb operates the same console principal — one owner per host whose
  * sessions no agent or model can see — so the console pool is exactly the
- * exact-owner fenced pool `ctx.terminals` already guarantees.
+ * exact-owner fenced pool `ctx.terminals` already guarantees. The PTY service
+ * is optional: a composition without it still boots, and every verb answers
+ * `terminal/unavailable` (the settingsController absent-provider pattern).
  */
 export class TerminalController extends TypertRemoteService {
-  static inject = ['typert', 'terminals']
+  static inject = ['typert']
 
   private readonly consoleOwner: ConsoleTerminalOwner
 
-  /** @param ctx - Host context containing the PTY service. */
+  /** @param ctx - Host context, with the PTY service when composed. */
   constructor(ctx: Context) {
     super(ctx, 'terminalController', { namespace: 'terminal' })
     // The principal's effect scope is a child plugin of this service's fiber:
@@ -54,13 +57,22 @@ export class TerminalController extends TypertRemoteService {
     ctx.effect(() => () => scope.dispose(), 'terminal-controller: console principal scope')
   }
 
+  /** The PTY service, or a terminal/unavailable refusal when unmounted. */
+  private get terminals(): TerminalSessionService {
+    const terminals = this.ctx.get('terminals')
+    if (terminals === undefined) {
+      throw new RemoteError('terminal/unavailable', 'no terminal service is mounted', { reason: 'no terminal service is mounted' })
+    }
+    return terminals
+  }
+
   /**
    * List the console principal's live sessions.
    * @returns console sessions in publication order.
    */
   @Remote('list')
   async list(): Promise<TerminalListValue> {
-    return { sessions: this.ctx.terminals.list(this.consoleOwner) }
+    return { sessions: this.terminals.list(this.consoleOwner) }
   }
 
   /**
@@ -72,7 +84,7 @@ export class TerminalController extends TypertRemoteService {
   async open(request: TerminalOpenRequest): Promise<TerminalSpawnResult> {
     const type = this.resolveBackendType(request.type)
     try {
-      return await this.ctx.terminals.spawn(this.consoleOwner, {
+      return await this.terminals.spawn(this.consoleOwner, {
         type,
         ...request.name !== undefined ? { name: request.name } : {},
         ...request.cwd !== undefined ? { cwd: request.cwd } : {},
@@ -89,9 +101,9 @@ export class TerminalController extends TypertRemoteService {
    */
   @Remote('send')
   async send(request: TerminalSendRequest): Promise<TerminalSendResult> {
-    let operation: ReturnType<typeof this.ctx.terminals.startSend>
+    let operation: ReturnType<typeof this.terminals.startSend>
     try {
-      operation = this.ctx.terminals.startSend(
+      operation = this.terminals.startSend(
         this.consoleOwner,
         TerminalSessionId(request.sessionId),
         { text: request.text, submit: request.submit },
@@ -114,7 +126,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote('read')
   async read(request: TerminalReadRequest): Promise<TerminalReadResult> {
     try {
-      return this.ctx.terminals.read(this.consoleOwner, TerminalSessionId(request.sessionId), {
+      return this.terminals.read(this.consoleOwner, TerminalSessionId(request.sessionId), {
         ...request.offset !== undefined ? { offset: request.offset } : {},
         ...request.count !== undefined ? { count: request.count } : {},
       })
@@ -131,7 +143,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote('signal')
   async signal(request: TerminalSignalRequest): Promise<TerminalSignalResult> {
     try {
-      return await this.ctx.terminals.signal(this.consoleOwner, TerminalSessionId(request.sessionId), request.signal)
+      return await this.terminals.signal(this.consoleOwner, TerminalSessionId(request.sessionId), request.signal)
     } catch (error) {
       throw this.asRemoteError(error, request.sessionId)
     }
@@ -145,7 +157,7 @@ export class TerminalController extends TypertRemoteService {
   @Remote('close')
   async close(request: TerminalCloseRequest): Promise<TerminalCloseValue> {
     try {
-      return { closed: await this.ctx.terminals.kill(this.consoleOwner, TerminalSessionId(request.sessionId), 'console request') }
+      return { closed: await this.terminals.kill(this.consoleOwner, TerminalSessionId(request.sessionId), 'console request') }
     } catch (error) {
       throw this.asRemoteError(error, request.sessionId)
     }
@@ -159,7 +171,7 @@ export class TerminalController extends TypertRemoteService {
       }
       return requested
     }
-    const [first] = this.ctx.terminals.listBackends()
+    const [first] = this.terminals.listBackends()
     if (first === undefined) {
       throw new RemoteError('terminal/unavailable', 'no terminal backend is mounted', { reason: 'no backend is mounted' })
     }

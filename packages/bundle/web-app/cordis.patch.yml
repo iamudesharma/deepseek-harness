@@ -100,11 +100,19 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
+    # Persistent PTY registry backing the console terminal surface. No
+    # model tools: agent shells stay opt-in through tool-terminal.
+    - id: terminal
+      name: '@deepseek-ai/dsh-terminal'
+
+    # Shell backend for console sessions under the shared sandbox policy.
+    - id: terminal-bash
+      name: '@deepseek-ai/dsh-terminal-bash'
+
     # Console terminal commands over the persistent PTY service, for the
     # client terminal panel.
     - id: terminal-controller
       name: '@deepseek-ai/dsh-api-terminal-controller'
-
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
