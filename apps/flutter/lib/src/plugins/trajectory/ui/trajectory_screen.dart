@@ -16,6 +16,7 @@ import '../../../widgets/primitives/markdown.dart';
 import '../../tool/tool_models.dart';
 import '../../tool/presentation/tool_row_model.dart'
     show classifyTool, deriveSummary;
+import '../../tool/presentation/todo_model.dart' show summarizeTodos;
 import '../trajectory_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -111,6 +112,22 @@ String _extractText(Map<String, dynamic> data) {
 String _previewFor(String full, int maxLen) {
   if (full.length <= maxLen) return full;
   return '${full.substring(0, maxLen - 1)}…';
+}
+
+/// Strips common markdown chrome for one-line ledger previews — React ledger
+/// rows show plain summaries while full markdown lives in the details
+/// Rendered tab. Minimal and safe: bold/italic/code/strike markers and
+/// link URLs, never touching prose words.
+String _stripMarkdown(String src) {
+  var s = src.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  s = s.replaceAll('**', '').replaceAll('__', '');
+  s = s.replaceAll('~~', '');
+  // [label](url) -> label
+  s = s.replaceAllMapped(
+      RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1) ?? '');
+  // Inline code stays as bare text in the ledger row.
+  s = s.replaceAll('`', '');
+  return s.trim();
 }
 
 /// Flattens a compaction `summary` payload to display text. The host logs
@@ -209,10 +226,17 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
   for (final entry in entries) {
     final ev = entry.event;
     final type = ev.type;
-    if (type == 'turn/start') {
-      continue;
-    }
-    if (type == 'turn/end' || type == 'turn/error') {
+    // Location brackets and projection echoes are not ledger rows — React
+    // Trajectory derives boundaries from step/turn but never renders them,
+    // and todos live in the Todo dock. Matches ui-trajectory definitions
+    // which only match user/assistant/tool/compaction/retry/request.
+    if (type == 'turn/start' ||
+        type == 'turn/end' ||
+        type == 'turn/error' ||
+        type == 'step/start' ||
+        type == 'step/end' ||
+        type == 'session/end-seed' ||
+        type == 'todo/write') {
       continue;
     }
     TrajectoryCellKind kind;
@@ -250,7 +274,7 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
               ? (ev.data['message'] as Map).cast<String, dynamic>()
               : ev.data;
           final String t = _extractText(msg);
-          text = _previewFor(t.isEmpty ? '' : t, 160);
+          text = _previewFor(t.isEmpty ? '' : _stripMarkdown(t), 160);
           outputDetail = t;
           final rawContent = msg['content'];
           if (rawContent is List) {
@@ -290,10 +314,16 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
           }
           callId = ev.data['callId'] as String? ?? ev.data['id'] as String?;
           // Args-derived one-line summary (React row parity) instead of raw
-          // JSON: `write` shows its `file_path`, `bash` its description.
-          final String summary = argsText.isEmpty
-              ? ''
-              : deriveSummary(classifyTool(name), argsText);
+          // JSON: `write` shows its `file_path`, `bash` its description,
+          // `todo_write` its done/total + active item (plan-summary parity).
+          final String summary;
+          if (name == 'todo_write' && argsText.isNotEmpty) {
+            summary = summarizeTodos(argsText).text;
+          } else {
+            summary = argsText.isEmpty
+                ? ''
+                : deriveSummary(classifyTool(name), argsText);
+          }
           text = summary.isEmpty ? name : '$name · ${_previewFor(summary, 120)}';
           inputDetail = argsText;
           timeSeconds = toolDurationFor(callId);
@@ -354,7 +384,7 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
           kind = TrajectoryCellKind.system;
         }
         final String t = _extractText(ev.data);
-        text = t.isEmpty ? type : _previewFor(t, 160);
+        text = t.isEmpty ? type : _previewFor(_stripMarkdown(t), 160);
         if (t.isNotEmpty) preview = t;
         break;
     }
