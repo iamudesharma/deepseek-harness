@@ -111,6 +111,29 @@ String _previewFor(String full, int maxLen) {
   return '${full.substring(0, maxLen - 1)}…';
 }
 
+/// Flattens a compaction `summary` payload to display text. The host logs
+/// the summary as a plain string for manual compactions but as content
+/// blocks (`[{type: 'text', text: ...}]`) for automatic checkpoints, so a
+/// direct `as String?` cast red-screens on compacted sessions. Mirrors the
+/// block join in the conversation node assembly's `_contentBlocksText`.
+String _summaryBlocksText(Object? summary) {
+  if (summary is String) return summary.trim();
+  if (summary is List) {
+    final buf = StringBuffer();
+    for (final blk in summary) {
+      if (blk is Map) {
+        if (blk['type'] == 'text' && blk['text'] is String) {
+          buf.write(blk['text']);
+        }
+      } else if (blk is String) {
+        buf.write(blk);
+      }
+    }
+    return buf.toString().trim();
+  }
+  return '';
+}
+
 /// Derive ledger rows from a [HistoryEntry] window.
 ///
 /// Approximates React `deriveTrajectoryLayout` + `flattenRecords` for
@@ -291,8 +314,9 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
       case 'compaction/summary':
       case 'compaction/prune':
         kind = TrajectoryCellKind.compacted;
-        text = (ev.data['summary'] as String?) ?? type;
-        preview = ev.data['summary'] as String?;
+        final String summaryText = _summaryBlocksText(ev.data['summary']);
+        text = summaryText.isEmpty ? type : summaryText;
+        preview = summaryText.isEmpty ? null : summaryText;
         break;
       case 'request/header':
       case 'session/title':

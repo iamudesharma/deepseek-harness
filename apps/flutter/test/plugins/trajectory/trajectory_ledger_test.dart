@@ -88,6 +88,38 @@ void main() {
       expect(rows[1].text, 'retry 1/3');
     });
 
+    test('compaction summary as content blocks does not throw', () {
+      // Automatic checkpoints log `summary` as content blocks, not a plain
+      // string (live repro: a compacted session red-screened the trajectory
+      // view with `List<dynamic> is not a subtype of String?`).
+      final rows = ledgerFromHistory([
+        _entry('compaction/summary', {
+          'summary': [
+            {'type': 'text', 'text': '## Primary Request\n- build the showroom'},
+            {'type': 'other', 'text': 'skipped'},
+            'tail',
+          ],
+        }, 1, 100),
+      ]);
+      expect(rows.single.kind, TrajectoryCellKind.compacted);
+      expect(
+        rows.single.text,
+        contains('## Primary Request\n- build the showroom'),
+      );
+      expect(rows.single.text, contains('tail'));
+      expect(rows.single.text, isNot(contains('skipped')));
+    });
+
+    test('compaction without a summary falls back to the event type', () {
+      final rows = ledgerFromHistory([
+        _entry('compaction/summary', {}, 1, 100),
+        _entry('compaction/prune', {'summary': 7}, 2, 200),
+      ]);
+      expect(rows[0].text, 'compaction/summary');
+      expect(rows[0].previewMarkdown, isNull);
+      expect(rows[1].text, 'compaction/prune');
+    });
+
     test('unknown types fall back to system with the type as text', () {
       final rows = ledgerFromHistory([
         _entry('session/custom-thing', {}, 1, 100),
