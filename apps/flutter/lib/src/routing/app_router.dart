@@ -27,6 +27,7 @@ import '../features/input_trigger/input_trigger_screen.dart'
 import '../features/reference/reference_screen.dart' as reference_feature;
 import '../plugins/subagent/ui/subagent_screen.dart' as subagent_feature;
 import '../plugins/terminal/ui/terminal_screen.dart' as terminal_feature;
+import '../widgets/layout/menu_bar.dart';
 import '../features/workspace/workspace_provider.dart'
     show selectedWorkspaceProvider, workspaceListProvider;
 import '../features/workflow_run/workflow_screen.dart' as workflow_feature;
@@ -299,8 +300,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // The check is width-aware via [isMobileShell] and respects
               // debugDefaultTargetPlatformOverride through defaultTargetPlatform.
               if (isMobileShell(context)) return navigationShell;
-              return AppFrame(
-                navigationShell: navigationShell,
+              return DshMenuBar(
+                child: AppFrame(
+                  navigationShell: navigationShell,
                 // Conversation hub renders through its own composition slot on
                 // top of the shell's center occupant.
                 conversationLayer: SlotOutlet(
@@ -320,6 +322,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 // closed (`details: 0`, stores.ts:50). The frame therefore keeps
                 // a zero-width collapsed track — no placeholder panel.
                 details: null,
+                ),
               );
             },
         branches: [
