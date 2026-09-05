@@ -33,7 +33,7 @@ The [native backend](../directory-picker-native/README.md) is the right choice w
 
 ### The capability contract
 
-`capability()` returns a discriminated union describing how an operator selects a directory: `{ kind: 'native', pick(signal) }` for the OS chooser, or `{ kind: 'browse', list(path?, options?), createDirectory(path, name), readFile(path, options?) }` for the in-app browser. Consumers switch on `kind`; a capability kind no composition implements means the UI hides the picking affordance rather than failing. Browse failures throw the typed `DirectoryPickerError` with a closed code set — `directory-unreadable`, `directory-exists`, `directory-create-failed`, or `file-unreadable` — each carrying the subject path, which the picking Remote controller maps onto wire failure codes.
+`capability()` returns a discriminated union describing how an operator selects a directory: `{ kind: 'native', pick(signal) }` for the OS chooser, or `{ kind: 'browse', list(path?, signal?, options?), createDirectory(path, name), readFile(path, options?, signal?) }` for the in-app browser. Consumers switch on `kind`; a capability kind no composition implements means the UI hides the picking affordance rather than failing. Browse failures throw the typed `DirectoryPickerError` with a closed code set — `directory-unreadable`, `directory-exists`, `directory-create-failed`, or `file-unreadable` — each carrying the subject path, which the picking Remote controller maps onto wire failure codes.
 
 ### What rows carry
 

@@ -9,7 +9,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 
 export type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-export type { DirectoryEntry, DirectoryListing } from '@deepseek-ai/dsh-host-directory-picker/types'
+export type { DirectoryEntry, DirectoryFilePage, DirectoryListing } from '@deepseek-ai/dsh-host-directory-picker/types'
 
 /** One durable Workspace projected for browser consumers. */
 export interface WorkspaceView {

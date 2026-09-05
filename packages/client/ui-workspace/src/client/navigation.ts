@@ -143,7 +143,7 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   async listDirectory(path?: string, signal?: AbortSignal): Promise<DirectoryListing> {
-    const result = await this.directoryPicker.list(path, signal)
+    const result = await this.directoryPicker.list(path, undefined, signal)
     if (!result.ok) throw new DirectoryBrowseError(result.error)
     return result.value
   }

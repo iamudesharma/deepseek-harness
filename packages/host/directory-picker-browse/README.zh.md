@@ -37,7 +37,7 @@ kind: "package-reference"
 
 ### 读取文件
 
-`readFile(path, options?)` 返回一个普通文件的有界文本页：页文本与 `truncated`、`totalBytes`，以及仅在整个文件装入本页时才出现的 `totalLines`，供翻页器导航。选项选择行窗口（`offset`、`count`）并缩小页字节上限（`maxBytes`，永不超过配置的 `maxReadBytes`）。只返回完整行——被预算截断的尾部残行会被丢弃，在下一页被完整重读。二进制内容（头部含 NUL 字节）、目录、缺失路径与非完全限定路径回答 `file-unreadable`。
+`readFile(path, options?, signal?)` 返回一个普通文件的有界文本页：页文本与 `truncated`、`totalBytes`，以及仅在整个文件装入本页时才出现的 `totalLines`，供翻页器导航。选项选择行窗口（`offset`、`count`）并缩小页字节上限（`maxBytes`，永不超过配置的 `maxReadBytes`）。只返回完整行——被预算截断的尾部残行会被丢弃，在下一页被完整重读。二进制内容（头部含 NUL 字节）、目录、缺失路径与非完全限定路径回答 `file-unreadable`。
 
 ### 可观察的失败
 

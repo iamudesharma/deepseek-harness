@@ -6,7 +6,7 @@ import type {
 import type {
   IWorkspaces, WorkspaceId, WorkspaceSnapshot, WorkspaceView,
 } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { ClientRemote, DirectoryListing } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ClientRemote, DirectoryFilePage, DirectoryListing } from '@deepseek-ai/dsh-api-remotes/client'
 import { RemoteError } from '@deepseek-ai/dsh-client-test-runtime'
 import type { RemoteResult } from '@deepseek-ai/dsh-api-remotes/client'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -164,12 +164,19 @@ class FakeDirectoryPicker {
   onList: () => Promise<RemoteResult<DirectoryListing>> = () => Promise.resolve({ ok: true, value: listing })
   onCreateDirectory: () => Promise<RemoteResult<string>> =
     () => Promise.resolve({ ok: true, value: '/home/u/new' })
+  onReadFile: () => Promise<RemoteResult<DirectoryFilePage>> = () =>
+    Promise.resolve({
+      ok: true,
+      value: { path: '/home/u/notes.txt', text: 'hello', truncated: false, totalBytes: 5, totalLines: 1 },
+    })
 
   readonly remote: ClientRemote['directoryPicker'] = {
     pick: () => this.record('pick', {}, this.onPick()),
     list: (path?: string) => this.record('list', { path }, this.onList()),
     createDirectory: (path: string, name: string) =>
       this.record('createDirectory', { path, name }, this.onCreateDirectory()),
+    readFile: (path: string) =>
+      this.record('readFile', { path }, this.onReadFile()),
   }
 
   callsOf(method: string): unknown[] {

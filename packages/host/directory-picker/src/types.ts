@@ -16,10 +16,12 @@ export interface DirectoryEntry {
   /** Hidden by the host platform's convention (dot-prefixed on POSIX); the client owns whether to show it. */
   hidden: boolean
   /**
-   * Row kind. Always present: backends stamp every row so a file-capable
-   * browser can render files without re-probing each path.
+   * Row kind, stamped by file-capable backends so a browser can render files
+   * without re-probing each path. Absent means `'directory'`: rows written
+   * before file rows existed, and readers that predate them, treat a
+   * missing kind as a directory.
    */
-  kind: 'directory' | 'file'
+  kind?: 'directory' | 'file'
 }
 
 /** One directory level plus its ancestry, as a browse backend reports it. */

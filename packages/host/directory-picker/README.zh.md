@@ -33,7 +33,7 @@ web GUI 宿主通过一份约定让操作者选择工作区目录：一个只提
 
 ### 能力约定
 
-`capability()` 返回一个可辨识联合类型，说明操作者如何选择目录：OS 选择器为 `{ kind: 'native', pick(signal) }`，应用内浏览器为 `{ kind: 'browse', list(path?, options?), createDirectory(path, name), readFile(path, options?) }`。消费方按 `kind` 分支；某个组合没有实现的能力类型意味着界面隐藏选择入口，而不是失败。浏览失败抛出带类型的 `DirectoryPickerError`，其错误码集合是封闭的——`directory-unreadable`、`directory-exists`、`directory-create-failed` 或 `file-unreadable`——每个都携带出错对象的路径，选目录 Remote controller 将其 1:1 映射为协议错误码。
+`capability()` 返回一个可辨识联合类型，说明操作者如何选择目录：OS 选择器为 `{ kind: 'native', pick(signal) }`，应用内浏览器为 `{ kind: 'browse', list(path?, signal?, options?), createDirectory(path, name), readFile(path, options?, signal?) }`。消费方按 `kind` 分支；某个组合没有实现的能力类型意味着界面隐藏选择入口，而不是失败。浏览失败抛出带类型的 `DirectoryPickerError`，其错误码集合是封闭的——`directory-unreadable`、`directory-exists`、`directory-create-failed` 或 `file-unreadable`——每个都携带出错对象的路径，选目录 Remote controller 将其 1:1 映射为协议错误码。
 
 ### 行携带什么
 

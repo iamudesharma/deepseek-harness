@@ -37,7 +37,7 @@ Compose this backend when a workspace directory must be chosen without an OS cho
 
 ### Reading a file
 
-`readFile(path, options?)` returns one bounded text page of a regular file: the page text with `truncated`, `totalBytes`, and `totalLines` (present only when the whole file fit in the page) so a pager can navigate. Options select a line window (`offset`, `count`) and shrink the page byte cap (`maxBytes`, never above the configured `maxReadBytes`). Only whole lines are returned — a trailing partial line cut by the budget is dropped and re-read whole on the next page. Binary content (a NUL byte in the head), directories, missing paths, and non-fully-qualified paths answer `file-unreadable`.
+`readFile(path, options?, signal?)` returns one bounded text page of a regular file: the page text with `truncated`, `totalBytes`, and `totalLines` (present only when the whole file fit in the page) so a pager can navigate. Options select a line window (`offset`, `count`) and shrink the page byte cap (`maxBytes`, never above the configured `maxReadBytes`). Only whole lines are returned — a trailing partial line cut by the budget is dropped and re-read whole on the next page. Binary content (a NUL byte in the head), directories, missing paths, and non-fully-qualified paths answer `file-unreadable`.
 
 ### Observable failures
 
