@@ -8,6 +8,8 @@
 /// the file-mention resolution the chat prose will consume.
 library;
 
+import 'dart:convert';
+
 /// Immutable produced-file facts published against one Turn.
 class DeliverablesTurnData {
   /// `(seq, path)` pairs in first-seen order.
@@ -99,4 +101,132 @@ List<String>? selectProducedFiles(
 }) {
   final paths = producedForClosing(data, closingSeq: closingSeq);
   return paths.isEmpty ? null : paths;
+}
+
+String? _mutationPath(String name, Object? argsRaw) {
+  Object? args;
+  if (argsRaw is String) {
+    try {
+      args = jsonDecode(argsRaw);
+    } catch (_) {
+      return null;
+    }
+  } else if (argsRaw is Map) {
+    args = argsRaw;
+  }
+  if (args is! Map) return null;
+  final Map<String, dynamic> map = args is Map<String, dynamic>
+      ? args
+      : Map<String, dynamic>.from(args as Map);
+  String? pathValue(Object? v) {
+    if (v is String && v.trim().isNotEmpty) return v;
+    return null;
+  }
+
+  switch (name) {
+    case 'write':
+      if (map['content'] is! String) return null;
+      return pathValue(map['file_path']);
+    case 'edit':
+      final oldStr = map['old_string'];
+      final newStr = map['new_string'];
+      if (oldStr is! String ||
+          oldStr.isEmpty ||
+          newStr is! String ||
+          oldStr == newStr) {
+        return null;
+      }
+      final replaceAll = map['replace_all'];
+      if (replaceAll != null && replaceAll is! bool) return null;
+      return pathValue(map['file_path']);
+    case 'str_replace_editor':
+      final path = pathValue(map['path']);
+      if (path == null) return null;
+      switch (map['command']) {
+        case 'create':
+          return map['file_text'] is String ? path : null;
+        case 'str_replace':
+          final oldStr = map['old_str'];
+          if (oldStr is! String || oldStr.isEmpty) return null;
+          final newStr = map['new_str'];
+          if (newStr != null && newStr is! String) return null;
+          return path;
+        case 'insert':
+          final line = map['insert_line'];
+          if (line is! int || line < 0) return null;
+          return map['new_str'] is String ? path : null;
+        default:
+          return null;
+      }
+    default:
+      return null;
+  }
+}
+
+/// Derives produced paths for [turn] directly from history entries.
+///
+/// Stopgap until the conversation fold publishes `DeliverablesTurnData`:
+/// joins `tool/call` mutation paths with successful `tool/result` by
+/// `callId`, scoped to [turn], first-seen order, deduped.
+List<String> producedPathsForTurn(
+  List<dynamic> history, {
+  required int turn,
+  int closingSeq = -1,
+}) {
+  final Map<String, String> pending = {};
+  final Map<String, int> callTurn = {};
+  final List<({int seq, String path})> produced = [];
+  // Pass 1: collect mutation paths per callId.
+  for (final entry in history) {
+    final dynamic ev = (entry as dynamic).event;
+    final String type = (ev as dynamic).type as String;
+    final Map<String, dynamic> data =
+        ((ev as dynamic).data as Map).cast<String, dynamic>();
+    if (type == 'tool/call') {
+      final String? callId =
+          (data['callId'] ?? data['id'])?.toString();
+      if (callId == null || callId.isEmpty) continue;
+      final int evTurn = (data['turn'] as num?)?.toInt() ?? turn;
+      if (evTurn != turn) continue;
+      final String name =
+          (data['name'] ?? data['toolName'] ?? '').toString();
+      final Object? argsRaw =
+          data['args'] ?? data['arguments'] ?? data['input'];
+      final path = _mutationPath(name, argsRaw);
+      if (path != null) {
+        pending[callId] = path;
+        callTurn[callId] = evTurn;
+      }
+    }
+  }
+  // Pass 2: keep only successful results.
+  for (final entry in history) {
+    final dynamic ev = (entry as dynamic).event;
+    final String type = (ev as dynamic).type as String;
+    if (type != 'tool/result') continue;
+    final Map<String, dynamic> data =
+        ((ev as dynamic).data as Map).cast<String, dynamic>();
+    if (data['isError'] == true || data['error'] != null) continue;
+    final dynamic msg = data['message'];
+    String? callId;
+    if (msg is Map) {
+      final src = msg['source'];
+      if (src is Map) callId = src['callId']?.toString();
+      callId ??= msg['callId']?.toString();
+    }
+    callId ??= data['callId']?.toString() ?? data['id']?.toString();
+    if (callId == null) continue;
+    final path = pending[callId];
+    if (path == null) continue;
+    final int seq = (ev as dynamic).seq as int;
+    if (closingSeq >= 0 && seq > closingSeq) continue;
+    produced.add((seq: seq, path: path));
+  }
+  final seen = <String>{};
+  final out = <String>[];
+  produced.sort((a, b) => a.seq.compareTo(b.seq));
+  for (final p in produced) {
+    if (seen.add(p.path)) out.add(p.path);
+  }
+  return out;
 }

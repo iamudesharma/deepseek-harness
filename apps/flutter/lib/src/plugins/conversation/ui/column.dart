@@ -27,6 +27,7 @@ import 'slots/hole_outlet.dart';
 import 'composer.dart' show ConversationComposer;
 import 'chat_view.dart';
 import 'composer_chain_outlet.dart';
+import 'todo_panel.dart';
 import '../queue_hook.dart';
 import 'conversation_shortcuts.dart';
 import 'docks.dart';
@@ -111,6 +112,7 @@ class _ActiveBody extends StatelessWidget {
         // like React's ApprovalPanel seat.
         const ComposerChainOutlet(),
         DocksRow(sessionId: sessionId),
+        TodoPanel(sessionId: sessionId),
         QueueSteerHook(sessionId: sessionId),
         // Existing composer wrapped by the platform shortcut seam:
         // Enter submits (policy mode), Escape cancels, Shift+Enter newlines.

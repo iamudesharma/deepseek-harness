@@ -40,6 +40,12 @@ import '../../tool/ui/keyed_tool_card.dart'
         diffStatFor;
 import '../../tool/tool_models.dart' show ToolCall, ToolCallStatus, kindForTool;
 import '../../tool/presentation/tool_row_model.dart' as row_model;
+import '../../deliverables/deliverables_mentions.dart'
+    show producedPathsForTurn;
+import '../../deliverables/deliverables_open.dart'
+    show canOpenHostPathProvider, openHostPath;
+import '../../deliverables/ui/produced_files_row.dart'
+    show ProducedFilesRow;
 
 /// In-memory reader position resilient to transcript width reflow.
 class ChatScrollPosition {
@@ -1197,6 +1203,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
           node: node,
           aliases: aliases,
           onFork: () => _forkAt(forkSeq),
+          sessionId: widget.sessionId,
         );
 
       case TurnProcessNode(
@@ -1511,16 +1518,21 @@ String _formatMessageClock(int timeMs, {int? nowMs}) {
 
 // ---- TurnTail footer card (mirrors TurnTailNodeView.tsx + TurnUsageDisclosure.tsx) ----
 
-class _TurnTailCard extends StatefulWidget {
-  const _TurnTailCard({required this.node, required this.aliases, this.onFork});
+class _TurnTailCard extends ConsumerStatefulWidget {
+  const _TurnTailCard(
+      {required this.node,
+      required this.aliases,
+      this.onFork,
+      required this.sessionId});
   final TurnTailNode node;
   final DswAliases aliases;
   final VoidCallback? onFork;
+  final String sessionId;
   @override
-  State<_TurnTailCard> createState() => _TurnTailCardState();
+  ConsumerState<_TurnTailCard> createState() => _TurnTailCardState();
 }
 
-class _TurnTailCardState extends State<_TurnTailCard> {
+class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
   @override
   Widget build(BuildContext context) {
     final node = widget.node;
@@ -1536,12 +1548,43 @@ class _TurnTailCardState extends State<_TurnTailCard> {
     final tpsLabel = node.tokensPerSecond == null
         ? null
         : _formatTokensPerSecond(node.tokensPerSecond!);
+    // Produced files for this turn — derived from write/edit successes in
+    // the live window (React turn-tail chain entry parity).
+    List<String> produced = const [];
+    try {
+      final history = ref.watch(liveHistoryProvider(widget.sessionId));
+      produced = producedPathsForTurn(history,
+          turn: node.turn, closingSeq: node.closingSeq ?? node.seq);
+    } catch (_) {
+      produced = const [];
+    }
+    final bool canOpen =
+        ref.watch(canOpenHostPathProvider).valueOrNull ?? false;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (produced.isNotEmpty) ...[
+            ProducedFilesRow(
+              paths: produced,
+              canOpenPath: canOpen,
+              onOpenFile: (path) async {
+                try {
+                  await openHostPath(
+                      ref.read(connectionClientProvider), path);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Open failed: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 4),
+          ],
           if (usage != null)
             _TurnUsageDisclosure(usage: usage, aliases: aliases),
           const SizedBox(height: 4),
