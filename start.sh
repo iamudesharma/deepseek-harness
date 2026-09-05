@@ -144,7 +144,7 @@ fi
 IFS=',' read -ra FLUTTER_DEVICES <<< "$FLUTTER_DEVICE"
 # Trim whitespace and filter empty
 FLUTTER_DEVICES_TRIMMED=()
-for d in "${FLUTTER_DEVICES[@]}"; do
+for d in ${FLUTTER_DEVICES[@]:-}; do
   d="$(echo "$d" | xargs)"
   if [[ -n "$d" && "$d" != "none" ]]; then
     FLUTTER_DEVICES_TRIMMED+=("$d")
@@ -243,7 +243,7 @@ kill_port() {
 }
 if [[ "$KILL_EXISTING" == "true" ]]; then
   kill_port "$BACKEND_PORT" "backend"
-  for dev in "${FLUTTER_DEVICES[@]}"; do
+  for dev in ${FLUTTER_DEVICES[@]:-}; do
     if [[ "$dev" == "web-server" ]]; then
       kill_port "$FLUTTER_PORT" "flutter web-server"
     fi
@@ -252,7 +252,7 @@ else
   if port_in_use "$BACKEND_PORT"; then
     warn "Port $BACKEND_PORT already in use — backend may fail to bind (try --backend-port 3081 or --kill)"
   fi
-  for dev in "${FLUTTER_DEVICES[@]}"; do
+  for dev in ${FLUTTER_DEVICES[@]:-}; do
     if [[ "$dev" == "web-server" ]] && port_in_use "$FLUTTER_PORT"; then
       warn "Port $FLUTTER_PORT already in use — flutter web-server may fail (try --flutter-port 5002 or --kill)"
     fi
@@ -373,7 +373,7 @@ dim "  logs: $BACKEND_LOG"
 
 # Auto-add trusted-host for flutter web so CORS is not needed manually
 BACKEND_TRUST_ARGS=()
-for dev in "${FLUTTER_DEVICES[@]}"; do
+for dev in ${FLUTTER_DEVICES[@]:-}; do
   if [[ "$dev" == "web-server" ]]; then
     BACKEND_TRUST_ARGS+=("--trusted-host" "127.0.0.1:${FLUTTER_PORT}" "--trusted-host" "localhost:${FLUTTER_PORT}")
     break
@@ -436,7 +436,7 @@ fi
 if [[ ${#FLUTTER_DEVICES[@]} -eq 0 ]]; then
   dim "Skipping Flutter (--no-flutter)"
 else
-  for FLUTTER_DEVICE in "${FLUTTER_DEVICES[@]}"; do
+  for FLUTTER_DEVICE in ${FLUTTER_DEVICES[@]:-}; do
     # Validate device
     if [[ "$FLUTTER_DEVICE" != "web-server" && "$FLUTTER_DEVICE" != "chrome" && "$FLUTTER_DEVICE" != "edge" && "$FLUTTER_DEVICE" != "macos" ]]; then
       warn "Unknown --flutter-device '$FLUTTER_DEVICE' — trying anyway"
@@ -576,7 +576,7 @@ else
   done
 fi
 printf "  ${DIM}Backend logs: $BACKEND_LOG${RESET}\n"
-for dev in "${FLUTTER_DEVICES[@]}"; do
+for dev in ${FLUTTER_DEVICES[@]:-}; do
   printf "  ${DIM}Flutter ($dev) logs: $TMPDIR_LOGS/flutter-${dev}.log${RESET}\n"
 done
 printf "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
@@ -591,7 +591,7 @@ if [[ "$OPEN_BROWSER" == "true" ]]; then
   info "Opening browsers…"
   open_url "$AUTHENTICATED_URL"
   # Only auto-open web-server (macos is a native window, already visible)
-  for dev in "${FLUTTER_DEVICES[@]}"; do
+  for dev in ${FLUTTER_DEVICES[@]:-}; do
     if [[ "$dev" == "web-server" ]]; then
       sleep 0.8
       open_url "$FLUTTER_URL"
