@@ -35,6 +35,20 @@ class ResponsiveBreakpoints {
 
   /// True when [width] is at least [wide].
   static bool isWideWidth(double width) => width >= wide;
+
+  /// Picks a value by viewport-width tier: below [narrow] returns `narrow`,
+  /// below [medium] returns `medium`, otherwise `wide`. Matches the
+  /// tier split in [ResponsiveConstraints] and the responsive grid.
+  static T responsiveValue<T>(
+    double width, {
+    required T narrow,
+    required T medium,
+    required T wide,
+  }) {
+    if (width < ResponsiveBreakpoints.narrow) return narrow;
+    if (width < ResponsiveBreakpoints.medium) return medium;
+    return wide;
+  }
 }
 
 /// Scaffold that switches between a narrow and a wide layout branch.
