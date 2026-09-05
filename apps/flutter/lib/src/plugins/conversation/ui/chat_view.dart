@@ -1533,6 +1533,133 @@ class _TurnTailCard extends ConsumerStatefulWidget {
 }
 
 class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
+  bool _thumbsUp = false;
+  bool _thumbsDown = false;
+
+  void _showUsageSheet(TurnTokenUsage usage) {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Turn usage · ${_formatTokens(usage.totalTokens)} tok',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: widget.aliases.labelPrimary)),
+              const SizedBox(height: 12),
+              _usageRow('Input (uncached)', usage.uncachedInputTokens),
+              _usageRow('Output', usage.outputTokens),
+              if (usage.cacheReadTokens != null)
+                _usageRow('Cache read', usage.cacheReadTokens!),
+              if (usage.cacheWriteTokens != null)
+                _usageRow('Cache write', usage.cacheWriteTokens!),
+              if (usage.reasoningTokens != null)
+                _usageRow('Reasoning', usage.reasoningTokens!),
+              if (usage.routes != null && usage.routes!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text('Routes',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: widget.aliases.labelTertiary)),
+                for (final r in usage.routes!)
+                  Text('${r.provider}/${r.model}',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: widget.aliases.labelSecondary)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _usageRow(String label, int value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+              width: 140,
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: widget.aliases.labelTertiary))),
+          Text(_formatExactTokens(value),
+              style: TextStyle(
+                  fontSize: 12, color: widget.aliases.labelSecondary)),
+        ],
+      ),
+    );
+  }
+
+  void _showTimeSheet() {
+    final node = widget.node;
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Turn time',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: widget.aliases.labelPrimary)),
+              const SizedBox(height: 12),
+              if (node.runMs != null)
+                _usageRow('Duration', node.runMs!),
+              if (node.tokensPerSecond != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    SizedBox(
+                        width: 140,
+                        child: Text('Speed',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: widget.aliases.labelTertiary))),
+                    Text(
+                        '${_formatTokensPerSecond(node.tokensPerSecond!)} tok/s',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: widget.aliases.labelSecondary)),
+                  ]),
+                ),
+              if (node.ttftMs != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(children: [
+                    SizedBox(
+                        width: 140,
+                        child: Text('TTFT',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: widget.aliases.labelTertiary))),
+                    Text('${_formatLatencySeconds(node.ttftMs!)}s',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: widget.aliases.labelSecondary)),
+                  ]),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final node = widget.node;
@@ -1542,12 +1669,6 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
     final runLabel = node.runMs == null
         ? null
         : _formatRunDuration(node.runMs!);
-    final ttftLabel = node.ttftMs == null
-        ? null
-        : _formatLatencySeconds(node.ttftMs!);
-    final tpsLabel = node.tokensPerSecond == null
-        ? null
-        : _formatTokensPerSecond(node.tokensPerSecond!);
     // Produced files for this turn — derived from write/edit successes in
     // the live window (React turn-tail chain entry parity).
     List<String> produced = const [];
@@ -1585,88 +1706,68 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
             ),
             const SizedBox(height: 4),
           ],
-          if (usage != null)
-            _TurnUsageDisclosure(usage: usage, aliases: aliases),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          // React TurnTailNodeView parity: one icon-actions row —
+          // copy / like / dislike / branch + usage pill + time pill + clock.
+          // Usage/time open bottom sheets (dialog parity); like/dislike are
+          // ephemeral local selection like the assistant row.
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 2,
+            runSpacing: 2,
             children: [
-              Expanded(
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 0,
-                  children: [
-                    Text(
-                      timeLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: aliases.labelTertiary,
-                        height: 20 / 12,
-                      ),
-                    ),
-                    if (runLabel != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 2,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: aliases.labelCaption,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Ran for $runLabel',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ],
-                    if (ttftLabel != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 2,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: aliases.labelCaption,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'TTFT ${ttftLabel}s',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ],
-                    if (tpsLabel != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 2,
-                        height: 2,
-                        decoration: BoxDecoration(
-                          color: aliases.labelCaption,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$tpsLabel tok/s',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ],
-                  ],
+              _CopyButton(text: node.closingText ?? '', aliases: aliases),
+              Tooltip(
+                message: _thumbsUp ? 'Liked' : 'Like',
+                child: IconButton(
+                  icon: Icon(
+                    _thumbsUp ? Icons.thumb_up : Icons.thumb_up_outlined,
+                    size: 14,
+                    color: _thumbsUp
+                        ? aliases.stateBusinessPrimary
+                        : aliases.labelTertiary,
+                  ),
+                  onPressed: () => setState(() {
+                    if (_thumbsUp) {
+                      _thumbsUp = false;
+                    } else {
+                      _thumbsUp = true;
+                      _thumbsDown = false;
+                    }
+                  }),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(28, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.all(6),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              _CopyButton(text: node.closingText ?? '', aliases: aliases),
-              const SizedBox(width: 4),
+              Tooltip(
+                message: _thumbsDown ? 'Disliked' : 'Dislike',
+                child: IconButton(
+                  icon: Icon(
+                    _thumbsDown
+                        ? Icons.thumb_down
+                        : Icons.thumb_down_outlined,
+                    size: 14,
+                    color: _thumbsDown
+                        ? aliases.stateBusinessPrimary
+                        : aliases.labelTertiary,
+                  ),
+                  onPressed: () => setState(() {
+                    if (_thumbsDown) {
+                      _thumbsDown = false;
+                    } else {
+                      _thumbsDown = true;
+                      _thumbsUp = false;
+                    }
+                  }),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(28, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.all(6),
+                  ),
+                ),
+              ),
               Tooltip(
                 message: node.branchUnavailable
                     ? 'Available only on the last message of a completed turn'
@@ -1674,7 +1775,7 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
                 child: IconButton(
                   icon: Icon(
                     Icons.account_tree_outlined,
-                    size: 16,
+                    size: 14,
                     color: node.branchUnavailable
                         ? aliases.labelCaption
                         : aliases.labelTertiary,
@@ -1683,7 +1784,52 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
                   style: IconButton.styleFrom(
                     minimumSize: const Size(28, 28),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: EdgeInsets.zero,
+                    padding: const EdgeInsets.all(6),
+                  ),
+                ),
+              ),
+              if (usage != null)
+                TextButton.icon(
+                  onPressed: () => _showUsageSheet(usage),
+                  icon: Icon(Icons.data_usage_outlined,
+                      size: 14, color: aliases.labelTertiary),
+                  label: Text(
+                    'Usage ${_formatTokens(usage.totalTokens)} tok',
+                    style: TextStyle(
+                        fontSize: 12, color: aliases.labelSecondary),
+                  ),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              if (runLabel != null)
+                TextButton.icon(
+                  onPressed: _showTimeSheet,
+                  icon: Icon(Icons.schedule_outlined,
+                      size: 14, color: aliases.labelTertiary),
+                  label: Text(
+                    'Ran for $runLabel',
+                    style: TextStyle(
+                        fontSize: 12, color: aliases.labelSecondary),
+                  ),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  timeLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: aliases.labelTertiary,
+                    height: 20 / 12,
                   ),
                 ),
               ),
