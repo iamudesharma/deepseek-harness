@@ -242,4 +242,76 @@ void main() {
     expect(container.read(terminalSessionsProvider).sessions, isEmpty);
     expect(host.calls.last.$1, '/api/terminal/close');
   });
+
+  test('Ctrl+C signals while a foreground send is in flight', () async {
+    final host = _TerminalHost();
+    host.onCall = (path, call) {
+      if (path == '/api/terminal/open') {
+        return {
+          'sessionId': 'pty-1',
+          'type': 'shell',
+          'status': {'kind': 'running'},
+        };
+      }
+      if (path == '/api/terminal/send') {
+        return {
+          'viewport': 'sleeping\r\n',
+          'waitReason': 'stdin_read',
+          'sessionStatus': {'kind': 'running'},
+          'truncated': false,
+        };
+      }
+      if (path == '/api/terminal/signal') {
+        expect(call['signal'], 'SIGINT');
+        return {'delivered': true};
+      }
+      return <String, dynamic>{};
+    };
+    final container = _container(host, await host.start());
+    final notifier = container.read(terminalSessionsProvider.notifier);
+
+    await notifier.open();
+    final session = container.read(terminalSessionsProvider).selected!;
+    // Submit a line: the foreground send marks the session busy until the
+    // scripted host answers over HTTP (a later event-loop turn).
+    notifier.handleOutput(session, 'sleep 99\r');
+    expect(
+      container.read(terminalSessionsProvider).selected!.busy,
+      isTrue,
+    );
+    // Ctrl+C must signal anyway instead of being swallowed by busy.
+    notifier.handleOutput(session, '\x03');
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
+    expect(
+      host.calls.map((call) => call.$1),
+      contains('/api/terminal/signal'),
+    );
+    final settled = container.read(terminalSessionsProvider).selected!;
+    expect(settled.pending.toString(), isEmpty);
+    expect(settled.busy, isFalse);
+    expect(settled.error, isNull);
+  });
+
+  test('Ctrl+L clears the display and keeps the pending line', () async {
+    final host = _TerminalHost();
+    host.onCall = (path, _) => path == '/api/terminal/open'
+        ? {'sessionId': 'pty-1', 'type': 'shell', 'status': {'kind': 'running'}}
+        : <String, dynamic>{};
+    final container = _container(host, await host.start());
+    final notifier = container.read(terminalSessionsProvider.notifier);
+
+    await notifier.open();
+    final session = container.read(terminalSessionsProvider).selected!;
+    notifier.handleOutput(session, 'abc');
+    final callsBefore = host.calls.length;
+    notifier.handleOutput(session, '\x0c');
+    expect(session.pending.toString(), 'abc');
+    // Purely local: no host round trip, nothing submitted.
+    expect(host.calls, hasLength(callsBefore));
+    expect(
+      container.read(terminalSessionsProvider).selected!.busy,
+      isFalse,
+    );
+  });
 }

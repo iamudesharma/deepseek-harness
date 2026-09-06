@@ -1,34 +1,36 @@
-/// Console terminal panel — one xterm view per host console session.
+/// Console terminal screen — the host's console session pool as a full-page
+/// route (mobile shells and deep links).
 ///
-/// Each tab owns an emulator buffer fed by the line-mode bridge in
-/// [TerminalSessionsNotifier]: the MOTD on open, each settled send viewport
-/// after Enter, and scrollback pages on manual refresh. Keystrokes never
-/// leave the device except through the six `terminal/*` verbs.
+/// One empty pool auto-opens a session at the owning chat session's working
+/// directory without a name prompt; the opener row spawns further sessions.
+/// The docked in-session panel (`TerminalDock`) shares this composition
+/// through `terminal_views.dart`.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:xterm/xterm.dart';
 
+import '../../../core/session/session_models.dart';
+import '../../../core/session/session_provider.dart';
 import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
 import '../../../theme/app_theme.dart';
-import '../../../widgets/primitives/state_dot.dart';
 
 import '../locales.dart';
 import '../terminal_models.dart';
+import 'terminal_views.dart';
 
-/// Console terminal screen — the host's console session pool.
+/// Console terminal screen.
 ///
 /// Shows session tabs, the selected session's emulator view, and a toolbar
-/// with refresh, interrupt, and close. An empty pool renders the empty state
-/// with a session opener; host failures surface inline.
+/// with refresh, interrupt, and close. An empty pool auto-opens one session;
+/// host failures surface inline.
 class TerminalScreen extends ConsumerStatefulWidget {
   /// Creates the terminal screen.
   const TerminalScreen({super.key, this.sessionId});
 
-  /// Chat session scoping for the route; the console pool is host-global,
-  /// so this only keeps the route consistent with sibling screens.
+  /// Chat session scoping for the route; also resolves the cwd new sessions
+  /// spawn in. The console pool is host-global, so this only scopes cwd.
   final String? sessionId;
 
   @override
@@ -37,53 +39,53 @@ class TerminalScreen extends ConsumerStatefulWidget {
 
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   final FocusNode _focusNode = FocusNode();
-  final TextEditingController _nameController = TextEditingController();
   bool _opening = false;
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureOpen());
+  }
+
+  @override
   void dispose() {
     _focusNode.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
+  /// Owning session's working directory, when the route carries a session id.
+  String? get _cwd => widget.sessionId == null
+      ? null
+      : ref
+            .read(sessionByIdProvider(SessionId(widget.sessionId!)))
+            ?.cwd;
+
+  /// Spawn one session at [_cwd], without an owner name.
   Future<void> _open() async {
     setState(() {
       _opening = true;
       _error = null;
     });
     try {
-      final name = _nameController.text.trim();
-      await ref
-          .read(terminalSessionsProvider.notifier)
-          .open(name: name.isEmpty ? null : name);
-      _nameController.clear();
+      await ref.read(terminalSessionsProvider.notifier).open(cwd: _cwd);
     } catch (error) {
-      setState(() => _error = '$error');
+      if (mounted) setState(() => _error = '$error');
     } finally {
       if (mounted) setState(() => _opening = false);
     }
   }
 
+  /// Auto-open the empty pool on mount so the screen lands on a live shell.
+  Future<void> _ensureOpen() async {
+    if (!mounted) return;
+    if (ref.read(terminalSessionsProvider).sessions.isNotEmpty) return;
+    await _open();
+  }
+
   Future<void> _close(ConsoleSession session, Translate t) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(t('close.confirm')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(t('close.cancel')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(t('close.confirm.action')),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    final confirmed = await confirmSessionClose(context, t);
+    if (!confirmed || !mounted) return;
     try {
       await ref.read(terminalSessionsProvider.notifier).close(session.sessionId);
     } catch (error) {
@@ -122,7 +124,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SessionTabs(
+          TerminalTabStrip(
             pool: pool,
             aliases: aliases,
             t: t,
@@ -131,21 +133,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 ref.read(terminalSessionsProvider.notifier).select(id),
           ),
           if (_error != null)
-            _ErrorBanner(
+            TerminalErrorBanner(
               message: _error!,
               aliases: aliases,
               onDismiss: () => setState(() => _error = null),
             ),
           Expanded(
             child: selected == null
-                ? _EmptyTerminal(
-                    aliases: aliases,
-                    t: t,
-                    opening: _opening,
-                    nameController: _nameController,
-                    onOpen: _open,
-                  )
-                : _SessionView(
+                ? TerminalEmptyState(aliases: aliases, t: t)
+                : TerminalSessionView(
                     session: selected,
                     aliases: aliases,
                     t: t,
@@ -153,375 +149,20 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     onClose: () => _close(selected, t),
                   ),
           ),
-          _OpenerRow(
-            aliases: aliases,
-            t: t,
-            opening: _opening,
-            nameController: _nameController,
-            onOpen: _open,
-          ),
+          _OpenerRow(aliases: aliases, t: t, opening: _opening, onOpen: _open),
         ],
       ),
     );
   }
 }
 
-/// Session tab strip with a per-tab status dot.
-class _SessionTabs extends StatelessWidget {
-  /// Creates the tab strip.
-  const _SessionTabs({
-    required this.pool,
-    required this.aliases,
-    required this.t,
-    required this.focusNode,
-    required this.onSelect,
-  });
-
-  /// The console pool.
-  final TerminalPoolState pool;
-
-  /// Theme aliases.
-  final DswAliases aliases;
-
-  /// Terminal translations.
-  final Translate t;
-
-  /// Focus node handed to the emulator view on selection.
-  final FocusNode focusNode;
-
-  /// Selection callback.
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    if (pool.sessions.isEmpty) return const SizedBox.shrink();
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceSm),
-        itemCount: pool.sessions.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (context, index) {
-          final session = pool.sessions[index];
-          final selected = session.sessionId == pool.selected?.sessionId;
-          return ChoiceChip(
-            label: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                StateDot(
-                  state: session.exited
-                      ? StateDotState.done
-                      : StateDotState.ongoing,
-                ),
-                const SizedBox(width: 6),
-                Text(session.label(t('tab.untitled'))),
-              ],
-            ),
-            selected: selected,
-            onSelected: (_) {
-              onSelect(session.sessionId);
-              focusNode.requestFocus();
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Inline host-failure banner with dismiss.
-class _ErrorBanner extends StatelessWidget {
-  /// Creates the banner.
-  const _ErrorBanner({
-    required this.message,
-    required this.aliases,
-    required this.onDismiss,
-  });
-
-  /// The failure text.
-  final String message;
-
-  /// Theme aliases.
-  final DswAliases aliases;
-
-  /// Dismiss callback.
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(DswTokens.spaceSm),
-      padding: const EdgeInsets.symmetric(
-        horizontal: DswTokens.spaceSm,
-        vertical: 8,
-      ),
-      decoration: BoxDecoration(
-        color: aliases.stateErrorPrimary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-        border: Border.all(color: aliases.stateErrorPrimary),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXs13,
-                color: aliases.stateErrorPrimary,
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 16),
-            onPressed: onDismiss,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Empty pool state with an inline session opener.
-class _EmptyTerminal extends StatelessWidget {
-  /// Creates the empty state.
-  const _EmptyTerminal({
-    required this.aliases,
-    required this.t,
-    required this.opening,
-    required this.nameController,
-    required this.onOpen,
-  });
-
-  /// Theme aliases.
-  final DswAliases aliases;
-
-  /// Terminal translations.
-  final Translate t;
-
-  /// True while an open is in flight.
-  final bool opening;
-
-  /// Optional session name input.
-  final TextEditingController nameController;
-
-  /// Open callback.
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(DswTokens.spaceXl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.terminal_rounded,
-              size: 40,
-              color: aliases.labelTertiary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              t('empty.title'),
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeBase16,
-                fontWeight: FontWeight.w600,
-                color: aliases.labelPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              t('empty.hint'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXs13,
-                color: aliases.labelSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// One live session: emulator view plus the session toolbar.
-class _SessionView extends ConsumerWidget {
-  /// Creates the session view.
-  const _SessionView({
-    required this.session,
-    required this.aliases,
-    required this.t,
-    required this.focusNode,
-    required this.onClose,
-  });
-
-  /// The live session.
-  final ConsoleSession session;
-
-  /// Theme aliases.
-  final DswAliases aliases;
-
-  /// Terminal translations.
-  final Translate t;
-
-  /// Focus node for the emulator view.
-  final FocusNode focusNode;
-
-  /// Close callback.
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(terminalSessionsProvider.notifier);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SessionToolbar(
-          session: session,
-          aliases: aliases,
-          t: t,
-          onRefresh: () => notifier.readTail(session),
-          onInterrupt: () =>
-              notifier.handleOutput(session, String.fromCharCode(0x03)),
-          onClose: onClose,
-        ),
-        if (session.error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DswTokens.spaceSm,
-            ),
-            child: Text(
-              session.error!,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXs13,
-                color: aliases.stateErrorPrimary,
-              ),
-            ),
-          ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.all(DswTokens.spaceSm),
-            decoration: BoxDecoration(
-              color: aliases.markdownCodeBlock,
-              borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-              border: Border.all(color: aliases.borderL2),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: TerminalView(
-              session.terminal,
-              controller: session.viewController,
-              focusNode: focusNode,
-              autofocus: true,
-              theme: terminalThemeFor(aliases),
-              textStyle: const TerminalStyle(
-                fontFamily: 'SF Mono',
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        if (session.exited)
-          Padding(
-            padding: const EdgeInsets.only(bottom: DswTokens.spaceSm),
-            child: Text(
-              t('closed.note'),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXs13,
-                color: aliases.labelTertiary,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Session toolbar: refresh, interrupt, close.
-class _SessionToolbar extends StatelessWidget {
-  /// Creates the toolbar.
-  const _SessionToolbar({
-    required this.session,
-    required this.aliases,
-    required this.t,
-    required this.onRefresh,
-    required this.onInterrupt,
-    required this.onClose,
-  });
-
-  /// The live session.
-  final ConsoleSession session;
-
-  /// Theme aliases.
-  final DswAliases aliases;
-
-  /// Terminal translations.
-  final Translate t;
-
-  /// Refresh callback.
-  final VoidCallback onRefresh;
-
-  /// Interrupt callback.
-  final VoidCallback onInterrupt;
-
-  /// Close callback.
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool live = !session.exited;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceSm),
-      child: Row(
-        children: [
-          StateDot(
-            state: session.exited
-                ? StateDotState.done
-                : StateDotState.ongoing,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              session.exited
-                  ? t('status.exited')
-                  : t('status.running'),
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXs13,
-                color: aliases.labelSecondary,
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: t('toolbar.refresh'),
-            icon: const Icon(Icons.refresh, size: 18),
-            onPressed: live ? onRefresh : null,
-          ),
-          IconButton(
-            tooltip: t('toolbar.interrupt.tooltip'),
-            icon: const Icon(Icons.keyboard_double_arrow_down, size: 18),
-            onPressed: live && !session.busy ? onInterrupt : null,
-          ),
-          IconButton(
-            tooltip: t('toolbar.close'),
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: onClose,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Bottom opener row: optional name plus a new-session button.
+/// Bottom opener row: spawns one more unnamed session at the route's cwd.
 class _OpenerRow extends StatelessWidget {
   /// Creates the opener row.
   const _OpenerRow({
     required this.aliases,
     required this.t,
     required this.opening,
-    required this.nameController,
     required this.onOpen,
   });
 
@@ -533,9 +174,6 @@ class _OpenerRow extends StatelessWidget {
 
   /// True while an open is in flight.
   final bool opening;
-
-  /// Optional session name input.
-  final TextEditingController nameController;
 
   /// Open callback.
   final VoidCallback onOpen;
@@ -549,21 +187,7 @@ class _OpenerRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: TextField(
-              controller: nameController,
-              enabled: !opening,
-              decoration: InputDecoration(
-                hintText: t('new.name.hint'),
-                isDense: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-                ),
-              ),
-              onSubmitted: (_) => onOpen(),
-            ),
-          ),
-          const SizedBox(width: 8),
+          const Spacer(),
           FilledButton.icon(
             onPressed: opening ? null : onOpen,
             icon: opening

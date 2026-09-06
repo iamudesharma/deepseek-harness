@@ -4,7 +4,8 @@
 ///
 /// The action is always visible: unlike jobs, the console pool is
 /// host-global rather than session-scoped, so there is no per-session
-/// signal to gate on. It navigates to the terminal screen.
+/// signal to gate on. On the desktop shell it toggles the docked terminal
+/// panel; mobile shells keep the full-screen route.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,8 +16,10 @@ import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
 import '../../../core/session/session_models.dart';
 import '../../../core/session/session_provider.dart';
+import '../../../platform/layout.dart' show isMobileShell;
 import '../../../theme/app_theme.dart';
 import '../locales.dart';
+import '../terminal_models.dart';
 
 /// Session-header entry point for the console terminal panel.
 class TerminalAction extends ConsumerWidget {
@@ -33,14 +36,23 @@ class TerminalAction extends ConsumerWidget {
             : DswTokens.lightAliases);
     final Translate t = ref.bindLocale(kTerminalNamespace);
     final SessionId? sessionId = ref.watch(currentSessionIdProvider);
+    final bool panelVisible = ref.watch(terminalPanelVisibleProvider);
+    final Color accent = panelVisible
+        ? aliases.labelPrimary
+        : aliases.labelTertiary;
 
     return Tooltip(
-      message: t('action.tooltip'),
+      message: panelVisible ? t('dock.hide') : t('action.tooltip'),
       child: InkWell(
         onTap: () {
           final SessionId? sid = sessionId;
           if (sid == null) return;
-          context.go('/sessions/${sid.value}/terminal');
+          if (isMobileShell(context)) {
+            context.go('/sessions/${sid.value}/terminal');
+            return;
+          }
+          ref.read(terminalPanelVisibleProvider.notifier).state =
+              !panelVisible;
         },
         borderRadius: BorderRadius.circular(DswTokens.radiusSm),
         child: Padding(
@@ -51,18 +63,11 @@ class TerminalAction extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.terminal_rounded,
-                size: 14,
-                color: aliases.labelTertiary,
-              ),
+              Icon(Icons.terminal_rounded, size: 14, color: accent),
               const SizedBox(width: 4),
               Text(
                 t('action.label'),
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeXs13,
-                  color: aliases.labelTertiary,
-                ),
+                style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: accent),
               ),
             ],
           ),

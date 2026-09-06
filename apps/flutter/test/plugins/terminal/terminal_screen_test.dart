@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
 
-/// Answering fake: opens one canned session, records opens.
+/// Answering fake: opens canned sessions, records the cwd each open sent.
 ///
 /// The `terminal/*` wire shape is pinned separately against a scripted host
 /// in `connection_client_rpc_test.dart`; this fake keeps the widget test in
@@ -18,6 +18,9 @@ class _AnsweringClient extends ConnectionClient {
   /// Open calls observed, in order.
   int opens = 0;
 
+  /// The `cwd` argument of each open call.
+  final List<String?> cwds = [];
+
   @override
   Future<Map<String, dynamic>> terminalOpen({
     String? name,
@@ -25,9 +28,10 @@ class _AnsweringClient extends ConnectionClient {
     String? type,
   }) async {
     opens++;
+    cwds.add(cwd);
     return {
-      'sessionId': 'pty-1',
-      'name': 'panel',
+      'sessionId': 'pty-$opens',
+      'name': 'panel-$opens',
       'type': 'shell',
       'status': {'kind': 'running'},
       'motd': 'ready',
@@ -36,7 +40,7 @@ class _AnsweringClient extends ConnectionClient {
 }
 
 void main() {
-  testWidgets('empty pool renders the opener; opening selects a tab', (
+  testWidgets('empty pool auto-opens an unnamed session without a name prompt', (
     tester,
   ) async {
     final client = _AnsweringClient();
@@ -55,16 +59,43 @@ void main() {
       ),
     );
     await tester.pump();
-
-    // Empty state with the localized title and hint.
-    expect(find.text('暂无终端会话'), findsOneWidget);
-
-    // Opening through the bottom row creates the tab and the emulator view.
-    await tester.tap(find.text('新建会话'));
     await tester.pump();
 
+    // The empty pool auto-opened one session; no name field was shown.
     expect(client.opens, 1);
-    expect(find.text('panel'), findsOneWidget);
+    expect(client.cwds, [null]);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('panel-1'), findsOneWidget);
     expect(find.byType(TerminalView), findsOneWidget);
+  });
+
+  testWidgets('the opener row spawns one more session and keeps no owner name', (
+    tester,
+  ) async {
+    final client = _AnsweringClient();
+    final container = ProviderContainer(
+      overrides: [connectionClientProvider.overrideWithValue(client)],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(localeServiceProvider)
+        .register(kTerminalNamespace, {'zh': kTerminalZh, 'en': kTerminalEn});
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('新建会话'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(client.opens, 2);
+    expect(find.text('panel-1'), findsOneWidget);
+    expect(find.text('panel-2'), findsOneWidget);
   });
 }

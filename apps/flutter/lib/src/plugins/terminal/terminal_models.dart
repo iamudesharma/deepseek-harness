@@ -207,6 +207,14 @@ class TerminalSessionsNotifier extends StateNotifier<TerminalPoolState> {
     );
   }
 
+  /// Auto-open the first console session for an in-session surface: no owner
+  /// name, spawned at the owning chat session's [cwd] when known. No-op on a
+  /// non-empty pool so re-revealing the dock never multiplies sessions.
+  Future<void> ensureOpen({String? cwd}) async {
+    if (state.sessions.isNotEmpty) return;
+    await open(cwd: cwd);
+  }
+
   /// Open one console session and select it.
   Future<void> open({String? name, String? cwd}) async {
     final client = ref.read(connectionClientProvider);
@@ -256,12 +264,22 @@ class TerminalSessionsNotifier extends StateNotifier<TerminalPoolState> {
   /// sequences (arrows, function keys) are swallowed because the host has
   /// no cursor-addressing verb to carry them.
   void handleOutput(ConsoleSession session, String data) {
-    if (session.exited || session.busy) return;
+    if (session.exited) return;
     for (var i = 0; i < data.length; i++) {
       final code = data.codeUnitAt(i);
+      // Ctrl+C always signals, even while a foreground send is in flight —
+      // otherwise a long-running command leaves the user with no way out
+      // (the busy guard below would swallow the interrupt).
       if (code == 0x03) {
         _interrupt(session);
         return;
+      }
+      if (session.busy) return;
+      if (code == 0x0c) {
+        // Ctrl+L clears the visible display like `clear(1)`; the pending
+        // input line survives, matching shell behavior.
+        session.terminal.eraseDisplay();
+        continue;
       }
       if (code == 0x0d || code == 0x0a) {
         _submit(session);
@@ -298,20 +316,22 @@ class TerminalSessionsNotifier extends StateNotifier<TerminalPoolState> {
     }
   }
 
-  /// Deliver SIGINT to the session's foreground process group.
+  /// Deliver SIGINT to the session's foreground process group. Runs even
+  /// while a foreground send is in flight — that is exactly when the user
+  /// reaches for it. Keeps the busy flag untouched so the in-flight submit
+  /// still settles the viewport when the host answers.
   Future<void> _interrupt(ConsoleSession session) async {
-    if (session.exited || session.busy) return;
+    if (session.exited) return;
     session.pending.clear();
     session.terminal.write('^C\r\n');
-    _replace(session.copyWith(busy: true, clearError: true));
     try {
       final client = ref.read(connectionClientProvider);
       await client.terminalSignal(sessionId: session.sessionId, signal: 'SIGINT');
     } catch (error) {
-      _replace(session.copyWith(busy: false, error: '$error'));
+      _replace(session.copyWith(error: '$error'));
       return;
     }
-    _replace(session.copyWith(busy: false, clearError: true));
+    _replace(session.copyWith(clearError: true));
   }
 
   /// Submit the pending line as one foreground send and paint the viewport.
@@ -389,3 +409,8 @@ final terminalSessionsProvider =
     StateNotifierProvider<TerminalSessionsNotifier, TerminalPoolState>(
       (ref) => TerminalSessionsNotifier(ref),
     );
+
+/// Whether the in-session terminal dock is mounted above the composer.
+/// Desktop seating only — the session-header action toggles it; the mobile
+/// shell keeps the full-screen route.
+final terminalPanelVisibleProvider = StateProvider<bool>((ref) => false);

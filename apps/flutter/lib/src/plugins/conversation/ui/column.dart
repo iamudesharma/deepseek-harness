@@ -21,6 +21,7 @@ import '../../../core/session/session_provider.dart';
 import '../../../core/slots/slot_registry.dart' show SlotRegistry;
 import '../../../theme/app_theme.dart';
 import '../../../widgets/primitives/fish_logo.dart';
+import '../../terminal/ui/terminal_dock.dart';
 import '../hub.dart'
     show activatedHub, hubControllerProvider, composerSubmitHookProvider;
 import 'slots/hole_outlet.dart';
@@ -107,6 +108,10 @@ class _ActiveBody extends StatelessWidget {
     return Column(
       children: [
         Expanded(child: ChatView(sessionId: sessionId)),
+        // In-session console dock — VS Code panel posture. Hidden until the
+        // header action toggles it; renders itself with the owning session's
+        // cwd and the shared console-pool state.
+        TerminalDock(sessionId: sessionId),
         // Pending-interaction takeover (approval/question) — elected from the
         // conversation.composer chain, rendered above the composer exactly
         // like React's ApprovalPanel seat.
