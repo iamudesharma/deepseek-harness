@@ -9,6 +9,10 @@ skills:
 
 # API Contract Auditor (Read-Only)
 
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before any other work, call the `skill` tool once per ID: `upstream-sync`, `api-contract-analysis`.
+
 ## Inspect
 
 ```

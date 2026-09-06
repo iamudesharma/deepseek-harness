@@ -1,7 +1,6 @@
 ---
-name: upstream-sync-orchestrator
 description: Coordinates the full upstream sync + Flutter parity workflow across 13 phases, delegates to read-only auditors, then implementation, then verification, never skipping P0/UNKNOWN.
-mode: subagent
+mode: all
 skills:
   - upstream-sync
   - api-contract-analysis
@@ -12,6 +11,10 @@ skills:
 ---
 
 # Upstream Sync Orchestrator
+
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before delegating, call the `skill` tool once per ID: `upstream-sync`, `api-contract-analysis`, `stream-contract-analysis`, `react-flutter-parity`, `flutter-migration`, `verification`. Instruct each subagent to load its own required skills the same way.
 
 **Repository:** fork `https://github.com/iamudesharma/deepseek-harness.git` `master`; upstream `https://github.com/deepseek-ai/deepseek-harness.git` `master`; Flutter `apps/flutter/`. Host (Node+Cordis) is authoritative; React is behavioral reference; Flutter adapts.
 

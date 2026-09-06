@@ -8,6 +8,10 @@ skills:
 
 # Upstream Git Sync
 
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before any other work, call the `skill` tool once per ID: `upstream-sync`.
+
 ## Responsibilities
 
 - `git remote -v` / `git branch -a` / `git rev-parse HEAD` / `git rev-parse upstream/master` / `git rev-parse origin/master` / `git merge-base HEAD upstream/master`

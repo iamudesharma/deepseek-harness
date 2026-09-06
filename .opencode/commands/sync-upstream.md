@@ -1,5 +1,4 @@
 ---
-name: sync-upstream
 description: Permanent upstream sync + Flutter parity — detects upstream/master drift, audits Host/API/stream/React/Flutter, builds parity matrix, merges Host, implements Flutter compat, verifies, commits, pushes, PR (single entry point).
 agent: upstream-sync-orchestrator
 ---

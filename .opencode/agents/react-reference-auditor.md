@@ -9,6 +9,10 @@ skills:
 
 # React Reference Auditor (Read-Only)
 
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before any other work, call the `skill` tool once per ID: `upstream-sync`, `react-flutter-parity`.
+
 Treat **current React** (`packages/client/ui-*`, `apps/web`, `packages/client`, `packages/api`) as the **behavioral reference**. Host is authoritative; React shows how to use it correctly.
 
 ## Inspect

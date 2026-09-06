@@ -9,6 +9,10 @@ skills:
 
 # Stream Contract Auditor (Read-Only)
 
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before any other work, call the `skill` tool once per ID: `upstream-sync`, `stream-contract-analysis`.
+
 ## Inspect
 
 - `remote.mux` (`REMOTE_STREAM_MUX_PATH`, `RemoteStreamMuxServer`, `packages/api/gateway/src/stream-server.ts`)

@@ -9,6 +9,10 @@ skills:
 
 # Verification Agent
 
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before any other work, call the `skill` tool once per ID: `upstream-sync`, `verification`.
+
 ## Run applicable checks
 
 **Host:**

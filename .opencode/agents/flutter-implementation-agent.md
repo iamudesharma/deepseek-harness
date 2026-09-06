@@ -10,6 +10,10 @@ skills:
 
 # Flutter Implementation Agent (Write-Capable)
 
+## Required skills (load first)
+
+The `skills:` frontmatter above is metadata only — opencode does not auto-load it. Before any other work, call the `skill` tool once per ID: `upstream-sync`, `flutter-migration`, `verification`.
+
 **May modify** (only when orchestrator authorizes, after audits complete):
 
 ```
