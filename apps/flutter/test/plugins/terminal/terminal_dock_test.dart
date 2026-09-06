@@ -5,6 +5,8 @@ import 'package:dsh_flutter/src/core/session/session_provider.dart';
 import 'package:dsh_flutter/src/plugins/terminal/locales.dart';
 import 'package:dsh_flutter/src/plugins/terminal/terminal_models.dart';
 import 'package:dsh_flutter/src/plugins/terminal/ui/terminal_dock.dart';
+import 'package:dsh_flutter/src/plugins/terminal/ui/terminal_views.dart';
+import 'package:dsh_flutter/src/theme/dsw_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -135,5 +137,51 @@ void main() {
     expect(find.byType(TerminalView), findsNothing);
     // The pool survives the collapse: re-revealing never re-opens.
     expect(client.opens, 1);
+  });
+
+  testWidgets('toolbar shows ready when idle, running only while busy', (
+    tester,
+  ) async {
+    ConsoleSession session({bool busy = false, bool exited = false}) =>
+        ConsoleSession(
+          sessionId: 'pty-1',
+          terminal: Terminal(),
+          viewController: TerminalController(),
+        ).copyWith(
+          busy: busy,
+          exited: exited,
+          exitCode: exited ? 0 : null,
+        );
+    String t(String key) => kTerminalEn[key] ?? key;
+
+    Future<void> pump(ConsoleSession s) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TerminalSessionToolbar(
+              session: s,
+              aliases: DswTokens.lightAliases,
+              t: t,
+              onRefresh: () {},
+              onInterrupt: () {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pump(session());
+    expect(find.text('ready'), findsOneWidget);
+    expect(find.text('running'), findsNothing);
+
+    await pump(session(busy: true));
+    await tester.pump();
+    expect(find.text('running'), findsOneWidget);
+    expect(find.text('ready'), findsNothing);
+
+    await pump(session(exited: true));
+    await tester.pump();
+    expect(find.text('exited (0)'), findsOneWidget);
   });
 }

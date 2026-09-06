@@ -28,10 +28,13 @@ Status: implemented
 - 会话池保持宿主全局：同一宿主上的两个聊天会话共享页签列表，停靠面板原样展示。自动打开以第一次展开面板的会话 cwd 为目标，因此 cwd 匹配按展开计，而非按页签计。在另一文件夹重新打开面板会复用同一会话池并显示之前会话的输出——点 × 关闭页签即可丢弃。
 - 若会话 cwd 在 console 沙箱根之外，宿主 spawn 失败并落入停靠面板的内联错误横幅；没有向工作区根的静默回退。
 - Ctrl+C 即使在前台发送尚未返回时也会发信号（此前 busy 守卫吞掉它且工具栏按钮被禁用，长命令无从停止）。Ctrl+L 清空可见显示并保留未提交的输入行；其余控制键仍由行模式桥接吞掉。
+- 工具栏状态按忙闲区分：仅在前台发送进行中才显示动画圆点加“运行中”；空闲 shell 显示静态圆点加“就绪”，页签圆点一致。此前所有存活会话永远追逐“运行中”，看起来像命令卡死。
+- `ls` 分栏按宿主 pty 宽度（160 列）排布，较窄的模拟器视图会换行；用 `ls -1` 每行一项。常驻前台命令（`npm run dev`）会占据行模式发送直到退出——Ctrl+C 可停；常驻服务应放后台。
 
 ## Verification
 
 - `test/plugins/terminal/terminal_dock_test.dart`（3）：隐藏时什么也不渲染、什么也不 spawn；展开时以会话 cwd 自动打开无名称会话并显示在头部；收起控件折叠面板，再次展开不会重新打开。
 - `test/plugins/terminal/terminal_screen_test.dart`（2）：空会话池自动打开（无名称、无名称输入框），opener 行再开一个无名称会话。
 - `test/plugins/terminal/terminal_bridge_test.dart`（+2）：前台发送尚未返回时 Ctrl+C 仍投递 SIGINT；Ctrl+L 本地清屏、保留未提交行、不产生宿主调用。
+- `test/plugins/terminal/terminal_dock_test.dart`（+1）：工具栏空闲读“就绪”、忙时读“运行中”、关闭读“已退出 (0)”。
 - `flutter analyze` 在变更文件上干净；终端相关套件绿色；`test/widgets/conversation_test.dart test/plugins` 与干净树一致（既有失败相同，净新增四个通过测试）。

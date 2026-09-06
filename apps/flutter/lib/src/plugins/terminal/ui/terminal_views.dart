@@ -80,7 +80,9 @@ class TerminalTabStrip extends StatelessWidget {
                 StateDot(
                   state: session.exited
                       ? StateDotState.done
-                      : StateDotState.ongoing,
+                      : session.busy
+                          ? StateDotState.ongoing
+                          : StateDotState.done,
                 ),
                 const SizedBox(width: 6),
                 Text(session.label(t('tab.untitled'))),
@@ -354,21 +356,31 @@ class TerminalSessionToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool live = !session.exited;
+    // The dot animates only while a foreground send is actually in flight.
+    // A live-but-idle shell shows a static dot with "ready" instead of the
+    // previous always-on "running" chase, which read as a stuck command.
+    final StateDotState dot = session.exited
+        ? StateDotState.done
+        : session.busy
+            ? StateDotState.ongoing
+            : StateDotState.done;
+    final String status = session.exited
+        ? (session.exitCode == null
+            ? t('status.exited')
+            : t('status.exited.code')
+                .replaceAll('{code}', '${session.exitCode}'))
+        : session.busy
+            ? t('status.running')
+            : t('status.ready');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceSm),
       child: Row(
         children: [
-          StateDot(
-            state: session.exited
-                ? StateDotState.done
-                : StateDotState.ongoing,
-          ),
+          StateDot(state: dot),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              session.exited
-                  ? t('status.exited')
-                  : t('status.running'),
+              status,
               style: TextStyle(
                 fontSize: DswTokens.fontSizeXs13,
                 color: aliases.labelSecondary,
