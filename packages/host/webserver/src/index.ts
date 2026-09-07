@@ -234,7 +234,10 @@ export class WebServer extends Service {
       if (origin !== undefined) {
         res.setHeader('Access-Control-Allow-Origin', origin)
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Rpc-Id, X-Requested-With, Accept, Origin, Cookie')
+        res.setHeader(
+          'Access-Control-Allow-Headers',
+          'Content-Type, Authorization, X-Rpc-Id, X-Requested-With, Accept, Origin, Cookie',
+        )
         res.setHeader('Access-Control-Allow-Credentials', 'true')
         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie')
         res.setHeader('Access-Control-Max-Age', '86400')

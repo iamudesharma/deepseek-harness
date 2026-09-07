@@ -1349,6 +1349,7 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                     style: TextStyle(
                       fontSize: DswTokens.fontSizeXxs12,
                       color: aliases.labelCaption,
