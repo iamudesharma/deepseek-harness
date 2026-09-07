@@ -1,0 +1,56 @@
+name: dsh_flutter
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.2+2
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+  collection: ^1.19.0
+  meta: ^1.16.0
+  go_router: ^14.8.0
+  http: ^1.3.0
+  web_socket_channel: ^3.0.1
+  file_picker: ^10.1.9
+  # Mobile attachment sources (camera / photo library) — official plugin;
+  # desktop/Web keep the file_picker path (isMobileLayout gate in composer).
+  image_picker: ^1.1.2
+  # window_manager is desktop-only; consume via conditional import
+  # (e.g. import 'stub.dart' if (dart.library.io) 'package:window_manager/window_manager.dart')
+  # to keep Flutter Web builds clean
+  # 0.5.x migrates macOS to Swift Package Manager (fixes Flutter 3.35+ warning:
+  # "This will become an error in a future version of Flutter. Please contact
+  # the plugin maintainers to request Swift Package Manager adoption.")
+  window_manager: ^0.5.0
+  shared_preferences: ^2.3.2
+  markdown: ^7.3.0
+  flutter_markdown_plus: ^1.0.12
+  syntax_highlight: ^0.5.0
+  url_launcher: ^6.3.1
+  desktop_drop: ^0.7.0
+  json_annotation: ^4.9.0
+  marionette_flutter: ^0.6.0
+  flutter_secure_storage: ^10.3.1
+  mobile_scanner: ^7.4.0
+  connectivity_plus: ^6.0.4
+  xterm: ^4.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.15
+  json_serializable: ^6.8.0
+  riverpod_lint: ^2.6.5
+  custom_lint: ^0.7.0
+
+flutter:
+  uses-material-design: true

@@ -1,6 +1,6 @@
 {
-  "rev": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-  "generatedAt": "2026-09-05T08:26:07.383Z",
+  "rev": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
+  "generatedAt": "2026-09-07T14:42:17.069Z",
   "operations": [
     {
       "namespace": "agentPresets",
@@ -1025,7 +1025,7 @@
       "mode": "unary",
       "serviceKey": "messageFeedback",
       "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-      "line": 279,
+      "line": 203,
       "requestShape": "MessageFeedbackDeleteRequest",
       "responseShape": null,
       "args": [
@@ -1044,7 +1044,7 @@
       "mode": "unary",
       "serviceKey": "messageFeedback",
       "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-      "line": 197,
+      "line": 153,
       "requestShape": "MessageFeedbackListRequest",
       "responseShape": null,
       "args": [
@@ -1063,7 +1063,7 @@
       "mode": "unary",
       "serviceKey": "messageFeedback",
       "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-      "line": 213,
+      "line": 165,
       "requestShape": "MessageFeedbackPutRequest",
       "responseShape": null,
       "args": [
@@ -1405,7 +1405,7 @@
       "mode": "unary",
       "serviceKey": "sessionReferenceResolver",
       "sourceFile": "packages/context/session-reference/src/index.ts",
-      "line": 252,
+      "line": 274,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -1584,7 +1584,7 @@
       "mode": "unary",
       "serviceKey": "subagents",
       "sourceFile": "packages/subagent/subagent/src/index.ts",
-      "line": 480,
+      "line": 477,
       "requestShape": "SessionId",
       "responseShape": null,
       "args": [
@@ -1605,7 +1605,7 @@
       "mode": "unary",
       "serviceKey": "subagents",
       "sourceFile": "packages/subagent/subagent/src/index.ts",
-      "line": 387,
+      "line": 383,
       "requestShape": "SessionId",
       "responseShape": null,
       "args": [
@@ -1625,7 +1625,7 @@
       "mode": "unary",
       "serviceKey": "subagents",
       "sourceFile": "packages/subagent/subagent/src/index.ts",
-      "line": 413,
+      "line": 410,
       "requestShape": "SubagentPromptRequest",
       "responseShape": null,
       "args": [
@@ -2931,7 +2931,7 @@
         "mode": "unary",
         "serviceKey": "messageFeedback",
         "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-        "line": 279,
+        "line": 203,
         "requestShape": "MessageFeedbackDeleteRequest",
         "responseShape": null,
         "args": [
@@ -2950,7 +2950,7 @@
         "mode": "unary",
         "serviceKey": "messageFeedback",
         "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-        "line": 197,
+        "line": 153,
         "requestShape": "MessageFeedbackListRequest",
         "responseShape": null,
         "args": [
@@ -2969,7 +2969,7 @@
         "mode": "unary",
         "serviceKey": "messageFeedback",
         "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-        "line": 213,
+        "line": 165,
         "requestShape": "MessageFeedbackPutRequest",
         "responseShape": null,
         "args": [
@@ -3317,7 +3317,7 @@
         "mode": "unary",
         "serviceKey": "sessionReferenceResolver",
         "sourceFile": "packages/context/session-reference/src/index.ts",
-        "line": 252,
+        "line": 274,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -3502,7 +3502,7 @@
         "mode": "unary",
         "serviceKey": "subagents",
         "sourceFile": "packages/subagent/subagent/src/index.ts",
-        "line": 480,
+        "line": 477,
         "requestShape": "SessionId",
         "responseShape": null,
         "args": [
@@ -3523,7 +3523,7 @@
         "mode": "unary",
         "serviceKey": "subagents",
         "sourceFile": "packages/subagent/subagent/src/index.ts",
-        "line": 387,
+        "line": 383,
         "requestShape": "SessionId",
         "responseShape": null,
         "args": [
@@ -3543,7 +3543,7 @@
         "mode": "unary",
         "serviceKey": "subagents",
         "sourceFile": "packages/subagent/subagent/src/index.ts",
-        "line": 413,
+        "line": 410,
         "requestShape": "SubagentPromptRequest",
         "responseShape": null,
         "args": [

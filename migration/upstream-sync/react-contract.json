@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-05T08:03:00.726Z",
-  "rev": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+  "generatedAt": "2026-09-07T14:42:20.359Z",
+  "rev": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
   "surfaces": [
     {
       "id": "apps.web.stress-tests.reasoning-chunks.stress",
@@ -389,18 +389,38 @@
       "lifecycle": null
     },
     {
-      "id": "apps.web.tests.feedback-release.e2e",
-      "sourceFile": "apps/web/tests/feedback-release.e2e.ts",
+      "id": "apps.web.tests.feedback-command.e2e",
+      "sourceFile": "apps/web/tests/feedback-command.e2e.ts",
       "apiUsed": [],
       "requestShape": null,
-      "responseShape": "response.writeHead(200, { 'content-type': 'application/json' }",
-      "modelUsed": [],
+      "responseShape": null,
+      "modelUsed": [
+        "model"
+      ],
       "eventUsed": [],
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
       "fallbackBehavior": null,
       "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "apps.web.tests.feedback-release.e2e",
+      "sourceFile": "apps/web/tests/feedback-release.e2e.ts",
+      "apiUsed": [],
+      "requestShape": "request header.\n    if (MODE !== 'record') {\n      await selectModel('Feedback mock')\n      await selectModel('DeepSeek-V4-Flash')\n    }",
+      "responseShape": "response.writeHead(200, { 'content-type': 'application/json' }",
+      "modelUsed": [
+        "model",
+        "provider"
+      ],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": "error handled",
       "lifecycle": null
     },
     {
@@ -684,7 +704,7 @@
       "id": "apps.web.tests.message-actions.e2e",
       "sourceFile": "apps/web/tests/message-actions.e2e.ts",
       "apiUsed": [],
-      "requestShape": null,
+      "requestShape": "request/header') {\n    throw new Error('borrowed recording has no request header')\n  }",
       "responseShape": null,
       "modelUsed": [
         "model",
@@ -1012,9 +1032,10 @@
       "id": "apps.web.tests.queue-actions.e2e",
       "sourceFile": "apps/web/tests/queue-actions.e2e.ts",
       "apiUsed": [
-        "session/event"
+        "session/event",
+        "session/agent-busy"
       ],
-      "requestShape": null,
+      "requestShape": "request().postDataJSON() as { rpcId: string }",
       "responseShape": null,
       "modelUsed": [],
       "eventUsed": [
@@ -1851,6 +1872,21 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.connection.src.recovery-config",
+      "sourceFile": "packages/client/connection/src/recovery-config.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": null,
+      "lifecycle": "hooks lifecycle"
+    },
+    {
       "id": "packages.client.connection.src.rpc",
       "sourceFile": "packages/client/connection/src/rpc.ts",
       "apiUsed": [],
@@ -1994,7 +2030,7 @@
       "currentValueSource": null,
       "fallbackBehavior": "fallback present",
       "errorBehavior": "error handled",
-      "lifecycle": null
+      "lifecycle": "hooks lifecycle"
     },
     {
       "id": "packages.client.connection.tests.fake-generation.client",
@@ -2147,6 +2183,21 @@
       "fallbackBehavior": null,
       "errorBehavior": "error handled",
       "lifecycle": null
+    },
+    {
+      "id": "packages.client.connection.tests.recovery-config.client.spec",
+      "sourceFile": "packages/client/connection/tests/recovery-config.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": "hooks lifecycle"
     },
     {
       "id": "packages.client.connection.tests.rpc-schema.host.spec",
@@ -2814,7 +2865,7 @@
       "id": "packages.client.modules.tests.node-half.client.spec",
       "sourceFile": "packages/client/modules/tests/node-half.client.spec.ts",
       "apiUsed": [],
-      "requestShape": "Request(route, `${row.url}",
+      "requestShape": "Request(`dsh-app://app${batch.url}",
       "responseShape": "Response } from 'node:http'\nimport { SourceMap }",
       "modelUsed": [],
       "eventUsed": [],
@@ -6098,7 +6149,7 @@
       "id": "packages.client.ui-conversation.src.client.queue.QueueDock",
       "sourceFile": "packages/client/ui-conversation/src/client/queue/QueueDock.tsx",
       "apiUsed": [],
-      "requestShape": "requestId} className={css.row}",
+      "requestShape": "requestId} className={`${css.row}",
       "responseShape": null,
       "modelUsed": [],
       "eventUsed": [],
@@ -8516,6 +8567,156 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-open-in-app.src.client.controller",
+      "sourceFile": "packages/client/ui-open-in-app/src/client/controller.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.src.client.index",
+      "sourceFile": "packages/client/ui-open-in-app/src/client/index.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.src.client.locales",
+      "sourceFile": "packages/client/ui-open-in-app/src/client/locales.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.src.client.OpenInAppAction",
+      "sourceFile": "packages/client/ui-open-in-app/src/client/OpenInAppAction.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": "hooks lifecycle"
+    },
+    {
+      "id": "packages.client.ui-open-in-app.src.css-modules.d",
+      "sourceFile": "packages/client/ui-open-in-app/src/css-modules.d.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.src.index",
+      "sourceFile": "packages/client/ui-open-in-app/src/index.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.tests.browser-plugin.client.spec",
+      "sourceFile": "packages/client/ui-open-in-app/tests/browser-plugin.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": "Response(JSON.stringify({ apps: [] }",
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.tests.controller.client.spec",
+      "sourceFile": "packages/client/ui-open-in-app/tests/controller.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": "RequestInit) => { void input; void init; return jsonResponse({ ok: true }",
+      "responseShape": "Response {\n  return new Response(JSON.stringify(payload), { status }",
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.tests.open-in-app-action.client.spec",
+      "sourceFile": "packages/client/ui-open-in-app/tests/open-in-app-action.client.spec.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-open-in-app.tsdown.config",
+      "sourceFile": "packages/client/ui-open-in-app/tsdown.config.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-permission-presets.src.client.index",
       "sourceFile": "packages/client/ui-permission-presets/src/client/index.ts",
       "apiUsed": [],
@@ -9473,6 +9674,36 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-primitives.src.Switch",
+      "sourceFile": "packages/client/ui-primitives/src/Switch.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.src.Tag",
+      "sourceFile": "packages/client/ui-primitives/src/Tag.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": "snapshot cursor",
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-primitives.src.TerminalBlock",
       "sourceFile": "packages/client/ui-primitives/src/TerminalBlock.tsx",
       "apiUsed": [],
@@ -9654,7 +9885,7 @@
       "streamUsed": [],
       "stateSource": null,
       "currentValueSource": null,
-      "fallbackBehavior": "fallback present",
+      "fallbackBehavior": null,
       "errorBehavior": null,
       "lifecycle": null
     },
@@ -9959,6 +10190,21 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-primitives.tests.state-dot-styles.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/state-dot-styles.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": "error handled",
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-primitives.tests.state-dot.client.spec",
       "sourceFile": "packages/client/ui-primitives/tests/state-dot.client.spec.tsx",
       "apiUsed": [],
@@ -9986,6 +10232,53 @@
       "currentValueSource": null,
       "fallbackBehavior": null,
       "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.tests.switch.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/switch.client.spec.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [
+        "model"
+      ],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.tests.tag-styles.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/tag-styles.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
+      "id": "packages.client.ui-primitives.tests.tag.client.spec",
+      "sourceFile": "packages/client/ui-primitives/tests/tag.client.spec.tsx",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": null,
+      "errorBehavior": "error handled",
       "lifecycle": null
     },
     {
@@ -13924,6 +14217,25 @@
       "lifecycle": null
     },
     {
+      "id": "packages.client.ui-tool.tests.spill-policy-terminal.client.spec",
+      "sourceFile": "packages/client/ui-tool/tests/spill-policy-terminal.client.spec.ts",
+      "apiUsed": [],
+      "requestShape": null,
+      "responseShape": null,
+      "modelUsed": [
+        "Model",
+        "models",
+        "model"
+      ],
+      "eventUsed": [],
+      "streamUsed": [],
+      "stateSource": null,
+      "currentValueSource": null,
+      "fallbackBehavior": "fallback present",
+      "errorBehavior": null,
+      "lifecycle": null
+    },
+    {
       "id": "packages.client.ui-tool.tests.terminal-card.client.spec",
       "sourceFile": "packages/client/ui-tool/tests/terminal-card.client.spec.tsx",
       "apiUsed": [],
@@ -15665,5 +15977,5 @@
       "lifecycle": "describe then mutate"
     }
   ],
-  "totalSurfaces": 967
+  "totalSurfaces": 987
 }

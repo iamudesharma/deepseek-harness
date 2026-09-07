@@ -1,0 +1,4254 @@
+import 'dart:convert';
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/session/session_provider.dart';
+import '../../../core/session/session_models.dart';
+import '../../../features/conversation/message_provider.dart'
+    show liveHistoryProvider, liveHasMoreProvider, liveLoadingOlderProvider;
+import '../../../theme/app_theme.dart';
+import '../../../theme/motion.dart';
+import '../../../widgets/primitives/json_tree.dart';
+import '../../../widgets/primitives/markdown.dart';
+import '../../tool/tool_models.dart';
+import '../locales.dart';
+import '../trajectory_provider.dart';
+
+// ---------------------------------------------------------------------------
+// Trajectory view — parity with React ui-trajectory
+// ---------------------------------------------------------------------------
+// Ports: TrajectoryView.tsx (toolbar + timeline + ledger split),
+// TrajectoryToolbar.tsx, TrajectoryTimeline.tsx + .module.css,
+// TrajectoryTable.tsx + .module.css (ledger), views.module.css (root/ledger).
+// Visual contract: 32px toolbar, 50px 3-lane timeline, 30px ledger rows
+// (122px Event + flex Content), kind pills (76->19 @620), turnRail 2px
+// accent, selectionRail 3px, request dots, collapsed summaries, search dim,
+// timeline<->ledger selection, viewport 180ms, hover 120ms, spinner 700ms.
+// ---------------------------------------------------------------------------
+
+/// Closed set of ledger row kinds — mirrors `TrajectoryCellKind`.
+enum TrajectoryCellKind {
+  system,
+  user,
+  context,
+  compacted,
+  message,
+  tool,
+  subtool,
+}
+
+/// One ledger row — Dart mirror of `TrajectoryCellProps` essentials.
+class LedgerRow {
+  final int index;
+  final TrajectoryCellKind kind;
+  final String text;
+  final String? previewMarkdown;
+  final String? inputDetail;
+  final String? outputDetail;
+  final String? thinkingDetail;
+  final List<ToolCall>? toolCallsInline;
+  final String? result;
+  final bool isError;
+
+  /// Short result preview for the inline `→` span (React `resultPreview`).
+  final String? resultPreview;
+
+  /// Tool error code for the inline span (React shows `error.code`).
+  final String? errorCode;
+
+  /// True while a tool call has no result yet (React `running`).
+  final bool running;
+
+  /// True for text-less assistants that only drove tool calls.
+  final bool toolCallOnly;
+
+  /// CallIds of tool calls declared by an assistant message's blocks, used
+  /// for the Summary hierarchy link (React `parentRecords`).
+  final List<String> childCallIds;
+  final double? timeSeconds;
+  final int? startedAt;
+
+  /// First streamed token time of the step (React TTFT base), when chunks
+  /// were observed before the settled message.
+  final int? firstTokenTime;
+
+  /// Step start time (React assistant-timing anchor), when observed.
+  final int? stepStartTime;
+  final String? callId;
+  final int turn;
+  final int step;
+  final String group;
+  final bool turnStart;
+  final bool turnEnd;
+  final bool groupStart;
+  final bool isCollapsedSummary;
+  final String? collapsedSummary;
+
+  /// Token usage copied from the settled assistant message.
+  final int? inputTokens;
+  final int? outputTokens;
+  final int? reasoningTokens;
+  final int? cacheReadTokens;
+
+  /// JSON-encoded `source` of a user/context message (React Source tab).
+  final String? messageSource;
+
+  /// System-prompt text captured from `request/header` (React System Prompt tab).
+  final String? promptDetail;
+
+  /// Full tool catalog JSON captured from the `request/header` that produced
+  /// a system row (React Tools tab).
+  final String? promptToolsJson;
+
+  /// Tool catalog description/parameters captured from the latest
+  /// `request/header` preceding the call (React `schemaDetail`).
+  final String? schemaDescription;
+  final String? schemaParameters;
+
+  /// True for system rows projected from `request/header` (React request
+  /// boundary + prompt change): the inspector shows request tabs.
+  final bool isRequestHeader;
+
+  /// Session-global request number (React `requestNumbers` order by start).
+  final int? requestNumber;
+
+  /// Request config provider/model (React request Summary rows).
+  final String? requestProvider;
+  final String? requestModel;
+
+  /// Request `header.config` JSON (React Options tab).
+  final String? requestOptionsJson;
+
+  /// Accumulated request stats (React Usage/Timing tabs).
+  final int requestToolCalls;
+  final int requestSubtoolCalls;
+  final int? requestInputTokens;
+  final int? requestOutputTokens;
+  final int? requestCacheReadTokens;
+  final int? requestStartedAt;
+  final int? requestCompletedAt;
+  final bool requestFailed;
+
+  const LedgerRow({
+    required this.index,
+    required this.kind,
+    required this.text,
+    this.previewMarkdown,
+    this.inputDetail,
+    this.outputDetail,
+    this.thinkingDetail,
+    this.toolCallsInline,
+    this.result,
+    this.isError = false,
+    this.resultPreview,
+    this.errorCode,
+    this.running = false,
+    this.toolCallOnly = false,
+    this.childCallIds = const [],
+    this.timeSeconds,
+    this.startedAt,
+    this.firstTokenTime,
+    this.stepStartTime,
+    this.callId,
+    required this.turn,
+    this.step = 0,
+    this.group = '',
+    this.turnStart = false,
+    this.turnEnd = false,
+    this.groupStart = false,
+    this.isCollapsedSummary = false,
+    this.collapsedSummary,
+    this.inputTokens,
+    this.outputTokens,
+    this.reasoningTokens,
+    this.cacheReadTokens,
+    this.messageSource,
+    this.promptDetail,
+    this.promptToolsJson,
+    this.schemaDescription,
+    this.schemaParameters,
+    this.isRequestHeader = false,
+    this.requestNumber,
+    this.requestProvider,
+    this.requestModel,
+    this.requestOptionsJson,
+    this.requestToolCalls = 0,
+    this.requestSubtoolCalls = 0,
+    this.requestInputTokens,
+    this.requestOutputTokens,
+    this.requestCacheReadTokens,
+    this.requestStartedAt,
+    this.requestCompletedAt,
+    this.requestFailed = false,
+  });
+}
+
+String _extractText(Map<String, dynamic> data) {
+  final dynamic content = data['content'];
+  if (content is String) return content;
+  if (content is List) {
+    final sb = StringBuffer();
+    for (final blk in content) {
+      if (blk is Map) {
+        final String? t = blk['text'] as String? ?? blk['content'] as String?;
+        if (t != null) sb.writeln(t);
+      } else if (blk is String) sb.writeln(blk);
+    }
+    final s = sb.toString().trim();
+    if (s.isNotEmpty) return s;
+  }
+  return (data['text'] as String?) ??
+      (data['message'] as String?) ??
+      (data['prompt'] as String?) ??
+      '';
+}
+
+/// Ledger preview text — mirrors React `trajectoryPreviewText`
+/// (`trajectory-preview.ts`): 2048-char source cap, markdown stripped to
+/// plain text, whitespace collapsed to one line, 512-char output cap with
+/// `…` exactly when the source or the compact was cut.
+String trajectoryPreviewText(String src) {
+  final cutSource = src.length > 2048;
+  final String capped = cutSource ? src.substring(0, 2048) : src;
+  final String plain =
+      _markdownPlainText(capped).replaceAll(RegExp(r'\s+'), ' ').trim();
+  final bool cut = cutSource || plain.length > 512;
+  final String out =
+      plain.length > 512 ? plain.substring(0, 512).trimRight() : plain;
+  return cut ? '$out…' : out;
+}
+
+/// Reduces markdown to plain words for one-line ledger previews. Keeps code
+/// and prose content, drops markers, links/URLs, images, and HTML tags.
+String _markdownPlainText(String src) {
+  var s = src;
+  // Fenced blocks keep their content, drop the fences.
+  s = s.replaceAll(RegExp(r'```[a-zA-Z0-9+-]*'), '');
+  // Images drop entirely; links keep their label.
+  s = s.replaceAllMapped(
+      RegExp(r'!\[([^\]]*)\]\([^)]+\)'), (m) => m.group(1) ?? '');
+  s = s.replaceAllMapped(
+      RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m.group(1) ?? '');
+  // Headings, quotes, list markers, table pipes, rules.
+  s = s.replaceAllMapped(
+      RegExp(r'(^|\n)\s{0,3}#{1,6}\s+'), (m) => '${m.group(1)}');
+  s = s.replaceAllMapped(
+      RegExp(r'(^|\n)\s{0,3}>\s?'), (m) => '${m.group(1)}');
+  s = s.replaceAllMapped(
+      RegExp(r'(^|\n)\s*([-*+]|\d+[.)])\s+'), (m) => '${m.group(1)}');
+  s = s.replaceAll('|', ' ');
+  s = s.replaceAll(RegExp(r'(^|\n)\s*([-_*]{3,})\s*'), ' ');
+  // Inline markers.
+  s = s.replaceAll('**', '').replaceAll('__', '');
+  s = s.replaceAll('~~', '').replaceAll('`', '');
+  s = s.replaceAll(RegExp(r'<[^>]*>'), '');
+  // Footnote references.
+  s = s.replaceAll(RegExp(r'\[\^[^\]]+\]'), '');
+  return s;
+}
+
+/// Plain text joined from `tool-result` content blocks (React `detailResult`
+/// text path). Shared by settled results and code-dispatch sub-results.
+String _toolResultBlocksText(List<dynamic> blocks) {
+  String outText = '';
+  for (final blk in blocks) {
+    if (blk is! Map) continue;
+    final String btype = (blk['type'] ?? '').toString();
+    if (btype == 'tool-result') {
+      final inner = blk['content'];
+      if (inner is List) {
+        for (final inBlk in inner) {
+          if (inBlk is Map && inBlk['type'] == 'text' && inBlk['text'] is String) {
+            final t = inBlk['text'] as String;
+            outText = outText.isEmpty ? t : '$outText\n$t';
+          }
+        }
+      } else if (inner is String && inner.isNotEmpty) {
+        outText = outText.isEmpty ? inner : '$outText\n$inner';
+      }
+    } else if (blk['type'] == 'text' && blk['text'] is String) {
+      final t = blk['text'] as String;
+      outText = outText.isEmpty ? t : '$outText\n$t';
+    }
+  }
+  return outText;
+}
+({String text, String preview, bool isError, String? errorCode})
+    _joinToolResult(SessionEvent ev) {
+  String outText = '';
+  String? code;
+  bool error = ev.data['isError'] == true || ev.data['error'] != null;
+  final dynamic message = ev.data['message'];
+  List<dynamic> blocks = const [];
+  if (message is Map) {
+    final content = message['content'];
+    if (content is List) blocks = content;
+  }
+  for (final blk in blocks) {
+    if (blk is! Map) continue;
+    final String btype = (blk['type'] ?? '').toString();
+    if (blk['isError'] == true) error = true;
+    if (btype.contains('error')) {
+      error = true;
+      code ??= (blk['code'] ?? blk['error'])?.toString();
+      final t = (blk['text'] ?? blk['message'])?.toString() ?? '';
+      if (t.isNotEmpty) outText = outText.isEmpty ? t : '$outText\n$t';
+      continue;
+    }
+  }
+  final String joined = _toolResultBlocksText(blocks);
+  if (joined.isNotEmpty) outText = outText.isEmpty ? joined : '$outText\n$joined';
+  if (outText.isEmpty) {
+    final dynamic out = ev.data['output'] ?? ev.data['result'] ?? ev.data['content'];
+    if (out is String) {
+      outText = out;
+    } else if (out != null) {
+      try {
+        outText = jsonEncode(out);
+      } catch (_) {
+        outText = '$out';
+      }
+    }
+  }
+  if (error) return (text: outText, preview: code ?? 'error', isError: true, errorCode: code);
+  return (
+    text: outText,
+    preview: outText.isEmpty ? '' : trajectoryPreviewText(outText),
+    isError: false,
+    errorCode: null
+  );
+}
+/// Flattens a compaction `summary` payload to display text. The host logs
+/// the summary as a plain string for manual compactions but as content
+/// blocks (`[{type: 'text', text: ...}]`) for automatic checkpoints, so a
+/// direct `as String?` cast red-screens on compacted sessions. Mirrors the
+/// block join in the conversation node assembly's `_contentBlocksText`.
+String _summaryBlocksText(Object? summary) {
+  if (summary is String) return summary.trim();
+  if (summary is List) {
+    final buf = StringBuffer();
+    for (final blk in summary) {
+      if (blk is Map) {
+        if (blk['type'] == 'text' && blk['text'] is String) {
+          buf.write(blk['text']);
+        }
+      } else if (blk is String) {
+        buf.write(blk);
+      }
+    }
+    return buf.toString().trim();
+  }
+  return '';
+}
+
+/// Copies [row] with settled result fields merged in (React: one cell per
+/// call, result joins the call row instead of appending a second row).
+LedgerRow _withToolResult(
+  LedgerRow row, {
+  required String? outputDetail,
+  required String? result,
+  required String? resultPreview,
+  required bool isError,
+  required double? timeSeconds,
+}) {
+  return LedgerRow(
+    index: row.index,
+    kind: row.kind,
+    text: row.text,
+    previewMarkdown: row.previewMarkdown,
+    inputDetail: row.inputDetail,
+    outputDetail: outputDetail,
+    thinkingDetail: row.thinkingDetail,
+    isError: isError,
+    resultPreview: resultPreview,
+    errorCode: row.errorCode,
+    running: false,
+    toolCallOnly: row.toolCallOnly,
+    childCallIds: row.childCallIds,
+    timeSeconds: timeSeconds,
+    startedAt: row.startedAt,
+    firstTokenTime: row.firstTokenTime,
+    stepStartTime: row.stepStartTime,
+    callId: row.callId,
+    result: result,
+    turn: row.turn,
+    step: row.step,
+    group: row.group,
+    turnStart: row.turnStart,
+    turnEnd: row.turnEnd,
+    groupStart: row.groupStart,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    reasoningTokens: row.reasoningTokens,
+    cacheReadTokens: row.cacheReadTokens,
+    messageSource: row.messageSource,
+    promptDetail: row.promptDetail,
+    promptToolsJson: row.promptToolsJson,
+    schemaDescription: row.schemaDescription,
+    schemaParameters: row.schemaParameters,
+    isRequestHeader: row.isRequestHeader,
+    requestNumber: row.requestNumber,
+    requestProvider: row.requestProvider,
+    requestModel: row.requestModel,
+    requestOptionsJson: row.requestOptionsJson,
+    requestToolCalls: row.requestToolCalls,
+    requestSubtoolCalls: row.requestSubtoolCalls,
+    requestInputTokens: row.requestInputTokens,
+    requestOutputTokens: row.requestOutputTokens,
+    requestCacheReadTokens: row.requestCacheReadTokens,
+    requestStartedAt: row.requestStartedAt,
+    requestCompletedAt: row.requestCompletedAt,
+    requestFailed: row.requestFailed,
+  );
+}
+
+/// Copies [row] with request-boundary stats attached (React request
+/// inspector: numbers in session-global start order, cumulative usage).
+LedgerRow _withRequest(
+  LedgerRow row, {
+  required int requestNumber,
+  required String? provider,
+  required String? model,
+  required String? optionsJson,
+  required int toolCalls,
+  required int subtoolCalls,
+  required int? inputTokens,
+  required int? outputTokens,
+  required int? cacheReadTokens,
+  required int? startedAt,
+  required int? completedAt,
+  bool? isError,
+  bool? running,
+  bool? requestFailed,
+}) {
+  return LedgerRow(
+    index: row.index,
+    kind: row.kind,
+    text: row.text,
+    previewMarkdown: row.previewMarkdown,
+    inputDetail: row.inputDetail,
+    outputDetail: row.outputDetail,
+    thinkingDetail: row.thinkingDetail,
+    isError: isError ?? row.isError,
+    resultPreview: row.resultPreview,
+    errorCode: row.errorCode,
+    running: running ?? row.running,
+    toolCallOnly: row.toolCallOnly,
+    childCallIds: row.childCallIds,
+    timeSeconds: row.timeSeconds,
+    startedAt: row.startedAt,
+    firstTokenTime: row.firstTokenTime,
+    stepStartTime: row.stepStartTime,
+    callId: row.callId,
+    result: row.result,
+    turn: row.turn,
+    step: row.step,
+    group: row.group,
+    turnStart: row.turnStart,
+    turnEnd: row.turnEnd,
+    groupStart: row.groupStart,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    reasoningTokens: row.reasoningTokens,
+    cacheReadTokens: row.cacheReadTokens,
+    messageSource: row.messageSource,
+    promptDetail: row.promptDetail,
+    promptToolsJson: row.promptToolsJson,
+    schemaDescription: row.schemaDescription,
+    schemaParameters: row.schemaParameters,
+    isRequestHeader: row.isRequestHeader,
+    requestNumber: requestNumber,
+    requestProvider: provider,
+    requestModel: model,
+    requestOptionsJson: optionsJson,
+    requestToolCalls: toolCalls,
+    requestSubtoolCalls: subtoolCalls,
+    requestInputTokens: inputTokens,
+    requestOutputTokens: outputTokens,
+    requestCacheReadTokens: cacheReadTokens,
+    requestStartedAt: startedAt,
+    requestCompletedAt: completedAt,
+    requestFailed: requestFailed ?? row.requestFailed,
+  );
+}
+///
+/// Approximates React `deriveTrajectoryLayout` + `flattenRecords` for
+/// Flutter's host history. Flutter folds raw history event types
+/// (`user/message`, `assistant/message`, `tool/call`, `tool/result`, …)
+/// because the Conversation Node assembly (`eventNodes` + `partial` +
+/// `runningCalls` + `requests`) has no Dart counterpart yet; turn boundaries
+/// come from `turn/start` envelopes when present, else from `user/message`
+/// seq positions — the same rule as `trajectoryFromHistory`.
+///
+/// Tool durations join `tool/call` → `tool/result` by `callId` time delta so
+/// the timed timeline projections use recorded spans; an unpaired call keeps
+/// a null duration (React `running`: `outputDetail === undefined`). Each
+/// callId folds into one tool cell (React `expandAssistant`); nested
+/// `tool/code-dispatch` pairs fold into `subtool` rows after their parent.
+/// Request boundaries come from `request/header` order with cumulative usage.
+///
+/// Kept pure (no ref) so it is testable in isolation.
+List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
+  if (entries.isEmpty) return const [];
+  final rows = <LedgerRow>[];
+  int idx = 0;
+  // Index tool calls, results, schemas, settled steps, chunk tails, and step
+  // starts from host event times (no fabrication: only what the host logged).
+  // React folds one tool cell per callId (`expandAssistant`); schemas come
+  // from the latest `request/header` tool catalog (`callSchemas`).
+  final Map<String, Map<String, dynamic>> callById = {};
+  final Map<String, Map<String, dynamic>> resultById = {};
+  final Map<String, Map<String, String>> schemaByName = {};
+  final Set<String> settledAssistantSteps = {};
+  final Map<String, StringBuffer> chunkTextByStep = {};
+  final Map<String, int> chunkFirstTimeByStep = {};
+  final Map<String, int> stepStartTimeByStep = {};
+  final Map<String, String> dispatchParents = {};
+  final Map<String, SessionEvent> dispatchStarts = {};
+  final Map<String, SessionEvent> dispatchResults = {};
+  // Request headers in event order (React session-global request numbering):
+  // provider/model/options per boundary for the request inspector.
+  final List<Map<String, String?>> requestHeaders = [];
+  String? stepKeyOf(Map<String, dynamic> data) {
+    final dynamic t = data['turn'];
+    final dynamic s = data['step'];
+    if (t is num && s is num) return '${t.toInt()}:${s.toInt()}';
+    return null;
+  }
+
+  String? callIdOf(SessionEvent ev) {
+    final direct = ev.data['callId'];
+    if (direct is String && direct.isNotEmpty) return direct;
+    final id = ev.data['id'];
+    if (id is String && id.isNotEmpty) return id;
+    final message = ev.data['message'];
+    if (message is Map) {
+      final source = message['source'];
+      if (source is Map) {
+        final cid = source['callId'];
+        if (cid is String && cid.isNotEmpty) return cid;
+      }
+      final content = message['content'];
+      if (content is List) {
+        for (final blk in content) {
+          if (blk is Map && blk['type'] == 'tool-result') {
+            final cid = blk['toolCallId'];
+            if (cid is String && cid.isNotEmpty) return cid;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  String argsTextOf(Map<String, dynamic> data) {
+    final dynamic args = data['args'] ?? data['arguments'] ?? data['input'];
+    if (args == null) return '';
+    if (args is String) return args;
+    try {
+      return jsonEncode(args);
+    } catch (_) {
+      return '$args';
+    }
+  }
+
+  for (final entry in entries) {
+    final ev = entry.event;
+    if (ev.type == 'request/header') {
+      final header = ev.data['header'];
+      String? provider;
+      String? model;
+      String? optionsJson;
+      if (header is Map) {
+        final config = header['config'];
+        if (config is Map) {
+          provider = config['provider']?.toString();
+          model = config['model']?.toString();
+          try {
+            optionsJson = jsonEncode(config);
+          } catch (_) {
+            optionsJson = null;
+          }
+        }
+        final tools = header['tools'];
+        if (tools is List) {
+          for (final t in tools) {
+            if (t is Map && t['name'] is String) {
+              schemaByName[t['name'] as String] = {
+                'description': (t['description'] ?? '').toString(),
+                'parameters': t['parameters'] is String
+                    ? t['parameters'] as String
+                    : jsonEncode(t['parameters'] ?? {}),
+              };
+            }
+          }
+        }
+      }
+      requestHeaders.add({
+        'provider': provider,
+        'model': model,
+        'options': optionsJson,
+      });
+    } else if (ev.type == 'tool/call') {
+      final callId = callIdOf(ev);
+      if (callId != null) {
+        callById.putIfAbsent(callId, () => {
+              'name': (ev.data['name'] ?? ev.data['toolName'] ?? 'tool').toString(),
+              'args': argsTextOf(ev.data),
+              'time': ev.time,
+              'turn': (ev.data['turn'] as num?)?.toInt(),
+              'step': (ev.data['step'] as num?)?.toInt(),
+              'seq': ev.seq,
+            });
+      }
+    } else if (ev.type == 'tool/result') {
+      final callId = callIdOf(ev);
+      if (callId != null) {
+        resultById.putIfAbsent(callId, () => {
+              'event': ev,
+              'time': ev.time,
+              'turn': (ev.data['turn'] as num?)?.toInt(),
+              'step': (ev.data['step'] as num?)?.toInt(),
+              'seq': ev.seq,
+            });
+      }
+    } else if (ev.type == 'assistant/message') {
+      final key = stepKeyOf(ev.data);
+      if (key != null) settledAssistantSteps.add(key);
+    } else if (ev.type == 'assistant/chunk') {
+      final key = stepKeyOf(ev.data);
+      if (key != null) {
+        final raw = ev.data['chunk'] ?? ev.data['delta'] ?? ev.data['text'];
+        String delta = '';
+        if (raw is String) {
+          delta = raw;
+        } else if (raw is Map) {
+          delta = (raw['text'] ?? raw['delta'] ?? '').toString();
+        }
+        if (delta.isNotEmpty) {
+          chunkTextByStep.putIfAbsent(key, StringBuffer.new).write(delta);
+          chunkFirstTimeByStep.putIfAbsent(key, () => ev.time);
+        }
+      }
+    } else if (ev.type == 'step/start') {
+      final key = stepKeyOf(ev.data);
+      if (key != null) stepStartTimeByStep.putIfAbsent(key, () => ev.time);
+    } else if (ev.type == 'tool/code-dispatch-start' ||
+        ev.type == 'tool/code-dispatch') {
+      // Nested code-dispatch sub-calls (React `updateDispatch`): edge guards
+      // mirror `acceptsEdge` — no self-parenting, first parent wins, no
+      // ancestor cycles, 256 depth ceiling. Orphan edges whose parent never
+      // rows drop below (unreachable from any root, as in React).
+      final data = ev.data;
+      final parentId = data['parentCallId']?.toString() ?? '';
+      final subId = data['subCallId']?.toString() ?? '';
+      if (parentId.isNotEmpty &&
+          subId.isNotEmpty &&
+          parentId != subId &&
+          !dispatchParents.containsKey(subId)) {
+        bool cycle = false;
+        final seen = <String>{subId};
+        String? cursor = parentId;
+        int depth = 0;
+        while (cursor != null) {
+          if (!seen.add(cursor)) {
+            cycle = true;
+            break;
+          }
+          depth++;
+          if (depth > 256) {
+            cycle = true;
+            break;
+          }
+          cursor = dispatchParents[cursor];
+        }
+        if (!cycle) {
+          dispatchParents[subId] = parentId;
+          if (ev.type == 'tool/code-dispatch-start') {
+            dispatchStarts[subId] = ev;
+          } else {
+            dispatchResults[subId] = ev;
+          }
+        }
+      }
+    }
+  }
+  double? toolDurationFor(String? callId) {
+    if (callId == null) return null;
+    final call = callById[callId];
+    final result = resultById[callId];
+    if (call == null || result == null) return null;
+    final double secs = ((result['time'] as int) - (call['time'] as int)) / 1000.0;
+    return secs < 0 ? 0 : secs;
+  }
+  final hasEnvelope = entries.any((e) => e.event.type == 'turn/start');
+  final List<int> userSeqs = entries
+      .where((e) => e.event.type == 'user/message')
+      .map((e) => e.event.seq)
+      .toList();
+
+  int turnForSeq(int seq) {
+    if (hasEnvelope) {
+      int startsSeen = 0;
+      for (final e in entries) {
+        if (e.event.type == 'turn/start' && e.event.seq <= seq) {
+          startsSeen += 1;
+        }
+      }
+      if (startsSeen > 0) return startsSeen.clamp(1, 1 << 30);
+      return 1;
+    } else {
+      if (userSeqs.isEmpty) return 1;
+      for (int i = userSeqs.length - 1; i >= 0; i--) {
+        if (seq >= userSeqs[i]) return i + 1;
+      }
+      return 1;
+    }
+  }
+
+  final Map<int, int> turnGroupCounter = {};
+  // Emitted row positions per tool callId (subtool parent linkage) and per
+  // sub-call id (result merge-in-place, one row per sub-call).
+  final Map<String, int> parentRowIndexByCall = {};
+  final Map<String, int> subRowIndexBySub = {};
+  for (final entry in entries) {
+    final ev = entry.event;
+    final type = ev.type;
+    // Location brackets and projection echoes are not ledger rows — React
+    // Trajectory derives boundaries from step/turn but never renders them,
+    // and todos live in the Todo dock. Only matched event families project:
+    // user/assistant/tool/compaction/request-header prompt changes. Raw
+    // control-plane noise (permission/preset, sandbox/mode, approval/policy,
+    // inbox splices, session/title, model/selection, retries) has no React
+    // counterpart and stays out; chunks accumulate into one tail row per
+    // unsettled step instead of one row per delta.
+    if (type == 'turn/start' ||
+        type == 'turn/end' ||
+        type == 'turn/error' ||
+        type == 'step/start' ||
+        type == 'step/end' ||
+        type == 'session/end-seed' ||
+        type == 'todo/write' ||
+        type == 'permission/preset' ||
+        type == 'sandbox/mode' ||
+        type == 'approval/policy' ||
+        type == 'agent/inbox/spliced' ||
+        type == 'model/selection' ||
+        type == 'llm/retry' ||
+        type.startsWith('permission/') ||
+        type.startsWith('session/')) {
+      continue;
+    }
+    TrajectoryCellKind kind;
+    String text = '';
+    String? inputDetail;
+    String? outputDetail;
+    String? thinkingDetail;
+    String? preview;
+    String? resultPreview;
+    String? errorCode;
+    bool running = false;
+    bool toolCallOnly = false;
+    List<String> childCallIds = const [];
+    bool isError = ev.data['isError'] == true;
+    String? callId;
+    String? result;
+    double? timeSeconds;
+    int step = (ev.data['step'] as num?)?.toInt() ?? 0;
+    int? firstTokenTime;
+    int? stepStartTime;
+    int? inputTokens;
+    int? outputTokens;
+    int? reasoningTokens;
+    int? cacheReadTokens;
+    String? messageSource;
+    String? promptDetail;
+    String? promptToolsJson;
+    String? schemaDescription;
+    String? schemaParameters;
+    bool isRequestHeader = false;
+    // Subtool rows inherit their parent's turn (React interleaves by start
+    // order after the parent); set by the dispatch case below.
+    int? turnOverride;
+    // Emitted below, or merged into an earlier row (tool results join their
+    // call row; chunk deltas accumulate per step and emit once).
+    bool emitRow = true;
+    switch (type) {
+      case 'user/message':
+        {
+          final src = ev.data['source'];
+          final srcKind = src is Map ? src['kind'] as String? : null;
+          if (srcKind == 'user') {
+            kind = TrajectoryCellKind.user;
+          } else {
+            kind = TrajectoryCellKind.context;
+          }
+          final String t = _extractText(ev.data);
+          text = t.isEmpty ? '(empty message)' : trajectoryPreviewText(t);
+          inputDetail = t;
+          preview = t.isEmpty ? null : t;
+          // React `inputCellDetail` stamps zero duration on inputs.
+          timeSeconds = 0.0;
+          if (src is Map) {
+            try {
+              messageSource = jsonEncode(src);
+            } catch (_) {
+              messageSource = '$src';
+            }
+          }
+          break;
+        }
+      case 'assistant/message':
+        {
+          kind = TrajectoryCellKind.message;
+          final msg = ev.data['message'] is Map
+              ? (ev.data['message'] as Map).cast<String, dynamic>()
+              : ev.data;
+          final String t = _extractText(msg);
+          outputDetail = t;
+          final rawContent = msg['content'];
+          final List<String> callIds = [];
+          bool hasToolCallBlock = false;
+          if (rawContent is List) {
+            for (final blk in rawContent) {
+              if (blk is Map && blk['type'] == 'reasoning' && blk['text'] is String) {
+                thinkingDetail = '${thinkingDetail ?? ''}${blk['text']}\n';
+              }
+              if (blk is Map && blk['type'] == 'tool-call') {
+                hasToolCallBlock = true;
+                final id = blk['id'];
+                if (id is String && id.isNotEmpty) callIds.add(id);
+              }
+            }
+            thinkingDetail = thinkingDetail?.trim();
+          }
+          childCallIds = List<String>.unmodifiable(callIds);
+          // Text-less assistants that only drove tool calls label like React
+          // (`layout.toolCallOnly`); the step's own tool calls are the
+          // fallback signal when blocks are absent from the message.
+          final stepKey = stepKeyOf(ev.data);
+          final bool stepHasTools = stepKey != null &&
+              callById.values.any((c) =>
+                  c['turn'] == ev.data['turn'] && c['step'] == ev.data['step']);
+          if (t.trim().isEmpty &&
+              (thinkingDetail ?? '').trim().isEmpty &&
+              (hasToolCallBlock || stepHasTools)) {
+            toolCallOnly = true;
+            text = '(tool call only)';
+          } else {
+            text = t.isEmpty ? '' : trajectoryPreviewText(t);
+          }
+          preview = t.isEmpty ? null : t;
+          final usage = ev.data['usage'];
+          if (usage is Map) {
+            inputTokens = (usage['inputTokens'] as num?)?.toInt();
+            outputTokens = (usage['outputTokens'] as num?)?.toInt();
+            reasoningTokens = (usage['reasoningTokens'] as num?)?.toInt();
+            cacheReadTokens = (usage['cacheReadTokens'] as num?)?.toInt();
+          }
+          if (stepKey != null) {
+            firstTokenTime = chunkFirstTimeByStep[stepKey];
+            stepStartTime = stepStartTimeByStep[stepKey];
+            // Assistant wall time runs step start → message (React
+            // `durationSeconds(node.time, stepStartTime)`); feeds the
+            // Timing Total row and the timeline span.
+            if (stepStartTime != null) {
+              final double secs = (ev.time - stepStartTime!) / 1000.0;
+              timeSeconds = secs < 0 ? 0 : secs;
+            }
+          }
+          break;
+        }
+      case 'assistant/chunk':
+        // Deltas accumulate per step in the pre-pass and emit once below
+        // for steps with no settled message; never one row per delta.
+        emitRow = false;
+        kind = TrajectoryCellKind.message;
+        break;
+      case 'tool/call':
+        {
+          kind = TrajectoryCellKind.tool;
+          callId = callIdOf(ev);
+          final stored = callId != null ? callById[callId] : null;
+          final String name = (stored?['name'] ??
+                  ev.data['name'] ??
+                  ev.data['toolName'] ??
+                  'tool')
+              .toString();
+          // Raw args verbatim (React `summarizeCall`): no per-tool semantic
+          // summary, no key filtering; the 2048→512 preview cap applies.
+          final String argsText =
+              stored != null ? (stored['args'] as String) : argsTextOf(ev.data);
+          text = argsText.isEmpty ? name : '$name ${trajectoryPreviewText(argsText)}';
+          inputDetail = argsText;
+          preview = argsText.isEmpty ? null : argsText;
+          final schema = schemaByName[name];
+          if (schema != null) {
+            schemaDescription = schema['description'];
+            schemaParameters = schema['parameters'];
+          }
+          final res = callId != null ? resultById[callId] : null;
+          if (res != null) {
+            final joined = _joinToolResult(res['event'] as SessionEvent);
+            outputDetail = joined.text;
+            result = joined.text;
+            resultPreview = joined.preview;
+            isError = joined.isError;
+            errorCode = joined.errorCode;
+            timeSeconds = toolDurationFor(callId);
+          } else {
+            running = true;
+          }
+          break;
+        }
+      case 'tool/result':
+        {
+          // Results join their call row above (React: one cell per callId).
+          // Only orphan results (call outside the window) emit standalone.
+          callId = callIdOf(ev);
+          final bool hasCallRow =
+              callId != null && callById.containsKey(callId);
+          if (hasCallRow) {
+            emitRow = false;
+            kind = TrajectoryCellKind.tool;
+            break;
+          }
+          kind = TrajectoryCellKind.tool;
+          final String name = (ev.data['name'] as String?) ?? 'tool';
+          final joined = _joinToolResult(ev);
+          text = joined.preview.isEmpty
+              ? name
+              : '$name ${trajectoryPreviewText(joined.preview)}';
+          inputDetail = null;
+          outputDetail = joined.text.isEmpty ? null : joined.text;
+          preview = joined.preview.isEmpty ? null : joined.preview;
+          result = joined.text.isEmpty ? null : joined.text;
+          resultPreview = joined.preview.isEmpty ? null : joined.preview;
+          isError = joined.isError;
+          errorCode = joined.errorCode;
+          final schema = schemaByName[name];
+          if (schema != null) {
+            schemaDescription = schema['description'];
+            schemaParameters = schema['parameters'];
+          }
+          break;
+        }
+      case 'compaction/start':
+      case 'compaction/end':
+      case 'compaction/summary':
+      case 'compaction/prune':
+        kind = TrajectoryCellKind.compacted;
+        final String summaryText = _summaryBlocksText(ev.data['summary']);
+        text = summaryText.isEmpty ? type : trajectoryPreviewText(summaryText);
+        preview = summaryText.isEmpty ? null : summaryText;
+        outputDetail = summaryText.isEmpty ? null : summaryText;
+        running = summaryText.isEmpty && type == 'compaction/start';
+        break;
+      case 'request/header':
+        {
+          // System rows project prompt changes only (React
+          // `requestPromptAnchor` + promptChangeLabel): the initial header
+          // labels the row; later headers mark updates.
+          kind = TrajectoryCellKind.system;
+          final header = ev.data['header'];
+          String system = '';
+          if (header is Map) system = (header['system'] ?? '').toString();
+          final bool initial =
+              (ev.data['reason'] ?? 'initial').toString() == 'initial';
+          text = initial ? 'Initial System Prompt' : 'System Prompt Updated';
+          promptDetail = system;
+          isRequestHeader = true;
+          final headerTools = header['tools'];
+          if (headerTools is List) {
+            try {
+              promptToolsJson = jsonEncode(headerTools);
+            } catch (_) {
+              promptToolsJson = null;
+            }
+          }
+          preview = system.isEmpty ? null : system;
+          break;
+        }
+      case 'tool/code-dispatch-start':
+      case 'tool/code-dispatch':
+        {
+          // Nested subtool rows interleave after their parent (React
+          // `withSubCalls`/`expandSubCalls`); orphans without a parent row
+          // drop (unreachable from any root, as in React).
+          kind = TrajectoryCellKind.subtool;
+          final bool isStart = type == 'tool/code-dispatch-start';
+          final data = ev.data;
+          final parentId = data['parentCallId']?.toString() ?? '';
+          final subId = data['subCallId']?.toString() ?? '';
+          final int? parentRowPos = parentRowIndexByCall[parentId];
+          if (parentId.isEmpty ||
+              subId.isEmpty ||
+              parentRowPos == null ||
+              dispatchParents[subId] != parentId) {
+            emitRow = false;
+            break;
+          }
+          final startEv = dispatchStarts[subId];
+          final resultEv =
+              isStart ? null : (dispatchResults[subId] ?? ev);
+          // A result landing on an already-emitted start row merges in
+          // place (one row per sub-call); otherwise the result builds the
+          // standalone row from start + result evidence.
+          final int? emittedPos =
+              isStart ? null : subRowIndexBySub[subId];
+          final String name = ((isStart ? data['name'] : null) ??
+                      startEv?.data['name'] ??
+                      data['name'] ??
+                      'subtool')
+              .toString();
+          dynamic rawArgs = isStart
+              ? data['arguments']
+              : (startEv?.data['arguments'] ?? data['arguments']);
+          String argsText = '';
+          if (rawArgs is String) {
+            argsText = rawArgs;
+          } else if (rawArgs != null) {
+            try {
+              argsText = jsonEncode(rawArgs);
+            } catch (_) {
+              argsText = '$rawArgs';
+            }
+          }
+          callId = subId;
+          text = argsText.isEmpty
+              ? name
+              : '$name ${trajectoryPreviewText(argsText)}';
+          inputDetail = argsText;
+          preview = argsText.isEmpty ? null : argsText;
+          final parentRow = rows[parentRowPos];
+          turnOverride = parentRow.turn;
+          // step local is reassigned below; events carry their own first.
+          final int ownStep = (data['step'] as num?)?.toInt() ?? 0;
+          final int parentStep = parentRow.step;
+          step = ownStep != 0 ? ownStep : parentStep;
+          timeSeconds = null;
+          if (resultEv != null) {
+            final content = resultEv.data['content'];
+            final List<dynamic> blocks =
+                content is List ? content : const [];
+            final String joined = _toolResultBlocksText(blocks);
+            String tail = joined;
+            if (tail.isEmpty) {
+              final dynamic out = resultEv.data['output'] ??
+                  resultEv.data['result'] ??
+                  resultEv.data['text'];
+              if (out is String) {
+                tail = out;
+              } else if (out != null) {
+                try {
+                  tail = jsonEncode(out);
+                } catch (_) {
+                  tail = '$out';
+                }
+              }
+            }
+            final bool err = resultEv.data['isError'] == true ||
+                resultEv.data['error'] != null;
+            outputDetail = tail.isEmpty ? null : tail;
+            result = tail.isEmpty ? null : tail;
+            resultPreview =
+                tail.isEmpty ? null : trajectoryPreviewText(tail);
+            isError = err;
+            final int startTime = startEv?.time ?? ev.time;
+            final double secs =
+                (resultEv.time - startTime) / 1000.0;
+            timeSeconds = secs < 0 ? 0 : secs;
+          } else {
+            running = true;
+          }
+          final schema = schemaByName[name];
+          if (schema != null) {
+            schemaDescription = schema['description'];
+            schemaParameters = schema['parameters'];
+          }
+          if (emittedPos != null) {
+            rows[emittedPos] = _withToolResult(
+              rows[emittedPos],
+              outputDetail: outputDetail,
+              result: result,
+              resultPreview: resultPreview,
+              isError: isError,
+              timeSeconds: timeSeconds,
+            );
+            emitRow = false;
+          }
+          break;
+        }
+      default:
+        // Raw control-plane noise has no React counterpart — drop it.
+        emitRow = false;
+        kind = TrajectoryCellKind.system;
+        break;
+    }
+
+    if (!emitRow) continue;
+
+    final int turn = turnOverride ?? turnForSeq(ev.seq);
+    final int gcount = (turnGroupCounter[turn] ?? 0) + 1;
+    turnGroupCounter[turn] = gcount;
+    final bool isFirstInTurn = rows.isEmpty || rows.last.turn != turn;
+    final bool isGroupStart = isFirstInTurn;
+
+    final int? startedAt = ev.time;
+
+    final row = LedgerRow(
+      index: idx++,
+      kind: kind,
+      text: text,
+      previewMarkdown: preview,
+      inputDetail: inputDetail,
+      outputDetail: outputDetail,
+      thinkingDetail: thinkingDetail,
+      isError: isError,
+      resultPreview: resultPreview,
+      errorCode: errorCode,
+      running: running,
+      toolCallOnly: toolCallOnly,
+      childCallIds: childCallIds,
+      timeSeconds: timeSeconds,
+      startedAt: startedAt,
+      firstTokenTime: firstTokenTime,
+      stepStartTime: stepStartTime,
+      callId: callId,
+      result: result,
+      turn: turn,
+      step: step,
+      group: 'Turn $turn',
+      turnStart: isFirstInTurn,
+      groupStart: isGroupStart,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
+      reasoningTokens: reasoningTokens,
+      cacheReadTokens: cacheReadTokens,
+      messageSource: messageSource,
+      promptDetail: promptDetail,
+      promptToolsJson: promptToolsJson,
+      schemaDescription: schemaDescription,
+      schemaParameters: schemaParameters,
+      isRequestHeader: isRequestHeader,
+    );
+    rows.add(row);
+    // Row positions feed subtool parent linkage and result merge-in-place.
+    if (callId != null &&
+        callId.isNotEmpty &&
+        (kind == TrajectoryCellKind.tool ||
+            kind == TrajectoryCellKind.subtool)) {
+      parentRowIndexByCall.putIfAbsent(callId, () => rows.length - 1);
+      if (kind == TrajectoryCellKind.subtool) {
+        subRowIndexBySub[callId] = rows.length - 1;
+      }
+    }
+  }
+
+  // Accumulated chunk tails emit once per step with no settled message
+  // (React appends the in-flight partial instead of one row per delta).
+  chunkTextByStep.forEach((stepKey, buf) {
+    if (settledAssistantSteps.contains(stepKey)) return;
+    final String tail = buf.toString().trim();
+    if (tail.isEmpty) return;
+    final parts = stepKey.split(':');
+    final int turn = int.tryParse(parts[0]) ?? turnForSeq(1 << 30);
+    final int step = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    final bool isFirstInTurn = rows.isEmpty || rows.last.turn != turn;
+    rows.add(LedgerRow(
+      index: idx++,
+      kind: TrajectoryCellKind.message,
+      text: trajectoryPreviewText(tail),
+      previewMarkdown: tail,
+      outputDetail: tail,
+      running: true,
+      turn: turn,
+      step: step,
+      group: 'Turn $turn',
+      turnStart: isFirstInTurn,
+      groupStart: isFirstInTurn,
+      firstTokenTime: chunkFirstTimeByStep[stepKey],
+      stepStartTime: stepStartTimeByStep[stepKey],
+    ));
+  });
+
+  for (int i = 0; i < rows.length; i++) {
+    final cur = rows[i];
+    final next = i + 1 < rows.length ? rows[i + 1] : null;
+    final bool isLastInTurn = next == null || next.turn != cur.turn;
+    if (isLastInTurn) {
+      rows[i] = LedgerRow(
+        index: cur.index,
+        kind: cur.kind,
+        text: cur.text,
+        previewMarkdown: cur.previewMarkdown,
+        inputDetail: cur.inputDetail,
+        outputDetail: cur.outputDetail,
+        thinkingDetail: cur.thinkingDetail,
+        isError: cur.isError,
+        resultPreview: cur.resultPreview,
+        errorCode: cur.errorCode,
+        running: cur.running,
+        toolCallOnly: cur.toolCallOnly,
+        childCallIds: cur.childCallIds,
+        timeSeconds: cur.timeSeconds,
+        startedAt: cur.startedAt,
+        firstTokenTime: cur.firstTokenTime,
+        stepStartTime: cur.stepStartTime,
+        callId: cur.callId,
+        result: cur.result,
+        turn: cur.turn,
+        step: cur.step,
+        group: cur.group,
+        turnStart: cur.turnStart,
+        turnEnd: true,
+        groupStart: cur.groupStart,
+        inputTokens: cur.inputTokens,
+        outputTokens: cur.outputTokens,
+        reasoningTokens: cur.reasoningTokens,
+        cacheReadTokens: cur.cacheReadTokens,
+        messageSource: cur.messageSource,
+        promptDetail: cur.promptDetail,
+        promptToolsJson: cur.promptToolsJson,
+        schemaDescription: cur.schemaDescription,
+        schemaParameters: cur.schemaParameters,
+        isRequestHeader: cur.isRequestHeader,
+        requestFailed: cur.requestFailed,
+      );
+    }
+  }
+
+  // Request boundaries in session-global start order (React
+  // `requestNumbers`): number headers, accumulate per-request tool counts,
+  // usage, errors, and wall times, then attach to the header rows for the
+  // request inspector (Summary/Options/Usage/Timing).
+  final List<int> headerPositions = [];
+  for (int i = 0; i < rows.length; i++) {
+    if (rows[i].isRequestHeader) headerPositions.add(i);
+  }
+  for (int h = 0; h < headerPositions.length; h++) {
+    final info = h < requestHeaders.length
+        ? requestHeaders[h]
+        : const <String, String?>{};
+    final int start = headerPositions[h];
+    final int end = h + 1 < headerPositions.length
+        ? headerPositions[h + 1]
+        : rows.length;
+    int tools = 0;
+    int subtools = 0;
+    int inT = 0;
+    int outT = 0;
+    int cacheT = 0;
+    bool hasIn = false;
+    bool hasOut = false;
+    bool hasCache = false;
+    bool hasErr = false;
+    bool hasRunning = false;
+    int? first;
+    int? last;
+    for (int i = start; i < end; i++) {
+      final r = rows[i];
+      if (r.kind == TrajectoryCellKind.tool) tools++;
+      if (r.kind == TrajectoryCellKind.subtool) subtools++;
+      if (r.inputTokens != null) {
+        inT += r.inputTokens!;
+        hasIn = true;
+      }
+      if (r.outputTokens != null) {
+        outT += r.outputTokens!;
+        hasOut = true;
+      }
+      if (r.cacheReadTokens != null) {
+        cacheT += r.cacheReadTokens!;
+        hasCache = true;
+      }
+      if (r.isError) hasErr = true;
+      if (r.running) hasRunning = true;
+      if (r.startedAt != null) {
+        first = first == null || r.startedAt! < first ? r.startedAt : first;
+        int done = r.startedAt!;
+        if (r.timeSeconds != null && r.timeSeconds!.isFinite) {
+          done += (r.timeSeconds! * 1000).round();
+        }
+        last = last == null || done > last ? done : last;
+      }
+    }
+    rows[start] = _withRequest(
+      rows[start],
+      requestNumber: h + 1,
+      provider: info['provider'],
+      model: info['model'],
+      optionsJson: info['options'],
+      toolCalls: tools,
+      subtoolCalls: subtools,
+      inputTokens: hasIn ? inT : null,
+      outputTokens: hasOut ? outT : null,
+      cacheReadTokens: hasCache ? cacheT : null,
+      startedAt: first,
+      completedAt: last,
+      requestFailed: hasErr,
+      running: hasRunning && !hasErr,
+    );
+  }
+
+  return List<LedgerRow>.unmodifiable(rows);
+}
+
+/// Flutter timeline model — mirrors `deriveTrajectoryTimeline`.
+class TimelineModel {
+  final int start;
+  final int end;
+  final List<TimelineSpan> spans;
+  final List<TurnBoundary> boundaries;
+  const TimelineModel({required this.start, required this.end, required this.spans, required this.boundaries});
+}
+
+class TimelineSpan {
+  final int index;
+  final TrajectoryCellKind kind;
+  final int lane;
+  final int start;
+  final int end;
+  final bool isError;
+
+  /// Recorded wall-clock detail for rich tooltips and the assistant
+  /// TTFT/decoding split (React `TimelineRecordDetail`).
+  final int? startedAtMs;
+  final int? durationMs;
+  final int? ttftMs;
+  final int? decodingMs;
+  const TimelineSpan({
+    required this.index,
+    required this.kind,
+    required this.lane,
+    required this.start,
+    required this.end,
+    this.isError = false,
+    this.startedAtMs,
+    this.durationMs,
+    this.ttftMs,
+    this.decodingMs,
+  });
+}
+
+class TurnBoundary {
+  final int turn;
+  final int time;
+  const TurnBoundary({required this.turn, required this.time});
+}
+
+/// Lane projection — mirrors React `laneFor` in
+/// `packages/client/ui-trajectory/src/client/timeline.ts`: tools on lane 2,
+/// assistant output on lane 1, inputs/system on lane 0.
+int laneForKind(TrajectoryCellKind k) => switch (k) {
+  TrajectoryCellKind.user => 0,
+  TrajectoryCellKind.context => 0,
+  TrajectoryCellKind.system => 0,
+  TrajectoryCellKind.compacted => 1,
+  TrajectoryCellKind.message => 1,
+  TrajectoryCellKind.tool => 2,
+  TrajectoryCellKind.subtool => 2,
+};
+
+/// Project ledger rows into the timeline domain.
+///
+/// Mirrors React `deriveTrajectoryTimeline` in
+/// `packages/client/ui-trajectory/src/client/timeline.ts` (`sequence` |
+/// `duration` | `time` | `actual`; the toolbar's `actualDuration`/`actualTime`
+/// pair maps to modes exactly like `TrajectoryView.tsx:342`):
+/// - `sequence`: equal-width blocks in ledger order (the only equal mode).
+/// - `duration`: recorded spans with idle gaps compressed.
+/// - `actual`: recorded spans on the complete wall clock.
+/// - `time`: point spans (`start == end`) on the complete wall clock.
+///
+/// Rows without a known start are skipped (React drops cells with a null
+/// `startedAt`); null durations project as points. Returns null when no row
+/// is projectable (React `rawSpans.length == 0 → null`), which the strip
+/// renders as its no-timing-data state. Turn boundaries mark ledger-order
+/// turn transitions; the first turn starts at the domain origin.
+TimelineModel? deriveTimeline(List<LedgerRow> rows, String mode) {
+  if (rows.isEmpty) return null;
+  final Map<int, LedgerRow> byIndex = {for (final r in rows) r.index: r};
+
+  /// Wall-clock detail for one row (React `timelineRecordDetail` +
+  /// `assistantTimingDetail`): validated TTFT/decoding only.
+  ({int? startedAtMs, int? durationMs, int? ttftMs, int? decodingMs})
+      detailOf(LedgerRow r) {
+    final int? startedAt = r.startedAt;
+    final double? secs = r.timeSeconds;
+    final int? durationMs = secs == null || secs.isNaN || secs.isInfinite
+        ? null
+        : (secs * 1000).round().clamp(0, 1 << 30);
+    int? ttftMs;
+    int? decodingMs;
+    if (r.kind == TrajectoryCellKind.message) {
+      final int? stepStart = r.stepStartTime;
+      final int? first = r.firstTokenTime;
+      final int? completed = r.startedAt;
+      if (stepStart != null &&
+          first != null &&
+          completed != null &&
+          first >= stepStart &&
+          completed >= first) {
+        ttftMs = first - stepStart;
+        decodingMs = completed - first;
+      }
+    }
+    return (
+      startedAtMs: startedAt,
+      durationMs: durationMs,
+      ttftMs: ttftMs,
+      decodingMs: decodingMs
+    );
+  }
+
+  TimelineSpan project(
+    LedgerRow r, {
+    required int start,
+    required int end,
+  }) {
+    final d = detailOf(r);
+    return TimelineSpan(
+      index: r.index,
+      kind: r.kind,
+      lane: laneForKind(r.kind),
+      start: start,
+      end: end,
+      isError: r.isError,
+      startedAtMs: d.startedAtMs,
+      durationMs: d.durationMs,
+      ttftMs: d.ttftMs,
+      decodingMs: d.decodingMs,
+    );
+  }
+  if (mode == 'sequence') {
+    const int start = 0;
+    final int end = rows.length * 10;
+    final spans = <TimelineSpan>[];
+    for (final r in rows) {
+      final int s = r.index * 10;
+      final int e = s + 8;
+      spans.add(project(r, start: s, end: e));
+    }
+    final boundaries = <TurnBoundary>[];
+    for (int i = 1; i < rows.length; i++) {
+      if (rows[i].turn != rows[i - 1].turn) {
+        boundaries.add(TurnBoundary(turn: rows[i].turn, time: rows[i].index * 10));
+      }
+    }
+    return TimelineModel(start: start, end: end, spans: spans, boundaries: boundaries);
+  } else {
+    final bool actualDuration = mode == 'duration' || mode == 'actual';
+    final bool compressIdle = mode == 'duration';
+    // Raw spans in ledger order; rows without a start are not projectable.
+    final List<TimelineSpan> raw = [];
+    final List<int> rawTurns = [];
+    for (final r in rows) {
+      final int? started = r.startedAt;
+      if (started == null) continue;
+      final double? secs = r.timeSeconds;
+      final int durationMs = secs == null || secs.isNaN || secs.isInfinite
+          ? 0
+          : (secs * 1000).round().clamp(0, 1 << 30);
+      final int s = started;
+      final int e = actualDuration ? s + durationMs : s;
+      raw.add(project(r, start: s, end: e));
+      rawTurns.add(r.turn);
+    }
+    if (raw.isEmpty) return null;
+    // Idle compression over start-sorted order (React `deriveTimedTimeline`).
+    final List<int> order = List<int>.generate(raw.length, (i) => i)
+      ..sort((a, b) {
+        final int c = raw[a].start.compareTo(raw[b].start);
+        return c != 0 ? c : raw[a].end.compareTo(raw[b].end);
+      });
+    final Map<int, int> removedByRaw = {};
+    int removedIdle = 0;
+    int? coveredUntil;
+    for (final i in order) {
+      final TimelineSpan span = raw[i];
+      if (compressIdle && coveredUntil != null && span.start > coveredUntil) {
+        removedIdle += span.start - coveredUntil;
+      }
+      removedByRaw[i] = removedIdle;
+      coveredUntil = coveredUntil == null
+          ? span.end
+          : (span.end > coveredUntil ? span.end : coveredUntil);
+    }
+    final List<TimelineSpan> spans = [];
+    for (int i = 0; i < raw.length; i++) {
+      final int offset = removedByRaw[i] ?? 0;
+      final TimelineSpan s = raw[i];
+      final LedgerRow? origin = byIndex[s.index];
+      if (origin != null) {
+        final d = detailOf(origin);
+        spans.add(TimelineSpan(
+          index: s.index,
+          kind: s.kind,
+          lane: s.lane,
+          start: s.start - offset,
+          end: s.end - offset,
+          isError: s.isError,
+          // Tooltip keeps original wall times (React tooltips detail, not
+          // the compressed domain position).
+          startedAtMs: d.startedAtMs,
+          durationMs: d.durationMs,
+          ttftMs: d.ttftMs,
+          decodingMs: d.decodingMs,
+        ));
+      } else {
+        spans.add(TimelineSpan(index: s.index, kind: s.kind, lane: s.lane, start: s.start - offset, end: s.end - offset, isError: s.isError));
+      }
+    }
+    int start = spans.first.start;
+    int end = spans.first.end;
+    for (final s in spans) {
+      if (s.start < start) start = s.start;
+      if (s.end > end) end = s.end;
+    }
+    final boundaries = <TurnBoundary>[];
+    for (int i = 1; i < spans.length; i++) {
+      if (rawTurns[i] != rawTurns[i - 1]) {
+        boundaries.add(TurnBoundary(turn: rawTurns[i], time: spans[i].start));
+      }
+    }
+    return TimelineModel(start: start, end: end, spans: spans, boundaries: boundaries);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TrajectoryScreen — new ledger-style chrome
+// ---------------------------------------------------------------------------
+
+class TrajectoryScreen extends ConsumerWidget {
+  const TrajectoryScreen({super.key, required this.sessionId});
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final AsyncValue<Trajectory> async = ref.watch(
+      trajectoryProvider(sessionId),
+    );
+    final SessionSummary? summary = ref.watch(
+      sessionByIdProvider(SessionId(sessionId)),
+    );
+    final List<HistoryEntry> history = ref.watch(liveHistoryProvider(sessionId));
+    final bool hasMore = ref.watch(liveHasMoreProvider(sessionId));
+    final bool loadingOlder = ref.watch(liveLoadingOlderProvider(sessionId));
+
+    return Scaffold(
+      backgroundColor: aliases.bgLayer1,
+      appBar: AppBar(
+        backgroundColor: aliases.bgLayer1,
+        title: Text(
+          summary == null
+              ? 'Trajectory · $sessionId'
+              : summary.blank
+              ? 'New session'
+              : summary.displayTitle,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: DswTokens.fontSizeBase16,
+            fontWeight: FontWeight.w600,
+            color: aliases.labelPrimary,
+          ),
+        ),
+        leading: IconButton(
+          tooltip: 'Back to conversation',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/sessions/$sessionId'),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh, size: 18),
+            onPressed: () {
+              ref.invalidate(trajectoryProvider(sessionId));
+              ref.read(liveHistoryProvider(sessionId).notifier).replaceAll(history);
+            },
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: aliases.borderL2),
+        ),
+      ),
+      body: async.when(
+        data: (Trajectory trajectory) {
+          final List<LedgerRow> rows = ledgerFromHistory(history);
+          final bool empty = rows.isEmpty && trajectory.turns.isEmpty;
+          if (empty) {
+            return _EmptyTrajectory(sessionId: sessionId, aliases: aliases);
+          }
+          final List<LedgerRow> effectiveRows = rows.isEmpty
+              ? _rowsFromTrajectoryTurns(trajectory)
+              : rows;
+          return _TrajectoryPane(
+            sessionId: sessionId,
+            trajectory: trajectory,
+            rows: effectiveRows,
+            hasMore: hasMore,
+            loadingOlder: loadingOlder,
+          );
+        },
+        loading: () => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: aliases.labelTertiary,
+                ),
+              ),
+              const SizedBox(height: DswTokens.spaceMd),
+              Text(
+                'Loading trajectory…',
+                style: TextStyle(
+                  fontSize: DswTokens.fontSizeS14,
+                  color: aliases.labelSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        error: (Object err, StackTrace st) => _ErrorState(
+          error: err.toString(),
+          aliases: aliases,
+          onRetry: () => ref.invalidate(trajectoryProvider(sessionId)),
+        ),
+      ),
+    );
+  }
+}
+
+List<LedgerRow> _rowsFromTrajectoryTurns(Trajectory trajectory) {
+  final rows = <LedgerRow>[];
+  int idx = 0;
+  for (final turn in trajectory.turns) {
+    rows.add(LedgerRow(
+      index: idx++,
+      kind: TrajectoryCellKind.user,
+      text: turn.title.isEmpty ? 'Turn ${turn.ordinal}' : turn.title,
+      previewMarkdown: turn.title,
+      turn: turn.ordinal,
+      group: 'Turn ${turn.ordinal}',
+      turnStart: true,
+    ));
+    if (turn.summary != null && turn.summary!.isNotEmpty) {
+      rows.add(LedgerRow(
+        index: idx++,
+        kind: TrajectoryCellKind.message,
+        text: turn.summary!,
+        previewMarkdown: turn.summary,
+        turn: turn.ordinal,
+        group: 'Turn ${turn.ordinal}',
+      ));
+    }
+    for (final c in turn.toolCalls) {
+      rows.add(LedgerRow(
+        index: idx++,
+        kind: TrajectoryCellKind.tool,
+        text: '${c.toolName} · ${c.status.name}',
+        result: c.result is String ? c.result as String : null,
+        isError: c.status == ToolCallStatus.error,
+        turn: turn.ordinal,
+        group: 'Turn ${turn.ordinal}',
+      ));
+    }
+    if (rows.isNotEmpty) {
+      final last = rows.last;
+      rows[rows.length - 1] = LedgerRow(
+        index: last.index,
+        kind: last.kind,
+        text: last.text,
+        previewMarkdown: last.previewMarkdown,
+        turn: last.turn,
+        group: last.group,
+        turnStart: last.turnStart,
+        turnEnd: true,
+      );
+    }
+  }
+  return rows;
+}
+
+class _TrajectoryPane extends ConsumerStatefulWidget {
+  const _TrajectoryPane({
+    required this.sessionId,
+    required this.trajectory,
+    required this.rows,
+    required this.hasMore,
+    required this.loadingOlder,
+  });
+  final String sessionId;
+  final Trajectory trajectory;
+  final List<LedgerRow> rows;
+  final bool hasMore;
+  final bool loadingOlder;
+
+  @override
+  ConsumerState<_TrajectoryPane> createState() => _TrajectoryPaneState();
+}
+
+class _TrajectoryPaneState extends ConsumerState<_TrajectoryPane> {
+  bool actualDuration = false;
+  bool actualTime = false;
+  Set<int> collapsedTurns = {};
+  Set<String> collapsedAssistants = {};
+  String searchQuery = '';
+  int? selectedIndex;
+  _TimeRange? timelineSelection;
+  int? pendingFocusIndex;
+  final ScrollController _scrollController = ScrollController();
+
+  String get timelineMode {
+    if (actualDuration) return actualTime ? 'actual' : 'duration';
+    return actualTime ? 'time' : 'sequence';
+  }
+
+  /// Search corpus mirror of React `trajectory-search-index`: turn/group
+  /// labels, kind, text, previews, payload, result, thinking, schema,
+  /// callId, and message source — multi-term AND, case-insensitive.
+  static bool _rowMatches(LedgerRow r, List<String> terms) {
+    final buf = StringBuffer()
+      ..write('turn ${r.turn} ')
+      ..write(r.group)
+      ..write(' ')
+      ..write(r.kind.name)
+      ..write(' ')
+      ..write(r.text)
+      ..write(' ')
+      ..write(r.previewMarkdown ?? '')
+      ..write(' ')
+      ..write(r.inputDetail ?? '')
+      ..write(' ')
+      ..write(r.outputDetail ?? '')
+      ..write(' ')
+      ..write(r.thinkingDetail ?? '')
+      ..write(' ')
+      ..write(r.result ?? '')
+      ..write(' ')
+      ..write(r.resultPreview ?? '')
+      ..write(' ')
+      ..write(r.callId ?? '')
+      ..write(' ')
+      ..write(r.schemaDescription ?? '')
+      ..write(' ')
+      ..write(r.messageSource ?? '');
+    final hay = buf.toString().toLowerCase();
+    return terms.every((t) => hay.contains(t));
+  }
+
+  List<String> get _searchTerms => searchQuery
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
+
+  List<LedgerRow> get _filteredRows {
+    if (searchQuery.trim().isEmpty) return widget.rows;
+    final terms = _searchTerms;
+    return widget.rows.where((r) => _rowMatches(r, terms)).toList();
+  }
+
+  Set<int> get _searchMatchIndexes {
+    if (searchQuery.trim().isEmpty) return {};
+    final terms = _searchTerms;
+    return widget.rows
+        .where((r) => _rowMatches(r, terms))
+        .map((r) => r.index)
+        .toSet();
+  }
+
+/// Turn wall-span plus tool histogram, e.g. `1,500 ms bash×6` — mirrors
+/// React `groupDescription`: tool rows contribute start and end (start +
+/// own duration) so a single tool cell still spans call→result.
+String _groupDescription(List<LedgerRow> turnRows) {
+  final times = <int>[];
+  for (final l in turnRows) {
+    final s = l.startedAt;
+    if (s == null) continue;
+    times.add(s);
+    final secs = l.timeSeconds;
+    if (l.kind == TrajectoryCellKind.tool &&
+        secs != null &&
+        secs.isFinite) {
+      times.add(s + (secs * 1000).round());
+    }
+  }
+  final parts = <String>[];
+  if (times.length >= 2) {
+    int lo = times.first;
+    int hi = times.first;
+    for (final t in times) {
+      if (t < lo) lo = t;
+      if (t > hi) hi = t;
+    }
+    parts.add(_formatMs(hi - lo));
+  } else if (times.length == 1) {
+    LedgerRow? owner;
+    for (final l in turnRows) {
+      if (l.startedAt == times.single) owner = l;
+    }
+    final secs = owner?.timeSeconds;
+    if (secs != null && secs.isFinite) {
+      parts.add(_formatMs((secs * 1000).round()));
+    }
+  }
+  final tools = <String, int>{};
+  for (final l in turnRows) {
+    if (l.kind != TrajectoryCellKind.tool) continue;
+    final name = l.text.split(' ').firstWhere((w) => w.isNotEmpty,
+        orElse: () => '');
+    if (name.isEmpty) continue;
+    tools[name] = (tools[name] ?? 0) + 1;
+  }
+  for (final entry in tools.entries) {
+    parts.add(entry.value > 1 ? '${entry.key}×${entry.value}' : entry.key);
+  }
+  return parts.join(' ');
+}
+
+  List<LedgerRow> get _collapsedRows {
+    final filtered = _filteredRows;
+    final Map<int, List<LedgerRow>> byTurn = {};
+    for (final r in filtered) {
+      byTurn.putIfAbsent(r.turn, () => []).add(r);
+    }
+    final out = <LedgerRow>[];
+    for (final r in filtered) {
+      if (collapsedTurns.contains(r.turn)) {
+        final turnRows = byTurn[r.turn]!;
+        final first = turnRows.first;
+        if (r.index != first.index) {
+          if (r.index == turnRows[1].index) {
+            final String summary = _groupDescription(turnRows);
+            final int toolCalls = turnRows
+                .where((x) =>
+                    x.kind == TrajectoryCellKind.tool ||
+                    x.kind == TrajectoryCellKind.subtool)
+                .length;
+            out.add(LedgerRow(
+              index: r.index,
+              kind: r.kind,
+              text: '',
+              turn: r.turn,
+              group: r.group,
+              isCollapsedSummary: true,
+              collapsedSummary: summary.isEmpty
+                  ? '$toolCalls tool call${toolCalls == 1 ? '' : 's'}'
+                  : summary,
+            ));
+          }
+          continue;
+        }
+      }
+      out.add(r);
+    }
+    return out;
+  }
+
+  Set<int>? get timelineFocusIndexes {
+    final sel = timelineSelection;
+    if (sel == null) return null;
+    final model = deriveTimeline(widget.rows, timelineMode);
+    if (model == null) return null;
+    final s = sel.start;
+    final e = sel.end;
+    final result = <int>{};
+    for (final span in model.spans) {
+      if (span.end >= s && span.start <= e) result.add(span.index);
+    }
+    return result;
+  }
+
+  bool get allTurnsCollapsed {
+    final collapsible = widget.rows.map((e) => e.turn).toSet().where((t) {
+      final count = widget.rows.where((r) => r.turn == t).length;
+      return count > 1;
+    }).toSet();
+    if (collapsible.isEmpty) return false;
+    return collapsible.every((t) => collapsedTurns.contains(t));
+  }
+
+  bool get allAssistantsCollapsed {
+    return collapsedAssistants.isNotEmpty;
+  }
+
+  void _toggleAllTurns() {
+    setState(() {
+      final collapsible = widget.rows.map((e) => e.turn).toSet().where((t) => widget.rows.where((r) => r.turn == t).length > 1).toSet();
+      if (allTurnsCollapsed) {
+        collapsedTurns = {};
+      } else {
+        collapsedTurns = Set<int>.from(collapsible);
+      }
+    });
+  }
+
+  void _toggleAllAssistants() {
+    setState(() {
+      if (allAssistantsCollapsed) {
+        collapsedAssistants = {};
+      } else {
+        final ids = <String>{};
+        for (int i = 0; i < widget.rows.length; i++) {
+          final r = widget.rows[i];
+          if (r.kind == TrajectoryCellKind.message) {
+            final next = i + 1 < widget.rows.length ? widget.rows[i + 1] : null;
+            if (next != null && (next.kind == TrajectoryCellKind.tool || next.kind == TrajectoryCellKind.subtool)) {
+              ids.add('msg-${r.index}');
+            }
+          }
+        }
+        collapsedAssistants = ids;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final rows = _collapsedRows;
+    final searchMatches = searchQuery.isEmpty ? null : _searchMatchIndexes;
+
+    return Container(
+      color: aliases.bgLayer1,
+      child: Column(
+        children: [
+          _TrajectoryHeader(trajectory: widget.trajectory, aliases: aliases),
+          Divider(height: 1, color: aliases.borderL2),
+          _TrajectoryToolbar(
+            actualDuration: actualDuration,
+            onActualDurationChange: (v) {
+              setState(() {
+                actualDuration = v;
+                timelineSelection = null;
+              });
+            },
+            actualTime: actualTime,
+            onActualTimeChange: (v) => setState(() {
+              actualTime = v;
+              timelineSelection = null;
+            }),
+            allTurnsCollapsed: allTurnsCollapsed,
+            onToggleAllTurns: _toggleAllTurns,
+            allAssistantsCollapsed: allAssistantsCollapsed,
+            onToggleAllAssistants: _toggleAllAssistants,
+            searchQuery: searchQuery,
+            onSearchQueryChange: (q) => setState(() => searchQuery = q),
+          ),
+          Divider(height: 1, color: aliases.borderL2),
+          _TrajectoryTimelineStrip(
+            rows: widget.rows,
+            mode: timelineMode,
+            range: timelineSelection,
+            hasEarlierRecords: widget.hasMore,
+            onLoadEarlier: widget.hasMore
+                ? () async {
+                    await ref.read(liveHistoryProvider(widget.sessionId).notifier).loadOlder();
+                    return true;
+                  }
+                : null,
+            selectedIndex: selectedIndex,
+            searchMatchIndexes: searchMatches,
+            onRangeChange: (r) => setState(() => timelineSelection = r),
+            onRecordSelect: (idx) {
+              setState(() {
+                timelineSelection = null;
+                selectedIndex = idx;
+              });
+              _scrollToIndex(idx);
+            },
+            onRecordFocus: (idx) {
+              setState(() => pendingFocusIndex = idx);
+              _scrollToIndex(idx);
+            },
+          ),
+          Divider(height: 1, color: aliases.borderL2),
+          Expanded(
+            child: LayoutBuilder(builder: (context, constraints) {
+              final bool wide = constraints.maxWidth > 760;
+              final ledger = _TrajectoryLedger(
+                rows: rows,
+                allRows: widget.rows,
+                searchMatchIndexes: searchMatches,
+                timelineFocusIndexes: timelineFocusIndexes,
+                selectedIndex: selectedIndex,
+                onSelectedIndexChange: (idx) => setState(() => selectedIndex = idx),
+                onRecordSelect: (idx) {
+                  final focus = timelineFocusIndexes;
+                  if (focus != null && !focus.contains(idx)) {
+                    setState(() => timelineSelection = null);
+                  }
+                  setState(() => selectedIndex = idx);
+                },
+                collapsedTurns: collapsedTurns,
+                onToggleTurn: (turn) {
+                  setState(() {
+                    if (collapsedTurns.contains(turn)) collapsedTurns.remove(turn);
+                    else collapsedTurns.add(turn);
+                  });
+                },
+                historyLoading: false,
+                olderHistoryLoading: widget.loadingOlder,
+                hasOlderRecords: widget.hasMore,
+                onLoadOlder: () => ref.read(liveHistoryProvider(widget.sessionId).notifier).loadOlder(),
+                scrollController: _scrollController,
+                pendingFocusIndex: pendingFocusIndex,
+                onFocusConsumed: () => pendingFocusIndex = null,
+              );
+              if (wide && selectedIndex != null) {
+                final LedgerRow selRow = widget.rows.firstWhere((r) => r.index == selectedIndex, orElse: () => rows.firstWhere((r) => r.index == selectedIndex, orElse: () => widget.rows.first));
+                return Row(
+                  children: [
+                    Expanded(child: ledger),
+                    Container(width: 1, color: aliases.borderL2),
+                    SizedBox(
+                      width: 380,
+                      child: _DetailsPane(
+                        row: selRow,
+                        onClose: () => setState(() => selectedIndex = null),
+                        allRows: widget.rows,
+                        onSelectRow: (idx) => setState(() => selectedIndex = idx),
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return ledger;
+            }),
+          ),
+          if (selectedIndex != null)
+            LayoutBuilder(builder: (context, constraints) {
+              if (constraints.maxWidth > 760) return const SizedBox.shrink();
+              final LedgerRow selRow = widget.rows.firstWhere((r) => r.index == selectedIndex, orElse: () => rows.firstWhere((r) => r.index == selectedIndex, orElse: () => widget.rows.first));
+              return _DetailsPane(
+                row: selRow,
+                onClose: () => setState(() => selectedIndex = null),
+                allRows: widget.rows,
+                onSelectRow: (idx) => setState(() => selectedIndex = idx),
+              );
+            }),
+          _TrajectoryFooter(trajectory: widget.trajectory, rows: widget.rows),
+        ],
+      ),
+    );
+  }
+
+  void _scrollToIndex(int idx) {
+    final rows = _collapsedRows;
+    final pos = rows.indexWhere((r) => r.index == idx);
+    if (pos == -1) return;
+    final offset = pos * 30.0;
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        offset.clamp(0, _scrollController.position.maxScrollExtent),
+        duration: prefersReducedMotion(context) ? Duration.zero : const Duration(milliseconds: 180),
+        curve: DswTokens.easeInOut,
+      );
+    }
+  }
+}
+
+class _TimeRange {
+  final int start;
+  final int end;
+  const _TimeRange(this.start, this.end);
+}
+
+class _TrajectoryToolbar extends StatelessWidget {
+  const _TrajectoryToolbar({
+    required this.actualDuration,
+    required this.onActualDurationChange,
+    required this.actualTime,
+    required this.onActualTimeChange,
+    required this.allTurnsCollapsed,
+    required this.onToggleAllTurns,
+    required this.allAssistantsCollapsed,
+    required this.onToggleAllAssistants,
+    required this.searchQuery,
+    required this.onSearchQueryChange,
+  });
+
+  final bool actualDuration;
+  final ValueChanged<bool> onActualDurationChange;
+  final bool actualTime;
+  final ValueChanged<bool> onActualTimeChange;
+  final bool allTurnsCollapsed;
+  final VoidCallback onToggleAllTurns;
+  final bool allAssistantsCollapsed;
+  final VoidCallback onToggleAllAssistants;
+  final String searchQuery;
+  final ValueChanged<String> onSearchQueryChange;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    return Container(
+      height: 32,
+      color: aliases.bgLayer1,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ToolbarToggle(
+                label: 'Duration',
+                pressed: actualDuration,
+                tooltip: actualDuration ? 'Use equal width' : 'Use actual duration',
+                onTap: () => onActualDurationChange(!actualDuration),
+                icon: _ClockIcon(active: actualDuration),
+              ),
+              const SizedBox(width: 2),
+              _ToolbarAction(
+                label: 'Turns',
+                pressed: allTurnsCollapsed,
+                icon: Text(allTurnsCollapsed ? '⊞' : '⊟', style: TextStyle(fontSize: 14, color: aliases.labelTertiary, fontFamily: DswTokens.fontFamilyCode)),
+                onTap: onToggleAllTurns,
+              ),
+              const SizedBox(width: 2),
+              _ToolbarAction(
+                label: 'Calls',
+                pressed: allAssistantsCollapsed,
+                icon: Text(allAssistantsCollapsed ? '⊞' : '⊟', style: TextStyle(fontSize: 14, color: aliases.labelTertiary, fontFamily: DswTokens.fontFamilyCode)),
+                onTap: onToggleAllAssistants,
+              ),
+            ],
+          ),
+          const Spacer(),
+          Container(
+            width: 164,
+            height: 22,
+            decoration: BoxDecoration(
+              color: aliases.bgLayer2,
+              border: Border.all(color: aliases.borderL2),
+              borderRadius: BorderRadius.circular(DswTokens.radiusXs),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              children: [
+                Icon(Icons.search, size: 11, color: aliases.labelCaption),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: TextField(
+                    controller: TextEditingController(text: searchQuery)
+                      ..selection = TextSelection.collapsed(offset: searchQuery.length),
+                    onChanged: onSearchQueryChange,
+                    style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelPrimary),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      hintText: 'Search',
+                      hintStyle: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelCaption),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolbarToggle extends StatelessWidget {
+  const _ToolbarToggle({required this.label, required this.pressed, required this.tooltip, required this.onTap, required this.icon});
+  final String label;
+  final bool pressed;
+  final String tooltip;
+  final VoidCallback onTap;
+  final Widget icon;
+  @override
+  Widget build(BuildContext context) {
+    final DswAliases aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DswTokens.radiusXs),
+        child: Container(
+          height: 20,
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          decoration: BoxDecoration(
+            color: pressed ? aliases.interactiveBgHover : DswTokens.transparent,
+            borderRadius: BorderRadius.circular(DswTokens.radiusXs),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              icon,
+              const SizedBox(width: 4),
+              Text(label, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: pressed ? aliases.labelPrimary : aliases.labelTertiary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolbarAction extends StatelessWidget {
+  const _ToolbarAction({required this.label, required this.pressed, required this.icon, required this.onTap});
+  final String label;
+  final bool pressed;
+  final Widget icon;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final DswAliases aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(DswTokens.radiusXs),
+      child: Container(
+        height: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClockIcon extends StatelessWidget {
+  const _ClockIcon({required this.active});
+  final bool active;
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 12,
+      height: 12,
+      child: CustomPaint(painter: _ClockPainter()),
+    );
+  }
+}
+
+class _ClockPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = 1.25..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round;
+    paint.color = const Color(0xFF888888);
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = 5.25;
+    canvas.drawCircle(center, radius, paint);
+    final path = Path()
+      ..moveTo(center.dx, center.dy - 3.25)
+      ..lineTo(center.dx, center.dy)
+      ..lineTo(center.dx + 2.25, center.dy + 1.5);
+    canvas.drawPath(path, paint);
+  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TrajectoryTimelineStrip extends StatefulWidget {
+  const _TrajectoryTimelineStrip({
+    required this.rows,
+    required this.mode,
+    required this.range,
+    required this.hasEarlierRecords,
+    required this.onLoadEarlier,
+    required this.selectedIndex,
+    required this.searchMatchIndexes,
+    required this.onRangeChange,
+    required this.onRecordSelect,
+    required this.onRecordFocus,
+  });
+
+  final List<LedgerRow> rows;
+  final String mode;
+  final _TimeRange? range;
+  final bool hasEarlierRecords;
+  final Future<bool> Function()? onLoadEarlier;
+  final int? selectedIndex;
+  final Set<int>? searchMatchIndexes;
+  final ValueChanged<_TimeRange?> onRangeChange;
+  final ValueChanged<int> onRecordSelect;
+  final ValueChanged<int> onRecordFocus;
+
+  @override
+  State<_TrajectoryTimelineStrip> createState() => _TrajectoryTimelineStripState();
+}
+
+class _TrajectoryTimelineStripState extends State<_TrajectoryTimelineStrip> {
+  _TimeRange? _draft;
+  double? _hoverFraction;
+  int? _hoverRecord;
+  bool _loadingEarlier = false;
+  TimelineModel? _model;
+  int? _viewportStart;
+  int? _viewportEnd;
+  bool _animateViewport = false;
+  double? _dragAnchorClientX;
+  int? _dragAnchorTime;
+  int? _dragRecordIndex;
+
+  @override
+  void didUpdateWidget(covariant _TrajectoryTimelineStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.rows != widget.rows || oldWidget.mode != widget.mode) {
+      _model = deriveTimeline(widget.rows, widget.mode);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _model = deriveTimeline(widget.rows, widget.mode);
+  }
+
+  TimelineModel? get model => _model ?? deriveTimeline(widget.rows, widget.mode);
+
+  int get fullDuration {
+    final m = model;
+    if (m == null) return 1;
+    return (m.end - m.start).abs().clamp(1, 1 << 30);
+  }
+
+  int get domainStart {
+    final m = model;
+    if (m == null) return 0;
+    if (_viewportStart != null && _viewportEnd != null) return _viewportStart!;
+    return m.start;
+  }
+
+  int get domainDuration {
+    final m = model;
+    if (m == null) return 1;
+    if (_viewportStart != null && _viewportEnd != null) return (_viewportEnd! - _viewportStart!).abs().clamp(1, 1 << 30);
+    return (m.end - m.start).abs().clamp(1, 1 << 30);
+  }
+
+  double _fractionAt(double clientX, double width) {
+    if (width <= 1) return 0;
+    return (clientX / width).clamp(0.0, 1.0);
+  }
+
+  int? _recordIndexAt(Offset localPosition, double width) {
+    final m = model;
+    if (m == null) return null;
+    final frac = _fractionAt(localPosition.dx, width);
+    final time = domainStart + (frac * domainDuration).round();
+    for (final s in m.spans) {
+      if (time >= s.start && time <= s.end) return s.index;
+    }
+    return null;
+  }
+
+  void _commit(_TimeRange r) => widget.onRangeChange(r);
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final TimelineModel? m = model;
+    final bool reduced = prefersReducedMotion(context);
+    if (m == null) {
+      return Container(
+        height: 50,
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: aliases.borderL2))),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              decoration: BoxDecoration(border: Border(right: BorderSide(color: aliases.borderL1)), color: aliases.bgLayer2),
+              child: _LaneLabels(),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  Center(child: Text('No timing data', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelCaption))),
+                  if (widget.hasEarlierRecords)
+                    Positioned(left: 0, top: 0, bottom: 0, child: _EarlierHistoryButton(loading: _loadingEarlier, onLoad: widget.onLoadEarlier == null ? null : () async {
+                      setState(() => _loadingEarlier = true);
+                      try { await widget.onLoadEarlier!.call(); } finally { if (mounted) setState(() => _loadingEarlier = false); }
+                    })),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final _TimeRange? visibleRange = _draft ?? widget.range;
+    double? selLeft;
+    double? selWidth;
+    if (visibleRange != null) {
+      selLeft = (visibleRange.start - domainStart) / domainDuration * 100;
+      selWidth = (visibleRange.end - visibleRange.start) / domainDuration * 100;
+    }
+
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(color: aliases.bgLayer2, border: Border(bottom: BorderSide(color: aliases.borderL2))),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            decoration: BoxDecoration(border: Border(right: BorderSide(color: aliases.borderL1))),
+            child: _LaneLabels(),
+          ),
+          Expanded(
+            child: LayoutBuilder(builder: (context, constraints) {
+              final double w = constraints.maxWidth;
+              return Listener(
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) {
+                    final delta = event.scrollDelta.dy;
+                    if (delta == 0) return;
+                    setState(() {
+                      _animateViewport = false;
+                      final anchorFrac = _fractionAt(event.localPosition.dx, w);
+                      final anchorTime = domainStart + (anchorFrac * domainDuration).round();
+                      final nextDur = (domainDuration * (1 + delta * 0.0015)).round().clamp(20, fullDuration);
+                      if (nextDur >= fullDuration * 0.999) {
+                        _viewportStart = null;
+                        _viewportEnd = null;
+                        return;
+                      }
+                      final nextStart = (anchorTime - anchorFrac * nextDur).round().clamp(m.start, m.end - nextDur);
+                      _viewportStart = nextStart;
+                      _viewportEnd = nextStart + nextDur;
+                    });
+                  }
+                },
+                child: GestureDetector(
+                  onPanStart: (details) {
+                    final frac = _fractionAt(details.localPosition.dx, w);
+                    final time = domainStart + (frac * domainDuration).round();
+                    final rec = _recordIndexAt(details.localPosition, w);
+                    setState(() {
+                      _dragAnchorClientX = details.globalPosition.dx;
+                      _dragAnchorTime = time;
+                      _dragRecordIndex = rec;
+                      _hoverFraction = frac;
+                      _hoverRecord = rec;
+                      _draft = _TimeRange(time, time);
+                    });
+                  },
+                  onPanUpdate: (details) {
+                    if (_dragAnchorTime == null) return;
+                    final frac = _fractionAt(details.localPosition.dx, w);
+                    final time = domainStart + (frac * domainDuration).round();
+                    setState(() {
+                      _hoverFraction = frac;
+                      _hoverRecord = _recordIndexAt(details.localPosition, w);
+                      _draft = _TimeRange(
+                        _dragAnchorTime! <= time ? _dragAnchorTime! : time,
+                        _dragAnchorTime! <= time ? time : _dragAnchorTime!,
+                      );
+                    });
+                  },
+                  onPanEnd: (details) {
+                    if (_dragAnchorTime == null) return;
+                    final draft = _draft;
+                    final rec = _dragRecordIndex;
+                    setState(() {
+                      _draft = null;
+                      _dragAnchorTime = null;
+                      _dragAnchorClientX = null;
+                    });
+                    if (draft == null) return;
+                    final double dragDx = (details.globalPosition.dx - (_dragAnchorClientX ?? details.globalPosition.dx)).abs();
+                    final bool isClick = dragDx < 3 && (draft.end - draft.start).abs() < (fullDuration / m.spans.length).clamp(5, 1000);
+                    if (isClick && rec != null) {
+                      widget.onRangeChange(null);
+                      widget.onRecordSelect(rec);
+                      return;
+                    }
+                    final minDur = (fullDuration / m.spans.length).round().clamp(5, domainDuration);
+                    _TimeRange effective = draft;
+                    if ((effective.end - effective.start).abs() < minDur) {
+                      final center = (effective.start + effective.end) ~/ 2;
+                      effective = _TimeRange(center - minDur ~/ 2, center + minDur ~/ 2);
+                    }
+                    _commit(effective);
+                    if (isClick) {
+                      final point = effective.start;
+                      TimelineSpan? nearest;
+                      int best = 1 << 30;
+                      for (final s in m.spans) {
+                        final d = point < s.start ? s.start - point : point > s.end ? point - s.end : 0;
+                        if (d < best) { best = d; nearest = s; }
+                      }
+                      if (nearest != null) widget.onRecordFocus(nearest.index);
+                    }
+                  },
+                  onDoubleTap: () => widget.onRangeChange(null),
+                  child: MouseRegion(
+                    onHover: (e) {
+                      final frac = _fractionAt(e.localPosition.dx, w);
+                      setState(() {
+                        _hoverFraction = frac;
+                        _hoverRecord = _recordIndexAt(e.localPosition, w);
+                      });
+                    },
+                    onExit: (_) => setState(() { _hoverFraction = null; _hoverRecord = null; }),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: Stack(
+                            children: [
+                              for (final b in m.boundaries)
+                                if (b.time >= domainStart && b.time <= domainStart + domainDuration)
+                                  Positioned(
+                                    left: (b.time - m.start) / fullDuration * w - (domainStart - m.start)/fullDuration * w,
+                                    top: 0, bottom: 0,
+                                    child: Container(width: 1, color: aliases.borderL2),
+                                  ),
+                            ],
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: AnimatedContainer(
+                            duration: _animateViewport && !reduced ? const Duration(milliseconds: 180) : Duration.zero,
+                            curve: DswTokens.easeInOut,
+                            transform: Matrix4.translationValues(-(domainStart - m.start) / fullDuration * w, 0, 0),
+                            child: SizedBox(
+                              width: w * fullDuration / domainDuration,
+                              child: Stack(
+                                children: [
+                                  for (final span in m.spans)
+                                    if (span.end >= domainStart && span.start <= domainStart + domainDuration || span.index == widget.selectedIndex)
+                                      _TimelineSpanWidget(
+                                        span: span,
+                                        modelStart: m.start,
+                                        fullDuration: fullDuration,
+                                        isSelected: widget.selectedIndex == span.index,
+                                        isHovered: _hoverRecord == span.index,
+                                        isSearchMatch: widget.searchMatchIndexes == null ? null : widget.searchMatchIndexes!.contains(span.index),
+                                        isTimelineSelected: widget.range == null ? null : (span.start <= widget.range!.end && span.end >= widget.range!.start),
+                                        mode: widget.mode,
+                                        w: w,
+                                      ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_hoverFraction != null && _hoverRecord == null && _draft == null)
+                          Positioned(
+                            left: (_hoverFraction! * w).clamp(0, w - 2),
+                            top: 0, bottom: 0,
+                            child: Container(width: 2, color: aliases.stateBusinessPrimary),
+                          ),
+                        if (selLeft != null && selWidth != null)
+                          Positioned(
+                            left: selLeft / 100 * w,
+                            width: (selWidth / 100 * w).clamp(1, w),
+                            top: 0, bottom: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: aliases.stateBusinessPrimary.withValues(alpha: _draft != null ? 0.18 : 0.12),
+                                border: Border(
+                                  left: BorderSide(color: aliases.stateBusinessPrimary, width: _draft != null ? 2 : 3),
+                                  right: BorderSide(color: aliases.stateBusinessPrimary, width: _draft != null ? 2 : 3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (widget.hasEarlierRecords && domainStart == m.start)
+                          Positioned(left: 0, top: 0, bottom: 0, child: _EarlierHistoryButton(loading: _loadingEarlier, onLoad: widget.onLoadEarlier == null ? null : () async {
+                            setState(() => _loadingEarlier = true);
+                            try { await widget.onLoadEarlier!.call(); } finally { if (mounted) setState(() => _loadingEarlier = false); }
+                          })),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LaneLabels extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return Stack(
+      children: [
+        Positioned(right: 3, top: 7, child: Text('Input', style: TextStyle(fontSize: 10, height: 1, color: aliases.labelCaption))),
+        Positioned(right: 3, top: 21, child: Text('Model', style: TextStyle(fontSize: 10, height: 1, color: aliases.labelCaption))),
+        Positioned(right: 3, top: 35, child: Text('Tools', style: TextStyle(fontSize: 10, height: 1, color: aliases.labelCaption))),
+      ],
+    );
+  }
+}
+
+class _EarlierHistoryButton extends StatelessWidget {
+  const _EarlierHistoryButton({required this.loading, required this.onLoad});
+  final bool loading;
+  final Future<void> Function()? onLoad;
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return Tooltip(
+      message: loading ? 'Loading earlier…' : 'Click to load earlier',
+      child: InkWell(
+        onTap: loading || onLoad == null ? null : () => onLoad!.call(),
+        child: Container(
+          width: 28,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.only(left: 3),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [aliases.bgLayer2, aliases.bgLayer2.withValues(alpha: 0.0)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+          ),
+          child: Text('…', style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: aliases.labelSecondary)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Thousands-separated millisecond label (React `formatDurationMillis`).
+String _formatMs(int ms) {
+  var digits = ms.abs().toString();
+  final buf = StringBuffer();
+  while (digits.length > 3) {
+    buf.write(',${digits.substring(digits.length - 3)}');
+    digits = digits.substring(0, digits.length - 3);
+  }
+  buf.write(digits);
+  final out = buf.toString().split(',').reversed.join(',');
+  return '${ms < 0 ? '-' : ''}$out ms';
+}
+
+/// Fills `{name}` placeholders in a locale template.
+String _fillTemplate(String template, Map<String, String> values) {
+  var out = template;
+  values.forEach((k, v) => out = out.replaceAll('{$k}', v));
+  return out;
+}
+
+/// Local clock label `HH:MM:SS.mmm` (React `formatRecordedTime`).
+String _formatClockMs(int ms) {
+  final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+  String two(int n) => n.toString().padLeft(2, '0');
+  String three(int n) => n.toString().padLeft(3, '0');
+  return '${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}.${three(dt.millisecond)}';
+}
+
+class _TimelineSpanWidget extends StatelessWidget {
+  const _TimelineSpanWidget({
+    required this.span,
+    required this.modelStart,
+    required this.fullDuration,
+    required this.isSelected,
+    required this.isHovered,
+    required this.isSearchMatch,
+    required this.isTimelineSelected,
+    required this.mode,
+    required this.w,
+  });
+  final TimelineSpan span;
+  final int modelStart;
+  final int fullDuration;
+  final bool isSelected;
+  final bool isHovered;
+  final bool? isSearchMatch;
+  final bool? isTimelineSelected;
+  final String mode;
+  final double w;
+
+  Color _bg(DswAliases a) {
+    if (span.isError) return a.stateErrorPrimary;
+    return switch (span.kind) {
+      TrajectoryCellKind.user => a.stateBusinessPrimary,
+      TrajectoryCellKind.context => a.stateSuccessPrimary,
+      TrajectoryCellKind.system => a.labelCaption,
+      TrajectoryCellKind.compacted => a.labelTertiary,
+      TrajectoryCellKind.message => a.brandPrimaryNewColor,
+      TrajectoryCellKind.tool => a.stateWarnLabel,
+      TrajectoryCellKind.subtool => a.stateWarnLabel.withValues(alpha: 0.8),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    // Equal-width rendering only in `sequence` mode (React parity: only the
+    // sequence projection uses equal blocks; `time`/`duration`/`actual` are
+    // recorded-time projections).
+    final bool equal = mode == 'sequence';
+    final double left = (span.start - modelStart) / fullDuration * w;
+    final double width = (span.end - span.start) / fullDuration * w;
+    final double effWidth = width.clamp(2, w);
+    final double gap = (effWidth * 0.08).clamp(0, 1);
+    final double leftWithGap = left + gap;
+    final double widthWithGap = (effWidth - 2 * gap).clamp(2, w);
+    final double top = span.lane * 14.0 + 7;
+    double opacity = 0.78;
+    if (isTimelineSelected == false) opacity = 0.2;
+    if (isSearchMatch == false) opacity = 0.14;
+    if (isSelected) opacity = 1;
+    if (isHovered && !isSelected) opacity = 1;
+
+    BoxDecoration deco = BoxDecoration(
+      color: _bg(aliases),
+      borderRadius: BorderRadius.circular(1),
+      boxShadow: isSelected
+          ? [BoxShadow(color: aliases.bgLayer2, blurRadius: 0, spreadRadius: 1), BoxShadow(color: aliases.stateBusinessPrimary, blurRadius: 0, spreadRadius: 2)]
+          : isHovered
+              ? [BoxShadow(color: aliases.bgLayer2, blurRadius: 0, spreadRadius: 1), BoxShadow(color: aliases.stateBusinessPrimary.withValues(alpha: 0.8), blurRadius: 0, spreadRadius: 2)]
+              : null,
+    );
+
+    final bool equalWidth = equal;
+    final double boxWidth = equalWidth ? 8 : widthWithGap;
+    final double boxLeft = equalWidth ? left : leftWithGap;
+
+    // Assistant TTFT/decoding split (React `data-assistant-timing`): the
+    // TTFT fraction renders solid, the decoding remainder translucent.
+    double? ttftFraction;
+    if (!equalWidth &&
+        span.ttftMs != null &&
+        span.decodingMs != null &&
+        span.ttftMs! >= 0 &&
+        span.decodingMs! >= 0 &&
+        span.ttftMs! + span.decodingMs! > 0) {
+      ttftFraction =
+          span.ttftMs! / (span.ttftMs! + span.decodingMs!);
+    }
+
+    Widget bar = Container(
+      width: boxWidth,
+      height: 8,
+      decoration: deco.copyWith(color: deco.color?.withValues(alpha: opacity)),
+    );
+    if (ttftFraction != null) {
+      final double split = (boxWidth * ttftFraction).clamp(0, boxWidth);
+      bar = SizedBox(
+        width: boxWidth,
+        height: 8,
+        child: Stack(
+          children: [
+            Container(
+              width: boxWidth,
+              height: 8,
+              decoration: BoxDecoration(
+                color: deco.color?.withValues(alpha: opacity * 0.45),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            Container(
+              width: split,
+              height: 8,
+              decoration: BoxDecoration(
+                color: deco.color?.withValues(alpha: opacity),
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Positioned(
+      left: boxLeft,
+      top: top,
+      child: Tooltip(
+        message: _tooltipText(context, aliases),
+        waitDuration: const Duration(milliseconds: 500),
+        child: bar,
+      ),
+    );
+  }
+
+  /// Rich tooltip (React `timelineTooltipLabel`): kind heading, recorded
+  /// range, total duration, TTFT/decoding split when known.
+  String _tooltipText(BuildContext context, DswAliases aliases) {
+    String tr(String key) => trajectoryText(
+        Localizations.localeOf(context).languageCode, key);
+    final String heading = _kindTag(span.kind, aliases, true).$1.label;
+    final int? startedAt = span.startedAtMs;
+    final int? durationMs = span.durationMs;
+    String? range;
+    if (startedAt != null) {
+      range = durationMs != null
+          ? '${_formatClockMs(startedAt)} → ${_formatClockMs(startedAt + durationMs)}'
+          : _fillTemplate(
+              tr('timeline.started'), {'time': _formatClockMs(startedAt)});
+    }
+    String? timing;
+    if (durationMs != null) {
+      timing = _fillTemplate(
+          tr('timeline.total'), {'duration': _formatMs(durationMs)});
+    }
+    if (span.ttftMs != null && span.decodingMs != null) {
+      final segments = _fillTemplate(tr('timeline.ttftDecoding'), {
+        'ttft': _formatMs(span.ttftMs!),
+        'decoding': _formatMs(span.decodingMs!),
+      });
+      timing = timing == null ? segments : '$timing · $segments';
+    }
+    return [
+      heading,
+      if (range != null) range,
+      if (timing != null && timing.isNotEmpty) timing,
+    ].join('\n');
+  }
+}
+
+class _TrajectoryLedger extends StatelessWidget {
+  const _TrajectoryLedger({
+    required this.rows,
+    required this.allRows,
+    required this.searchMatchIndexes,
+    required this.timelineFocusIndexes,
+    required this.selectedIndex,
+    required this.onSelectedIndexChange,
+    required this.onRecordSelect,
+    required this.collapsedTurns,
+    required this.onToggleTurn,
+    required this.historyLoading,
+    required this.olderHistoryLoading,
+    required this.hasOlderRecords,
+    required this.onLoadOlder,
+    required this.scrollController,
+    required this.pendingFocusIndex,
+    required this.onFocusConsumed,
+  });
+
+  final List<LedgerRow> rows;
+  final List<LedgerRow> allRows;
+  final Set<int>? searchMatchIndexes;
+  final Set<int>? timelineFocusIndexes;
+  final int? selectedIndex;
+  final ValueChanged<int?> onSelectedIndexChange;
+  final ValueChanged<int> onRecordSelect;
+  final Set<int> collapsedTurns;
+  final ValueChanged<int> onToggleTurn;
+  final bool historyLoading;
+  final bool olderHistoryLoading;
+  final bool hasOlderRecords;
+  final Future<void> Function() onLoadOlder;
+  final ScrollController scrollController;
+  final int? pendingFocusIndex;
+  final VoidCallback onFocusConsumed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final bool reduced = prefersReducedMotion(context);
+
+    if (pendingFocusIndex != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => onFocusConsumed());
+    }
+
+    if (rows.isEmpty) {
+      return Center(child: Text('No matching records', style: TextStyle(color: aliases.labelCaption, fontSize: DswTokens.fontSizeXs13)));
+    }
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final bool compact = constraints.maxWidth < 620;
+      return Column(
+        children: [
+          Container(
+            height: 30,
+            color: aliases.specificSidebarFill,
+            child: Row(
+              children: [
+                Container(
+                  width: 122,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  alignment: Alignment.centerRight,
+                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: aliases.borderL2))),
+                  child: Text('Event', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary, fontWeight: FontWeight.w500)),
+                ),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    alignment: Alignment.centerLeft,
+                    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: aliases.borderL2))),
+                    child: Text('Content', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary, fontWeight: FontWeight.w500)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (historyLoading)
+            Container(
+              height: 30,
+              color: aliases.bgLayer1,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: aliases.stateBusinessPrimary)),
+                  const SizedBox(width: 6),
+                  Text('Loading…', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary)),
+                ],
+              ),
+            ),
+          if (hasOlderRecords && !historyLoading)
+            InkWell(
+              onTap: olderHistoryLoading ? null : () => onLoadOlder(),
+              child: Container(
+                height: 29,
+                color: aliases.bgLayer1,
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (olderHistoryLoading) SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: aliases.labelSecondary)) else Icon(Icons.history, size: 12, color: aliases.labelSecondary),
+                    const SizedBox(width: 6),
+                    Text(olderHistoryLoading ? 'Loading…' : 'Load earlier', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary)),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(
+            // No manual windowing cap here, deliberately. React's ledger wraps
+            // its rows in a tanstack virtualizer window (threshold 100,
+            // overscan 12) because the DOM pays per node; `ListView.builder`
+            // with a fixed `itemExtent` already builds only visible rows with
+            // O(1) layout, so duplicating React's head/tail window would add a
+            // second paging mechanism with no frame win. Older history arrives
+            // through the authoritative `liveHistoryProvider.loadOlder()`
+            // cursor page (mirroring React's earlier-history button above),
+            // never a synthetic cursor.
+            child: ListView.builder(
+              controller: scrollController,
+              itemCount: rows.length,
+              itemExtent: 30,
+              itemBuilder: (context, i) {
+                final row = rows[i];
+                if (row.isCollapsedSummary) {
+                  return _CollapsedSummaryRow(text: row.collapsedSummary ?? '…', onTap: () => onToggleTurn(row.turn));
+                }
+                final bool isSelected = selectedIndex == row.index;
+                final bool isSearchDim = searchMatchIndexes != null && !searchMatchIndexes!.contains(row.index);
+                final bool isTimelineDim = timelineFocusIndexes != null && !timelineFocusIndexes!.contains(row.index);
+                final double opacity = isSearchDim ? 0.14 : isTimelineDim ? 0.24 : 1;
+                return Opacity(
+                  opacity: opacity,
+                  child: _LedgerRowWidget(
+                    row: row,
+                    compact: compact,
+                    isSelected: isSelected,
+                    reduced: reduced,
+                    onTap: () {
+                      onRecordSelect(row.index);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _LedgerRowWidget extends StatelessWidget {
+  const _LedgerRowWidget({required this.row, required this.compact, required this.isSelected, required this.reduced, required this.onTap});
+  final LedgerRow row;
+  final bool compact;
+  final bool isSelected;
+  final bool reduced;
+  final VoidCallback onTap;
+
+  Color _turnAccent(DswAliases a) => Color.lerp(a.bgLayer1, DswTokens.blue500, 0.22) ?? DswTokens.blue500;
+
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final Duration hoverDur = reduced ? Duration.zero : const Duration(milliseconds: 120);
+    final (_KindTagData tag, IconData? icon) = _kindTag(row.kind, aliases, compact);
+    final bool showErrorRail = row.isError;
+
+    return InkWell(
+      onTap: onTap,
+      hoverColor: aliases.interactiveBgHover,
+      splashColor: aliases.interactiveBgHover,
+      child: AnimatedContainer(
+        duration: hoverDur,
+        curve: DswTokens.easeInOut,
+        height: 30,
+        decoration: BoxDecoration(
+          color: isSelected ? aliases.interactiveBgActive : DswTokens.transparent,
+          border: Border(bottom: BorderSide(color: aliases.borderL1)),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 122,
+              child: Stack(
+                children: [
+                  Positioned(left: 0, top: row.turnStart ? -1 : 0, bottom: row.turnEnd ? 0 : -1, child: Container(width: 2, color: showErrorRail ? aliases.stateErrorPrimary.withValues(alpha: 0.22) : _turnAccent(aliases))),
+                  if (isSelected) Positioned(left: 0, top: 0, bottom: 0, child: Container(width: 3, color: showErrorRail ? aliases.stateErrorPrimary : aliases.stateBusinessPrimary)),
+                  if (row.turnStart)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: aliases.bgModulePlatform, borderRadius: const BorderRadius.only(bottomRight: Radius.circular(2))),
+                        child: Text(compact ? 'T${row.turn}' : 'Turn ${row.turn}', style: TextStyle(fontSize: 8, height: 10/8, fontFamily: DswTokens.fontFamilyCode, color: aliases.labelTertiary)),
+                      ),
+                    ),
+                  Positioned(
+                    right: 4,
+                    top: 0,
+                    bottom: 0,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: AnimatedContainer(
+                        duration: reduced ? Duration.zero : const Duration(milliseconds: 180),
+                        curve: DswTokens.easeInOut,
+                        width: compact ? 19 : 76,
+                        height: 19,
+                        child: _KindPill(tag: tag, icon: icon, compact: compact),
+                      ),
+                    ),
+                  ),
+                  if (row.groupStart)
+                    Positioned(
+                      left: 12 + (row.turn * 2).clamp(0, 24).toDouble(),
+                      top: 12,
+                      child: Container(width: 5, height: 5, decoration: BoxDecoration(color: aliases.labelCaption, shape: BoxShape.circle)),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: _RowContent(row: row, reduced: reduced),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KindTagData {
+  final String label;
+  final Color fg;
+  final Color bg;
+  const _KindTagData(this.label, this.fg, this.bg);
+}
+
+(_KindTagData, IconData?) _kindTag(TrajectoryCellKind kind, DswAliases a, bool compact) {
+  switch (kind) {
+    case TrajectoryCellKind.user:
+      return (_KindTagData('USER', a.stateBusinessPrimary, a.stateBusinessTertiary), Icons.person_outline);
+    case TrajectoryCellKind.context:
+      return (_KindTagData('CONTEXT', a.stateSuccessPrimary, a.stateSuccessTertiary), Icons.info_outline);
+    case TrajectoryCellKind.system:
+      return (_KindTagData('SYSTEM', a.labelSecondary, a.bgModulePlatform), Icons.settings_outlined);
+    case TrajectoryCellKind.compacted:
+      return (_KindTagData('COMPACTED', a.labelSecondary, a.bgModulePlatform), Icons.compress);
+    case TrajectoryCellKind.message:
+      return (_KindTagData('ASSISTANT', a.brandPrimaryNewColor, Color.lerp(a.brandPrimaryNewColor, DswTokens.red400, 0.4)?.withValues(alpha: 0.15) ?? a.stateBusinessTertiary), Icons.auto_awesome);
+    case TrajectoryCellKind.tool:
+      return (_KindTagData('TOOL', a.stateWarnLabel, a.stateWarnTertiary), Icons.build_outlined);
+    case TrajectoryCellKind.subtool:
+      return (_KindTagData('SUBTOOL', a.stateWarnLabel.withValues(alpha: 0.62), a.stateWarnTertiary.withValues(alpha: 0.58)), Icons.build_outlined);
+  }
+}
+
+class _KindPill extends StatelessWidget {
+  const _KindPill({required this.tag, required this.icon, required this.compact});
+  final _KindTagData tag;
+  final IconData? icon;
+  final bool compact;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 5),
+      decoration: BoxDecoration(color: tag.bg, borderRadius: BorderRadius.circular(DswTokens.radiusXs), border: Border.all(color: DswTokens.transparent)),
+      alignment: Alignment.center,
+      child: compact
+          ? Icon(icon, size: 13, color: tag.fg)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) Icon(icon, size: 13, color: tag.fg),
+                if (icon != null) const SizedBox(width: 4),
+                Flexible(child: Text(tag.label, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.35, color: tag.fg))),
+              ],
+            ),
+    );
+  }
+}
+
+class _RowContent extends StatelessWidget {
+  const _RowContent({required this.row, required this.reduced});
+  final LedgerRow row;
+  final bool reduced;
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    if (row.kind == TrajectoryCellKind.tool || row.kind == TrajectoryCellKind.subtool) {
+      // Ledger text is `name args…` (React `name + ' ' + args`); the result
+      // preview rides the separate `→` span (React `resultText`).
+      final sep = row.text.indexOf(' ');
+      final name = sep == -1 ? row.text : row.text.substring(0, sep);
+      final args = sep == -1 ? null : row.text.substring(sep + 1);
+      final String? resultSpan = row.resultPreview ?? row.result;
+      final bool isSub = row.kind == TrajectoryCellKind.subtool;
+      return Padding(
+        padding: EdgeInsets.only(left: isSub ? 22 : 0),
+        child: Row(
+          children: [
+            Expanded(
+              child: RichText(
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                text: TextSpan(
+                  children: [
+                    TextSpan(text: name, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: aliases.labelPrimary)),
+                    if (args != null) TextSpan(text: '  $args', style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: aliases.labelSecondary)),
+                  ],
+                ),
+              ),
+            ),
+            if (resultSpan != null && resultSpan.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward, size: 12, color: aliases.labelCaption),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(resultSpan, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: DswTokens.fontFamilyCode, fontSize: 12, color: row.isError ? aliases.stateErrorPrimary : aliases.labelSecondary)),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+    final String display = row.previewMarkdown ?? row.text;
+    if (display.isEmpty) {
+      return Text('—', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary));
+    }
+    // Tool-call-only assistants render dimmed like React's `.toolCallOnly`.
+    if (row.toolCallOnly) {
+      return Text(display, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, fontStyle: FontStyle.italic, color: aliases.labelTertiary));
+    }
+    return Text(display, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelPrimary));
+  }
+}
+
+class _CollapsedSummaryRow extends StatelessWidget {
+  const _CollapsedSummaryRow({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: aliases.borderL1))),
+        child: Row(
+          children: [
+            Text('…', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: aliases.labelTertiary)),
+            const SizedBox(width: 6),
+            Expanded(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: aliases.labelSecondary))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrajectoryFooter extends StatelessWidget {
+  const _TrajectoryFooter({required this.trajectory, required this.rows});
+  final Trajectory trajectory;
+  final List<LedgerRow> rows;
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final int turns = trajectory.turns.length;
+    final int steps = rows.map((r) => '${r.turn}-${r.group}').toSet().length;
+    return Container(
+      height: 24,
+      color: aliases.bgLayer2,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
+      child: Text(
+        '$turns turn${turns == 1 ? '' : 's'} · $steps step${steps == 1 ? '' : 's'}',
+        style: TextStyle(fontSize: 11, color: aliases.labelCaption),
+      ),
+    );
+  }
+}
+
+class _TrajectoryHeader extends StatelessWidget {
+  const _TrajectoryHeader({required this.trajectory, required this.aliases});
+  final Trajectory trajectory;
+  final DswAliases aliases;
+  @override
+  Widget build(BuildContext context) {
+    final int count = trajectory.turns.length;
+    final bool running = trajectory.isRunning;
+    final String durationLabel = _durationLabel(trajectory.totalDurationMs);
+    return Container(
+      color: aliases.bgLayer2,
+      padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceLg, vertical: DswTokens.spaceMd),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: running ? aliases.stateSuccessTertiary : aliases.bgOverlay,
+              borderRadius: BorderRadius.circular(DswTokens.radiusFull),
+              border: Border.all(color: running ? aliases.stateSuccessPrimary : aliases.borderL2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 6, height: 6, decoration: BoxDecoration(color: running ? aliases.stateSuccessPrimary : aliases.labelTertiary, shape: BoxShape.circle)),
+                const SizedBox(width: 6),
+                Text(running ? 'Running' : 'Idle', style: TextStyle(fontSize: DswTokens.fontSizeXxs12, fontWeight: FontWeight.w600, color: running ? aliases.stateSuccessPrimary : aliases.labelSecondary)),
+              ],
+            ),
+          ),
+          const SizedBox(width: DswTokens.spaceMd),
+          Text('$count turn${count == 1 ? '' : 's'}', style: TextStyle(fontSize: DswTokens.fontSizeS14, color: aliases.labelSecondary)),
+          if (durationLabel.isNotEmpty) ...[
+            const SizedBox(width: DswTokens.spaceSm),
+            Text('· $durationLabel', style: TextStyle(fontSize: DswTokens.fontSizeS14, color: aliases.labelCaption)),
+          ],
+          const Spacer(),
+          Text('Session ${trajectory.sessionId}', overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelCaption)),
+        ],
+      ),
+    );
+  }
+
+  String _durationLabel(int? ms) {
+    if (ms == null) return '';
+    if (ms < 1000) return '${ms}ms';
+    if (ms < 60000) return '${(ms / 1000).toStringAsFixed(1)}s';
+    final int mins = ms ~/ 60000;
+    final int secs = (ms % 60000) ~/ 1000;
+    return '${mins}m ${secs}s';
+  }
+}
+
+class _EmptyTrajectory extends StatelessWidget {
+  const _EmptyTrajectory({required this.sessionId, required this.aliases});
+  final String sessionId;
+  final DswAliases aliases;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(DswTokens.spaceXl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.timeline, size: 32, color: aliases.labelCaption),
+            const SizedBox(height: DswTokens.spaceMd),
+            Text('No turns yet', style: TextStyle(fontSize: DswTokens.fontSizeBase16, fontWeight: FontWeight.w600, color: aliases.labelPrimary)),
+            const SizedBox(height: 6),
+            Text('Trajectory for $sessionId is empty.\nSend a message to create the first turn.', textAlign: TextAlign.center, style: TextStyle(fontSize: DswTokens.fontSizeS14, color: aliases.labelSecondary)),
+            const SizedBox(height: DswTokens.spaceLg),
+            OutlinedButton.icon(onPressed: () => context.go('/sessions/$sessionId'), icon: const Icon(Icons.chat_bubble_outline, size: 16), label: const Text('Back to conversation')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.error, required this.aliases, required this.onRetry});
+  final String error;
+  final DswAliases aliases;
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(DswTokens.spaceLg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 28, color: aliases.stateErrorPrimary),
+            const SizedBox(height: DswTokens.spaceSm),
+            Text('Failed to load trajectory', style: TextStyle(fontSize: DswTokens.fontSizeS14, fontWeight: FontWeight.w600, color: aliases.labelPrimary)),
+            const SizedBox(height: 4),
+            SelectableText(error, style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelSecondary)),
+            const SizedBox(height: DswTokens.spaceMd),
+            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh, size: 16), label: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+dynamic jsonContainerOf(dynamic value) {
+  if (value is Map || value is List) return value;
+  if (value is String) {
+    final String trimmed = value.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+    try {
+      final dynamic decoded = jsonDecode(trimmed);
+      if (decoded is Map || decoded is List) return decoded;
+    } on FormatException {}
+  }
+  return null;
+}
+
+String scalarResultText(dynamic value) {
+  if (value == null) return '';
+  if (value is String) return value;
+  return '$value';
+}
+
+class TrajectoryTimeline extends ConsumerWidget {
+  const TrajectoryTimeline({super.key, required this.trajectory});
+  final Trajectory trajectory;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = _rowsFromTrajectoryTurns(trajectory);
+    return _TrajectoryTimelineStrip(
+      rows: rows,
+      mode: 'sequence',
+      range: null,
+      hasEarlierRecords: false,
+      onLoadEarlier: null,
+      selectedIndex: null,
+      searchMatchIndexes: null,
+      onRangeChange: (_) {},
+      onRecordSelect: (_) {},
+      onRecordFocus: (_) {},
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Details pane — mirrors TrajectoryTable details split (320-440, resizable)
+// Simplified as bottom sheet with tabs: Overview / Rendered / Raw / Timing
+// ---------------------------------------------------------------------------
+
+class _DetailsPane extends StatefulWidget {
+  const _DetailsPane({
+    required this.row,
+    required this.onClose,
+    this.allRows = const [],
+    this.onSelectRow,
+  });
+  final LedgerRow row;
+  final VoidCallback onClose;
+
+  /// All ledger rows for hierarchy navigation (React `parentRecords`).
+  final List<LedgerRow> allRows;
+
+  /// Jumps the inspector to another row (hierarchy links).
+  final ValueChanged<int>? onSelectRow;
+  @override
+  State<_DetailsPane> createState() => _DetailsPaneState();
+}
+
+String _trajT(BuildContext context, String key) =>
+    trajectoryText(Localizations.localeOf(context).languageCode, key);
+
+class _DetailsPaneState extends State<_DetailsPane> with TickerProviderStateMixin {
+  late TabController _tab;
+  bool _showUnixTime = false;
+
+  /// Locale-free tab ids for a row (React `detailTabs` matrix). Ids drive
+  /// the TabController, which is created in `initState` where the context
+  /// must not depend on inherited widgets (no locale lookup here); labels
+  /// resolve in `build` via `_trajT`.
+  static List<String> _tabIdsFor(LedgerRow row) {
+    final k = row.kind;
+    if (k == TrajectoryCellKind.system) {
+      // Header rows double as request boundaries (React REQUEST_TABS) and
+      // prompt changes (system-prompt/tools tabs).
+      return const [
+        'summary',
+        'systemPrompt',
+        'tools',
+        'options',
+        'usage',
+        'timing'
+      ];
+    }
+    if (k == TrajectoryCellKind.compacted) {
+      return const ['summary', 'rawOutput'];
+    }
+    if (k == TrajectoryCellKind.message ||
+        k == TrajectoryCellKind.user ||
+        k == TrajectoryCellKind.context) {
+      return [
+        'summary',
+        'preview',
+        'raw',
+        if (row.messageSource != null) 'source',
+      ];
+    }
+    // Tool/subtool: Payload/Result tabs exist only when captured (React
+    // `detailTabs` conditionals); Schema and Timing always do.
+    return [
+      'summary',
+      if ((row.inputDetail ?? '').isNotEmpty) 'payload',
+      if ((row.outputDetail ?? '').isNotEmpty) 'result',
+      'schema',
+      'timing',
+    ];
+  }
+
+  List<String> get _tabIds => _tabIdsFor(widget.row);
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: _tabIds.length, vsync: this);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DetailsPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.row.index != widget.row.index || oldWidget.row.kind != widget.row.kind) {
+      final newLen = _tabIds.length;
+      if (newLen != _tab.length) {
+        _tab.dispose();
+        _tab = TabController(length: newLen, vsync: this);
+      } else {
+        _tab.index = 0;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aliases = Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final row = widget.row;
+    return Container(
+      height: 280,
+      decoration: BoxDecoration(
+        color: aliases.bgLayer1,
+        border: Border(top: BorderSide(color: aliases.borderL2)),
+        boxShadow: [BoxShadow(color: aliases.bgMask1, blurRadius: 12, offset: const Offset(0, -4))],
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: aliases.borderL2))),
+            child: Row(
+              children: [
+                Container(width: 5, height: 5, decoration: BoxDecoration(color: row.isError ? aliases.stateErrorPrimary : aliases.labelTertiary, shape: BoxShape.circle)),
+                const SizedBox(width: 8),
+                Text(_kindLabel(row.kind), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, fontFamily: DswTokens.fontFamilyCode, color: aliases.labelPrimary)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_locationLabel(context, row), style: TextStyle(fontSize: 11, fontFamily: DswTokens.fontFamilyCode, color: aliases.labelTertiary), overflow: TextOverflow.ellipsis)),
+                IconButton(icon: const Icon(Icons.close, size: 18), onPressed: widget.onClose, tooltip: 'Close'),
+              ],
+            ),
+          ),
+          Container(
+            height: 34,
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: aliases.borderL2))),
+            child: TabBar(
+              controller: _tab,
+              isScrollable: true,
+              labelColor: aliases.stateBusinessPrimary,
+              unselectedLabelColor: aliases.labelTertiary,
+              indicatorColor: aliases.stateBusinessPrimary,
+              indicatorWeight: 2,
+              labelStyle: TextStyle(fontSize: DswTokens.fontSizeXs13, fontWeight: FontWeight.w500),
+              tabs: [
+                for (final id in _tabIds)
+                  Tab(text: _trajT(context, 'tab.$id'))
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: [for (final id in _tabIds) _tabBody(id, row, aliases)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _locationLabel(BuildContext context, LedgerRow row) {
+    // React shows `Turn N · Step M` (badge and location are separate spans);
+    // compacted rows without a turn show their group instead.
+    if (row.kind == TrajectoryCellKind.compacted && row.turn == 0) {
+      return row.group.isEmpty ? '—' : row.group;
+    }
+    return row.step > 0 ? 'Turn ${row.turn} · Step ${row.step}' : 'Turn ${row.turn}';
+  }
+
+  String _kindLabel(TrajectoryCellKind k) => switch (k) {
+        TrajectoryCellKind.system => 'SYSTEM',
+        TrajectoryCellKind.user => 'USER',
+        TrajectoryCellKind.context => 'CONTEXT',
+        TrajectoryCellKind.compacted => 'COMPACTED',
+        TrajectoryCellKind.message => 'ASSISTANT',
+        TrajectoryCellKind.tool => 'TOOL',
+        TrajectoryCellKind.subtool => 'SUBTOOL',
+      };
+
+  void _jumpToId(String id) {
+    final i = _tabIds.indexOf(id);
+    if (i != -1) _tab.animateTo(i);
+  }
+
+  String _statusOf(LedgerRow row) {
+    if (row.isError || row.requestFailed) {
+      return _trajT(context, 'status.failed');
+    }
+    if (row.running) return _trajT(context, 'status.pending');
+    return _trajT(context, 'status.completed');
+  }
+
+  String _formatInt(int v) {
+    final neg = v < 0;
+    var s = v.abs().toString();
+    final buf = StringBuffer();
+    while (s.length > 3) {
+      buf.write(',${s.substring(s.length - 3)}');
+      s = s.substring(0, s.length - 3);
+    }
+    buf.write(s);
+    final out = buf.toString().split(',').reversed.join(',');
+    return neg ? '-$out' : out;
+  }
+
+  String _startedText(int? ms) {
+    if (ms == null) return _trajT(context, 'timing.notAvailable');
+    if (_showUnixTime) return (ms / 1000.0).toStringAsFixed(3);
+    final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+    String two(int n) => n.toString().padLeft(2, '0');
+    String three(int n) => n.toString().padLeft(3, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}:${two(dt.second)}.${three(dt.millisecond)}';
+  }
+
+  String _durationText(double? secs) {
+    if (secs == null) return '—';
+    return '${_formatInt((secs * 1000).round())} ms';
+  }
+
+  /// First assistant row in the same turn whose blocks declared [callId].
+  LedgerRow? _parentAssistantOf(String? callId, int turn) {
+    if (callId == null || callId.isEmpty) return null;
+    for (final r in widget.allRows) {
+      if (r.kind == TrajectoryCellKind.message &&
+          r.turn == turn &&
+          r.childCallIds.contains(callId)) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  Widget _sectionLink({
+    required String label,
+    required String targetId,
+    required Widget preview,
+    required DswAliases aliases,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextButton(
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: () => _jumpToId(targetId),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label,
+                  style: TextStyle(
+                      fontSize: DswTokens.fontSizeXs13,
+                      fontWeight: FontWeight.w600,
+                      color: aliases.labelPrimary)),
+              Text(' ›',
+                  style: TextStyle(
+                      fontSize: DswTokens.fontSizeXs13,
+                      color: aliases.labelTertiary)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        preview,
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _previewPre(String text, DswAliases aliases, {int maxLines = 6}) =>
+      Text(text,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontFamily: DswTokens.fontFamilyCode,
+              fontSize: 12,
+              height: 19 / 12,
+              color: aliases.labelSecondary));
+
+  Widget _summaryTab(LedgerRow row, DswAliases aliases) {
+    final children = <Widget>[];
+    void kv(String k, String v, {bool error = false}) =>
+        children.add(_kv(k, v, aliases, error: error));
+    if (row.kind == TrajectoryCellKind.tool ||
+        row.kind == TrajectoryCellKind.subtool) {
+      final parent = _parentAssistantOf(row.callId, row.turn);
+      if (parent != null && widget.onSelectRow != null) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                  width: 96,
+                  child: Text(_trajT(context, 'details.hierarchy'),
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.labelTertiary))),
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: () => widget.onSelectRow!(parent.index),
+                  child: Text(
+                      '${_trajT(context, 'details.assistantMessage')} ›',
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.stateBusinessPrimary)),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      children.add(const SizedBox(height: 8));
+      if ((row.inputDetail ?? '').isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.payload'),
+          targetId: 'payload',
+          preview: _previewPre(row.inputDetail!, aliases),
+          aliases: aliases,
+        ));
+      }
+      if ((row.outputDetail ?? '').isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.result'),
+          targetId: 'result',
+          preview: _previewPre(row.outputDetail!, aliases),
+          aliases: aliases,
+        ));
+      }
+      children.add(_sectionLink(
+        label: _trajT(context, 'tab.schema'),
+        targetId: 'schema',
+        preview: Text(
+            row.schemaDescription?.isNotEmpty == true
+                ? row.schemaDescription!
+                : _trajT(context, 'record.schemaUnavailable'),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelSecondary)),
+        aliases: aliases,
+      ));
+      children.add(_sectionLink(
+        label: _trajT(context, 'tab.timing'),
+        targetId: 'timing',
+        preview: Text(
+            '${_trajT(context, 'timing.started')}: ${_startedText(row.startedAt)} · ${_trajT(context, 'timing.duration')}: ${_durationText(row.timeSeconds)}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelSecondary)),
+        aliases: aliases,
+      ));
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    if (row.kind == TrajectoryCellKind.message) {
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      if (row.outputTokens != null) {
+        kv(_trajT(context, 'details.tokens'), _formatInt(row.outputTokens!));
+      }
+      if (row.reasoningTokens != null) {
+        kv(_trajT(context, 'details.reasoning'),
+            _formatInt(row.reasoningTokens!));
+      }
+      if (row.outputTokens != null && row.reasoningTokens != null) {
+        kv(_trajT(context, 'details.content'), _formatInt(
+            (row.outputTokens! - row.reasoningTokens!).clamp(0, 1 << 30)));
+      }
+      children.add(const SizedBox(height: 8));
+      final String previewText =
+          row.outputDetail ?? row.previewMarkdown ?? row.text;
+      if (previewText.isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.preview'),
+          targetId: 'preview',
+          preview: _previewPre(previewText, aliases, maxLines: 10),
+          aliases: aliases,
+        ));
+      }
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    if (row.kind == TrajectoryCellKind.user ||
+        row.kind == TrajectoryCellKind.context) {
+      if (row.messageSource != null) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                  width: 96,
+                  child: Text(_trajT(context, 'details.source'),
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.labelTertiary))),
+              Expanded(
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: () =>
+                      _jumpToId('source'),
+                  child: Text('${_trajT(context, 'tab.source')} ›',
+                      style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.stateBusinessPrimary)),
+                ),
+              ),
+            ],
+          ),
+        ));
+      }
+      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      kv(_trajT(context, 'details.duration'),
+          _durationText(row.timeSeconds));
+      children.add(const SizedBox(height: 8));
+      final String previewText =
+          row.inputDetail ?? row.previewMarkdown ?? row.text;
+      if (previewText.isNotEmpty) {
+        children.add(_sectionLink(
+          label: _trajT(context, 'tab.preview'),
+          targetId: 'preview',
+          preview: _previewPre(previewText, aliases, maxLines: 10),
+          aliases: aliases,
+        ));
+      }
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    if (row.kind == TrajectoryCellKind.compacted) {      kv(_trajT(context, 'details.status'), _statusOf(row),
+          error: row.isError);
+      kv(_trajT(context, 'details.duration'),
+          _durationText(row.timeSeconds));
+      kv(_trajT(context, 'details.tokens'), '—');
+      if ((row.outputDetail ?? '').isNotEmpty) {
+        children.add(const SizedBox(height: 8));
+        children.add(SelectableText(row.outputDetail!,
+            style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelPrimary)));
+      }
+      return ListView(
+          padding: const EdgeInsets.all(14), children: children);
+    }
+    // Request header rows: React request Summary (Status, Provider, Model,
+    // tool counts). Prompt/options/usage/timing live on their own tabs.
+    children.add(_kv(_trajT(context, 'details.status'), _statusOf(row),
+        aliases,
+        error: row.isError || row.requestFailed));
+    if (row.requestNumber != null) {
+      children.add(_kv(
+          _trajT(context, 'details.request'), '#${row.requestNumber}', aliases));
+    }
+    if ((row.requestProvider ?? '').isNotEmpty) {
+      children.add(
+          _kv(_trajT(context, 'details.provider'), row.requestProvider!, aliases));
+    }
+    if ((row.requestModel ?? '').isNotEmpty) {
+      children.add(
+          _kv(_trajT(context, 'details.model'), row.requestModel!, aliases));
+    }
+    children.add(_kv(_trajT(context, 'details.toolCalls'),
+        '${row.requestToolCalls}', aliases));
+    if (row.requestSubtoolCalls > 0) {
+      children.add(_kv(_trajT(context, 'details.subtoolCalls'),
+          '${row.requestSubtoolCalls}', aliases));
+    }
+    if ((row.promptDetail ?? '').isNotEmpty) {
+      children.add(const SizedBox(height: 8));
+      children.add(_sectionLink(
+        label: _trajT(context, 'tab.systemPrompt'),
+        targetId: 'systemPrompt',
+        preview: _previewPre(row.promptDetail!, aliases, maxLines: 6),
+        aliases: aliases,
+      ));
+    }
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: children,
+    );
+  }
+
+  Widget _markdownTab(String md, DswAliases aliases, String emptyLabel) {
+    if (md.isEmpty) {
+      return Center(
+          child: Text(emptyLabel,
+              style: TextStyle(
+                  color: aliases.labelTertiary,
+                  fontSize: DswTokens.fontSizeXs13)));
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(14),
+      child: DsMarkdown(data: md),
+    );
+  }
+
+  Widget _preTab(String raw, DswAliases aliases, String emptyLabel) {
+    if (raw.isEmpty) {
+      return Center(
+          child: Text(emptyLabel,
+              style: TextStyle(
+                  color: aliases.labelTertiary,
+                  fontSize: DswTokens.fontSizeXs13)));
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(14),
+      child: SelectableText(raw,
+          style: TextStyle(
+              fontFamily: DswTokens.fontFamilyCode,
+              fontSize: 12,
+              height: 19 / 12,
+              color: aliases.labelPrimary)),
+    );
+  }
+
+  Widget _jsonTab(String raw, DswAliases aliases, String emptyLabel) {
+    if (raw.isEmpty) {
+      return Center(
+          child: Text(emptyLabel,
+              style: TextStyle(
+                  color: aliases.labelTertiary,
+                  fontSize: DswTokens.fontSizeXs13)));
+    }
+    final dynamic decoded = jsonContainerOf(raw) ?? raw;
+    if (decoded is Map || decoded is List) {
+      return SingleChildScrollView(
+          padding: const EdgeInsets.all(14),
+          child: DsJsonTree(data: decoded, initiallyExpanded: true));
+    }
+    return _preTab(raw, aliases, emptyLabel);
+  }
+
+  Widget _timingTab(LedgerRow row, DswAliases aliases) {
+    // Request rows time the whole request (React RequestTiming anchor);
+    // record rows time themselves.
+    final int? started = row.isRequestHeader
+        ? (row.requestStartedAt ?? row.startedAt)
+        : row.startedAt;
+    double? secs = row.timeSeconds;
+    if (row.isRequestHeader &&
+        row.requestStartedAt != null &&
+        row.requestCompletedAt != null) {
+      final double span =
+          (row.requestCompletedAt! - row.requestStartedAt!) / 1000.0;
+      secs = span < 0 ? 0 : span;
+    }
+    final children = <Widget>[
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+                width: 96,
+                child: Text(_trajT(context, 'timing.started'),
+                    style: TextStyle(
+                        fontSize: DswTokens.fontSizeXs13,
+                        color: aliases.labelTertiary))),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SelectableText(_startedText(started),
+                      style: TextStyle(
+                          fontFamily: DswTokens.fontFamilyCode,
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: aliases.labelPrimary)),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () =>
+                        setState(() => _showUnixTime = !_showUnixTime),
+                    child: Text(
+                        _showUnixTime
+                            ? _trajT(context, 'timing.showLocal')
+                            : _trajT(context, 'timing.showUnix'),
+                        style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            color: aliases.stateBusinessPrimary)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      _kv(_trajT(context, 'timing.duration'),
+          _durationText(secs), aliases),
+      _kv(_trajT(context, 'timing.source'),
+          _trajT(context, 'timing.sessionTimestamps'), aliases),
+    ];
+    // Assistant TTFT / generation / throughput (React AssistantTimingPanel).
+    final int? first = row.firstTokenTime;
+    final int? stepStart = row.stepStartTime;
+    if (row.kind == TrajectoryCellKind.message &&
+        first != null &&
+        stepStart != null &&
+        row.startedAt != null) {
+      final double ttftSec = (first - stepStart) / 1000.0;
+      final double genSec = (row.startedAt! - first) / 1000.0;
+      children.add(_kv(_trajT(context, 'timing.ttft'),
+          _durationText(ttftSec < 0 ? 0 : ttftSec), aliases));
+      children.add(_kv(_trajT(context, 'timing.generation'),
+          _durationText(genSec < 0 ? 0 : genSec), aliases));
+      if (row.outputTokens != null && genSec > 0) {
+        children.add(_kv(
+            _trajT(context, 'timing.throughput'),
+            '${_formatInt((row.outputTokens! / genSec).round())} tok/s',
+            aliases));
+      }
+    }
+    return ListView(
+        padding: const EdgeInsets.all(14), children: children);
+  }
+
+  /// [id] is a locale-free tab id from [_tabIdsFor] (`summary`, `preview`,
+  /// `raw`, `rawOutput`, `source`, `payload`, `result`, `schema`, `timing`,
+  /// `systemPrompt`, `tools`).
+  Widget _tabBody(String id, LedgerRow row, DswAliases aliases) {
+    String L(String key) => _trajT(context, key);
+    if (id == 'summary') return _summaryTab(row, aliases);
+    if (id == 'preview') {
+      final parts = <String>[
+        if ((row.thinkingDetail ?? '').isNotEmpty) row.thinkingDetail!,
+        if ((row.outputDetail ?? '').isNotEmpty)
+          row.outputDetail!
+        else if ((row.inputDetail ?? '').isNotEmpty)
+          row.inputDetail!
+        else
+          row.previewMarkdown ?? row.text,
+      ].where((s) => s.isNotEmpty).toList();
+      return _markdownTab(
+          parts.join('\n\n'), aliases, L('record.noOutput'));
+    }
+    if (id == 'raw' || id == 'rawOutput') {
+      return _preTab(
+          row.inputDetail ??
+              ([row.thinkingDetail, row.outputDetail]
+                      .whereType<String>()
+                      .where((s) => s.isNotEmpty)
+                      .join('\n\n')),
+          aliases,
+          L('record.noOutput'));
+    }
+    if (id == 'source') {
+      final src = row.messageSource ?? '';
+      if (src.isEmpty) {
+        return Center(
+            child: Text(L('record.noOutput'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      final dynamic decoded = jsonContainerOf(src) ?? src;
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(L('record.sourceJson'),
+                style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    color: aliases.labelTertiary)),
+            const SizedBox(height: 8),
+            if (decoded is Map || decoded is List)
+              DsJsonTree(data: decoded, initiallyExpanded: true)
+            else
+              SelectableText(src,
+                  style: TextStyle(
+                      fontFamily: DswTokens.fontFamilyCode,
+                      fontSize: 12,
+                      color: aliases.labelPrimary)),
+          ],
+        ),
+      );
+    }
+    if (id == 'payload') {
+      return _jsonTab(
+          row.inputDetail ?? '', aliases, L('record.noPayload'));
+    }
+    if (id == 'result') {
+      return _jsonTab(row.outputDetail ?? row.result ?? '', aliases,
+          L('record.noResult'));
+    }
+    if (id == 'schema') {
+      final desc = row.schemaDescription ?? '';
+      final params = row.schemaParameters ?? '';
+      if (desc.isEmpty && params.isEmpty) {
+        return Center(
+            child: Text(L('record.schemaUnavailable'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      final dynamic decoded =
+          params.isEmpty ? null : (jsonContainerOf(params) ?? params);
+      return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          if (desc.isNotEmpty)
+            SelectableText(desc,
+                style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    color: aliases.labelPrimary)),
+          if (desc.isNotEmpty && decoded != null)
+            const SizedBox(height: 12),
+          if (decoded is Map || decoded is List)
+            DsJsonTree(data: decoded, initiallyExpanded: true)
+          else if (decoded is String)
+            SelectableText(decoded,
+                style: TextStyle(
+                    fontFamily: DswTokens.fontFamilyCode,
+                    fontSize: 12,
+                    color: aliases.labelPrimary)),
+        ],
+      );
+    }
+    if (id == 'options') {
+      final opts = row.requestOptionsJson ?? '';
+      if (opts.isEmpty) {
+        return Center(
+            child: Text(L('options.notRecorded'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return _jsonTab(opts, aliases, L('options.notRecorded'));
+    }
+    if (id == 'usage') {
+      final hasUsage = row.requestInputTokens != null ||
+          row.requestOutputTokens != null ||
+          row.requestCacheReadTokens != null;
+      if (!hasUsage) {
+        return Center(
+            child: Text(L('usage.notReported'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          if (row.requestInputTokens != null)
+            _kv(L('usage.input'), _formatInt(row.requestInputTokens!), aliases),
+          if (row.requestCacheReadTokens != null)
+            _kv(L('usage.cached'),
+                _formatInt(row.requestCacheReadTokens!), aliases),
+          if (row.requestOutputTokens != null)
+            _kv(L('usage.output'),
+                _formatInt(row.requestOutputTokens!), aliases),
+        ],
+      );
+    }
+    if (id == 'timing') return _timingTab(row, aliases);
+    if (id == 'systemPrompt') {
+      final prompt = row.promptDetail ?? '';
+      if (prompt.isEmpty) {
+        return Center(
+            child: Text(L('record.noOutput'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(14),
+        child: DsMarkdown(data: prompt),
+      );
+    }
+    if (id == 'tools') {
+      final catalog = row.promptToolsJson ?? '';
+      final dynamic decoded =
+          catalog.isEmpty ? null : (jsonContainerOf(catalog) ?? catalog);
+      final List<dynamic> tools =
+          decoded is List ? decoded : const [];
+      if (tools.isEmpty) {
+        return Center(
+            child: Text(L('record.noOutput'),
+                style: TextStyle(
+                    color: aliases.labelTertiary,
+                    fontSize: DswTokens.fontSizeXs13)));
+      }
+      return ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          for (final t in tools)
+            if (t is Map)
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: Text((t['name'] ?? '').toString(),
+                    style: TextStyle(
+                        fontFamily: DswTokens.fontFamilyCode,
+                        fontSize: DswTokens.fontSizeXs13,
+                        color: aliases.labelPrimary)),
+                subtitle: t['description'] is String &&
+                        (t['description'] as String).isNotEmpty
+                    ? Text((t['description'] as String).split('\n').first,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            color: aliases.labelSecondary))
+                    : null,
+                children: [
+                  if (t['description'] is String &&
+                      (t['description'] as String).isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SelectableText(t['description'] as String,
+                          style: TextStyle(
+                              fontSize: DswTokens.fontSizeXs13,
+                              color: aliases.labelPrimary)),
+                    ),
+                  Builder(builder: (context) {
+                    final p = t['parameters'];
+                    final dynamic pd = p is String
+                        ? (jsonContainerOf(p) ?? p)
+                        : p;
+                    if (pd is Map || pd is List) {
+                      return DsJsonTree(
+                          data: pd, initiallyExpanded: false);
+                    }
+                    return const SizedBox.shrink();
+                  }),
+                ],
+              ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _kv(String k, String v, DswAliases a, {bool error = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 96, child: Text(k, style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: a.labelTertiary))),
+          Expanded(child: Text(v, style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: error ? a.stateErrorPrimary : a.labelPrimary))),
+        ],
+      ),
+    );
+  }
+}
+

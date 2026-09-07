@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-05T08:03:00.552Z",
-  "filesScanned": 355,
+  "generatedAt": "2026-09-07T14:42:20.314Z",
+  "filesScanned": 361,
   "callSites": [
     {
       "file": "apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_provider.dart",
@@ -1208,7 +1208,7 @@
     },
     {
       "file": "apps/flutter/lib/src/plugins/conversation/ui/chat_view.dart",
-      "line": 528,
+      "line": 534,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",

@@ -1,0 +1,27 @@
+# Analyzer config for dsh_flutter.
+# Enables flutter_lints + riverpod_lint via custom_lint plugin.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+  plugins:
+    - custom_lint
+  errors:
+    invalid_annotation_target: ignore
+
+linter:
+  rules:
+    # riverpod_lint rules are enabled via custom_lint plugin;
+    # see package:riverpod_lint for additional opt-in rules.
+    # avoid_print: false
+
+# Reference: https://dart.dev/guides/language/analysis-options
+# riverpod_lint docs: https://pub.dev/packages/riverpod_lint

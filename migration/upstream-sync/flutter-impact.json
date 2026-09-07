@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-05T08:03:22.058Z",
-  "oldSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-  "newSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+  "generatedAt": "2026-09-07T14:42:32.145Z",
+  "oldSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+  "newSha": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
   "entries": [
     {
       "id": "flutter:session/page-cursor",
@@ -10,14 +10,13 @@
       "severity": "P0",
       "affectedFiles": [
         "apps/flutter/lib/src/core/connection/connection_client.dart",
-        "apps/flutter/lib/src/core/session/live_sync.dart",
-        "apps/flutter/lib/src/features/conversation/message_provider.dart"
+        "apps/flutter/lib/src/features/session/live_history.dart"
       ],
-      "reason": "Flutter requires an authoritative session/follow snapshot cursor before page reads and drops malformed snapshots without synthesizing a cursor.",
-      "requiredAction": "Verified by focused LiveHistory tests and session/follow cursor inspection.",
-      "status": "verified",
-      "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-      "lastSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "reason": "React session/page requires authoritative throughSeq from session/follow snapshot.cursor; Flutter previously used sentinel/discovery (-1). Architecture mismatch if Flutter still synthesizes cursor.",
+      "requiredAction": "verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor",
+      "status": "open",
+      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "lastSeenUpstreamSha": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
       "sourceFiles": [
         "packages/api/session-controller/src/index.ts"
       ]
@@ -31,11 +30,11 @@
         "apps/flutter/lib/src/features/settings/settings_scope.dart",
         "apps/flutter/lib/src/features/settings/settings_screen.dart"
       ],
-      "reason": "SettingsScope and the Busy Enter row accept list, map, and named-map namespace views from settings/describe.",
-      "requiredAction": "Verified by settings_screen_test map-shaped namespace coverage.",
-      "status": "verified",
-      "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-      "lastSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "reason": "Host SettingsController returns {namespaces: List<{ns,schema,value,revision}>} not Map. Flutter must handle List form (see recent fix).",
+      "requiredAction": "ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd",
+      "status": "open",
+      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "lastSeenUpstreamSha": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
       "sourceFiles": [
         "packages/api/settings-controller/src/index.ts"
       ]
@@ -50,36 +49,21 @@
         "apps/flutter/lib/src/core/connection/connection_client.dart",
         "apps/flutter/lib/src/core/connection/connection_controller.dart"
       ],
-      "reason": "RemoteMuxClient fetches a fresh remote/ws-ticket for each reconnect and propagates authentication failures to needsReauth without an unauthenticated fallback.",
-      "requiredAction": "Verified by remote_mux_ticket_test and connection-generation coverage.",
-      "status": "verified",
-      "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-      "lastSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "reason": "Remote WebSocket requires single-use ws-ticket (bearer full). Flutter must fetch ticket before opening wss://…?ticket= and handle 401→needsReauth.",
+      "requiredAction": "verify ticket fetch and re-pair flow; no silent fallback to unauthenticated",
+      "status": "open",
+      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+      "lastSeenUpstreamSha": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
       "sourceFiles": [
         "packages/host/remote-access/src/remote-service.ts",
         "packages/api/gateway/src/stream-protocol.ts"
-      ]
-    },
-    {
-      "id": "added:fileUploads/upload",
-      "change": "added: ∅ → fileUploads/upload",
-      "category": "API",
-      "severity": "P2",
-      "affectedFiles": [],
-      "reason": "Flutter supports the existing session/attachment image path. Generic file receipts, staging, and file-card UI are a separate product feature and have no Flutter consumer in this synchronization.",
-      "requiredAction": "Ignored for this synchronization; add fileUploads/upload only with the receipt lifecycle and generic-file presentation.",
-      "status": "ignored",
-      "firstSeenUpstreamSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-      "lastSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "sourceFiles": [
-        "packages/client/file-upload/src/index.ts"
       ]
     }
   ],
   "bySeverity": {
     "P0": 2,
     "P1": 1,
-    "P2": 1,
+    "P2": 0,
     "P3": 0
   }
 }
