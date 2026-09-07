@@ -1,0 +1,21 @@
+{
+  "pkg": "ui-model-selection",
+  "reactSource": "packages/client/ui-model-selection",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx:    const directory = createSnapshotStore<ModelDirectoryState>(state())",
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx:    const directory = createSnapshotStore(state({",
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx:    const directory = createSnapshotStore(state({",
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx:    const directory = createSnapshotStore<ModelDirectoryState>(state({ groups }))",
+    "packages/client/ui-model-selection/tests/model-select.client.spec.tsx:      directory={createSnapshotStore(state())}",
+    "packages/client/ui-model-selection/src/client/directory.ts:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-model-selection/src/client/directory.ts:  readonly store: SnapshotStore<ModelDirectoryState> = createSnapshotStore<ModelDirectoryState>({"
+  ],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 2
+}

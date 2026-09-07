@@ -1,0 +1,12 @@
+{
+  "pkg": "ui-sidebar",
+  "reactSource": "packages/client/ui-sidebar",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 5
+}

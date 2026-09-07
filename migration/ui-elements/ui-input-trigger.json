@@ -1,0 +1,20 @@
+{
+  "pkg": "ui-input-trigger",
+  "reactSource": "packages/client/ui-input-trigger",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [
+    "packages/client/ui-input-trigger/tests/menu-view.client.spec.tsx:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-input-trigger/tests/menu-view.client.spec.tsx:  const menu = createSnapshotStore<MenuState>(state)",
+    "packages/client/ui-input-trigger/tests/menu-view.client.spec.tsx:    const menu = createSnapshotStore<MenuState>(openState())",
+    "packages/client/ui-input-trigger/src/client/controller.ts:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-input-trigger/src/client/controller.ts:  readonly menu: SnapshotStore<MenuState> = createSnapshotStore<MenuState>(MENU_CLOSED)",
+    "packages/client/ui-input-trigger/src/client/controller.ts:  readonly launcher: SnapshotStore<string | null> = createSnapshotStore<string | null>(null)",
+    "packages/client/ui-input-trigger/src/client/controller.ts:    createSnapshotStore<ReadonlyMap<TriggerChar, readonly string[]>>(new Map())"
+  ],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 2
+}
