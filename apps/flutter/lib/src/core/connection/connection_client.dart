@@ -983,6 +983,7 @@ class ConnectionClient {
     required String childSessionId,
     required List<Map<String, dynamic>> content,
     String? clientTimeZone,
+    String delivery = 'queue',
   }) async {
     final body = await _postTypert('subagents/prompt', {
       'request': {
@@ -990,6 +991,7 @@ class ConnectionClient {
         'parentSessionId': parentSessionId,
         'childSessionId': childSessionId,
         'mode': 'continuable',
+        'delivery': delivery,
         'content': content,
         if (clientTimeZone != null) 'clientTimeZone': clientTimeZone,
       },
@@ -1469,8 +1471,8 @@ class ConnectionClient {
   // Remote pairing + ws-ticket — Phase 3
   // ---------------------------------------------------------------------------
 
-  /// `remote.pair {hostId, deviceId, displayName, devicePublicKey, nonce, pin?}`
-  /// — the only unauthenticated remote endpoint (pairing ceremony).
+  /// `remote.pair {request: {hostId, deviceId, displayName, devicePublicKey, nonce, pin?}}`
+  /// — unauthenticated pairing ceremony (requires host-issued nonce/PIN).
   Future<Map<String, dynamic>> remotePair({
     required String hostId,
     required String deviceId,
@@ -1480,14 +1482,38 @@ class ConnectionClient {
     String? pin,
   }) async {
     final body = await _postTypert('remote/pair', {
-      'hostId': hostId,
-      'deviceId': deviceId,
-      'displayName': displayName,
-      'devicePublicKey': devicePublicKey,
-      'nonce': nonce,
-      if (pin != null) 'pin': pin,
+      'request': {
+        'hostId': hostId,
+        'deviceId': deviceId,
+        'displayName': displayName,
+        'devicePublicKey': devicePublicKey,
+        'nonce': nonce,
+        if (pin != null) 'pin': pin,
+      },
     });
     return _unwrapValue(body, 'remote/pair');
+  }
+
+  /// `remote.describe` — unauthenticated public host identity for manual URL entry.
+  Future<Map<String, dynamic>> remoteDescribe() async {
+    final body = await _postTypert('remote/describe', {'args': {}});
+    final value = _unwrapValue(body, 'remote/describe');
+    final hostId = value['hostId'];
+    final hostPublicKey = value['hostPublicKey'];
+    if (hostId is! String || hostPublicKey is! String) {
+      throw FormatException('remote.describe: missing hostId/hostPublicKey');
+    }
+    final tlsFingerprint = value['tlsFingerprint'];
+    if (tlsFingerprint != null &&
+        (tlsFingerprint is! String ||
+            !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(tlsFingerprint))) {
+      throw FormatException('remote.describe: invalid tlsFingerprint');
+    }
+    return {
+      'hostId': hostId,
+      'hostPublicKey': hostPublicKey,
+      if (tlsFingerprint is String) 'tlsFingerprint': tlsFingerprint,
+    };
   }
 
   /// `remote.ws-ticket` — bearer `full` required, returns ticket string.

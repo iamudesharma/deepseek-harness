@@ -448,7 +448,7 @@ else
     if [[ "$FLUTTER_DEVICE" == "web-server" ]]; then
       info "Starting Flutter Web on $FLUTTER_URL → backend $BACKEND_URL …"
       dim "  logs: $FLUTTER_LOG"
-      dim "  device: $FLUTTER_DEVICE  •  dart-define DSH_HOST_URL=$BACKEND_URL"
+      dim "  device: $FLUTTER_DEVICE  •  dart-define DSH_HOST_URL=$AUTHENTICATED_URL"
       set +e
       set +u
       (
@@ -457,7 +457,7 @@ else
           -d web-server \
           --web-port "$FLUTTER_PORT" \
           --web-hostname 127.0.0.1 \
-          --dart-define="DSH_HOST_URL=${BACKEND_URL}" \
+          --dart-define="DSH_HOST_URL=${AUTHENTICATED_URL}" \
           ${FLUTTER_EXTRA_ARGS[@]+"${FLUTTER_EXTRA_ARGS[@]}"} 2>&1
       ) | prefix_stream "flutter:web" "$GREEN" "$FLUTTER_LOG" &
       FLUTTER_PIDS+=($!)
