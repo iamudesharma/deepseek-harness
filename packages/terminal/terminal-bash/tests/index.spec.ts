@@ -88,7 +88,9 @@ class StubSubprocessRuntime extends SubprocessRuntime {
 
 function spec(owner: Agent, signal?: AbortSignal) {
   return {
-    sessionId: TerminalSessionId('pty-1'), owner, type: 'shell',
+    sessionId: TerminalSessionId('pty-1'),
+    owner: { kind: 'agent' as const, agent: owner },
+    type: 'shell',
     ...signal !== undefined ? { signal } : {},
   }
 }
@@ -604,7 +606,7 @@ describe('terminal-bash plugin shape', () => {
     }
     ctx.agents.register(owner)
     const providerFiber = await registerStubLocalBackend(ctx, () => stubLocalSession())
-    const created = await ctx.terminals.spawn(owner, { type: 'stub' })
+    const created = await ctx.terminals.spawn({ kind: 'agent', agent: owner }, { type: 'stub' })
 
     const unrelated = ctx.sessions.create(SessionId('unrelated-mode'))
     expect(() => { setSandboxMode(unrelated, 'read-only') }).not.toThrow()
@@ -621,12 +623,12 @@ describe('terminal-bash plugin shape', () => {
     expect(session.snapshotEvents().filter(event => event.type === 'sandbox/mode')).toHaveLength(1)
 
     const replacementFiber = await registerStubLocalBackend(ctx, () => stubLocalSession())
-    const second = await ctx.terminals.spawn(owner, { type: 'stub' })
+    const second = await ctx.terminals.spawn({ kind: 'agent', agent: owner }, { type: 'stub' })
     await replacementFiber.dispose()
     expect(() => { setSandboxMode(session, 'read-only') }).toThrow('open or being created')
 
-    await ctx.terminals.kill(owner, created.sessionId)
-    await ctx.terminals.kill(owner, second.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent: owner }, created.sessionId)
+    await ctx.terminals.kill({ kind: 'agent', agent: owner }, second.sessionId)
     expect(() => { setSandboxMode(session, 'read-only') }).not.toThrow()
     expect(session.snapshotEvents().filter(event => event.type === 'sandbox/mode')).toHaveLength(2)
   })
@@ -655,13 +657,13 @@ describe('terminal-bash plugin shape', () => {
     ctx.agents.register(owner)
     const gate = Promise.withResolvers<undefined>()
     await registerStubLocalBackend(ctx, () => stubLocalSession(() => gate.promise))
-    const spawning = ctx.terminals.spawn(owner, { type: 'stub' })
+    const spawning = ctx.terminals.spawn({ kind: 'agent', agent: owner }, { type: 'stub' })
 
-    expect(ctx.terminals.hasOwnerActivity(owner)).toBe(true)
+    expect(ctx.terminals.hasOwnerActivity({ kind: 'agent', agent: owner })).toBe(true)
     expect(() => { setSandboxMode(session, 'read-only') }).toThrow('open or being created')
     gate.resolve(undefined)
     const created = await spawning
-    await ctx.terminals.kill(owner, created.sessionId)
-    expect(ctx.terminals.hasOwnerActivity(owner)).toBe(false)
+    await ctx.terminals.kill({ kind: 'agent', agent: owner }, created.sessionId)
+    expect(ctx.terminals.hasOwnerActivity({ kind: 'agent', agent: owner })).toBe(false)
   })
 })
