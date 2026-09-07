@@ -473,10 +473,12 @@ class _SidebarState extends ConsumerState<Sidebar> {
         onNewSession: widget.onNewSession,
       );
       content = fading && !reduced
-          ? AnimatedOpacity(
-              opacity: 0,
-              duration: _collapseSettle,
-              child: IgnorePointer(ignoring: true, child: expanded),
+          ? ClipRect(
+              child: AnimatedOpacity(
+                opacity: 0,
+                duration: _collapseSettle,
+                child: IgnorePointer(ignoring: true, child: expanded),
+              ),
             )
           : AnimatedOpacity(
               opacity: 1,
@@ -881,6 +883,7 @@ class _ExpandedSidebarState extends ConsumerState<_ExpandedSidebar> {
                     sectionLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    softWrap: false,
                     style: TextStyle(
                       fontSize: DswTokens.fontSizeXxs12,
                       fontWeight: FontWeight.w600,

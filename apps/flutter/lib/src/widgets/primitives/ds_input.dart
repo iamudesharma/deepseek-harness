@@ -155,6 +155,16 @@ class DsInput extends ConsumerWidget {
       autovalidateMode: hasError
           ? AutovalidateMode.always
           : AutovalidateMode.disabled,
+      // Fix zh locale + maxLines:1/ellipsis Web debugSize == size (sidebar 1341, ds_input 139)
+      // TextPainter with locale:zh + softWrap:wrapping + maxLines:1 + ellipsis
+      // mis-measures on CanvasKit when width is tight (31w, 201w). Force strut
+      // and disable softWrap for single-line to make layout==paint.
+      strutStyle: const StrutStyle(
+        forceStrutHeight: true,
+        leading: 0,
+        fontSize: DswTokens.fontSizeS14,
+        height: DswTokens.lineHeightS14 / DswTokens.fontSizeS14,
+      ),
       style:
           style ??
           TextStyle(
@@ -163,6 +173,7 @@ class DsInput extends ConsumerWidget {
             color: aliases.labelPrimary,
             fontFamily: 'SF Pro',
             fontFamilyFallback: DswTokens.fontFamilyFallback,
+            locale: null,
           ),
       decoration: InputDecoration(
         hintText: hintText,

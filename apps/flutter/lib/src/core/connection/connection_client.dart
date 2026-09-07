@@ -178,16 +178,23 @@ class ConnectionClient {
   }
 
   Uri _uri(String path, [Map<String, String>? query]) {
-    // Preserve query (e.g. ?token=…) when baseUrl already carries it — the old
-    // `Uri.parse('$base$path')` produced `http://host?token=…/api/…` (405).
-    // Use Uri.replace so `http://host?token=abc` + `/api/list` → `/api/list?token=abc`.
+    // `baseUrl` may be `http://127.0.0.1:3080?token=...` (start.sh passes
+    // `DSH_HOST_URL=$AUTHENTICATED_URL` for web). The `?token=` is **only**
+    // for the initial `GET /?token=` → `Set-Cookie: dsh-auth-*` exchange
+    // (browser_cookie_io/web). It must **not** be forwarded to every
+    // `/api/*` (the Host's `auth-middleware` checks `Cookie: dsh-auth-*` or
+    // `Authorization: Bearer`, not `?token=` query — hence `401` with
+    // `?token=` in the URL). Strip `token` for API/WebSocket paths; the
+    // cookie is minted lazily by `getBrowserCookie` before the first Typert
+    // POST and then sent automatically via `BrowserClient.withCredentials`.
     final baseUri = Uri.parse(
       baseUrl.endsWith('/')
           ? baseUrl.substring(0, baseUrl.length - 1)
           : baseUrl,
     );
+    final baseQuery = Map<String, String>.from(baseUri.queryParameters)..remove('token');
     final mergedQuery = <String, String>{
-      ...baseUri.queryParameters,
+      ...baseQuery,
       if (query != null) ...query,
     };
     return baseUri.replace(
@@ -1653,12 +1660,11 @@ class ConnectionClient {
     final source = Uri.parse(base);
     final scheme = source.scheme == 'https' ? 'wss' : 'ws';
     var uri = source.replace(scheme: scheme, path: path);
-    if (ticket != null) {
-      uri = uri.replace(
-        queryParameters: {...uri.queryParameters, 'ticket': ticket},
-      );
-    }
-    return uri;
+    // Strip ?token=... for the same reason as _uri — token is only for
+    // `GET /?token=` → `Set-Cookie`, not for `wss://…/api/remote.mux?ticket=`.
+    final query = Map<String, String>.from(uri.queryParameters)..remove('token');
+    if (ticket != null) query['ticket'] = ticket;
+    return uri.replace(queryParameters: query.isEmpty ? null : query);
   }
 
   Stream<Map<String, dynamic>> _readWebSocket(
