@@ -1,0 +1,15 @@
+{
+  "pkg": "ui-commands",
+  "reactSource": "packages/client/ui-commands",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [
+    "packages/client/ui-commands/src/client/popup.ts:import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'",
+    "packages/client/ui-commands/src/client/popup.ts:  readonly state: SnapshotStore<PopupState> = createSnapshotStore<PopupState>(CLOSED)"
+  ],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 2
+}

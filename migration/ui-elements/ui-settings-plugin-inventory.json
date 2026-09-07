@@ -1,0 +1,12 @@
+{
+  "pkg": "ui-settings-plugin-inventory",
+  "reactSource": "packages/client/ui-settings-plugin-inventory",
+  "propsHarvest": [],
+  "cssVars": [],
+  "cssVarsCount": 0,
+  "stores": [],
+  "triggers": [],
+  "typert": [],
+  "slots": [],
+  "fileCount": 3
+}

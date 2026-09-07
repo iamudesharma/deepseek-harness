@@ -1,0 +1,64 @@
+{
+  "reactSource": "packages/client/ui-settings-general/src/client/GeneralSection.tsx + packages/client/ui-settings-models/src/client/ModelsSection.tsx + packages/client/ui-settings-plugins/src/client/* + packages/client/ui-settings-plugin-inventory/src/client/* + packages/client/ui-settings/src/client/SettingsRoot.tsx",
+  "page": "settings-dialog",
+  "url": "http://127.0.0.1:4174/ + [role=dialog] z24K0q_panel",
+  "playwrightHarvest": "/tmp/react-settings-harvest.json",
+  "domHarvest": {
+    "trigger": "button.z24K0q_trigger[aria-haspopup=dialog][aria-expanded]",
+    "dialog": "div.z24K0q_panel[role=dialog][aria-modal=true][aria-labelledby]",
+    "nav": {
+      "selector": "nav.z24K0q_nav",
+      "cells": ["General (active)", "Models", "Plugins", "Inventory", "MCP"],
+      "activeClass": "z24K0q_navCell z24K0q_active"
+    },
+    "panels": {
+      "General": "packages/client/ui-settings-general: chrome + GeneralSection (appearance, language)",
+      "Models": "packages/client/ui-settings-models: WelcomeNotice + ModelsSection + ProviderEditor + CustomProviderCard (llm.providers, llm.models, credentials.describe/set/unset)",
+      "Plugins": "packages/client/ui-settings-plugins: Plugin list with enable/disable",
+      "Inventory": "packages/client/ui-settings-plugin-inventory: Host Loader inventory (dynamicCordisRunner/inventory)"
+    }
+  },
+  "typert": [
+    {"method": "settings.describe", "payload": {}, "response": {"writable": true, "namespaces": [{"ns": "agent-default-model", "schema": {}, "value": {"provider": "opencode", "model": "deepseek-v4-flash-free"}}]}},
+    {"method": "settings.mutate", "payload": {"ns": "agent-default-model", "ops": [{"op": "set", "path": ["provider"], "value": "..."}]}},
+    {"method": "credentials.describe", "payload": {"refs": ["DEEPSEEK_API_KEY", "OPENCODE_API_KEY"]}, "response": {"credentials": {"DEEPSEEK_API_KEY": {"configured": true, "source": "env"}}}},
+    {"method": "credentials.set", "payload": {"ref": "DEEPSEEK_API_KEY", "value": "..."}, "response": {}},
+    {"method": "credentials.unset", "payload": {"ref": "DEEPSEEK_API_KEY"}, "response": {}},
+    {"method": "llm.providers", "payload": {}, "response": {"providers": [{"provider": "deepseek-official", "displayName": "DeepSeek", "settingsNs": "llm-deepseek"}, {"provider": "amazon-bedrock", "displayName": "amazon-bedrock"}]}},
+    {"method": "llm.models", "payload": {}, "response": {"groups": [{"id": "deepseek-official", "name": "DeepSeek", "models": [{"id": "deepseek-v4-flash", "name": "DeepSeek-V4-Flash"}]}]}},
+    {"method": "llm.discoverModels", "payload": {"settingsNs": "llm-deepseek", "baseURL": "...", "apiKey": "..."}, "response": {"models": [{"id": "...", "name": "..."}]}},
+    {"method": "pluginInventory.list", "payload": {}, "response": {"entries": []}},
+    {"method": "agentPreset.list", "payload": {}, "response": {"presets": [{"id": "standard", "name": "标准模式"}]}},
+    {"method": "host.describe", "payload": {}, "response": {"cwd": "/...", "home": "/Users/udeshsharma"}},
+    {"method": "dynamicCordisRunner/inventory", "payload": {}, "response": {"value": []}},
+    {"method": "dynamicCordisRunner/syncInspectManifest", "payload": {}, "response": {"value": null}}
+  ],
+  "slots": [
+    "settings.trigger",
+    "settings.header",
+    "settings.general.item",
+    "settings.models.item",
+    "settings.plugins.item"
+  ],
+  "flutterTarget": {
+    "settingsRoot": "apps/flutter/lib/src/features/settings/settings_screen.dart (currently single Scaffold with tabs - needs to mirror z24K0q_nav tabs)",
+    "general": "apps/flutter/lib/src/features/settings_general/settings_general_screen.dart",
+    "models": "apps/flutter/lib/src/features/settings_models/settings_models_screen.dart (currently flat, needs provider-grouped + WelcomeNotice + DeepSeekModelsEditor parity)",
+    "plugins": "apps/flutter/lib/src/features/settings_plugins/settings_plugins_screen.dart",
+    "inventory": "apps/flutter/lib/src/features/settings_inventory/settings_inventory_screen.dart",
+    "connection": "apps/flutter/lib/src/core/connection/connection_client.dart: settingsDescribe, settingsMutate, credentialsDescribe/Set/Unset, llmProviders, llmModels, llmDiscoverModels, pluginInventoryList"
+  },
+  "parityGaps": [
+    "React Settings is a dialog (role=dialog) with nav tabs on left, panel on right; Flutter is a full page route /settings with StatefulShellBranch - visual parity needs dialog vs page decision",
+    "Models tab in React shows WelcomeNotice when no provider configured + provider list with DeepSeek card + llm.discoverModels flow; Flutter shows flat list without WelcomeNotice and without settings.mutate wiring",
+    "General tab in React has EnterBehaviorRow (submission-policy) + locale + appearance; Flutter has appearance_row + language_row but missing EnterBehaviorRow",
+    "Flutter's settings tabs are not wired to real Typert: settingsDescribe is called but settingsMutate not yet wired to UI controls",
+    "Plugin Inventory in React uses dynamicCordisRunner/inventory; Flutter's inventory screen already calls pluginInventoryList but needs parity check for empty state"
+  ],
+  "status": "Analyzed",
+  "playwright": {
+    "mcp": "@playwright/mcp@latest + chrome-devtools-mcp",
+    "capture": "apps/web/capture_settings.mjs (headless chromium 149 via @playwright/mcp config in .opencode/opencode.json)",
+    "server": "pnpm dsh web --port 4174 (with DSH_CLIENT_TITLE, __ModuleLoader__ bootstrap)"
+  }
+}
