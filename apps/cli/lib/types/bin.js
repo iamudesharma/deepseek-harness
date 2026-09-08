@@ -15,30 +15,39 @@ function readVersion() {
     const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'));
     return typeof manifest.version === 'string' ? manifest.version : '0.0.0';
 }
-const invocation = parseDshArgs(process.argv.slice(2), readVersion());
-switch (invocation.mode) {
-    case 'profile': {
-        const { runProfile } = await import("./profile-boot.js");
-        await runProfile({
-            environment: loadLayeredEnv('dsh'),
-            profile: invocation.profile,
-            patchFiles: invocation.patches,
-            args: invocation.args,
-        });
-        break;
+/**
+ * Run the public dsh command-line interface.
+ * @returns a promise that settles when the selected command mode finishes.
+ */
+export async function runCli() {
+    const invocation = parseDshArgs(process.argv.slice(2), readVersion());
+    switch (invocation.mode) {
+        case 'profile': {
+            const { runProfile } = await import("./profile-boot.js");
+            await runProfile({
+                environment: loadLayeredEnv('dsh'),
+                profile: invocation.profile,
+                patchFiles: invocation.patches,
+                args: invocation.args,
+            });
+            break;
+        }
+        case 'plugin': {
+            const { runPlugin } = await import("./plugin.js");
+            process.exit(runPlugin(invocation.profile, invocation.args));
+            break;
+        }
+        case 'dump-config': {
+            const { runDumpConfig } = await import("./dump-config.js");
+            runDumpConfig(invocation.profile, invocation.defaultOnly, invocation.patches);
+            break;
+        }
+        default:
+            invocation;
+            throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`);
     }
-    case 'plugin': {
-        const { runPlugin } = await import("./plugin.js");
-        process.exit(runPlugin(invocation.profile, invocation.args));
-        break;
-    }
-    case 'dump-config': {
-        const { runDumpConfig } = await import("./dump-config.js");
-        runDumpConfig(invocation.profile, invocation.defaultOnly, invocation.patches);
-        break;
-    }
-    default:
-        invocation;
-        throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`);
+}
+if (import.meta.main) {
+    await runCli();
 }
 //# sourceMappingURL=bin.js.map

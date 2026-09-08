@@ -29,6 +29,7 @@ import '../../../widgets/primitives/state_dot.dart';
 import '../locales.dart';
 import '../nodes/conversation_nodes.dart';
 import '../nodes/turn_navigator.dart';
+import 'stats_format.dart';
 import '../hub.dart';
 import '../../../widgets/primitives/ansi.dart';
 import '../../tool/ui/keyed_tool_card.dart'
@@ -780,18 +781,6 @@ class _ChatViewState extends ConsumerState<ChatView> {
         ? _activeTurn
         : (turnItems.isNotEmpty ? turnItems.last.turn : null);
 
-    // ---- StatsLine parity: window fold vs durable sessionStats/tokenUsage projections
-    final _WindowStats windowStats = _deriveWindowStats(rawNodes);
-    _WindowStats effectiveStats = windowStats;
-    TurnTokenUsage? effectiveUsage = _aggregateTokenUsage(
-      rawNodes.whereType<TurnTailNode>().toList(),
-    );
-    final bool hasStats =
-        effectiveStats.steps > 0 ||
-        (effectiveUsage != null &&
-            (effectiveUsage.billedInputTokens > 0 ||
-                effectiveUsage.outputTokens > 0));
-
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
@@ -1410,108 +1399,20 @@ class _ChatViewState extends ConsumerState<ChatView> {
 }
 
 // ---- TurnTail token-format + message-chrome helpers (mirrors token-format.ts + message-chrome.ts) ----
+// Bodies live in stats_format.dart (shared with the session stats line);
+// these delegates keep the existing call sites untouched.
 
-String _formatTokens(int value) {
-  String scaled(double candidate) {
-    if (candidate >= 100) return candidate.round().toString();
-    final r = (candidate * 10).round() / 10;
-    if (r == r.roundToDouble()) return r.round().toString();
-    return r.toStringAsFixed(1);
-  }
+String _formatTokens(int value) => formatCompactTokens(value);
 
-  if (value < 1000) return value.toString();
-  if (value < 1000000) return '${scaled(value / 1000)}K';
-  return '${scaled(value / 1000000)}M';
-}
-
-String _formatExactTokens(int value) {
-  final digits = value.toString();
-  final groups = <String>[];
-  for (int end = digits.length; end > 0; end -= 3) {
-    final start = (end - 3).clamp(0, digits.length);
-    groups.insert(0, digits.substring(start, end));
-  }
-  return groups.join(',');
-}
-
-int _roundedPercentUnits(
-  int cacheReadTokens,
-  int denominator,
-  int decimalPlaces,
-) {
-  final unitsPerPercent = decimalPlaces == 0 ? 1 : 10;
-  final scale = unitsPerPercent * 100;
-  final doubledScale = scale * 2;
-  final denominatorQuotient = denominator ~/ doubledScale;
-  final denominatorRemainder = denominator % doubledScale;
-  int lower = 0;
-  int upper = scale;
-  while (lower < upper) {
-    final candidate = (lower + upper + 1) ~/ 2;
-    final factor = candidate * 2 - 1;
-    final threshold =
-        factor * denominatorQuotient +
-        ((factor * denominatorRemainder + doubledScale - 1) ~/ doubledScale);
-    if (cacheReadTokens >= threshold) {
-      lower = candidate;
-    } else {
-      upper = candidate - 1;
-    }
-  }
-  return lower;
-}
-
-String _displayPercentUnits(int units, int decimalPlaces) {
-  if (decimalPlaces == 0) return units.toString();
-  final whole = units ~/ 10;
-  final tenths = units % 10;
-  return tenths == 0 ? whole.toString() : '$whole.$tenths';
-}
+String _formatExactTokens(int value) => formatExactTokens(value);
 
 String? _formatCacheHitPercent(
   int cacheReadTokens,
   int promptTokens, [
   int decimalPlaces = 0,
-]) {
-  if (promptTokens == 0) return null;
-  final missed = promptTokens - cacheReadTokens;
-  if (missed == 0) return '100';
-  final roundedUnits = _roundedPercentUnits(
-    cacheReadTokens,
-    promptTokens,
-    decimalPlaces,
-  );
-  final fullHitUnits = decimalPlaces == 0 ? 100 : 1000;
-  if (roundedUnits < fullHitUnits)
-    return _displayPercentUnits(roundedUnits, decimalPlaces);
-  int distinguishingPlaces = 1;
-  int scaledDoubleGap = missed * 200;
-  final denominatorTens = promptTokens ~/ 10;
-  while (scaledDoubleGap <= denominatorTens) {
-    scaledDoubleGap *= 10;
-    distinguishingPlaces += 1;
-  }
-  final denominatorOnes = promptTokens % 10;
-  int roundedLoss = 5;
-  for (int loss = 1; loss < 5; loss += 1) {
-    final factor = loss * 2 + 1;
-    final threshold =
-        factor * denominatorTens + (factor * denominatorOnes ~/ 10);
-    if (scaledDoubleGap <= threshold) {
-      roundedLoss = loss;
-      break;
-    }
-  }
-  return '99.${'9' * (distinguishingPlaces - 1)}${10 - roundedLoss}';
-}
+]) => formatCacheHitPercent(cacheReadTokens, promptTokens, decimalPlaces);
 
-String _formatTokensPerSecond(double tps) {
-  final clamped = tps < 0 ? 0.0 : tps;
-  if (clamped >= 10) return clamped.round().toString();
-  final r = (clamped * 10).round() / 10;
-  if (r == r.roundToDouble()) return r.round().toString();
-  return r.toStringAsFixed(1);
-}
+String _formatTokensPerSecond(double tps) => formatTokensPerSecond(tps);
 
 String _formatLatencySeconds(int ms) {
   final s = ms < 0 ? 0 : ms / 1000;
@@ -1532,20 +1433,7 @@ String _formatRunDuration(int ms) {
   return '${seconds}s';
 }
 
-String _formatDuration(int ms) {
-  final s = ms / 1000;
-  if (s < 60) {
-    final r = (s * 10).round() / 10;
-    final secStr = r == r.roundToDouble()
-        ? r.round().toString()
-        : r.toStringAsFixed(1);
-    return '${secStr}s';
-  }
-  final whole = s.round();
-  final minutes = whole ~/ 60;
-  final seconds = whole % 60;
-  return '${minutes}m${seconds}s';
-}
+String _formatDuration(int ms) => formatCompactDuration(ms);
 
 String _formatMessageClock(int timeMs, {int? nowMs}) {
   final d = DateTime.fromMillisecondsSinceEpoch(timeMs);
@@ -2235,209 +2123,6 @@ class _UsageRow extends StatelessWidget {
           child: Text(value, style: valueStyle, textAlign: TextAlign.right),
         ),
       ],
-    );
-  }
-}
-
-// ---- StatsLine parity (mirrors StatsLine.tsx) ----
-
-class _WindowStats {
-  const _WindowStats({
-    required this.turns,
-    required this.steps,
-    required this.llmMs,
-    required this.toolMs,
-    required this.ttftMs,
-    required this.ttftSteps,
-    required this.decodeMs,
-    required this.decodeTokens,
-  });
-  final int turns;
-  final int steps;
-  final int llmMs;
-  final int toolMs;
-  final int ttftMs;
-  final int ttftSteps;
-  final int decodeMs;
-  final int decodeTokens;
-}
-
-_WindowStats _deriveWindowStats(List<ConversationNode> nodes) {
-  final tails = nodes.whereType<TurnTailNode>().toList();
-  final groups = nodes.whereType<StepGroupNode>().toList();
-  // Also collect open groups that may have been flattened? groups already cover settled + open before flattening
-  final turnSet = <int>{};
-  for (final t in tails) turnSet.add(t.turn);
-  for (final g in groups) turnSet.add(g.turn);
-  // Fallback: if no tails but groups present, turns already counted; if neither, 0
-  final turns = turnSet.length;
-  final steps = groups.length;
-  int llmMs = 0;
-  int ttftMs = 0;
-  int ttftSteps = 0;
-  int decodeMs = 0;
-  int decodeTokens = 0;
-  for (final t in tails) {
-    if (t.runMs != null) llmMs += t.runMs!;
-    if (t.ttftMs != null) {
-      ttftMs += t.ttftMs!;
-      ttftSteps += 1;
-    }
-    if (t.tokenUsage != null && t.runMs != null && t.ttftMs != null) {
-      final dm = (t.runMs! - t.ttftMs!).clamp(0, 1 << 30);
-      if (dm > 0) {
-        decodeMs += dm;
-        decodeTokens += t.tokenUsage!.outputTokens;
-      }
-    } else if (t.tokenUsage != null && t.tokenUsage!.outputTokens > 0) {
-      // Fallback when runMs missing: estimate decode as end - firstToken
-      if (t.ttftMs != null && t.runMs != null) {
-        final dm = (t.runMs! - t.ttftMs!).clamp(0, 1 << 30);
-        if (dm > 0) {
-          decodeMs += dm;
-          decodeTokens += t.tokenUsage!.outputTokens;
-        }
-      }
-    }
-  }
-  int toolMs = 0;
-  // Tool durations are tracked in the folder's private map; we cannot access it here,
-  // so we leave toolMs at 0. The dock still renders counts/speeds/token groups.
-  return _WindowStats(
-    turns: turns,
-    steps: steps,
-    llmMs: llmMs,
-    toolMs: toolMs,
-    ttftMs: ttftMs,
-    ttftSteps: ttftSteps,
-    decodeMs: decodeMs,
-    decodeTokens: decodeTokens,
-  );
-}
-
-TurnTokenUsage? _aggregateTokenUsage(List<TurnTailNode> tails) {
-  final withUsage = tails
-      .where((t) => t.tokenUsage != null)
-      .map((t) => t.tokenUsage!)
-      .toList();
-  if (withUsage.isEmpty) return null;
-  int sumInput = 0;
-  int sumOutput = 0;
-  int sumTotal = 0;
-  int? sumCacheRead;
-  int? sumCacheWrite;
-  int? sumReasoning;
-  bool allCacheRead = withUsage.every((u) => u.cacheReadTokens != null);
-  bool allCacheWrite = withUsage.every((u) => u.cacheWriteTokens != null);
-  bool allReasoning = withUsage.every((u) => u.reasoningTokens != null);
-  bool allRoutes = withUsage.every((u) => u.routes != null);
-  final routeUniq = <String, TurnTokenUsageRoute>{};
-  for (final u in withUsage) {
-    sumInput += u.uncachedInputTokens;
-    sumOutput += u.outputTokens;
-    sumTotal += u.totalTokens;
-    if (sumInput > 9007199254740991 ||
-        sumOutput > 9007199254740991 ||
-        sumTotal > 9007199254740991)
-      return null;
-  }
-  if (allCacheRead) {
-    sumCacheRead = withUsage.fold<int>(0, (s, u) => s + u.cacheReadTokens!);
-    if (sumCacheRead > 9007199254740991) return null;
-  }
-  if (allCacheWrite) {
-    sumCacheWrite = withUsage.fold<int>(0, (s, u) => s + u.cacheWriteTokens!);
-    if (sumCacheWrite > 9007199254740991) return null;
-  }
-  if (allReasoning) {
-    sumReasoning = withUsage.fold<int>(0, (s, u) => s + u.reasoningTokens!);
-    if (sumReasoning > 9007199254740991) return null;
-  }
-  List<TurnTokenUsageRoute>? aggRoutes;
-  if (allRoutes) {
-    for (final u in withUsage) {
-      for (final r in u.routes!) {
-        routeUniq['${r.provider}\u0000${r.model}'] = r;
-      }
-    }
-    aggRoutes = routeUniq.values.toList(growable: false);
-  }
-  return TurnTokenUsage(
-    uncachedInputTokens: sumInput,
-    outputTokens: sumOutput,
-    totalTokens: sumTotal,
-    cacheReadTokens: sumCacheRead,
-    cacheWriteTokens: sumCacheWrite,
-    reasoningTokens: sumReasoning,
-    routes: aggRoutes,
-  );
-}
-
-class _StatsLine extends StatelessWidget {
-  const _StatsLine({required this.stats, this.usage});
-  final _WindowStats stats;
-  final TurnTokenUsage? usage;
-  @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final DswAliases aliases =
-        theme.extension<DswThemeExtension>()?.aliases ??
-        (theme.brightness == Brightness.dark
-            ? DswTokens.darkAliases
-            : DswTokens.lightAliases);
-    final List<String> groups = [];
-    if (stats.steps > 0) {
-      groups.add('${stats.turns} turns · ${stats.steps} steps');
-      final durations = <String>[];
-      if (stats.llmMs > 0) durations.add('LLM ${_formatDuration(stats.llmMs)}');
-      if (stats.toolMs > 0)
-        durations.add('Tool call ${_formatDuration(stats.toolMs)}');
-      if (durations.isNotEmpty) groups.add(durations.join(' · '));
-      final speeds = <String>[];
-      if (stats.ttftSteps > 0) {
-        final avg = (stats.ttftMs / stats.ttftSteps).round();
-        speeds.add('TTFT avg ${_formatDuration(avg)}');
-      }
-      if (stats.decodeMs > 0) {
-        final tps = stats.decodeTokens / (stats.decodeMs / 1000);
-        speeds.add('${_formatTokensPerSecond(tps)} tok/s');
-      }
-      if (speeds.isNotEmpty) groups.add(speeds.join(' · '));
-    }
-    if (usage != null &&
-        (usage!.billedInputTokens > 0 || usage!.outputTokens > 0)) {
-      final cacheHit = usage!.cacheReadTokens == null
-          ? null
-          : _formatCacheHitPercent(
-              usage!.cacheReadTokens!,
-              usage!.billedInputTokens,
-            );
-      if (cacheHit != null) groups.add('Cache hit $cacheHit%');
-      groups.add(
-        'Input ${_formatTokens(usage!.billedInputTokens)} tok · Output ${_formatTokens(usage!.outputTokens)} tok',
-      );
-    }
-    if (groups.isEmpty) return const SizedBox.shrink();
-    final line = groups.join(' | ');
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 748),
-          child: Text(
-            line,
-            style: TextStyle(
-              fontSize: 13,
-              color: aliases.labelTertiary,
-              height: 20 / 13,
-            ),
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          ),
-        ),
-      ),
     );
   }
 }

@@ -9,6 +9,10 @@ import '../connection/http_client.dart'
     if (dart.library.io) '../connection/http_client_io.dart'
     if (dart.library.js_interop) '../connection/http_client_web.dart'
     as http_client_factory;
+import '../connection/browser_cookie.dart'
+    if (dart.library.io) '../connection/browser_cookie_io.dart'
+    if (dart.library.js_interop) '../connection/browser_cookie_web.dart'
+    as browser_cookie;
 
 /// Host open-in-app catalog entry — mirrors `OpenInAppApp` in
 /// `packages/host/open-in-app/src/catalog.ts` (only `id` is needed on the
@@ -74,15 +78,20 @@ class OpenInAppService {
   Future<List<String>> listApps() async {
     final uri = _uri('/open-in-app/apps');
     final headers = await _headers();
-    final resp = await _http().get(uri, headers: headers);
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('GET /open-in-app/apps failed: ${resp.statusCode} ${resp.body}');
+    final client = _http();
+    try {
+      final resp = await client.get(uri, headers: headers);
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        throw Exception('GET /open-in-app/apps failed: ${resp.statusCode} ${resp.body}');
+      }
+      final decoded = jsonDecode(resp.body);
+      if (decoded is Map && decoded['apps'] is List) {
+        return (decoded['apps'] as List).whereType<String>().toList();
+      }
+      return const [];
+    } finally {
+      client.close();
     }
-    final decoded = jsonDecode(resp.body);
-    if (decoded is Map && decoded['apps'] is List) {
-      return (decoded['apps'] as List).whereType<String>().toList();
-    }
-    return const [];
   }
 
   /// `GET /open-in-app/icon/:id` URL for `Image.network` (with credentials).
@@ -98,13 +107,18 @@ class OpenInAppService {
     final uri = _uri('/open-in-app/open');
     final headers = await _headers();
     headers['content-type'] = 'application/json';
-    final resp = await _http().post(
-      uri,
-      headers: headers,
-      body: jsonEncode(<String, String>{'app': appId, 'path': path}),
-    );
-    if (resp.statusCode < 200 || resp.statusCode >= 300) {
-      throw Exception('POST /open-in-app/open failed: ${resp.statusCode} ${resp.body}');
+    final client = _http();
+    try {
+      final resp = await client.post(
+        uri,
+        headers: headers,
+        body: jsonEncode(<String, String>{'app': appId, 'path': path}),
+      );
+      if (resp.statusCode < 200 || resp.statusCode >= 300) {
+        throw Exception('POST /open-in-app/open failed: ${resp.statusCode} ${resp.body}');
+      }
+    } finally {
+      client.close();
     }
   }
 
@@ -154,43 +168,27 @@ class OpenInAppService {
 
   Future<Map<String, String>> _headers() async {
     final headers = <String, String>{'accept': 'application/json'};
-    if (kIsWeb) {
-      // Web: BrowserClient sends Cookie automatically if the browser has it.
-      // Ensure the cookie is minted for the authority if a token is present.
-      try {
-        final baseUrl = _client.baseUrl;
-        final uri = Uri.tryParse(baseUrl);
-        final token = uri?.queryParameters['token'];
-        if (token != null && token.isNotEmpty) {
-          // ignore: avoid_dynamic_calls
-          final dynamic c = _client;
-          try {
-            // ignore: avoid_dynamic_calls
-            final Future<String?> Function(String)? getter =
-                c.getBrowserCookie as Future<String?> Function(String)?;
-            if (getter != null) await getter(baseUrl);
-          } catch (_) {}
-        }
-      } catch (_) {}
-      return headers;
-    }
-    // IO: replicate ConnectionClient._headersWithAuth for the open-in-app
-    // fence (Host/Origin + Cookie/Bearer). We can't reach into privates, so
-    // we do a best-effort: try to get the Cookie via the same exchange as
-    // browser_cookie_io.dart, and try to get a Bearer via tokenStore.
+    // Ensure the `dsh-auth-*` cookie is minted for the backend authority when
+    // `baseUrl` carries `?token=` (web: browser jar via `GET /?token=` with
+    // credentials; IO: in-memory jar replayed as `Cookie`). Web never sets
+    // `Cookie` manually — `Cookie` is forbidden in `fetch` and
+    // `BrowserClient(withCredentials:true)` sends the jar automatically.
+    String? cookie;
     try {
-      final baseUrl = _client.baseUrl;
+      cookie = await browser_cookie.getBrowserCookie(_client.baseUrl);
+    } catch (_) {
+      cookie = null;
+    }
+    if (cookie != null && !kIsWeb) headers['cookie'] = cookie;
+    if (kIsWeb) return headers;
+    // IO: also attach a bearer when this client targets a RemoteTarget.
+    // `ConnectionClient` owns the token store privately; open-in-app runs on
+    // loopback `LocalTarget` in practice, so the cookie above is the fence.
+    // Keep the bearer attempt best-effort via the same dynamic seam as
+    // before, but never let it break the cookie path.
+    try {
       // ignore: avoid_dynamic_calls
       final dynamic c = _client;
-      try {
-        // ignore: avoid_dynamic_calls
-        final Future<String?> Function(String)? getter =
-            c.getBrowserCookie as Future<String?> Function(String)?;
-        if (getter != null) {
-          final cookie = await getter(baseUrl);
-          if (cookie != null) headers['cookie'] = cookie;
-        }
-      } catch (_) {}
       try {
         // ignore: avoid_dynamic_calls
         final Future<String?> Function()? bearerFn =

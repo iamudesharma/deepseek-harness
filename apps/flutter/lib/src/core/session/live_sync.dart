@@ -348,9 +348,12 @@ final liveSyncProvider = Provider<void>((ref) {
             }
           } else if (key == 'permissions') {
             // Host `permissions` projection: {options:[{value,name,description}], currentValue}
+            // The service-layer `/permission` decoration reads through
+            // `permissionSnapshotCache`, mirrored beside every provider write.
             if (value is Map<String, dynamic>) {
               try {
                 final select = PermissionSelect.fromJson(value);
+                permissionSnapshotCache.write(sessionId.value, select);
                 ref
                         .read(
                           permissionSelectProvider(sessionId.value).notifier,
@@ -358,6 +361,7 @@ final liveSyncProvider = Provider<void>((ref) {
                         .state =
                     select;
               } catch (_) {
+                permissionSnapshotCache.write(sessionId.value, null);
                 ref
                         .read(
                           permissionSelectProvider(sessionId.value).notifier,
@@ -370,6 +374,7 @@ final liveSyncProvider = Provider<void>((ref) {
                 final select = PermissionSelect.fromJson(
                   value.cast<String, dynamic>(),
                 );
+                permissionSnapshotCache.write(sessionId.value, select);
                 ref
                         .read(
                           permissionSelectProvider(sessionId.value).notifier,
@@ -377,6 +382,7 @@ final liveSyncProvider = Provider<void>((ref) {
                         .state =
                     select;
               } catch (_) {
+                permissionSnapshotCache.write(sessionId.value, null);
                 ref
                         .read(
                           permissionSelectProvider(sessionId.value).notifier,
@@ -385,6 +391,7 @@ final liveSyncProvider = Provider<void>((ref) {
                     null;
               }
             } else {
+              permissionSnapshotCache.write(sessionId.value, null);
               ref
                       .read(permissionSelectProvider(sessionId.value).notifier)
                       .state =

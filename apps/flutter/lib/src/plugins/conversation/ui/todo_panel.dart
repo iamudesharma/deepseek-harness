@@ -101,18 +101,21 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
 
-    // Centered content-column cap (React TodoPanel rides the chat column
-    // width, not full-bleed).
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 748),
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          decoration: BoxDecoration(
-            color: aliases.bgLayer2,
-            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-            border: Border.all(color: aliases.borderL2),
-          ),
+    // Same horizontal bounds as the composer card below (`composer.dart`:
+    // outer `Padding(16,0,16,8)` + `Center` + `ConstrainedBox(maxWidth:780)`
+    // + borderless card). The clearance lives outside the cap and the bar
+    // fills it, so both edges land exactly on the composer's.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 780),
+          child: Container(
+            decoration: BoxDecoration(
+              color: aliases.bgLayer2,
+              borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+              border: Border.all(color: aliases.borderL2),
+            ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -194,6 +197,7 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
         ],
           ),
         ),
+      ),
       ),
     );
   }

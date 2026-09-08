@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { PROFILE_PATCH_FILENAME, boot, composeEntries, healProfilesModuleFallback, installFailLoud, loadOptionalPatches, loadOverlayPatches, loadProfile, watchUserPatches } from "@deepseek-ai/dsh-app-boot";
 import { join, resolve } from "node:path";
 import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
+import { installProxyFromEnvironment } from "@deepseek-ai/dsh-http-proxy";
 import { DSH_LAUNCH_ENVIRONMENT_KEY } from "@deepseek-ai/dsh-launch-environment";
 import { provideCmdline } from "@deepseek-ai/dsh-cmdline";
 //#region lib/types/process-shutdown.js
@@ -231,11 +232,15 @@ function suppressShutdownError(ctx, signal, error) {
 * @returns the settled root context and the shutdown controller.
 */
 async function runProfile(options) {
+	const disposeProxy = await installProxyFromEnvironment(options.environment, (message) => {
+		process.stderr.write(`${NAME}: ${message}\n`);
+	});
 	const composed = await composeProfile(options.profile, options.patchFiles);
 	const app = {};
 	const appReady = createAppReady();
 	const shutdown = createProcessShutdown(async () => {
 		await app.current?.fiber.dispose();
+		await disposeProxy();
 	});
 	const signalShutdown = new AbortController();
 	const interrupt = (code) => {

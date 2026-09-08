@@ -28,6 +28,7 @@ import 'slots/hole_outlet.dart';
 import 'composer.dart' show ConversationComposer;
 import 'chat_view.dart';
 import 'composer_chain_outlet.dart';
+import 'session_stats_line.dart';
 import 'todo_panel.dart';
 import '../queue_hook.dart';
 import 'conversation_shortcuts.dart';
@@ -128,6 +129,10 @@ class _ActiveBody extends StatelessWidget {
               ref.read(hubControllerProvider)?.cancelTurn(SessionId(sessionId)),
           child: ConversationComposer(sessionId: sessionId),
         ),
+        // Session totals below the card (React `StatsLine` on
+        // `conversation.composer.dock`); renders nothing while no group
+        // has data.
+        SessionStatsLine(sessionId: sessionId),
       ],
     );
   }

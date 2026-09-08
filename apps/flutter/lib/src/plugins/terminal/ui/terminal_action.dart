@@ -43,35 +43,52 @@ class TerminalAction extends ConsumerWidget {
 
     return Tooltip(
       message: panelVisible ? t('dock.hide') : t('action.tooltip'),
-      child: InkWell(
-        onTap: () {
-          final SessionId? sid = sessionId;
-          if (sid == null) return;
-          if (isMobileShell(context)) {
-            context.go('/sessions/${sid.value}/terminal');
-            return;
-          }
-          ref.read(terminalPanelVisibleProvider.notifier).state =
-              !panelVisible;
-        },
-        borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DswTokens.spaceSm,
-            vertical: 6,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.terminal_rounded, size: 14, color: accent),
-              const SizedBox(width: 4),
-              Text(
-                t('action.label'),
-                style: TextStyle(fontSize: DswTokens.fontSizeXs13, color: accent),
+      // Narrow header slots cannot fit the name: collapse to a
+      // lightly-padded icon instead of overflowing the Row — the same
+      // contract as `AgentPresetHeaderLabel`'s iconOnly seat.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool iconOnly =
+              constraints.maxWidth < 64 && constraints.maxWidth.isFinite;
+          return InkWell(
+            onTap: () {
+              final SessionId? sid = sessionId;
+              if (sid == null) return;
+              if (isMobileShell(context)) {
+                context.go('/sessions/${sid.value}/terminal');
+                return;
+              }
+              ref.read(terminalPanelVisibleProvider.notifier).state =
+                  !panelVisible;
+            },
+            borderRadius: BorderRadius.circular(DswTokens.radiusSm),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: iconOnly ? 2 : DswTokens.spaceSm,
+                vertical: 6,
               ),
-            ],
-          ),
-        ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.terminal_rounded, size: 14, color: accent),
+                  if (!iconOnly) ...[
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        t('action.label'),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXs13,
+                          color: accent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

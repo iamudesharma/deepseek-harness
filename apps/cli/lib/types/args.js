@@ -20,6 +20,11 @@ import { Command, CommanderError } from 'commander';
  * variadic — a variadic `--patch` would swallow the inner arguments.
  */
 const collect = (value, previous = []) => [...previous, value];
+function rejectElectronProfile(program, profile) {
+    if (profile.toLowerCase() === 'desktop') {
+        program.error('error: profile "desktop" is managed exclusively by the Electron application');
+    }
+}
 /** The launcher's own help text; each app prints its own. */
 const HELP_EXAMPLES = `
 Examples:
@@ -102,6 +107,7 @@ export function parseDshArgs(argv, version) {
         const profile = options.profile;
         if (profile === '')
             program.error('error: --profile needs a name');
+        rejectElectronProfile(program, profile);
         resolved = resolveBoot(program, profile, options, args);
     });
     /** Reject parent options supplied before a subcommand. */
@@ -135,6 +141,7 @@ export function parseDshArgs(argv, version) {
         rejectParentOptions('plugin');
         if (options.profile === '')
             program.error('error: --profile needs a name');
+        rejectElectronProfile(plugin, options.profile);
         if (args.length === 0)
             program.error('error: plugin needs pnpm arguments to forward (e.g. add <package>)');
         resolved = { mode: 'plugin', profile: options.profile, args };

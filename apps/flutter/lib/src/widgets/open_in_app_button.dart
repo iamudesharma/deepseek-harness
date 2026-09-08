@@ -28,11 +28,54 @@ final openInAppAppsProvider = FutureProvider<List<OpenInAppApp>>((ref) async {
 
 final openInAppChoiceProvider = StateProvider<String>((ref) => '');
 
+/// English product labels — mirrors `PRODUCT_NAMES` + file-manager entries in
+/// `packages/client/ui-open-in-app/src/client/locales.ts` (`en`).
+/// React renders only ids it can name via `t(labelKey)`; the naive
+/// `id.capitalize` produced `Vscode`/`Iterm` instead of `VS Code`/`iTerm2`.
+const Map<String, String> kOpenInAppEnLabels = <String, String>{
+  'finder': 'Finder',
+  'explorer': 'File Explorer',
+  'filemanager': 'Files',
+  'cursor': 'Cursor',
+  'vscode': 'VS Code',
+  'vscodeinsiders': 'VS Code Insiders',
+  'windsurf': 'Windsurf',
+  'zed': 'Zed',
+  'sublimetext': 'Sublime Text',
+  'xcode': 'Xcode',
+  'androidstudio': 'Android Studio',
+  'intellij': 'IntelliJ IDEA',
+  'pycharm': 'PyCharm',
+  'webstorm': 'WebStorm',
+  'phpstorm': 'PhpStorm',
+  'goland': 'GoLand',
+  'rider': 'Rider',
+  'rustrover': 'RustRover',
+  'fork': 'Fork',
+  'sourcetree': 'Sourcetree',
+  'github': 'GitHub Desktop',
+  'tower': 'Tower',
+  'gitkraken': 'GitKraken',
+  'smartgit': 'SmartGit',
+  'sublimemerge': 'Sublime Merge',
+  'ghostty': 'Ghostty',
+  'warp': 'Warp',
+  'iterm': 'iTerm2',
+  'kitty': 'kitty',
+  'terminal': 'Terminal',
+  'windowsterminal': 'Windows Terminal',
+  'gitbash': 'Git Bash',
+  'gnometerminal': 'GNOME Terminal',
+  'konsole': 'Konsole',
+};
+
 /// Split button for "open workspace in app" — mirrors
 /// `packages/client/ui-open-in-app/src/client/OpenInAppAction.tsx`.
 ///
-/// Renders nothing until the host reports at least one nameable app and the
-/// workspace has a known `cwd`, like React's `if (currentEntry === undefined || cwd === '') return null`.
+/// Session-header only (React `conversation.session.header.utilities`,
+/// `order: -10`). Renders nothing until the host reports at least one
+/// nameable app and the session has a known `cwd`, like React's
+/// `if (currentEntry === undefined || cwd === '') return null`.
 class OpenInAppButton extends ConsumerStatefulWidget {
   const OpenInAppButton({super.key, required this.path, this.compact = false});
   final String path;
@@ -91,66 +134,133 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
         if (apps.isEmpty || widget.path.isEmpty) return const SizedBox.shrink();
         final currentEntry = apps.firstWhere((e) => e.id == choice, orElse: () => apps.first);
         final current = currentEntry.id;
-        // Find label via locale — fallback to id.
-        // React uses t('app.*') — here we just use the id capitalized for now;
-        // a full locale pass would use ref.bindLocale('open-in-app').
-        String labelFor(String id) => id[0].toUpperCase() + id.substring(1);
+        String labelFor(String id) => kOpenInAppEnLabels[id] ?? id;
         final svc = ref.read(openInAppServiceProvider);
+        // React `Menu align="end" dense selection="fill"`: right-aligned
+        // under the split anchor, dense rows, selected app filled.
         final items = apps
             .map((e) => PopupMenuItem<String>(
                   value: e.id,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _AppIcon(appId: e.id, url: svc.iconUrl(e.id), size: 18),
                       const SizedBox(width: 8),
-                      Text(labelFor(e.id)),
+                      Expanded(
+                        child: Text(
+                          labelFor(e.id),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: e.id == current ? FontWeight.w600 : FontWeight.w400,
+                            color: aliases.labelPrimary,
+                          ),
+                        ),
+                      ),
+                      if (e.id == current)
+                        Icon(Icons.check, size: 14, color: aliases.labelSecondary),
                     ],
                   ),
                 ))
             .toList();
         final isBusy = _phase == 'busy';
         final isError = _phase == 'error';
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Tooltip(
-              message: isError ? 'Open failed' : 'Open in ${labelFor(current)}',
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: isError ? aliases.stateErrorPrimary : aliases.buttonPrimaryFill,
-                  foregroundColor: aliases.labelPrimaryForeground,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  minimumSize: const Size(32, 28),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                ),
-                onPressed: isBusy ? null : () => _launch(current),
-                child: isBusy
-                    ? SizedBox(
-                        width: 15,
-                        height: 15,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: aliases.labelPrimaryForeground,
-                        ),
-                      )
-                    : _AppIcon(appId: current, url: svc.iconUrl(current), size: 15),
+        final mainColor = isError ? aliases.stateErrorPrimary : aliases.labelPrimary;
+        // React `.split`: 26px tall, pill radius 13, hairline l4 border,
+        // transparent bg; `.main` 11px primary, `.chevron` 11px secondary
+        // with left hairline. No FilledButton primary fill.
+        return Tooltip(
+          message: isError ? 'Failed to open' : 'Open in ${labelFor(current)}',
+          child: Container(
+            height: 26,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isError ? aliases.stateErrorPrimary : aliases.borderL4,
+                width: 0.5,
               ),
+              borderRadius: BorderRadius.circular(13),
             ),
-            PopupMenuButton<String>(
-              tooltip: 'Choose app',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              iconSize: 16,
-              icon: const Icon(Icons.arrow_drop_down, size: 16),
-              onSelected: (id) {
-                if (_inFlight) return;
-                ref.read(openInAppChoiceProvider.notifier).state = id;
-                unawaited(ref.read(openInAppServiceProvider).setChoice(id));
-                _launch(id);
-              },
-              itemBuilder: (context) => items,
+            clipBehavior: Clip.antiAlias,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: isBusy ? null : () => _launch(current),
+                    hoverColor: aliases.interactiveBgHover,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(7, 5, 6, 5),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isBusy)
+                            SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: aliases.labelDimmed,
+                              ),
+                            )
+                          else
+                            _AppIcon(appId: current, url: svc.iconUrl(current), size: 15),
+                          const SizedBox(width: 5),
+                          Text(
+                            labelFor(current),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              height: 16 / 11,
+                              color: isBusy ? aliases.labelDimmed : mainColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 0.5,
+                  color: isError ? aliases.stateErrorPrimary : aliases.borderL4,
+                ),
+                // Chevron owns the menu so the popup anchors to the split's
+                // right edge. `useRootNavigator: true` keeps the overlay in
+                // the root navigator (go_router nests session routes — a
+                // local overlay misplaces the menu at the screen top-left).
+                // `position: under` + `offset(0, 8)` mirrors `align="end"`.
+                PopupMenuButton<String>(
+                  tooltip: 'Choose an app to open in',
+                  padding: const EdgeInsets.fromLTRB(4, 5, 6, 5),
+                  constraints: const BoxConstraints(minHeight: 26),
+                  menuPadding: const EdgeInsets.symmetric(vertical: 4),
+                  color: aliases.specificMenu,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  offset: const Offset(0, 8),
+                  position: PopupMenuPosition.under,
+                  useRootNavigator: true,
+                  iconSize: 11,
+                  icon: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 11,
+                    color: aliases.labelSecondary,
+                  ),
+                  onSelected: (id) {
+                    if (_inFlight) return;
+                    ref.read(openInAppChoiceProvider.notifier).state = id;
+                    unawaited(ref.read(openInAppServiceProvider).setChoice(id));
+                    _launch(id);
+                  },
+                  itemBuilder: (context) => items,
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
       loading: () => const SizedBox(
@@ -193,15 +303,22 @@ class _AppIconState extends State<_AppIcon> {
   }
 
   Future<void> _load() async {
+    // The icon route sits behind the same `requestRejection` fence as
+    // `/api/*`. The mint (`GET /?token=` → `Set-Cookie`) already ran in
+    // `OpenInAppService.listApps` before icons render, so the browser jar
+    // carries `Cookie` here via `BrowserClient(withCredentials:true)`.
     try {
       final uri = Uri.parse(widget.url);
       final client = http_client_factory.createHttpClient();
-      final resp = await client.get(uri);
-      client.close();
-      if (resp.statusCode >= 200 && resp.statusCode < 300 && resp.bodyBytes.isNotEmpty) {
-        if (mounted) setState(() => _bytes = resp.bodyBytes);
-      } else {
-        if (mounted) setState(() => _failed = true);
+      try {
+        final resp = await client.get(uri);
+        if (resp.statusCode >= 200 && resp.statusCode < 300 && resp.bodyBytes.isNotEmpty) {
+          if (mounted) setState(() => _bytes = resp.bodyBytes);
+        } else {
+          if (mounted) setState(() => _failed = true);
+        }
+      } finally {
+        client.close();
       }
     } catch (_) {
       if (mounted) setState(() => _failed = true);

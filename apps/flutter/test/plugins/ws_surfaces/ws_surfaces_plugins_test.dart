@@ -5,6 +5,7 @@ import 'package:dsh_flutter/src/core/session/session_models.dart' show DraftAtta
 import 'package:dsh_flutter/src/features/attachment/attachment_provider.dart'
     show ComposerAttachment;
 import 'package:dsh_flutter/src/plugins/attachment/attachment_service.dart';
+import 'package:dsh_flutter/src/plugins/commands/command_service.dart';
 import 'package:dsh_flutter/src/plugins/directory_picker/directory_picker_plugin.dart';
 import 'package:dsh_flutter/src/plugins/model_selection/model_directory_service.dart';
 import 'package:dsh_flutter/src/plugins/settings/children/general/general_settings_service.dart';
@@ -78,7 +79,10 @@ void main() {
 
     declareSurfaceHoles(host);
     expect(host.slots.winnersOfSlot('conversation.input.model'), hasLength(1));
-
+    // The `/model` slash-menu contribution registers against the bound
+    // commandUi alongside the seat (React `command.register` parity).
+    final commandUi = host.service<CommandUiService>('commandUi')!;
+    expect(commandUi.contribution('model'), isNotNull);
     // The seat component renders (a real SlotWidgetBuilder).
     final entry = host.slots.winnersOfSlot('conversation.input.model').single;
     expect(

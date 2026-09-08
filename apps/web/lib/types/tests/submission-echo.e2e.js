@@ -31,7 +31,7 @@ it('paints the submission echo on the send keystroke and swaps it for the durabl
         },
     });
     await waitFor(() => {
-        if (document.querySelector('[role="group"][aria-label="Pending images"] img') === null) {
+        if (document.querySelector('[role="group"][aria-label="Pending attachments"] img') === null) {
             throw new Error('attachment rail missing');
         }
     }, { timeout: 5_000 });
@@ -51,7 +51,7 @@ it('paints the submission echo on the send keystroke and swaps it for the durabl
     expect(echo.querySelector('img')?.getAttribute('src')?.split(':')[0]).toBe('blob');
     expect(composer.textContent).toBe('');
     expect(composer.getAttribute('contenteditable')).toBe('true');
-    expect(document.querySelector('[role="group"][aria-label="Pending images"]')).toBeNull();
+    expect(document.querySelector('[role="group"][aria-label="Pending attachments"]')).toBeNull();
     // The fixture's durable user/message (source.rpcId echoes the prompt
     // requestId) replaces the echo: one bubble, no marker left, and the image
     // now renders from the durable gallery.

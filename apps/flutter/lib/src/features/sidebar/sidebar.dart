@@ -38,8 +38,6 @@ import 'search_derive.dart';
 import 'workspace_view_store.dart';
 import '../../plugins/directory_picker/directory_picker_plugin.dart'
     show activatedPickDirectory;
-import '../../plugins/permission_presets/permission_session_provider.dart';
-import '../../widgets/open_in_app_button.dart';
 
 // Device clock that ticks every 30s so "5m" → "6m" without rebuild.
 // Mirrors `client/ui-primitives` `relativeTime` contract which injects `now`.
@@ -1640,10 +1638,9 @@ class _ProjectSection extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      if (group.cwd != null && group.cwd!.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        OpenInAppButton(path: group.cwd!, compact: true),
-                      ],
+                      // React has no open-in-app entry in the sidebar —
+                      // the split button lives only in
+                      // `conversation.session.header.utilities` (session cwd).
                       if (group.workspaceId != null) ...[
                         PopupMenuButton<String>(
                           tooltip: formatWorkspaceNamed(

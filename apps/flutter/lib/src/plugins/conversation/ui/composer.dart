@@ -893,6 +893,20 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                               );
                               return Row(
                                 children: <Widget>[
+                                  // Session command menu trigger — React
+                                  // InputBar.tsx:465-478 (`+`, `input.commands`
+                                  // tooltip, `listbox` popup). Opens the
+                                  // `command` source menu over the
+                                  // conversation overlay with the full Host
+                                  // catalog; picks reuse the ordinary slash
+                                  // pipeline (no second menu model).
+                                  _CommandMenuButton(
+                                    sessionId: widget.sessionId,
+                                    field: _controller,
+                                    focusNode: _focusNode,
+                                    enabled:
+                                        widget.enabled && !isSending,
+                                  ),
                                   permissionSeat,
                                   HoleOutlet(
                                     registry: slotRegistry,
@@ -1754,6 +1768,75 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Session command menu trigger — Flutter port of React's `+` button
+/// (`InputBar.tsx:465-478`).
+///
+/// Opens the `command` trigger source over `conversation.input.overlay`
+/// with an empty leading query (the full Host catalog plus available
+/// contributions), mirroring `toggleCommandMenu` →
+/// `inputTriggers.toggleSource('command', …)`. Picks, filtering, dismissal,
+/// and execution all reuse the ordinary slash pipeline; this button adds
+/// only the launcher. Disabled while the composer is disabled/sending or
+/// before trigger activation (React disables while `toggleCommandMenu` is
+/// undefined).
+class _CommandMenuButton extends ConsumerWidget {
+  /// Creates the trigger for [sessionId]'s composer field.
+  const _CommandMenuButton({
+    required this.sessionId,
+    required this.field,
+    required this.focusNode,
+    required this.enabled,
+  });
+
+  /// Owning session id.
+  final String sessionId;
+
+  /// Composer field (caret source for the synthetic launcher span).
+  final TextEditingController field;
+
+  /// Composer focus node (restored so typing continues seamlessly).
+  final FocusNode focusNode;
+
+  /// Whether the composer can interact right now.
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref
+        .read(localeServiceProvider)
+        .bind(kConversationNamespace);
+    final registry = activatedRegistry;
+    final controller = registry?.controllers[sessionId];
+    final bool canOpen = enabled && controller != null;
+    return IconButton(
+      tooltip: t('input.commands'),
+      icon: const Icon(Icons.add, size: 18),
+      onPressed: !canOpen
+          ? null
+          : () {
+              if (!focusNode.hasFocus) focusNode.requestFocus();
+              // Settle post-frame so a focus-driven selection change lands
+              // first: its track() would otherwise clear the launcher and
+              // close the menu the same frame it opens.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                final selection = field.selection;
+                final caret = selection.isValid
+                    ? selection.baseOffset
+                          .clamp(0, field.text.length)
+                          .toInt()
+                    : field.text.length;
+                controller.toggleLauncherSource(
+                  source: 'command',
+                  trigger: '/',
+                  caretOffset: caret,
+                );
+              });
+            },
     );
   }
 }

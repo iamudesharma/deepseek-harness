@@ -81,8 +81,7 @@ class SelectOption {
 /// One client-owned command contribution: a slash-menu entry whose behavior
 /// lives entirely on this client. Merged with the host catalog by name — a
 /// collision fails loud at candidate synthesis, never shadows.
-class CommandContribution {
-  /// Creates a contribution. A popupSelect contribution carries both
+class CommandContribution {  /// Creates a contribution. A popupSelect contribution carries both
   /// [options] and [onSelect]; a plain execution contribution carries
   /// neither (validated at [CommandUiService.register]).
   const CommandContribution({
@@ -110,6 +109,33 @@ class CommandContribution {
   onSelect;
 }
 
+/// One bare-invocation decoration: replaces a resolvable host command's bare
+/// menu/enter invocation with a popupSelect shell (port of React
+/// `command.decorate`). Adds no menu row — availability gates only whether
+/// the bare pick opens the shell or falls through to the claim/detached
+/// paths below.
+class CommandDecoration {
+  /// Creates the decoration over a popupSelect spec.
+  const CommandDecoration({
+    required this.name,
+    required this.available,
+    required this.options,
+    required this.onSelect,
+  });
+
+  /// Host command name without the leading slash.
+  final String name;
+
+  /// Capability filter, called per bare-invocation pass.
+  final bool Function(SessionId sessionId) available;
+
+  /// popupSelect spec: load the option rows once per shell open.
+  final Future<List<SelectOption>> Function(SessionId sessionId) options;
+
+  /// popupSelect spec: settle the picked option against the open-time session.
+  final Future<void> Function(SelectOption option, SessionId sessionId)
+  onSelect;
+}
 /// Extra weight for command-name starts and separator boundaries
 /// (`fuzzyScore`'s boundaryBonus).
 int _boundaryBonus(String name, int index) =>
@@ -294,6 +320,7 @@ class CommandUiService {
   final CommandExecutor execute;
 
   final Map<String, CommandContribution> _contributions = {};
+  final Map<String, CommandDecoration> _decorations = {};
 
   /// Register one client command contribution; duplicate names throw, and a
   /// half-specified popupSelect spec (options without onSelect or vice versa)
@@ -320,6 +347,21 @@ class CommandUiService {
 
   /// One contribution by name, or null.
   CommandContribution? contribution(String name) => _contributions[name];
+
+  /// Hang a bare-invocation decoration on one host command; duplicate names
+  /// throw. Returns the disposer removing the registration.
+  void Function() decorate(CommandDecoration decoration) {
+    if (_decorations.containsKey(decoration.name)) {
+      throw StateError(
+        'ui-commands: duplicate decoration for /${decoration.name}',
+      );
+    }
+    _decorations[decoration.name] = decoration;
+    return () => _decorations.remove(decoration.name);
+  }
+
+  /// One decoration by name, or null.
+  CommandDecoration? decoration(String name) => _decorations[name];
 
   /// Menu candidates: host catalog + contribution availability, then position
   /// filtering and fuzzy name ranking. A contribution colliding with a host
@@ -404,6 +446,16 @@ class CommandUiService {
     }
     final desc = _directory.resolve(sessionId, name);
     if (desc == null) return null;
+    // Bare enter on a decorated host command opens its popup; an argued
+    // line never consults the decoration (claim/detached own it) — React
+    // `matchEnter` parity.
+    if (bare) {
+      final dec = _decorations[name];
+      if (dec != null && dec.available(sessionId)) {
+        openPopup(sessionId, name, TokenSegment.enter(token: token));
+        return const HandledOutcome();
+      }
+    }
     if (desc.hint != null || desc.images) {
       return ClaimOutcome(_leadingClaim(desc, sessionId));
     }
@@ -467,18 +519,33 @@ class CommandUiService {
     );
   }
 
-  /// Open the session's shell for one popupSelect contribution over
-  /// [segment]; a non-popup or unavailable name throws (callers route only
-  /// after checking the contribution).
+  /// Open the session's shell for one popupSelect contribution or
+  /// decoration over [segment]; an unknown name or a contribution without a
+  /// popup spec throws (callers route only after checking availability).
   void openPopup(SessionId sessionId, String name, TokenSegment segment) {
     final c = contribution(name);
-    if (c == null || c.options == null || !c.available(sessionId)) {
-      throw StateError(
-        'ui-commands: /$name does not expose a popupSelect spec',
+    if (c != null && c.options != null && c.available(sessionId)) {
+      popupOf(sessionId).open(
+        name,
+        _FnPopupSpec(loadOptions: c.options!, settle: c.onSelect!),
+        sessionId,
+        segment,
       );
+      return;
     }
-    popupOf(sessionId)
-        .open(name, _ContributionPopupSpec(c), sessionId, segment);
+    final d = decoration(name);
+    if (d != null && d.available(sessionId)) {
+      popupOf(sessionId).open(
+        name,
+        _FnPopupSpec(loadOptions: d.options, settle: d.onSelect),
+        sessionId,
+        segment,
+      );
+      return;
+    }
+    throw StateError(
+      'ui-commands: /$name does not expose a popupSelect spec',
+    );
   }
 
   /// Tear down every live popup controller (plugin teardown).
@@ -493,20 +560,21 @@ class CommandUiService {
   CommandDirectory get directory => _directory;
 }
 
-/// Adapts one contribution's popupSelect members to the shell spec face,
+/// Adapts one popupSelect spec's option/settlement halves to the shell face,
 /// capturing nothing: the controller carries the open-time session context.
-class _ContributionPopupSpec implements PopupSpec<SessionId> {
-  const _ContributionPopupSpec(this._c);
+class _FnPopupSpec implements PopupSpec<SessionId> {
+  const _FnPopupSpec({required this.loadOptions, required this.settle});
 
-  final CommandContribution _c;
+  final Future<List<SelectOption>> Function(SessionId context) loadOptions;
+  final Future<void> Function(SelectOption option, SessionId context) settle;
 
   @override
   Future<List<SelectOption>> options(SessionId context, PopupSignal signal) =>
-      _c.options!(context);
+      loadOptions(context);
 
   @override
   Future<void> onSelect(SelectOption option, SessionId context) =>
-      _c.onSelect!(option, context);
+      settle(option, context);
 }
 
 /// No-op wiring for the unbound-wiring default (see [CommandUiService.bindPopupDeps]).

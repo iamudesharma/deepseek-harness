@@ -45,3 +45,36 @@ class PermissionSelect {
 /// (blank session before first title etc.).
 final permissionSelectProvider =
     StateProvider.family<PermissionSelect?, String>((ref, sessionId) => null);
+
+/// Service-layer read mirror of the live permissions projection.
+///
+/// Riverpod state is unreachable from the command pipeline (`CommandUiService`
+/// decorations resolve service-side), so `live_sync` mirrors every
+/// `permissionSelectProvider` write here. Null means absent — exactly the
+/// `selectOf(session) === undefined` gate React's `/permission` decoration
+/// checks. Entries are tiny projection copies keyed by session id.
+class PermissionSnapshotCache {
+  /// Creates an empty cache.
+  PermissionSnapshotCache();
+
+  final Map<String, PermissionSelect?> _snapshots = {};
+
+  /// Latest snapshot for [sessionId], or null when absent.
+  PermissionSelect? read(String sessionId) => _snapshots[sessionId];
+
+  /// Record [select] (null clears back to absent).
+  void write(String sessionId, PermissionSelect? select) {
+    if (select == null) {
+      _snapshots.remove(sessionId);
+    } else {
+      _snapshots[sessionId] = select;
+    }
+  }
+
+  /// Drop everything (tests / teardown).
+  void clear() => _snapshots.clear();
+}
+
+/// Shared mirror fed by `live_sync` beside every provider write.
+final PermissionSnapshotCache permissionSnapshotCache =
+    PermissionSnapshotCache();

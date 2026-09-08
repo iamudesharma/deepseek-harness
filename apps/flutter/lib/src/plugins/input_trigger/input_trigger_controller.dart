@@ -304,6 +304,47 @@ class InputTriggerController {
     _reduce(CloseMenuEvent());
   }
 
+  /// Toggle a menu containing exactly one registered source — the `+`
+  /// launcher port of React `toggleSource` (`controller.ts:145-163`): the
+  /// caret span is a synthetic selection span rather than a typed trigger
+  /// token, but picks reuse the ordinary source callback and sink pipeline.
+  /// An open launcher for [source] closes; an unknown source closes too.
+  /// The next [track] clears the launcher and re-detects from the draft,
+  /// exactly like React, so typing after a launch falls back to detection.
+  ///
+  /// [caretOffset] is clamped into the current draft; the span carries the
+  /// live [draftRev] for pick-time CAS.
+  void toggleLauncherSource({
+    required String source,
+    required TriggerChar trigger,
+    required int caretOffset,
+  }) {
+    if (_disposed) return;
+    if (launcher.value == source && menu.value.open) {
+      dismiss();
+      return;
+    }
+    final roster = _roster.sources(trigger);
+    final matches = roster.where((s) => s.name == source).toList();
+    if (matches.isEmpty) {
+      dismiss();
+      return;
+    }
+    final end = caretOffset.clamp(0, draft.length).toInt();
+    _hit = TriggerHit(
+      trigger: trigger,
+      query: '',
+      quoted: false,
+      position: TriggerPosition.leading,
+      span: TokenSpan(start: end, end: end, draftRev: draftRev),
+    );
+    stopFetch();
+    launcher.value = source;
+    menu.value = seedGroups(menu.value, matches);
+    _reduce(HitEvent(_hit!));
+    fetchCandidates(_hit!, matches);
+  }
+
   /// Scope teardown: close, abort, and detach lexicon subscriptions.
   void dispose() {
     _disposed = true;

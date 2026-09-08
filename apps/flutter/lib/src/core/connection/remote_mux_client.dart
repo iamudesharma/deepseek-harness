@@ -121,10 +121,22 @@ class RemoteMuxClient {
     final base = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
     final source = Uri.parse(base);
     final scheme = source.scheme == 'https' ? 'wss' : 'ws';
-    var uri = source.replace(scheme: scheme, path: '/api/remote.mux');
-    if (ticket != null) {
-      uri = uri.replace(queryParameters: {...uri.queryParameters, 'ticket': ticket});
-    }
+    // `baseUrl` may carry `?token=` (start.sh `DSH_HOST_URL=$AUTHENTICATED_URL`
+    // for the `GET /?token=` → `Set-Cookie` exchange). It must not ride the
+    // WS URL — the host authenticates upgrades via `Cookie: dsh-auth-*` /
+    // `?ticket=`, never `?token=`. Strip it like `ConnectionClient._uri`.
+    final filtered = Map<String, String>.from(source.queryParameters)
+      ..remove('token');
+    var uri = source.replace(
+      scheme: scheme,
+      path: '/api/remote.mux',
+      queryParameters: filtered.isEmpty && ticket == null
+          ? null
+          : {
+              ...filtered,
+              if (ticket != null) 'ticket': ticket,
+            },
+    );
     return uri;
   }
 

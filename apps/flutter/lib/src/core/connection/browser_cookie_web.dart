@@ -25,15 +25,20 @@ final Set<String> _fetchedAuthorities = {};
 ///
 /// Idempotent per authority; first call does `GET http://authority/?token=`
 /// with `withCredentials:true` to let the browser store `Set-Cookie`.
+/// Always returns `null` on web — the browser's jar is authoritative and
+/// `Cookie` is a forbidden header JavaScript cannot set. Callers must still
+/// await this before the first Typert POST / WebSocket so the mint races
+/// nothing. Only authorities with a successful mint are cached; failures
+/// stay uncached so the next call retries (otherwise every `/api/*` would
+/// `401` forever after one failed mint).
 Future<String?> getBrowserCookie(String baseUrl) async {
   final uri = Uri.tryParse(baseUrl);
   if (uri == null) return null;
   final authority = uri.authority;
   if (authority.isEmpty) return null;
-  if (_fetchedAuthorities.contains(authority)) return 'dsh-auth';
+  if (_fetchedAuthorities.contains(authority)) return null;
   final token = uri.queryParameters['token'];
   if (token == null || token.isEmpty) return null;
-  _fetchedAuthorities.add(authority);
   final tokenUrl = uri.replace(path: '/', queryParameters: {'token': token});
   try {
     final client = BrowserClient()..withCredentials = true;
@@ -42,11 +47,13 @@ Future<String?> getBrowserCookie(String baseUrl) async {
     // include `Cookie` automatically because `http_client_web.dart` also uses
     // `withCredentials:true` and our webserver CORS is `Allow-Credentials:true`.
     await client.get(tokenUrl);
+    _fetchedAuthorities.add(authority);
   } catch (_) {
     // Non-fatal — the next Typert POST will still 401 and the controller will
-    // retry after the cookie is eventually set. Do not block the caller.
+    // retry after the cookie is eventually set. Do not cache failures so the
+    // next call retries the mint. Do not block the caller.
   }
-  return 'dsh-auth';
+  return null;
 }
 
 /// No-op on web — the browser's jar is authoritative.

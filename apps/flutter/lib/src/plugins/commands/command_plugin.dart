@@ -21,6 +21,7 @@ import '../conversation/hub.dart' show ConversationController;
 import 'command_directory.dart';
 import 'command_service.dart';
 import 'popup_select.dart' show TokenSegment;
+import 'session_export.dart' show SessionExportService, exportAwareExecutor;
 import 'ui/popup_select_overlay.dart';
 
 /// Plugin identity.
@@ -36,9 +37,15 @@ const String kCommandSourceName = 'command';
 class CommandsPlugin extends DshPlugin {
   /// Creates the plugin over an explicit executor (plan_control's
   /// constructor-injection pattern; defaults to the prompt-channel executor).
-  const CommandsPlugin({CommandExecutor? executor}) : _executor = executor;
+  ///
+  /// [onExportError] surfaces `/export` download failures (the command
+  /// itself stays admitted — React reports them in its download modal).
+  const CommandsPlugin({CommandExecutor? executor, void Function(String)? onExportError})
+    : _executor = executor,
+      _onExportError = onExportError;
 
   final CommandExecutor? _executor;
+  final void Function(String)? _onExportError;
 
   @override
   String get id => kCommandsPluginId;
@@ -100,7 +107,13 @@ class CommandsPlugin extends DshPlugin {
     );
     final service = CommandUiService(
       directory: directory,
-      execute: _executor ?? defaultCommandExecutor(client),
+      execute:
+          _executor ??
+          exportAwareExecutor(
+            defaultCommandExecutor(client),
+            exporter: SessionExportService(client),
+            onExportError: _onExportError,
+          ),
     );
     ctx.provide(kCommandUiServiceName, service);
 
@@ -196,6 +209,14 @@ class _CommandSource extends InputTriggerSource {
     }
     if (_directory.resolve(sessionId, name) == null) return null;
     final desc = _directory.resolve(sessionId, name)!;
+    // A decoration replaces the HOST row's bare invocation with its popup;
+    // it decorates only a resolvable host command, never manufactures one,
+    // and never touches the argument claim below (React dispatch parity).
+    final decoration = _service.decoration(name);
+    if (decoration != null && decoration.available(sessionId)) {
+      _service.openPopup(sessionId, name, TokenSegment.menu(span: pick.span));
+      return const HandledOutcome();
+    }
     if (desc.hint != null || desc.images) {
       return ClaimOutcome(_leadingClaim(desc, sessionId));
     }

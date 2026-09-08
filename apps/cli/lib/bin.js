@@ -25,6 +25,9 @@ import { Command, CommanderError } from "commander";
 * variadic — a variadic `--patch` would swallow the inner arguments.
 */
 const collect = (value, previous = []) => [...previous, value];
+function rejectElectronProfile(program, profile) {
+	if (profile.toLowerCase() === "desktop") program.error("error: profile \"desktop\" is managed exclusively by the Electron application");
+}
 /** The launcher's own help text; each app prints its own. */
 const HELP_EXAMPLES = `
 Examples:
@@ -81,6 +84,7 @@ function parseDshArgs(argv, version) {
 		}
 		const profile = options.profile;
 		if (profile === "") program.error("error: --profile needs a name");
+		rejectElectronProfile(program, profile);
 		resolved = resolveBoot(program, profile, options, args);
 	});
 	/** Reject parent options supplied before a subcommand. */
@@ -93,9 +97,11 @@ function parseDshArgs(argv, version) {
 		rejectParentOptions("web");
 		resolved = resolveBoot(web, "web", options, args);
 	});
-	program.command("plugin").description("manage a profile's plugins by forwarding the remaining arguments to pnpm in the profile directory").requiredOption("--profile <name>", "the profile whose plugins to manage (initialized on first use)").allowUnknownOption().argument("[args...]", "pnpm arguments, forwarded verbatim (add <pkg>, remove <pkg>, why <pkg>, ...)").action((args, options) => {
+	const plugin = program.command("plugin").description("manage a profile's plugins by forwarding the remaining arguments to pnpm in the profile directory");
+	plugin.requiredOption("--profile <name>", "the profile whose plugins to manage (initialized on first use)").allowUnknownOption().argument("[args...]", "pnpm arguments, forwarded verbatim (add <pkg>, remove <pkg>, why <pkg>, ...)").action((args, options) => {
 		rejectParentOptions("plugin");
 		if (options.profile === "") program.error("error: --profile needs a name");
+		rejectElectronProfile(plugin, options.profile);
 		if (args.length === 0) program.error("error: plugin needs pnpm arguments to forward (e.g. add <package>)");
 		resolved = {
 			mode: "plugin",
@@ -123,29 +129,36 @@ function readVersion() {
 	const manifest = JSON.parse(readFileSync(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"));
 	return typeof manifest.version === "string" ? manifest.version : "0.0.0";
 }
-const invocation = parseDshArgs(process.argv.slice(2), readVersion());
-switch (invocation.mode) {
-	case "profile": {
-		const { runProfile } = await import("./profile-boot-x7_BzdeW.js");
-		await runProfile({
-			environment: loadLayeredEnv("dsh"),
-			profile: invocation.profile,
-			patchFiles: invocation.patches,
-			args: invocation.args
-		});
-		break;
+/**
+* Run the public dsh command-line interface.
+* @returns a promise that settles when the selected command mode finishes.
+*/
+async function runCli() {
+	const invocation = parseDshArgs(process.argv.slice(2), readVersion());
+	switch (invocation.mode) {
+		case "profile": {
+			const { runProfile } = await import("./profile-boot-CMEGRIuU.js");
+			await runProfile({
+				environment: loadLayeredEnv("dsh"),
+				profile: invocation.profile,
+				patchFiles: invocation.patches,
+				args: invocation.args
+			});
+			break;
+		}
+		case "plugin": {
+			const { runPlugin } = await import("./plugin-WDISvmGc.js");
+			process.exit(runPlugin(invocation.profile, invocation.args));
+			break;
+		}
+		case "dump-config": {
+			const { runDumpConfig } = await import("./dump-config-oo1v7itl.js");
+			runDumpConfig(invocation.profile, invocation.defaultOnly, invocation.patches);
+			break;
+		}
+		default: throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`);
 	}
-	case "plugin": {
-		const { runPlugin } = await import("./plugin-F7ZVfRyo.js");
-		process.exit(runPlugin(invocation.profile, invocation.args));
-		break;
-	}
-	case "dump-config": {
-		const { runDumpConfig } = await import("./dump-config-BNQ_bV66.js");
-		runDumpConfig(invocation.profile, invocation.defaultOnly, invocation.patches);
-		break;
-	}
-	default: throw new Error(`dsh: unhandled invocation mode ${JSON.stringify(invocation)}`);
 }
+if (import.meta.main) await runCli();
 //#endregion
-export {};
+export { runCli };

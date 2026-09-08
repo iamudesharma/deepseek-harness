@@ -215,10 +215,13 @@ class ConnectionClient {
     final headers = _headers(rpcId);
     // Native: replay the browser cookie obtained via `GET /?token=` so
     // `BrowserAuth.isAuthenticated` passes for loopback. Web is handled
-    // automatically via `BrowserClient.withCredentials`.
+    // automatically via `BrowserClient.withCredentials` — the browser sends
+    // `Cookie: dsh-auth-*` itself, and `Cookie` is a forbidden header that
+    // JavaScript cannot set. Still await the mint so the first POST waits
+    // for `Set-Cookie` before racing it.
     try {
       final cookie = await browser_cookie.getBrowserCookie(baseUrl);
-      if (cookie != null) headers['cookie'] = cookie;
+      if (cookie != null && !kIsWeb) headers['cookie'] = cookie;
     } catch (_) {}
     final bearer = await _bearerToken();
     if (bearer != null) headers['authorization'] = 'Bearer $bearer';

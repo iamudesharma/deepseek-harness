@@ -17,6 +17,7 @@ import '../../theme/app_theme.dart';
 import '../../theme/appearance.dart';
 import '../../theme/theme_runtime.dart';
 import '../../widgets/primitives/connection_banner.dart';
+import '../../widgets/primitives/toast.dart';
 import '../connection/connection_client.dart' as conn;
 import '../connection/connection_target_provider.dart';
 import '../connection/connection_lifecycle.dart';
@@ -60,6 +61,7 @@ import '../../plugins/settings/children/plugins/plugins_settings_plugin.dart';
 import '../../plugins/settings/children/plugin_inventory/plugin_inventory_plugin.dart';
 // WS-Tasks: jobs / workflow runs / deliverables / goal / permission presets.
 import '../../plugins/jobs/jobs_plugin.dart';
+import '../../plugins/open_in_app/open_in_app_plugin.dart';
 import '../../plugins/terminal/terminal_plugin.dart';
 import '../../plugins/workflow_run/workflow_run_plugin.dart';
 import '../../plugins/deliverables/deliverables_plugin.dart';
@@ -419,7 +421,17 @@ PluginHost buildAppHost(WidgetRef ref) {
   // 'inputTriggers'; Commands/Reference declare it as their sequencing edge,
   // so the fixpoint orders them regardless of registration position.
   host.register(const InputTriggerPlugin());
-  host.register(const CommandsPlugin());
+  host.register(
+    CommandsPlugin(
+      // `/export` ZIP download failures surface as toasts; the admitted
+      // command outcome itself is unchanged (React's download modal equivalent).
+      onExportError: (message) {
+        try {
+          ref.read(toastProvider.notifier).showError(message);
+        } catch (_) {}
+      },
+    ),
+  );
   host.register(ReferencePlugin());
   host.register(const UserQuestionsPlugin());
   // WS-Surfaces — model seat, workspace, attachment, pickers (browse then
@@ -439,6 +451,7 @@ PluginHost buildAppHost(WidgetRef ref) {
   // WS-Tasks — jobs / workflow runs / deliverables / goal / permission
   // presets — plus the console terminal panel.
   host.register(const JobsPlugin());
+  host.register(const OpenInAppPlugin());
   host.register(const TerminalPlugin());
   // Navigation face mirrors React `ctx.sessions.open`: selecting the child
   // row through the shared sessions list (unknown ids are ignored by the

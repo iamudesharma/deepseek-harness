@@ -42,7 +42,9 @@ const Map<String, String> kConversationZh = {
   'tool.title.webSearch': '网页搜索',
   'tool.title.webFetch': '网页抓取',
   'todo.rowTitle': '更新任务清单',
-  'todo.completed': '{done}/{total} 已完成',
+  // Composer "+" command-menu trigger — mirrors `input.commands` in
+  // ui-conversation locales (React `+` button tooltip/aria-label).
+  'input.commands': '指令',  'todo.completed': '{done}/{total} 已完成',
   'message.think': '思考',
   'message.turnProcess.toolCalls.one': '{count} 次工具调用',
   'message.turnProcess.toolCalls.other': '{count} 次工具调用',
@@ -52,6 +54,15 @@ const Map<String, String> kConversationZh = {
   'message.turnProcess.subagents.other': '{count} 个 subagent',
   'message.turnProcess.thoughtForAWhile': '已思考',
   'message.turnProcess.separator': ' · ',
+  // Session stats line below the composer — mirrors `stats.*` in ui-chat
+  // locales (React `NS = 'chat'`); templates take final display strings.
+  'stats.counts': '{turns} 轮 · {steps} 步',
+  'stats.llm': 'LLM {duration}',
+  'stats.toolCall': '工具调用 {duration}',
+  'stats.ttftAverage': '首 token 平均 {duration}',
+  'stats.tokensPerSecond': '{throughput} tok/s',
+  'stats.cacheHit': '缓存命中 {percent}%',
+  'stats.tokens': '输入 {input} tok · 输出 {output} tok',
 };
 
 /// English copy — keys mirror React `en`.
@@ -90,6 +101,9 @@ const Map<String, String> kConversationEn = {
   'tool.title.webSearch': 'Web search',
   'tool.title.webFetch': 'Web fetch',
   'todo.rowTitle': 'Update to-do list',
+  // Composer "+" command-menu trigger — mirrors `input.commands` in
+  // ui-conversation locales (React `+` button tooltip/aria-label).
+  'input.commands': 'Commands',
   'todo.completed': '{done}/{total} completed',
   'message.think': 'Think',
   'message.turnProcess.toolCalls.one': '{count} tool call',
@@ -100,6 +114,15 @@ const Map<String, String> kConversationEn = {
   'message.turnProcess.subagents.other': '{count} subagents',
   'message.turnProcess.thoughtForAWhile': 'Thought for a while',
   'message.turnProcess.separator': ' · ',
+  // Session stats line below the composer — mirrors `stats.*` in ui-chat
+  // locales (React `NS = 'chat'`); templates take final display strings.
+  'stats.counts': '{turns} turns · {steps} steps',
+  'stats.llm': 'LLM {duration}',
+  'stats.toolCall': 'Tool call {duration}',
+  'stats.ttftAverage': 'TTFT avg {duration}',
+  'stats.tokensPerSecond': '{throughput} tok/s',
+  'stats.cacheHit': 'Cache hit {percent}%',
+  'stats.tokens': 'Input {input} tok · Output {output} tok',
 };
 
 /// Interpolation helper for `message.compaction.completed`.

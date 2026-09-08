@@ -7,6 +7,8 @@ import 'package:dsh_flutter/src/core/slots/slot_registry.dart';
 import 'package:dsh_flutter/src/plugins/attachment/attachment_plugin.dart';
 import 'package:dsh_flutter/src/plugins/attachment/attachment_service.dart';
 import 'package:dsh_flutter/src/plugins/brand_official/brand_official_plugin.dart';
+import 'package:dsh_flutter/src/plugins/commands/command_directory.dart';
+import 'package:dsh_flutter/src/plugins/commands/command_service.dart';
 import 'package:dsh_flutter/src/plugins/directory_picker/directory_picker_plugin.dart';
 import 'package:dsh_flutter/src/plugins/directory_picker/directory_picker_service.dart';
 import 'package:dsh_flutter/src/plugins/model_selection/model_directory_service.dart';
@@ -86,6 +88,19 @@ PluginHost wsSurfacesHost({FakeClient? client}) {
   host.provide('connection', c);
   host.provide('workspaces', WorkspacesService(c));
   host.provide('locale', LocaleService());
+  // `ui-model-selection` declares the same `commandUi` edge as React
+  // (`inject = ['commandUi', …]`); the surfaces suite boots without the
+  // conversation stack, so the edge is satisfied with a real service over
+  // an empty directory instead of the full commands plugin.
+  host.provide(
+    'commandUi',
+    CommandUiService(
+      directory: CommandDirectory(
+        fetchCommands: (_) async => const <CommandDescriptor>[],
+      ),
+      execute: (_, __) async => CommandExecutionOutcome.success(),
+    ),
+  );
   host.provide(
     'settingsScope',
     SettingsScope<Object?>(face: _NoopFace(), namespace: 'ui-conversation'),

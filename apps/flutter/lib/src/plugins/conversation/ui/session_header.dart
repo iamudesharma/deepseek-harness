@@ -40,7 +40,6 @@ class SessionHeaderView extends ConsumerWidget {
         : summary.blank
         ? 'New session'
         : summary.displayTitle;
-    final String? agentPreset = summary?.agentPreset;
     String location = '';
     try {
       location = GoRouterState.of(context).matchedLocation;
@@ -58,7 +57,15 @@ class SessionHeaderView extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Top row: dot + title + Creator mode pill + utilities
+          // Top row mirrors React `ConversationSessionHeader.titleRow`:
+          // the flex:1 left cluster holds the dot, the title, and the
+          // `header.actions` slot (whose first entry is the single
+          // agent-preset label) with compact spacing; the cluster absorbs
+          // every leftover pixel so the `headerUtilities` slot + session
+          // log + cancel pin to the right corner. The preset pill is
+          // slot-owned (`AgentPresetHeaderLabel`, actions id `agent-preset`);
+          // no hardcoded copy lives here — a second pill duplicated the same
+          // `summary.agentPreset` state.
           Container(
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -89,63 +96,26 @@ class SessionHeaderView extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      if (agentPreset != null && agentPreset.isNotEmpty) ...[
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: aliases.bgLayer2,
-                            borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-                            border: Border.all(color: aliases.borderL2),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.tune_rounded, size: 12, color: aliases.labelTertiary),
-                              const SizedBox(width: 4),
-                              Text(
-                                _presetLabel(agentPreset),
-                                style: TextStyle(
-                                  fontSize: DswTokens.fontSizeXxs12,
-                                  fontWeight: FontWeight.w500,
-                                  color: aliases.labelSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Dependent actions (list hole) + utilities — horizontal row
-                // so multiple header entries sit side-by-side. Flexible lets
-                // the title shrink instead of overflowing the 44px row
-                // (React header utilities are a horizontal flex row).
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
+                      const SizedBox(width: 10),
                       Flexible(
                         fit: FlexFit.loose,
                         child: HoleOutlet(
                           registry: activatedHub?.slots ?? SlotRegistry(),
-                          slotKey:
-                              'conversation.session.header.actions',
+                          slotKey: 'conversation.session.header.actions',
                           direction: Axis.horizontal,
                           spacing: 4,
                         ),
                       ),
-                      HoleOutlet(
-                        registry: activatedHub?.slots ?? SlotRegistry(),
-                        slotKey:
-                            'conversation.session.header.utilities',
-                        direction: Axis.horizontal,
-                        spacing: 4,
-                      ),
                     ],
+                  ),
+                ),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: HoleOutlet(
+                    registry: activatedHub?.slots ?? SlotRegistry(),
+                    slotKey: 'conversation.session.header.utilities',
+                    direction: Axis.horizontal,
+                    spacing: 4,
                   ),
                 ),
                 if (!isTrajectory)
@@ -224,19 +194,6 @@ class SessionHeaderView extends ConsumerWidget {
       ),
     );
   }
-}
-
-extension<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
-}
-
-String _presetLabel(String preset) {
-  final low = preset.toLowerCase();
-  if (low.contains('creator')) return 'Creator mode';
-  if (low.contains('plan')) return 'Plan mode';
-  if (low == 'default' || low.isEmpty) return preset;
-  // Title case fallback
-  return preset[0].toUpperCase() + preset.substring(1);
 }
 
 class _HeaderTab extends StatelessWidget {
