@@ -102,7 +102,9 @@ class ComposerAttachment {
   /// uniqueness without adding a uuid dependency.
   static DraftAttachmentId generateId() {
     _seq += 1;
-    return DraftAttachmentId('att-${DateTime.now().microsecondsSinceEpoch}-$_seq');
+    return DraftAttachmentId(
+      'att-${DateTime.now().microsecondsSinceEpoch}-$_seq',
+    );
   }
 
   @override
@@ -116,7 +118,8 @@ class ComposerAttachment {
   }
 
   @override
-  int get hashCode => id.value.isNotEmpty ? id.hashCode : Object.hash(name, path);
+  int get hashCode =>
+      id.value.isNotEmpty ? id.hashCode : Object.hash(name, path);
 }
 
 /// Composer state — explicit resolve step owns defaults, never hidden `??` in
@@ -284,11 +287,16 @@ class ComposerController extends FamilyNotifier<ComposerState, String> {
       }
     }
     // Optimistic user bubble — shown immediately before host echo.
+    // Carries the minted requestId so queue echoes retire on host admission
+    // (React `beginSubmission` mints `requestId`, retired on durable
+    // `user/message.source.rpcId` or queue `rpcId`).
+    final String requestId = newRpcId();
     final optimistic = Message(
       id: 'optimistic-${DateTime.now().millisecondsSinceEpoch}',
       role: MessageRole.user,
       content: text,
       time: DateTime.now().millisecondsSinceEpoch,
+      requestId: requestId,
     );
     ref.read(optimisticMessagesProvider(sessionId).notifier).state = [
       ...ref.read(optimisticMessagesProvider(sessionId)),
@@ -325,6 +333,7 @@ class ComposerController extends FamilyNotifier<ComposerState, String> {
         content: text,
         mode: mode,
         images: imageParts,
+        requestId: requestId,
       );
       debugPrint('[composerController] sendMessage success');
       state = state.copyWith(isSending: false);

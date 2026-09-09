@@ -55,7 +55,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('modelsInherited'), findsOneWidget);
-      expect(find.text('restoreDefaults'), findsNothing);
+      expect(find.text('resetModels'), findsNothing);
     });
 
     testWidgets('typing an id emits the patched rows', (tester) async {
@@ -138,7 +138,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('modelsCustomized'), findsOneWidget);
-      await tester.tap(find.text('restoreDefaults'));
+      await tester.tap(find.text('resetModels'));
       await tester.pump();
 
       expect(reset, isTrue);

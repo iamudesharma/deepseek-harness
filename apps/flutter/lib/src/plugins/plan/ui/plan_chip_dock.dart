@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/session/session_models.dart';
 import '../../../core/session/session_provider.dart';
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef;
 import '../../../theme/app_theme.dart';
 import '../locales.dart';
 import '../plan_control.dart';
@@ -71,7 +73,7 @@ class _PlanChipSeat extends ConsumerWidget {
 }
 
 /// The chip itself: wordmark + close glyph, disabled while leaving.
-class _PlanChip extends StatefulWidget {
+class _PlanChip extends ConsumerStatefulWidget {
   const _PlanChip({
     required this.locked,
     required this.aliases,
@@ -83,10 +85,10 @@ class _PlanChip extends StatefulWidget {
   final Future<String?> Function() onExit;
 
   @override
-  State<_PlanChip> createState() => _PlanChipState();
+  ConsumerState<_PlanChip> createState() => _PlanChipState();
 }
 
-class _PlanChipState extends State<_PlanChip> {
+class _PlanChipState extends ConsumerState<_PlanChip> {
   bool _leaving = false;
   String? _error;
 
@@ -114,71 +116,74 @@ class _PlanChipState extends State<_PlanChip> {
   @override
   Widget build(BuildContext context) {
     final bool disabled = widget.locked || _leaving;
+    final t = ref.bindLocale(kPlanNamespace);
+    // React `.chip`: warn-tertiary pill, warn-label 13/20 w500 text, 2/8
+    // padding, min-width 34, 4px gap; hover deepens to warn-primary;
+    // disabled dims to 0.6. No spinner: leaving only disables.
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: DswTokens.spaceSm,
+      spacing: 6,
       children: [
         Tooltip(
-          message: kPlanEn['chip.on.title']!,
-          child: Material(
-            color: widget.aliases.stateBusinessTertiary,
-            borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-            child: InkWell(
-              onTap: disabled ? null : _off,
-              borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-                  border: Border.all(
-                    color: widget.aliases.stateBusinessPrimary.withValues(
-                      alpha: 0.2,
+          message: t('chip.on.title'),
+          waitDuration: const Duration(milliseconds: 500),
+          child: Semantics(
+            button: true,
+            label: t('chip.on.aria'),
+            enabled: !disabled,
+            child: Material(
+              color: widget.aliases.stateWarnTertiary,
+              borderRadius: BorderRadius.circular(999),
+              child: InkWell(
+                onTap: disabled ? null : _off,
+                hoverColor: widget.aliases.interactiveBgHover,
+                borderRadius: BorderRadius.circular(999),
+                child: Opacity(
+                  opacity: disabled ? 0.6 : 1,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 34),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          t('chip.label'),
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            height: 20 / 13,
+                            fontWeight: FontWeight.w500,
+                            color: widget.aliases.stateWarnLabel,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.close,
+                          size: 12,
+                          color: widget.aliases.stateWarnLabel,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_leaving)
-                      SizedBox(
-                        width: 12,
-                        height: 12,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: widget.aliases.stateBusinessPrimary,
-                        ),
-                      )
-                    else
-                      Text(
-                        'Plan',
-                        style: TextStyle(
-                          fontSize: DswTokens.fontSizeS14,
-                          fontWeight: FontWeight.w600,
-                          color: widget.aliases.stateBusinessPrimary,
-                        ),
-                      ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      Icons.close,
-                      size: 12,
-                      color: widget.aliases.stateBusinessPrimary,
-                    ),
-                  ],
                 ),
               ),
             ),
           ),
         ),
-        // Failure copy stays English (error-surface policy: not localized).
+        // Localized failure text with the raw error as its title
+        // (React `.error` + `title`).
         if (_error != null)
-          Text(
-            _error!,
-            style: TextStyle(
-              fontSize: DswTokens.fontSizeXxs12,
-              color: widget.aliases.stateErrorPrimary,
+          Tooltip(
+            message: _error!,
+            child: Text(
+              t('chip.exitFailed'),
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXxs12,
+                height: 18 / 12,
+                color: widget.aliases.stateErrorPrimary,
+              ),
             ),
           ),
       ],

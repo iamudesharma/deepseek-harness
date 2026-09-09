@@ -62,14 +62,22 @@ class ConversationColumn extends ConsumerWidget {
     // Hero phase = blank summary (no messages yet). A missing summary renders
     // the docked posture; ConversationScreen guards not-found before mounting.
     final bool hero = summary?.blank ?? false;
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
     return Column(
       children: [
         // Header chrome hides while blank — React
         // ConversationSession.tsx:72-77 `hideChrome && css.headerHidden`
         // keeps the strict header mounted without taking column space.
+        // The 0.5px l3 hairline below mirrors `.header::after` (the header
+        // itself carries no border).
         if (!hero) ...<Widget>[
           SessionHeaderView(sessionId: sessionId),
-          const Divider(height: 1),
+          Container(height: 0.5, color: aliases.borderL3),
         ],
         Expanded(child: ConversationBody(sessionId: sessionId)),
       ],
@@ -237,7 +245,7 @@ class _HeroPhase extends ConsumerWidget {
                             fallback: const DsFishLogo(size: 34),
                           ),
                           Text(
-                            'Into the Unknown',
+                            t('hero.headline'),
                             style: TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w700,
@@ -260,7 +268,7 @@ class _HeroPhase extends ConsumerWidget {
                               ),
                             ),
                             child: Text(
-                              'Preview',
+                              t('hero.preview'),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,

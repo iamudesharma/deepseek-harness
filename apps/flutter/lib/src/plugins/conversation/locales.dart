@@ -19,6 +19,12 @@ const Map<String, String> kConversationZh = {
   'settings.enter.description': '仅在智能体运行时生效；Cmd/Ctrl+Enter 使用另一行为',
   'settings.enter.queue': '排队发送',
   'settings.enter.steer': '插话发送',
+  // Transcript display row — mirrors `settings.transcript.*` in ui-chat
+  // locales (React `NS = 'chat'`).
+  'settings.transcript.title': '对话显示',
+  'settings.transcript.description': '控制已完成轮次的过程内容',
+  'settings.transcript.normal': 'Normal',
+  'settings.transcript.compact': 'Compact',
   // Mobile attachment sheet — mirrors ImageLightbox/AttachmentRail labels.
   'attachment.takePhoto': '拍照',
   'attachment.photoLibrary': '相册',
@@ -42,9 +48,10 @@ const Map<String, String> kConversationZh = {
   'tool.title.webSearch': '网页搜索',
   'tool.title.webFetch': '网页抓取',
   'todo.rowTitle': '更新任务清单',
-  // Composer "+" command-menu trigger — mirrors `input.commands` in
-  // Hero workspace placeholder — mirrors `hero.chooseWorkspace` in
-  // ui-conversation locales (React `NS = 'conversation'`).
+  // Blank-session hero — mirrors `hero.*` in ui-conversation locales
+  // (React `NS = 'conversation'`, `EmptyHero.tsx`).
+  'hero.headline': '探索未至之境',
+  'hero.preview': '预览版',
   'hero.chooseWorkspace': '选择工作区',
   // Hero composer placeholder with a workspace — mirrors
   // `placeholder.hero` in ui-conversation locales.
@@ -52,9 +59,46 @@ const Map<String, String> kConversationZh = {
   // Hero composer placeholder with no workspace (composer inert) — mirrors
   // `placeholder.workspace` in ui-conversation locales.
   'placeholder.workspace': '选择一个工作区开始',
+  // Queue dock — mirrors `queue.*` in ui-conversation locales
+  // (React `NS = 'conversation'`).
+  'queue.count': '{n} 条排队消息',
+  'queue.sending': '发送中…',
+  'queue.image': '排队消息图片',
+  'queue.file': '排队文件 {name}',
+  'queue.edit': '编辑排队消息',
+  'queue.edit.unsupported': '包含非文本内容，暂不支持编辑',
+  'queue.save': '保存排队消息',
+  'queue.cancelEdit': '取消编辑',
+  'queue.remove': '删除排队消息',
+  'queue.steer': '插话发送',
+  'queue.steer.unavailable': '仅运行中可插话发送',
+  'queue.editFailed': '编辑失败：这条消息可能已经开始发送。',
+  'queue.removeFailed': '删除失败：这条消息可能已经开始发送。',
+  'queue.steerFailed': '插话发送失败，请重试。',
+  // Composer primary disc labels — mirrors `input.stop` / `input.send` in
+  // ui-conversation locales (React `NS = 'conversation'`).
+  'input.stop': '停止生成',
+  'input.send': '发送消息',
+  // Session header breadcrumb nav landmark.
+  'session.hierarchy': '会话层级',
+  // Todo dock panel — mirrors `todo.title` + `todo.progress.*` in
+  // ui-conversation locales (React `NS = 'conversation'`).
+  'todo.title': '任务',
+  'todo.progress.done': '{done} 已完成',
+  'todo.progress.active': '{active} 进行中',
+  'todo.progress.pending': '{pending} 待处理',
+  // Context-occupancy meter — mirrors `context.*` in ui-conversation
+  // locales (React `NS = 'conversation'`).
+  'context.aria': '上下文已用 {percent}',
+  'context.used': '上下文已用',
+  'context.system': '系统提示词',
+  'context.tools': '工具',
+  'context.messages': '对话消息',
+  // Composer "+" command-menu trigger — mirrors `input.commands` in
   // ui-conversation locales (React `+` button tooltip/aria-label).
-  'input.commands': '指令',  'todo.completed': '{done}/{total} 已完成',
+  'input.commands': '指令', 'todo.completed': '{done}/{total} 已完成',
   'message.think': '思考',
+  'row.running': '运行中',
   'message.turnProcess.toolCalls.one': '{count} 次工具调用',
   'message.turnProcess.toolCalls.other': '{count} 次工具调用',
   'message.turnProcess.messages.one': '{count} 条消息',
@@ -87,6 +131,12 @@ const Map<String, String> kConversationEn = {
       'Busy only; Cmd/Ctrl+Enter uses the other behavior',
   'settings.enter.queue': 'Queue',
   'settings.enter.steer': 'Steer',
+  // Transcript display row — mirrors `settings.transcript.*` in ui-chat
+  // locales (React `NS = 'chat'`).
+  'settings.transcript.title': 'Conversation display',
+  'settings.transcript.description': 'Controls process content in completed turns',
+  'settings.transcript.normal': 'Normal',
+  'settings.transcript.compact': 'Compact',
   // Mobile attachment sheet.
   'attachment.takePhoto': 'Take photo',
   'attachment.photoLibrary': 'Photo library',
@@ -110,9 +160,10 @@ const Map<String, String> kConversationEn = {
   'tool.title.webSearch': 'Web search',
   'tool.title.webFetch': 'Web fetch',
   'todo.rowTitle': 'Update to-do list',
-  // Composer "+" command-menu trigger — mirrors `input.commands` in
-  // Hero workspace placeholder — mirrors `hero.chooseWorkspace` in
-  // ui-conversation locales (React `NS = 'conversation'`).
+  // Blank-session hero — mirrors `hero.*` in ui-conversation locales
+  // (React `NS = 'conversation'`, `EmptyHero.tsx`).
+  'hero.headline': 'Into the Unknown',
+  'hero.preview': 'Preview',
   'hero.chooseWorkspace': 'Choose workspace',
   // Hero composer placeholder with a workspace — mirrors
   // `placeholder.hero` in ui-conversation locales.
@@ -120,10 +171,47 @@ const Map<String, String> kConversationEn = {
   // Hero composer placeholder with no workspace (composer inert) — mirrors
   // `placeholder.workspace` in ui-conversation locales.
   'placeholder.workspace': 'Choose a workspace to start',
+  // Queue dock — mirrors `queue.*` in ui-conversation locales
+  // (React `NS = 'conversation'`).
+  'queue.count': '{n} queued messages',
+  'queue.sending': 'Sending…',
+  'queue.image': 'Queued message image',
+  'queue.file': 'Queued file {name}',
+  'queue.edit': 'Edit queued message',
+  'queue.edit.unsupported': 'Contains non-text content; editing is not supported yet',
+  'queue.save': 'Save queued message',
+  'queue.cancelEdit': 'Cancel editing',
+  'queue.remove': 'Remove queued message',
+  'queue.steer': 'Steer queued message',
+  'queue.steer.unavailable': 'Steering is available only while the agent is running',
+  'queue.editFailed': 'Edit failed: this message may have already started sending.',
+  'queue.removeFailed': 'Removal failed: this message may have already started sending.',
+  'queue.steerFailed': 'Steering failed. Try again.',
+  // Composer primary disc labels — mirrors `input.stop` / `input.send` in
+  // ui-conversation locales (React `NS = 'conversation'`).
+  'input.stop': 'Stop generating',
+  'input.send': 'Send message',
+  // Session header breadcrumb nav landmark.
+  'session.hierarchy': 'Session hierarchy',
+  // Todo dock panel — mirrors `todo.title` + `todo.progress.*` in
+  // ui-conversation locales (React `NS = 'conversation'`).
+  'todo.title': 'To-dos',
+  'todo.progress.done': '{done} completed',
+  'todo.progress.active': '{active} in progress',
+  'todo.progress.pending': '{pending} pending',
+  // Context-occupancy meter — mirrors `context.*` in ui-conversation
+  // locales (React `NS = 'conversation'`).
+  'context.aria': '{percent} of context used',
+  'context.used': 'of context used',
+  'context.system': 'System prompt',
+  'context.tools': 'Tools',
+  'context.messages': 'Messages',
+  // Composer "+" command-menu trigger — mirrors `input.commands` in
   // ui-conversation locales (React `+` button tooltip/aria-label).
   'input.commands': 'Commands',
   'todo.completed': '{done}/{total} completed',
   'message.think': 'Think',
+  'row.running': 'Running',
   'message.turnProcess.toolCalls.one': '{count} tool call',
   'message.turnProcess.toolCalls.other': '{count} tool calls',
   'message.turnProcess.messages.one': '{count} message',
@@ -161,26 +249,29 @@ String formatTurnProcessLabel({
   final parts = <String>[];
   if (toolCallCount > 0) {
     parts.add(
-      t(toolCallCount == 1
-              ? 'message.turnProcess.toolCalls.one'
-              : 'message.turnProcess.toolCalls.other')
-          .replaceAll('{count}', '$toolCallCount'),
+      t(
+        toolCallCount == 1
+            ? 'message.turnProcess.toolCalls.one'
+            : 'message.turnProcess.toolCalls.other',
+      ).replaceAll('{count}', '$toolCallCount'),
     );
   }
   if (messageCount > 0) {
     parts.add(
-      t(messageCount == 1
-              ? 'message.turnProcess.messages.one'
-              : 'message.turnProcess.messages.other')
-          .replaceAll('{count}', '$messageCount'),
+      t(
+        messageCount == 1
+            ? 'message.turnProcess.messages.one'
+            : 'message.turnProcess.messages.other',
+      ).replaceAll('{count}', '$messageCount'),
     );
   }
   if (subagentCount > 0) {
     parts.add(
-      t(subagentCount == 1
-              ? 'message.turnProcess.subagents.one'
-              : 'message.turnProcess.subagents.other')
-          .replaceAll('{count}', '$subagentCount'),
+      t(
+        subagentCount == 1
+            ? 'message.turnProcess.subagents.one'
+            : 'message.turnProcess.subagents.other',
+      ).replaceAll('{count}', '$subagentCount'),
     );
   }
   if (parts.isEmpty) return t('message.turnProcess.thoughtForAWhile');

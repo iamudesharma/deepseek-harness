@@ -7,11 +7,13 @@
 /// drops the wait from the store.
 ///
 /// This card is the interaction plane's approval face; the question half of
-/// the plane renders through `question_node_card.dart`. React additionally
-/// shows the paired tool call's command line by reading the running call's
-/// argsRaw; the Flutter node fold does not retain argument text, so that line
-/// is absent rather than invented.
+/// the plane renders through `question_node_card.dart`. Like React's
+/// `ApprovalCommand` (`conversation.approval.detail`), it shows the paired
+/// tool call's command line resolved from the live tool-call fold by
+/// `callId`, rendered only when the call's arguments carry one.
 library;
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +22,8 @@ import '../../../core/connection/connection_client.dart';
 import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef;
 import '../../../core/session/session_provider.dart';
+import '../../../theme/app_theme.dart' show DswTokens;
+import '../../tool/tool_models.dart' show ToolCall, liveToolCallsProvider;
 import '../approval_responder.dart';
 import '../approval_state.dart';
 import '../locales.dart';
@@ -39,6 +43,30 @@ Widget renderApprovalNode(BuildContext context) => const ApprovalCard();
 /// carrier; anything else abdicates the entry's turn.
 Object? approvalComposerSelect(Object? owner) =>
     owner is PendingApproval ? owner : null;
+
+/// Command text of the tool call correlated with an approval — port of
+/// React `ApprovalCommand.commandOf`: the `command` string in the call's
+/// arguments, or null for absent, malformed, or unrelated arguments.
+String? approvalCommandOf(ToolCall? call) {
+  if (call == null) return null;
+  Map<String, dynamic> args = call.args;
+  if (args.isEmpty && call.argsRaw.isNotEmpty) {
+    try {
+      final parsed = jsonDecode(call.argsRaw);
+      if (parsed is Map<String, dynamic>) {
+        args = parsed;
+      } else if (parsed is Map) {
+        args = parsed.cast<String, dynamic>();
+      } else {
+        return null;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+  final command = args['command'];
+  return command is String ? command : null;
+}
 
 /// The pending-approval decision card bound to the current session's request.
 class ApprovalCard extends ConsumerStatefulWidget {
@@ -80,6 +108,18 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
     if (sessionId == null) return const SizedBox.shrink();
     final pending = ref.watch(approvalsProvider)[sessionId];
     if (pending == null) return const SizedBox.shrink();
+    // Paired tool-call command line (React `ApprovalCommand`): resolve the
+    // running call by `callId` from the live fold; absent without a command.
+    ToolCall? correlated;
+    if (pending.callId != null) {
+      for (final call in ref.watch(liveToolCallsProvider(sessionId))) {
+        if (call.id == pending.callId) {
+          correlated = call;
+          break;
+        }
+      }
+    }
+    final command = approvalCommandOf(correlated);
 
     return Card(
       key: const ValueKey('approval-card'),
@@ -112,6 +152,20 @@ class _ApprovalCardState extends ConsumerState<ApprovalCard> {
               pending.reason ?? 'Escalation: ${pending.toolName}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
+            // React `.command`: 13/20 tertiary code text, breaks anywhere.
+            if (command != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                command,
+                style: TextStyle(
+                  fontSize: DswTokens.fontSizeXs13,
+                  height: 20 / 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontFamily: DswTokens.fontFamilyCode,
+                  fontFamilyFallback: DswTokens.fontFamilyCodeFallback,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

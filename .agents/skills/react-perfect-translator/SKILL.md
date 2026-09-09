@@ -54,3 +54,10 @@ Every harvested `typert` method must be reachable from the emitted widget throug
 * Do not translate `className` to `Html` — use `ThemeExtension` + conditional branches.
 * Do not replace `TextField` + `Select` with `Text` stubs.
 * Do not create a second `ConnectionClient` singleton — use the one `connectionClientProvider`.
+
+## Relation to react-flutter-translation
+
+This skill is the harvest step of the authoritative
+`react-flutter-translation` workflow (box model, states, popups,
+responsive, screenshot verification). Prefer that workflow for full
+translations; use this skill alone only for the harvest itself.

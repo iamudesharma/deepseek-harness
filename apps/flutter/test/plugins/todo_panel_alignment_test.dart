@@ -4,8 +4,11 @@
 /// collapse/expand behavior.
 library;
 
+import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
+import 'package:dsh_flutter/src/plugins/conversation/locales.dart';
+import 'package:dsh_flutter/src/plugins/conversation/todo_state.dart';
 import 'package:dsh_flutter/src/plugins/conversation/ui/todo_panel.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -52,6 +55,17 @@ Future<void> pumpPanel(WidgetTester tester) async {
       ),
     ),
   );
+  // The bare scope has no plugin activation: register the conversation
+  // dictionaries the panel's copy comes from (production does this in
+  // `ConversationPlugin.apply`). Default locale is zh (React parity with
+  // the stats-line test).
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(TodoPanel)),
+  );
+  container.read(localeServiceProvider).register(kConversationNamespace, {
+    'zh': kConversationZh,
+    'en': kConversationEn,
+  });
   await tester.pumpAndSettle();
 }
 
@@ -61,15 +75,12 @@ void main() {
     // Outer clearance identical to the composer card wrap.
     final outer = find.byWidgetPredicate(
       (w) =>
-          w is Padding &&
-          w.padding == const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          w is Padding && w.padding == const EdgeInsets.fromLTRB(16, 0, 16, 8),
     );
     expect(outer, findsOneWidget);
     // Same centered cap as the composer card.
     final cap = find.byWidgetPredicate(
-      (w) =>
-          w is ConstrainedBox &&
-          w.constraints.maxWidth == 780,
+      (w) => w is ConstrainedBox && w.constraints.maxWidth == 780,
     );
     expect(cap, findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -79,14 +90,47 @@ void main() {
     tester,
   ) async {
     await pumpPanel(tester);
-    expect(find.text('To-dos'), findsOneWidget);
-    expect(find.text('1 completed'), findsOneWidget);
+    expect(find.text('任务'), findsOneWidget);
+    expect(find.text('1 已完成'), findsOneWidget);
     // Collapsed: item body hidden.
     expect(find.text('Write the alignment test'), findsNothing);
 
-    await tester.tap(find.text('To-dos'));
+    await tester.tap(find.text('任务'));
     await tester.pumpAndSettle();
     expect(find.text('Write the alignment test'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('projection source wins over history fallback', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          liveHistoryProvider.overrideWith(() => FakeLiveHistory(_history())),
+          todoProjectionProvider.overrideWith(
+            (ref, arg) => const [
+              TodoItem(content: 'Projected', status: 'pending'),
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          theme: buildLightTheme(),
+          home: const Scaffold(body: TodoPanel(sessionId: 's-todo-proj')),
+        ),
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TodoPanel)),
+    );
+    container.read(localeServiceProvider).register(kConversationNamespace, {
+      'zh': kConversationZh,
+      'en': kConversationEn,
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('1 待处理'), findsOneWidget);
+    await tester.tap(find.text('任务'));
+    await tester.pumpAndSettle();
+    expect(find.text('Projected'), findsOneWidget);
+    expect(find.text('Write the alignment test'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

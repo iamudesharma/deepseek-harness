@@ -13,6 +13,17 @@ void main() {
       // cwd rides alone without a workspace binding.
       expect(sessionCreatePayload(cwd: '/tmp'), {'cwd': '/tmp'});
     });
+
+    test('passes sessionId/agentPreset for adopt and preset flows', () {
+      expect(
+        sessionCreatePayload(sessionId: 's-9', agentPreset: 'code'),
+        {'sessionId': 's-9', 'agentPreset': 'code'},
+      );
+      expect(
+        sessionCreatePayload(workspaceId: 'ws-1', agentPreset: 'code'),
+        {'workspaceId': 'ws-1', 'agentPreset': 'code'},
+      );
+    });
   });
 
   group('isWorkspaceAttachFailure', () {

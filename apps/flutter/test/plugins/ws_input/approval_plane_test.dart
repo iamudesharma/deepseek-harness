@@ -4,6 +4,9 @@ import 'package:dsh_flutter/src/core/connection/connection_controller.dart';
 import 'package:dsh_flutter/src/core/session/live_sync.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
+import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
+import 'package:dsh_flutter/src/plugins/tool/tool_models.dart'
+    show ToolCall, ToolCallKind, ToolCallStatus;
 import 'package:dsh_flutter/src/plugins/user_questions/approval_responder.dart';
 import 'package:dsh_flutter/src/plugins/user_questions/approval_state.dart';
 import 'package:dsh_flutter/src/plugins/user_questions/pending_interactions.dart';
@@ -416,6 +419,112 @@ void main() {
 
       expect(find.text('Escalation: bash'), findsOneWidget);
     });
+
+    testWidgets('shows the correlated tool call command line', (tester) async {
+      bindApprovalClient(WsInputRecordingClient());
+      addTearDown(() => bindApprovalClient(null));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(sessionsProvider.notifier).addSession(_summary('s-1'));
+      container
+          .read(sessionsProvider.notifier)
+          .setCurrent(const SessionId('s-1'));
+      container
+          .read(approvalsProvider.notifier)
+          .requested(
+            's-1',
+            rpcId: 'r1',
+            approvalId: 'a1',
+            toolName: 'bash',
+            callId: 'c9',
+          );
+      container.read(liveHistoryProvider('s-1').notifier).replaceAll([
+        HistoryEntry(
+          event: SessionEvent(
+            type: 'tool/call',
+            data: {
+              'callId': 'c9',
+              'name': 'bash',
+              'args': {'command': 'ls -la'},
+            },
+            seq: 4,
+            time: 4,
+          ),
+        ),
+      ]);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: ApprovalCard())),
+        ),
+      );
+
+      expect(find.text('ls -la'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('omits the command line without a correlated call', (
+      tester,
+    ) async {
+      bindApprovalClient(WsInputRecordingClient());
+      addTearDown(() => bindApprovalClient(null));
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(sessionsProvider.notifier).addSession(_summary('s-1'));
+      container
+          .read(sessionsProvider.notifier)
+          .setCurrent(const SessionId('s-1'));
+      container
+          .read(approvalsProvider.notifier)
+          .requested(
+            's-1',
+            rpcId: 'r1',
+            approvalId: 'a1',
+            toolName: 'bash',
+            callId: 'missing',
+          );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: ApprovalCard())),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('approval-card')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('approvalCommandOf (ApprovalCommand.commandOf port)', () {
+    ToolCall callWith({Object? args, String argsRaw = ''}) => ToolCall(
+      id: 'c1',
+      toolName: 'bash',
+      kind: ToolCallKind.bash,
+      status: ToolCallStatus.running,
+      args: args is Map<String, dynamic> ? args : const {},
+      argsRaw: argsRaw,
+      time: 0,
+    );
+
+    test('returns the command string', () {
+      expect(
+        approvalCommandOf(callWith(args: {'command': 'ls -la'})),
+        'ls -la',
+      );
+    });
+
+    test('null for missing, non-string, or absent call', () {
+      expect(approvalCommandOf(null), isNull);
+      expect(approvalCommandOf(callWith(args: {})), isNull);
+      expect(approvalCommandOf(callWith(args: {'command': 42})), isNull);
+    });
+
+    test('falls back to parsing argsRaw', () {
+      expect(approvalCommandOf(callWith(argsRaw: '{"command":"pwd"}')), 'pwd');
+      expect(approvalCommandOf(callWith(argsRaw: 'not json')), isNull);
+    });
   });
 
   group('QuestionsController (question/requested+resolved port)', () {
@@ -473,8 +582,7 @@ void main() {
       expect(controller.waits, isEmpty);
     });
 
-    test('clear drops the whole session entry (removal / generation drop)',
-        () {
+    test('clear drops the whole session entry (removal / generation drop)', () {
       controller.requested(
         's-100',
         rpcId: 'm10',
@@ -487,10 +595,10 @@ void main() {
 
   group('QuestionResponder wire face', () {
     PendingQuestion planReviewPending(String rpcId) => PendingQuestion(
-          rpcId: rpcId,
-          sessionId: 's-100',
-          questions: [QuestionItem.fromJson(_planReviewQuestion())],
-        );
+      rpcId: rpcId,
+      sessionId: 's-100',
+      questions: [QuestionItem.fromJson(_planReviewQuestion())],
+    );
 
     test('answer echoes the requested rpcId with the legacy wrapper', () async {
       final client = WsInputRecordingClient();
@@ -509,37 +617,41 @@ void main() {
         'sessionId': 's-100',
         'answer': {
           'answers': [
-            {'id': 'q1', 'selected': ['Approve']},
+            {
+              'id': 'q1',
+              'selected': ['Approve'],
+            },
           ],
         },
       });
     });
 
-    test('answer sends the bare batch when the events channel is live',
-        () async {
-      final client = WsInputRecordingClient()..eventsClientId = 'c1';
-      final batch = QuestionAnswerBatch(
-        answers: const [
-          QuestionAnswerItem(id: 'q1', selected: ['Approve']),
-          QuestionAnswerItem(id: 'q2', selected: [], custom: 'other way'),
-        ],
-      );
-      await QuestionResponder(
-        client: client,
-        pending: planReviewPending('m10'),
-      ).answer(batch);
-      expect(client.responds.single.rpcId.value, 'm10');
-      expect(client.responds.single.decodedValue, {
-        'answers': [
-          {'id': 'q1', 'selected': ['Approve']},
-          {
-            'id': 'q2',
-            'selected': [],
-            'custom': 'other way',
-          },
-        ],
-      });
-    });
+    test(
+      'answer sends the bare batch when the events channel is live',
+      () async {
+        final client = WsInputRecordingClient()..eventsClientId = 'c1';
+        final batch = QuestionAnswerBatch(
+          answers: const [
+            QuestionAnswerItem(id: 'q1', selected: ['Approve']),
+            QuestionAnswerItem(id: 'q2', selected: [], custom: 'other way'),
+          ],
+        );
+        await QuestionResponder(
+          client: client,
+          pending: planReviewPending('m10'),
+        ).answer(batch);
+        expect(client.responds.single.rpcId.value, 'm10');
+        expect(client.responds.single.decodedValue, {
+          'answers': [
+            {
+              'id': 'q1',
+              'selected': ['Approve'],
+            },
+            {'id': 'q2', 'selected': [], 'custom': 'other way'},
+          ],
+        });
+      },
+    );
 
     test('cancel echoes the rpcId with the cancelled error', () async {
       final client = WsInputRecordingClient();
@@ -549,10 +661,7 @@ void main() {
       ).cancel();
       expect(client.responds.single.rpcId.value, 'm10');
       expect(client.responds.single.ok, isFalse);
-      expect(
-        client.responds.single.error!['code'],
-        'cancelled',
-      );
+      expect(client.responds.single.error!['code'], 'cancelled');
     });
 
     test('rejected receipt throws so the caller can re-arm', () async {
@@ -564,7 +673,9 @@ void main() {
           pending: planReviewPending('late'),
         ).answer(
           const QuestionAnswerBatch(
-            answers: [QuestionAnswerItem(id: 'q1', selected: ['Approve'])],
+            answers: [
+              QuestionAnswerItem(id: 'q1', selected: ['Approve']),
+            ],
           ),
         ),
         throwsStateError,
@@ -580,39 +691,43 @@ void main() {
       );
       expect(batch.toJson(), {
         'answers': [
-          {'id': 'q1', 'selected': ['a']},
           {
-            'id': 'q2',
-            'selected': [],
-            'custom': 'free',
+            'id': 'q1',
+            'selected': ['a'],
           },
+          {'id': 'q2', 'selected': [], 'custom': 'free'},
         ],
       });
     });
   });
 
   group('ApprovalResponder new transport', () {
-    test('answer sends the bare outcome when the events channel is live',
-        () async {
-      final client = WsInputRecordingClient()..eventsClientId = 'c1';
-      const pending = PendingApproval(
-        rpcId: 'm7',
-        sessionId: 's-100',
-        approvalId: 'ap-1',
-        toolName: 'write',
-      );
-      await ApprovalResponder(client: client, pending: pending)
-          .answer(ApprovalAnswer.allowedOnce);
-      expect(client.responds.single.rpcId.value, 'm7');
-      expect(client.responds.single.ok, isTrue);
-      expect(client.responds.single.value, 'allowed-once');
-    });
+    test(
+      'answer sends the bare outcome when the events channel is live',
+      () async {
+        final client = WsInputRecordingClient()..eventsClientId = 'c1';
+        const pending = PendingApproval(
+          rpcId: 'm7',
+          sessionId: 's-100',
+          approvalId: 'ap-1',
+          toolName: 'write',
+        );
+        await ApprovalResponder(
+          client: client,
+          pending: pending,
+        ).answer(ApprovalAnswer.allowedOnce);
+        expect(client.responds.single.rpcId.value, 'm7');
+        expect(client.responds.single.ok, isTrue);
+        expect(client.responds.single.value, 'allowed-once');
+      },
+    );
   });
 
   group('planReviewOf narrowing (slots.ts planReviewOf port)', () {
     test('narrows the binary plan-review request', () {
-      final review =
-          planReviewOf([QuestionItem.fromJson(_planReviewQuestion())]);
+      final review = planReviewOf([
+        QuestionItem.fromJson(_planReviewQuestion()),
+      ]);
       expect(review, isNotNull);
       expect(review!.id, 'q1');
       expect(review.approve.label, 'Approve');
@@ -645,15 +760,14 @@ void main() {
           {'label': 'Decline'},
         ],
         Object? multiSelect,
-      }) =>
-          {
-            'id': 'q1',
-            'question': 'Proceed?',
-            if (detail != null) 'detail': detail,
-            if (intent != null) 'intent': intent,
-            if (options != null) 'options': options,
-            if (multiSelect != null) 'multiSelect': multiSelect,
-          };
+      }) => {
+        'id': 'q1',
+        'question': 'Proceed?',
+        if (detail != null) 'detail': detail,
+        if (intent != null) 'intent': intent,
+        if (options != null) 'options': options,
+        if (multiSelect != null) 'multiSelect': multiSelect,
+      };
       // Multi-question batches stay generic.
       expect(
         planReviewOf([
@@ -735,60 +849,63 @@ void main() {
       expect(approvalComposerSelect(null), isNull);
     });
 
-    test('plugin registers question at 0 and approval at 1, sorted first',
-        () async {
-      final client = WsInputRecordingClient();
-      final host = wsInputHost(client: client);
-      // Declare the conversation-owned chain the plugin injects into.
-      host.slots.register(
-        const RegistrationOptions(
-          name: 'root',
-          priority: 1,
-          children: {
-            'conversation.composer': SlotSpec(
-              kind: SlotKind.chain,
-              scope: SlotScope.session,
-            ),
-          },
-        ),
-        (context, props) => const SizedBox.shrink(),
-      );
-      host.register(const UserQuestionsPlugin());
-      await host.activateAll();
-      addTearDown(host.deactivateAll);
+    test(
+      'plugin registers question at 0 and approval at 1, sorted first',
+      () async {
+        final client = WsInputRecordingClient();
+        final host = wsInputHost(client: client);
+        // Declare the conversation-owned chain the plugin injects into.
+        host.slots.register(
+          const RegistrationOptions(
+            name: 'root',
+            priority: 1,
+            children: {
+              'conversation.composer': SlotSpec(
+                kind: SlotKind.chain,
+                scope: SlotScope.session,
+              ),
+            },
+          ),
+          (context, props) => const SizedBox.shrink(),
+        );
+        host.register(const UserQuestionsPlugin());
+        await host.activateAll();
+        addTearDown(host.deactivateAll);
 
-      final entries = host.slots.entries('conversation.composer');
-      expect(entries, hasLength(2));
-      expect(entries[0].priority, 0);
-      expect(entries[0].options.id, 'ui-user-questions-composer');
-      expect(entries[1].priority, 1);
-      expect(entries[1].options.id, 'ui-user-questions-approval-composer');
+        final entries = host.slots.entries('conversation.composer');
+        expect(entries, hasLength(2));
+        expect(entries[0].priority, 0);
+        expect(entries[0].options.id, 'ui-user-questions-composer');
+        expect(entries[1].priority, 1);
+        expect(entries[1].options.id, 'ui-user-questions-approval-composer');
 
-      // Election in priority order: each currency elects its own entry.
-      Object? elect(Object currency) {
-        final sorted = List.of(entries)
-          ..sort((a, b) => a.priority.compareTo(b.priority));
-        for (final entry in sorted) {
-          if (entry.options.select!(currency) != null) {
-            return entry.options.id;
+        // Election in priority order: each currency elects its own entry.
+        Object? elect(Object currency) {
+          final sorted = List.of(entries)
+            ..sort((a, b) => a.priority.compareTo(b.priority));
+          for (final entry in sorted) {
+            if (entry.options.select!(currency) != null) {
+              return entry.options.id;
+            }
           }
+          return null;
         }
-        return null;
-      }
-      const question = PendingQuestion(
-        rpcId: 'r1',
-        sessionId: 's',
-        questions: [],
-      );
-      const approval = PendingApproval(
-        rpcId: 'r2',
-        sessionId: 's',
-        approvalId: 'ap',
-        toolName: 'bash',
-      );
-      expect(elect(question), 'ui-user-questions-composer');
-      expect(elect(approval), 'ui-user-questions-approval-composer');
-    });
+
+        const question = PendingQuestion(
+          rpcId: 'r1',
+          sessionId: 's',
+          questions: [],
+        );
+        const approval = PendingApproval(
+          rpcId: 'r2',
+          sessionId: 's',
+          approvalId: 'ap',
+          toolName: 'bash',
+        );
+        expect(elect(question), 'ui-user-questions-composer');
+        expect(elect(approval), 'ui-user-questions-approval-composer');
+      },
+    );
 
     test('approval re-elects after the sibling question settles', () {
       final container = ProviderContainer();
@@ -839,41 +956,43 @@ void main() {
       );
     });
 
-    test('generic question outranks approval the same way plan-review does',
-        () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      final questions = container.read(pendingQuestionsProvider.notifier);
-      final approvals = container.read(approvalsProvider.notifier);
-      final sessions = container.read(sessionsProvider.notifier);
-      sessions.addSession(_summary('s-100'));
-      approvals.requested(
-        's-100',
-        rpcId: 'm7',
-        approvalId: 'ap-1',
-        toolName: 'write',
-      );
-      questions.requested(
-        's-100',
-        rpcId: 'm10',
-        questions: [
-          QuestionItem.fromJson(const {
-            'id': 'q2',
-            'question': 'Which database?',
-            'options': [
-              {'label': 'Postgres'},
-              {'label': 'SQLite'},
-              {'label': 'DuckDB'},
-            ],
-          }),
-        ],
-      );
-      reconcileSessionPendingStatus(questions, approvals, sessions, 's-100');
-      expect(
-        sessions.snapshot.byId[const SessionId('s-100')]!.pendingInteraction,
-        kPendingQuestion,
-      );
-    });
+    test(
+      'generic question outranks approval the same way plan-review does',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final questions = container.read(pendingQuestionsProvider.notifier);
+        final approvals = container.read(approvalsProvider.notifier);
+        final sessions = container.read(sessionsProvider.notifier);
+        sessions.addSession(_summary('s-100'));
+        approvals.requested(
+          's-100',
+          rpcId: 'm7',
+          approvalId: 'ap-1',
+          toolName: 'write',
+        );
+        questions.requested(
+          's-100',
+          rpcId: 'm10',
+          questions: [
+            QuestionItem.fromJson(const {
+              'id': 'q2',
+              'question': 'Which database?',
+              'options': [
+                {'label': 'Postgres'},
+                {'label': 'SQLite'},
+                {'label': 'DuckDB'},
+              ],
+            }),
+          ],
+        );
+        reconcileSessionPendingStatus(questions, approvals, sessions, 's-100');
+        expect(
+          sessions.snapshot.byId[const SessionId('s-100')]!.pendingInteraction,
+          kPendingQuestion,
+        );
+      },
+    );
   });
 
   group('unknown MuxFrame discriminant discards without side effects', () {
@@ -913,28 +1032,30 @@ void main() {
       container
           .read(sessionsProvider.notifier)
           .setCurrent(const SessionId('s-100'));
-      container.read(pendingQuestionsProvider.notifier).requested(
-        's-100',
-        rpcId: 'm10',
-        questions: [
-          QuestionItem.fromJson(const {
-            'id': 'q1',
-            'question': 'Which database?',
-            'options': [
-              {'label': 'Postgres'},
-              {'label': 'SQLite'},
+      container
+          .read(pendingQuestionsProvider.notifier)
+          .requested(
+            's-100',
+            rpcId: 'm10',
+            questions: [
+              QuestionItem.fromJson(const {
+                'id': 'q1',
+                'question': 'Which database?',
+                'options': [
+                  {'label': 'Postgres'},
+                  {'label': 'SQLite'},
+                ],
+              }),
+              QuestionItem.fromJson(const {
+                'id': 'q2',
+                'question': 'Which cache?',
+                'options': [
+                  {'label': 'Redis'},
+                  {'label': 'Memcached'},
+                ],
+              }),
             ],
-          }),
-          QuestionItem.fromJson(const {
-            'id': 'q2',
-            'question': 'Which cache?',
-            'options': [
-              {'label': 'Redis'},
-              {'label': 'Memcached'},
-            ],
-          }),
-        ],
-      );
+          );
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -970,8 +1091,9 @@ void main() {
       });
     });
 
-    testWidgets('plan-review decide answers with the chosen label',
-        (tester) async {
+    testWidgets('plan-review decide answers with the chosen label', (
+      tester,
+    ) async {
       final client = WsInputRecordingClient();
       bindQuestionClient(client);
       addTearDown(() => bindQuestionClient(null));
@@ -981,11 +1103,13 @@ void main() {
       container
           .read(sessionsProvider.notifier)
           .setCurrent(const SessionId('s-100'));
-      container.read(pendingQuestionsProvider.notifier).requested(
-        's-100',
-        rpcId: 'm10',
-        questions: [QuestionItem.fromJson(_planReviewQuestion())],
-      );
+      container
+          .read(pendingQuestionsProvider.notifier)
+          .requested(
+            's-100',
+            rpcId: 'm10',
+            questions: [QuestionItem.fromJson(_planReviewQuestion())],
+          );
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -1002,7 +1126,10 @@ void main() {
         'sessionId': 's-100',
         'answer': {
           'answers': [
-            {'id': 'q1', 'selected': ['Approve']},
+            {
+              'id': 'q1',
+              'selected': ['Approve'],
+            },
           ],
         },
       });

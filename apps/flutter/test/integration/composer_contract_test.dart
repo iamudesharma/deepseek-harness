@@ -255,7 +255,7 @@ void main() {
       await pumpComposedShell(tester, client);
 
       // Current model advertises reasoning → root pane carries the Effort row.
-      await tester.tap(find.byIcon(Icons.memory_outlined));
+      await tester.tap(find.byKey(const ValueKey('model-select-trigger')));
       await tester.pumpAndSettle();
       expect(find.text('Effort'), findsOneWidget);
 
@@ -281,7 +281,7 @@ void main() {
       ..modelDirectoryPayload = _plainCurrent(modelId: 'deepseek-chat');
     await pumpComposedShell(tester, client);
 
-    await tester.tap(find.byIcon(Icons.memory_outlined));
+    await tester.tap(find.byKey(const ValueKey('model-select-trigger')));
     await tester.pumpAndSettle();
     expect(find.text('Model'), findsOneWidget);
     expect(find.text('Effort'), findsNothing);
@@ -297,7 +297,7 @@ void main() {
         };
       await pumpComposedShell(tester, client);
 
-      await tester.tap(find.byIcon(Icons.memory_outlined));
+      await tester.tap(find.byKey(const ValueKey('model-select-trigger')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Model'));
       await tester.pumpAndSettle();
@@ -485,7 +485,9 @@ void main() {
 
       final Rect access = rectOf(find.byType(PermissionSeat));
       final Rect plan = rectOf(find.text('Plan'));
-      final Rect model = rectOf(find.byIcon(Icons.memory_outlined));
+      final Rect model = rectOf(
+        find.byKey(const ValueKey('model-select-trigger')),
+      );
       final Rect send = rectOf(find.byIcon(Icons.arrow_upward_rounded));
 
       // React InputBar.tsx DOM order (lines 695-758): access and plan lead in

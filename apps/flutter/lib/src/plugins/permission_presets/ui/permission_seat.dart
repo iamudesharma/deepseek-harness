@@ -36,8 +36,6 @@ class PermissionSeat extends ConsumerStatefulWidget {
 
 class _PermissionSeatState extends ConsumerState<PermissionSeat> {
   bool _switching = false;
-  bool _seedAttempted = false;
-  String? _lastSeedSessionId;
 
   Future<void> _apply(String value, SessionSummary session) async {
     if (_switching) return;
@@ -98,59 +96,10 @@ class _PermissionSeatState extends ConsumerState<PermissionSeat> {
             : DswTokens.lightAliases);
 
     final select = ref.watch(permissionSelectProvider(session.sessionId.value));
-    // Capability absent → hide (key absence = not composed). For blank
-    // sessions the host projection arrives via `session.history` tail or the
-    // live `session/projection` frame; the sidebar's create path now seeds
-    // immediately, but a pre-existing blank session or a missed push would
-    // otherwise leave the tool row collapsed with no access control visible.
-    // Schedule a one-shot history pull and show a disabled placeholder so the
-    // hero never appears without its permission chip.
-    if (select == null) {
-      final String sid = session.sessionId.value;
-      if (_lastSeedSessionId != sid) {
-        _lastSeedSessionId = sid;
-        _seedAttempted = false;
-      }
-      if (!_seedAttempted) {
-        _seedAttempted = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _refreshProjection(session.sessionId);
-        });
-      }
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DswTokens.spaceSm,
-          vertical: 4,
-        ),
-        decoration: BoxDecoration(
-          color: aliases.bgOverlay,
-          borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-          border: Border.all(color: aliases.borderL2),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.shield_outlined,
-              size: 12,
-              color: aliases.labelSecondary,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                'workspace-write',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeXxs12,
-                  fontWeight: FontWeight.w600,
-                  color: aliases.labelSecondary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    // Capability absent → render nothing (React `value === undefined`).
+    // Never invent a placeholder preset: a hardcoded fallback would present
+    // possibly-wrong access state as fact.
+    if (select == null) return const SizedBox.shrink();
 
     // bindLocale watches localeRevisionProvider so the gate copy follows a
     // Language-row switch without remount.
@@ -199,48 +148,46 @@ class _PermissionSeatState extends ConsumerState<PermissionSeat> {
         if (!mounted) return;
         await _apply(value, session);
       },
-      triggerBuilder: (context, open) => Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DswTokens.spaceSm,
-          vertical: 4,
-        ),
-        decoration: BoxDecoration(
-          color: isCustom
-              ? aliases.stateWarnPrimary.withValues(alpha: 0.12)
-              : open
-              ? aliases.interactiveBgHover
-              : aliases.bgOverlay,
-          borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-          border: Border.all(
-            color: isCustom ? aliases.stateWarnPrimary : aliases.borderL2,
+      triggerBuilder: (context, open) => ConstrainedBox(
+        // React `.trigger`: 28px row, max-width 220, transparent with
+        // hover wash, 13/20 w500 secondary label, 14px glyph, 12px
+        // caption chevron, 24px radius.
+        constraints: const BoxConstraints(maxWidth: 220),
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
+          decoration: BoxDecoration(
+            color: open ? aliases.interactiveBgHover : Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isCustom ? Icons.warning_amber_rounded : Icons.shield_outlined,
-              size: 12,
-              color: isCustom
-                  ? aliases.stateWarnPrimary
-                  : aliases.labelSecondary,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeXxs12,
-                  fontWeight: FontWeight.w600,
-                  color: isCustom
-                      ? aliases.stateWarnPrimary
-                      : aliases.labelSecondary,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isCustom ? Icons.warning_amber_rounded : Icons.shield_outlined,
+                size: 14,
+                color: isCustom
+                    ? aliases.stateWarnPrimary
+                    : aliases.labelSecondary,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    height: 20 / 13,
+                    fontWeight: FontWeight.w500,
+                    color: isCustom
+                        ? aliases.stateWarnPrimary
+                        : aliases.labelSecondary,
+                  ),
                 ),
               ),
-            ),
-            const Icon(Icons.expand_more, size: 12),
-          ],
+              Icon(Icons.expand_more, size: 12, color: aliases.labelCaption),
+            ],
+          ),
         ),
       ),
     );

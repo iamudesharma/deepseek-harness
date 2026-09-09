@@ -4,14 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection_client.dart';
 import '../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
-import '../../core/session/sessions_controller.dart';
 import '../../platform/adaptive_directory_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/primitives/ds_select.dart';
-import '../model_selection/model_directory.dart';
 import '../settings_general/widgets/appearance_row.dart';
+import '../settings_general/widgets/font_size_row.dart';
 import '../settings_general/widgets/language_row.dart';
+import '../settings_general/widgets/permission_preset_row.dart';
+import '../settings_general/widgets/transcript_view_row.dart';
 import '../settings_models/settings_models_screen.dart';
+import '../settings_models/widgets/welcome_notice_dialog.dart';
 import '../../plugins/settings/children/general/general_settings_plugin.dart'
     show kSettingsNamespace;
 import '../../plugins/settings/children/models/models_settings_plugin.dart'
@@ -27,19 +29,8 @@ import '../../plugins/conversation/locales.dart' show kConversationNamespace;
 import 'inventory_tab.dart' show InventoryTab;
 import 'plugins_tab.dart' show PluginsTab;
 
-/// Settings language preference (stub, mirrors web `Appearance` language row).
-enum AppLanguage { system, english, chinese }
-
-/// Provider for app language (stub persistence).
-final appLanguageProvider = StateProvider<AppLanguage>(
-  (ref) => AppLanguage.system,
-);
-
 /// Provider for notifications toggle (stub).
 final notificationsEnabledProvider = StateProvider<bool>((ref) => true);
-
-/// Provider for selected model in settings.
-final settingsSelectedModelProvider = StateProvider<String?>((ref) => null);
 
 /// Provider for the workspace directory path picked via [AdaptiveDirectoryPicker].
 ///
@@ -101,7 +92,7 @@ class BusyEnterState {
 
 /// Controller for busy Enter — mirrors `EnterBehaviorRowInjected` store.
 ///
-/// Loads via `settings.describe` ns `conversation` and mutates via
+/// Loads via `settings.describe` ns `ui-conversation` and mutates via
 /// `settings.mutate` with revision guard, matching React's
 /// `createLanguageRowStore` / `ConversationSettings` pattern.
 class BusyEnterController extends Notifier<BusyEnterState> {
@@ -113,7 +104,7 @@ class BusyEnterController extends Notifier<BusyEnterState> {
     final client = ref.read(connectionClientProvider);
     try {
       final describe = await client.settingsDescribe();
-      final convNs = _settingsNamespace(describe, 'conversation');
+      final convNs = _settingsNamespace(describe, 'ui-conversation');
       final value = convNs?['value'] as Map<String, dynamic>?;
       final raw = value?['busyEnter'] as String?;
       final behavior = raw == 'steer'
@@ -140,10 +131,10 @@ class BusyEnterController extends Notifier<BusyEnterState> {
     final client = ref.read(connectionClientProvider);
     try {
       final describe = await client.settingsDescribe();
-      final convNs = _settingsNamespace(describe, 'conversation');
+      final convNs = _settingsNamespace(describe, 'ui-conversation');
       final expectedRevision = convNs?['revision'] as int?;
       await client.settingsMutate(
-        ns: 'conversation',
+        ns: 'ui-conversation',
         ops: [
           {
             'op': 'set',
@@ -169,8 +160,9 @@ final busyEnterProvider = NotifierProvider<BusyEnterController, BusyEnterState>(
 /// Settings screen — five tabs: General, Models, Plugins, Inventory, Agent presets.
 ///
 /// Uses [TabBar] + [TabBarView] with [DefaultTabController] (length 5).
-/// General tab wires to [appearanceProvider] for theme, [appLanguageProvider]
-/// for language row, and a notification toggle. Models tab shows model
+/// General tab wires [PermissionPresetRow], [LanguageRow], [AppearanceRow],
+/// [FontSizeRow], [TranscriptViewRow], and the Enter-behavior row to the Host
+/// settings document, plus a notification toggle. Models tab shows model
 /// selection form. Plugins shows the live configuration cards, Inventory the
 /// live Host Loader inventory, and Agent presets the roster management
 /// section — mirroring React's Settings sidebar
@@ -257,13 +249,20 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        body: TabBarView(
+        body: Stack(
           children: [
-            _GeneralTab(aliases: aliases),
-            const SettingsModelsScreen(),
-            _PluginsTab(aliases: aliases),
-            _InventoryTab(aliases: aliases),
-            const _AgentPresetsTab(),
+            TabBarView(
+              children: [
+                _GeneralTab(aliases: aliases),
+                const SettingsModelsScreen(),
+                _PluginsTab(aliases: aliases),
+                _InventoryTab(aliases: aliases),
+                const _AgentPresetsTab(),
+              ],
+            ),
+            // Shell-level onboarding step (React `settings.onboarding` slot):
+            // the versioned welcome notice blocks the panel until acknowledged.
+            const WelcomeNoticeDialog(),
           ],
         ),
       ),
@@ -306,7 +305,17 @@ class _GeneralTab extends ConsumerWidget {
           aliases: aliases,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: const [LanguageRow(), AppearanceRow()],
+            children: [
+              // React `settings.general.item` order: permission (-20),
+              // language (0), appearance (10), font-size (11),
+              // transcript-view (12). The permission row hides itself when
+              // the Host serves no `permission` namespace.
+              PermissionPresetRow(),
+              LanguageRow(),
+              AppearanceRow(),
+              FontSizeRow(),
+              TranscriptViewRow(),
+            ],
           ),
         ),
         const SizedBox(height: DswTokens.spaceMd),
@@ -415,7 +424,7 @@ class _GeneralTab extends ConsumerWidget {
 /// Enter-behavior row — mirrors `EnterBehaviorRow.tsx` (queue vs steer).
 ///
 /// Uses `DsSelect` (MenuAnchor) with `BusyEnterBehavior` options, wired to
-/// `busyEnterProvider` → `settings.mutate` ns `conversation`. Loaded via
+/// `busyEnterProvider` → `settings.mutate` ns `ui-conversation`. Loaded via
 /// `busyEnterProvider.notifier.load()` on first build, matching React's
 /// `useBusyEnter` hook + `setBusyEnter` injection.
 class _EnterBehaviorRow extends ConsumerStatefulWidget {
@@ -528,295 +537,6 @@ class _EnterBehaviorRowState extends ConsumerState<_EnterBehaviorRow> {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Models tab — live model selection via per-session ModelDirectory.
-///
-/// Mirrors web's model directory wire: watches [modelDirectoryProvider]
-/// keyed by first session id (or "settings" placeholder) and derives
-/// `availableModels` + `currentModel`. Dropdown and list select via
-/// `dir.select(ModelSelection(provider, model))` with provider lookup
-/// `groups.firstWhere((g) => g.models.any((m) => m.id == v)).id`.
-/// Handles loading/error via [ModelDirectoryState.status].
-// ignore: unused_element
-class _ModelsTab extends ConsumerWidget {
-  const _ModelsTab({required this.aliases});
-
-  final DswAliases aliases;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final SessionsState sessionsState = ref.watch(sessionsProvider);
-    final sorted = sessionsState.sorted;
-    final String sessionId = sorted.isNotEmpty
-        ? sorted.first.sessionId.value
-        : 'settings';
-    final ModelDirectoryState dirState = ref.watch(
-      modelDirectoryProvider(sessionId),
-    );
-    final ModelDirectory dir = ref.read(
-      modelDirectoryProvider(sessionId).notifier,
-    );
-
-    final List<String> availableModels = dirState.groups
-        .expand((g) => g.models.map((m) => m.id))
-        .toList();
-    final String? currentModel = dirState.current?.model;
-
-    String findProviderForModel(String modelId) {
-      for (final ModelProviderGroup g in dirState.groups) {
-        if (g.models.any((m) => m.id == modelId)) return g.id;
-      }
-      return dirState.groups.isNotEmpty
-          ? dirState.groups.first.id
-          : 'deepseek-official';
-    }
-
-    final bool deepSeekConnected = dirState.groups.any(
-      (g) => g.id == 'deepseek-official' || g.id == 'deepseek',
-    );
-    final bool localConnected = dirState.groups.any(
-      (g) => g.id == 'local' || g.id.toLowerCase().contains('local'),
-    );
-
-    final bool noSessions = sorted.isEmpty;
-
-    return ListView(
-      padding: const EdgeInsets.all(DswTokens.spaceLg),
-      children: [
-        _SectionHeader(title: 'Model selection', aliases: aliases),
-        const SizedBox(height: DswTokens.spaceMd),
-        _CardShell(
-          aliases: aliases,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Default model',
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeS14,
-                  fontWeight: FontWeight.w600,
-                  color: aliases.labelPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Used for new sessions when no preset overrides it.',
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeXxs12,
-                  color: aliases.labelSecondary,
-                ),
-              ),
-              const SizedBox(height: DswTokens.spaceMd),
-              DropdownButtonFormField<String>(
-                key: ValueKey<String?>(currentModel),
-                initialValue: currentModel,
-                hint: Text(
-                  'Select a model',
-                  style: TextStyle(color: aliases.labelCaption),
-                ),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: aliases.specificInputMajor,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: DswTokens.spaceMd,
-                    vertical: DswTokens.spaceSm,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-                    borderSide: BorderSide(color: aliases.borderL2),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-                    borderSide: BorderSide(color: aliases.borderL2),
-                  ),
-                ),
-                dropdownColor: aliases.specificMenu,
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeS14,
-                  color: aliases.labelPrimary,
-                ),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('System default'),
-                  ),
-                  for (final String m in availableModels)
-                    DropdownMenuItem<String>(
-                      value: m,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.memory,
-                            size: 14,
-                            color: aliases.labelTertiary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(m),
-                        ],
-                      ),
-                    ),
-                ],
-                onChanged: (String? next) async {
-                  if (next == null) return;
-                  final String provider = findProviderForModel(next);
-                  try {
-                    await ref
-                        .read(modelDirectoryProvider(sessionId).notifier)
-                        .select(
-                          ModelSelection(provider: provider, model: next),
-                        );
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Model select failed: $e')),
-                      );
-                    }
-                  }
-                },
-              ),
-              const SizedBox(height: DswTokens.spaceSm),
-              Text(
-                currentModel == null
-                    ? 'Using system default model.'
-                    : 'Selected: $currentModel',
-                style: TextStyle(fontSize: 11, color: aliases.labelCaption),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: DswTokens.spaceLg),
-        _SectionHeader(title: 'Available models', aliases: aliases),
-        const SizedBox(height: DswTokens.spaceMd),
-        if (noSessions)
-          _EmptyListHint(
-            label: 'No sessions — no models available',
-            aliases: aliases,
-          )
-        else if (dirState.status == 'loading')
-          Padding(
-            padding: const EdgeInsets.all(DswTokens.spaceLg),
-            child: Center(
-              child: CircularProgressIndicator(
-                color: aliases.stateBusinessPrimary,
-              ),
-            ),
-          )
-        else if (dirState.status == 'error')
-          _CardShell(
-            aliases: aliases,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dirState.error ?? 'Failed to load models',
-                  style: TextStyle(
-                    fontSize: DswTokens.fontSizeS14,
-                    color: aliases.stateErrorPrimary,
-                  ),
-                ),
-                const SizedBox(height: DswTokens.spaceMd),
-                TextButton(
-                  onPressed: () => dir.load(),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          )
-        else ...[
-          for (final ModelInfo m in dirState.groups.expand((g) => g.models))
-            Padding(
-              padding: const EdgeInsets.only(bottom: DswTokens.spaceSm),
-              child: _CardShell(
-                aliases: aliases,
-                child: _SettingsRow(
-                  icon: Icons.smart_toy_outlined,
-                  title: m.id,
-                  subtitle:
-                      m.description ??
-                      (m.id == 'deepseek-chat'
-                          ? 'General chat — balanced latency and quality.'
-                          : 'Reasoning — extended chain-of-thought.'),
-                  aliases: aliases,
-                  trailing: currentModel == m.id
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: aliases.stateSuccessTertiary,
-                            borderRadius: BorderRadius.circular(
-                              DswTokens.radiusFull,
-                            ),
-                          ),
-                          child: Text(
-                            'Active',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: aliases.stateSuccessPrimary,
-                            ),
-                          ),
-                        )
-                      : TextButton(
-                          onPressed: () async {
-                            final String provider = findProviderForModel(m.id);
-                            try {
-                              await ref
-                                  .read(
-                                    modelDirectoryProvider(sessionId).notifier,
-                                  )
-                                  .select(
-                                    ModelSelection(
-                                      provider: provider,
-                                      model: m.id,
-                                    ),
-                                  );
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Model select failed: $e'),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                          child: const Text('Select'),
-                        ),
-                ),
-              ),
-            ),
-          if (dirState.groups.expand((g) => g.models).isEmpty)
-            _EmptyListHint(label: 'No models configured', aliases: aliases),
-        ],
-        const SizedBox(height: DswTokens.spaceLg),
-        _SectionHeader(title: 'Provider status', aliases: aliases),
-        const SizedBox(height: DswTokens.spaceMd),
-        _CardShell(
-          aliases: aliases,
-          child: Column(
-            children: [
-              _ProviderStatusRow(
-                name: 'DeepSeek API',
-                status: deepSeekConnected ? 'Connected' : 'Not configured',
-                healthy: deepSeekConnected,
-                aliases: aliases,
-              ),
-              Divider(height: DswTokens.spaceLg, color: aliases.borderL1),
-              _ProviderStatusRow(
-                name: 'Local provider',
-                status: localConnected ? 'Connected' : 'Not configured',
-                healthy: localConnected,
-                aliases: aliases,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
@@ -952,86 +672,6 @@ class _SettingsRow extends StatelessWidget {
         const SizedBox(width: DswTokens.spaceMd),
         trailing,
       ],
-    );
-  }
-}
-
-class _ProviderStatusRow extends StatelessWidget {
-  const _ProviderStatusRow({
-    required this.name,
-    required this.status,
-    required this.healthy,
-    required this.aliases,
-  });
-
-  final String name;
-  final String status;
-  final bool healthy;
-  final DswAliases aliases;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: healthy ? aliases.stateSuccessPrimary : aliases.labelCaption,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: DswTokens.spaceSm),
-        Expanded(
-          child: Text(
-            name,
-            style: TextStyle(
-              fontSize: DswTokens.fontSizeS14,
-              color: aliases.labelPrimary,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: healthy ? aliases.stateSuccessTertiary : aliases.bgOverlay,
-            borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-          ),
-          child: Text(
-            status,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: healthy
-                  ? aliases.stateSuccessPrimary
-                  : aliases.labelTertiary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EmptyListHint extends StatelessWidget {
-  const _EmptyListHint({required this.label, required this.aliases});
-
-  final String label;
-  final DswAliases aliases;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(DswTokens.spaceLg),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: DswTokens.fontSizeXxs12,
-            color: aliases.labelCaption,
-          ),
-        ),
-      ),
     );
   }
 }

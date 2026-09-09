@@ -165,6 +165,35 @@ String messageOf(Object error) =>
 String deriveKeyRef(String provider) =>
     '${provider.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]+'), '_')}_API_KEY';
 
+/// Route id whose schema node advertises the pi-ai API union (React `PROBE_ROUTE`).
+const String kProtocolProbeRoute = '\u0000probe';
+
+/// The wire protocols a hand-declared route may name, read out of the owning
+/// namespace's own schema (React `protocolChoices`): the providers/probe/api
+/// union values, or empty when the schema names none. Both the offered
+/// choices and the adapter's accepted set come from the same `Config`, so the
+/// page cannot drift from it.
+List<String> protocolChoicesOf(SettingsNamespaceView? namespace) {
+  final Map<String, Object?>? schema = namespace?.schema;
+  Map<String, Object?>? node = schema;
+  for (final segment in ['providers', kProtocolProbeRoute, 'api']) {
+    if (node == null) return const [];
+    if (node['type'] == 'object' && node['dict'] is Map) {
+      final field = (node['dict'] as Map)[segment];
+      node = field is Map ? field.cast<String, Object?>() : null;
+    } else if (node[segment] is Map) {
+      node = (node[segment] as Map).cast<String, Object?>();
+    } else {
+      return const [];
+    }
+  }
+  if (node?['type'] != 'union' || node?['list'] is! List) return const [];
+  return [
+    for (final entry in (node!['list'] as List))
+      if (entry is Map && entry['value'] is String) entry['value'] as String,
+  ];
+}
+
 bool providerUsable(ProviderRow row) {
   if (!row.entry.active) return false;
   if (row.apiKeyEnv == null) return true;
@@ -352,7 +381,9 @@ class ModelsSettingsController extends Notifier<ModelsSettingsState> {
       );
     }).toList();
 
-    // Batched credential describe over every referenced ref.
+    // Batched credential describe over every referenced ref. The Host
+    // returns the record bare (`{ref: CredentialInfo}`) — read it by ref,
+    // never through a wrapper key.
     final refs = <String>{
       for (final r in rows)
         if (r.apiKeyEnv != null) r.apiKeyEnv!,
@@ -362,14 +393,14 @@ class ModelsSettingsController extends Notifier<ModelsSettingsState> {
     if (refs.isNotEmpty) {
       try {
         final credValue = await client.credentialsDescribe(refs);
-        final credsRaw = credValue['credentials'] as Map? ?? {};
-        credsRaw.forEach((key, value) {
-          if (value is Map) {
-            credentials[key as String] = CredentialView.fromJson(
-              value.cast<String, dynamic>(),
+        for (final ref in refs) {
+          final raw = credValue[ref];
+          if (raw is Map) {
+            credentials[ref] = CredentialView.fromJson(
+              raw.cast<String, dynamic>(),
             );
           }
-        });
+        }
       } catch (error) {
         credentialError = messageOf(error);
       }

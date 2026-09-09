@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/connection/connection_client.dart';
 import '../../../core/services/runtime_services.dart'
-    show LocaleBindOnWidgetRef, Translate;
+    show LocaleBindOnWidgetRef, Translate, localeServiceProvider;
 import '../../../core/session/session_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../locales.dart' show kAgentPresetNamespace, presetDisplayText;
@@ -281,9 +281,17 @@ Future<void> viewPresetComposition(
       } catch (_) {
         // The copy landed; getting to its files is a follow-up, not the write.
       }
-      if (context.mounted) showPresetToast(context, 'Created preset "$created"');
+      // (React's roster shows no success toast.)
     } catch (e) {
-      if (context.mounted) showPresetToast(context, 'Failed to create "$presetId": $e');
+      if (context.mounted) {
+        showPresetToast(
+          context,
+          _rosterFailure(ref, 'copyFailed', {
+            'id': presetId,
+            'error': '$e',
+          }),
+        );
+      }
     }
   }
 
@@ -293,15 +301,31 @@ Future<void> viewPresetComposition(
     try {
       await removePreset(ref.read(connectionClientProvider), id);
       ref.invalidate(agentPresetListProvider);
-      if (context.mounted) showPresetToast(context, 'Deleted "$id"');
     } catch (e) {
-      if (context.mounted) showPresetToast(context, 'Failed to delete "$id": $e');
+      if (context.mounted) {
+        showPresetToast(
+          context,
+          _rosterFailure(ref, 'deleteFailed', {'id': id, 'error': '$e'}),
+        );
+      }
     }
   }
 
 void showPresetToast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Renders a roster-action failure through the owned dictionaries (React
+  /// surfaces roster failures through locale-owned copy, never literals).
+  String _rosterFailure(WidgetRef ref, String key, Map<String, String> values) {
+    var message = ref
+        .read(localeServiceProvider)
+        .bind(kAgentPresetNamespace)(key);
+    values.forEach((name, value) {
+      message = message.replaceAll('{$name}', value);
+    });
+    return message;
   }
 
   DswAliases presetAliasesOf(BuildContext context) =>
@@ -315,28 +339,18 @@ void showPresetToast(BuildContext context, String message) {
       final client = ref.read(connectionClientProvider);
       if (sessionId != null && sessionId.isNotEmpty) {
         await client.agentPresetSelect(sessionId: sessionId, agentPreset: id);
-      } else {
-        // No session selected — still validate preset exists via host by listing?
-        // For offline/testing, just update local state without host call.
-        if (sessionId == null && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('No session selected — set default to $id locally'),
-            ),
-          );
-        }
       }
       ref.read(agentPresetCurrentProvider.notifier).state = id;
       ref.invalidate(agentPresetListProvider);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Preset "$id" selected')));
-      }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        showPresetToast(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to select preset: $e')));
+          _rosterFailure(ref, 'switchRefused', {
+            'name': id,
+            'reason': '$e',
+          }),
+        );
       }
     } finally {
       ref.read(agentPresetSavingProvider.notifier).state = false;
@@ -364,14 +378,16 @@ Future<void> makeDefaultPresetSelection(
       id,
     );
     if (failure != null) {
-      if (context.mounted) showPresetToast(context, 'Failed to set default: $failure');
+      if (context.mounted) {
+        showPresetToast(
+          context,
+          _rosterFailure(ref, 'defaultFailed', {'error': failure}),
+        );
+      }
       return;
     }
     ref.read(agentPresetCurrentProvider.notifier).state = id;
     ref.invalidate(agentPresetListProvider);
-    if (context.mounted) {
-      showPresetToast(context, 'Preset "$id" is now the default for new sessions');
-    }
   } finally {
     ref.read(agentPresetSavingProvider.notifier).state = false;
   }

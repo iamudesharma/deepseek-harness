@@ -33,11 +33,11 @@ class _Entry {
   final String? fiberPhase;
 
   factory _Entry.fromJson(Map<String, dynamic> j) => _Entry(
-        entryId: j['entryId'] as String? ?? '',
-        moduleName: j['moduleName'] as String? ?? '',
-        enabled: j['enabled'] as bool? ?? true,
-        fiberPhase: j['fiberPhase'] as String?,
-      );
+    entryId: j['entryId'] as String? ?? '',
+    moduleName: j['moduleName'] as String? ?? '',
+    enabled: j['enabled'] as bool? ?? true,
+    fiberPhase: j['fiberPhase'] as String?,
+  );
 }
 
 // One preset composition row — mirrors `AgentPresetPluginRow`.
@@ -65,8 +65,8 @@ class _PresetRow {
     final bool? enabled = conditional
         ? null
         : raw is bool
-            ? raw
-            : true;
+        ? raw
+        : true;
     return _PresetRow(
       entryId: j['entryId'] as String?,
       moduleName: j['moduleName'] as String? ?? '',
@@ -112,7 +112,6 @@ class _PresetGroup {
           .toList(),
     );
   }
-
 }
 
 /// Preset name exactly as React's injected `presetName`: shipped system
@@ -227,8 +226,9 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
       _error = null;
     });
     try {
-      final Map<String, dynamic> snap =
-          await ref.read(connectionClientProvider).pluginInventoryList();
+      final Map<String, dynamic> snap = await ref
+          .read(connectionClientProvider)
+          .pluginInventoryList();
       if (!mounted || gen != _generation) return;
       final List<dynamic> rawEntries =
           (snap['entries'] as List<dynamic>? ?? const []);
@@ -273,13 +273,21 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
       return ListView(
         padding: const EdgeInsets.all(DswTokens.spaceLg),
         children: [
-          Text(t('error'),
-              style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.stateErrorPrimary)),
+          Text(
+            t('error'),
+            style: TextStyle(
+              fontSize: DswTokens.fontSizeXxs12,
+              color: aliases.stateErrorPrimary,
+            ),
+          ),
           const SizedBox(height: DswTokens.spaceMd),
           FilledButton(onPressed: _load, child: Text(t('retry'))),
           if (_error != null) ...[
             const SizedBox(height: DswTokens.spaceSm),
-            Text(_error!, style: TextStyle(fontSize: 11, color: aliases.labelCaption)),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: 11, color: aliases.labelCaption),
+            ),
           ],
         ],
       );
@@ -288,7 +296,8 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
     // Ready — derive filtered views mirroring React.
     final String q = _query.trim().toLowerCase();
     final bool searching = q.isNotEmpty;
-    final _PresetGroup? selected = _presets
+    final _PresetGroup? selected =
+        _presets
             .where((p) => p.id == _chosenPresetId)
             .cast<_PresetGroup?>()
             .firstWhere((p) => p != null, orElse: () => null) ??
@@ -299,16 +308,20 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
     for (final preset in _presets) {
       for (final row in preset.rows) {
         if (row.enabled != true) continue;
-        final List<_PresetGroup> groups =
-            enabledIn.putIfAbsent(row.moduleName, () => []);
+        final List<_PresetGroup> groups = enabledIn.putIfAbsent(
+          row.moduleName,
+          () => [],
+        );
         if (!groups.contains(preset)) groups.add(preset);
       }
     }
 
-    final List<_Entry> failedEntries =
-        _entries.where((e) => e.fiberPhase == 'failed').toList();
-    final List<_Entry> regularEntries =
-        _entries.where((e) => e.fiberPhase != 'failed').toList();
+    final List<_Entry> failedEntries = _entries
+        .where((e) => e.fiberPhase == 'failed')
+        .toList();
+    final List<_Entry> regularEntries = _entries
+        .where((e) => e.fiberPhase != 'failed')
+        .toList();
     final List<_Entry> filteredFailed = failedEntries
         .where((e) => _matches(e.moduleName, e.entryId, q))
         .toList();
@@ -319,39 +332,49 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
     final List<_PresetRow> selectedRows = selected == null
         ? const []
         : selected.rows
-            .where((r) => _matches(r.moduleName, r.entryId, q))
-            .toList();
+              .where((r) => _matches(r.moduleName, r.entryId, q))
+              .toList();
     final List<_PresetGroup> otherPresetMatches = searching
         ? _presets
-            .where((p) =>
-                p != selected &&
-                p.rows.any((r) => _matches(r.moduleName, r.entryId, q)))
-            .toList()
+              .where(
+                (p) =>
+                    p != selected &&
+                    p.rows.any((r) => _matches(r.moduleName, r.entryId, q)),
+              )
+              .toList()
         : const [];
     final int otherMatchCount = otherPresetMatches.fold<int>(
-        0,
-        (total, p) =>
-            total +
-            p.rows.where((r) => _matches(r.moduleName, r.entryId, q)).length);
+      0,
+      (total, p) =>
+          total +
+          p.rows.where((r) => _matches(r.moduleName, r.entryId, q)).length,
+    );
 
     final bool presetEffectiveOpen = searching || (_presetOpen ?? true);
     final bool globalEffectiveOpen =
         searching || (_globalOpen ?? _presets.isEmpty);
-    final bool nothingMatches = searching &&
+    final bool nothingMatches =
+        searching &&
         globalCount == 0 &&
         selectedRows.isEmpty &&
         otherPresetMatches.isEmpty;
 
     // Invalidate expanded when filtered away.
     if (_expandedKey != null) {
-      final bool stillVisible = selectedRows.asMap().entries.any(
-              (e) => 'preset:${selected?.id}:${_selectedRowIndex(selected!, e.value)}' == _expandedKey) ||
+      final bool stillVisible =
+          selectedRows.asMap().entries.any(
+            (e) =>
+                'preset:${selected?.id}:${_selectedRowIndex(selected!, e.value)}' ==
+                _expandedKey,
+          ) ||
           filteredFailed.any((e) => 'global:${e.entryId}' == _expandedKey) ||
           filteredRegular.any((e) => 'global:${e.entryId}' == _expandedKey) ||
           (selected != null &&
-              selected.rows.asMap().entries.any((e) =>
-                  'preset:${selected.id}:${e.key}' == _expandedKey &&
-                  _matches(e.value.moduleName, e.value.entryId, q)));
+              selected.rows.asMap().entries.any(
+                (e) =>
+                    'preset:${selected.id}:${e.key}' == _expandedKey &&
+                    _matches(e.value.moduleName, e.value.entryId, q),
+              ));
       if (!stillVisible) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) setState(() => _expandedKey = null);
@@ -362,113 +385,140 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
     return ListView(
       padding: const EdgeInsets.all(DswTokens.spaceLg),
       children: [
-        Text(
-          t('tab'),
-          style: TextStyle(
-            fontSize: DswTokens.fontSizeS14,
-            fontWeight: FontWeight.w600,
-            color: aliases.labelPrimary,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: DswTokens.spaceMd),
-        // Search
-        TextField(
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search, size: 16),
-            hintText: t('search'),
-            hintStyle: TextStyle(color: aliases.labelCaption, fontSize: DswTokens.fontSizeS14),
-            filled: true,
-            fillColor: aliases.specificInputMajor,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: DswTokens.spaceMd,
-              vertical: DswTokens.spaceSm,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-              borderSide: BorderSide(color: aliases.borderL2),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-              borderSide: BorderSide(color: aliases.borderL2),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(DswTokens.radiusMd),
-              borderSide: BorderSide(color: aliases.stateBusinessPrimary, width: 1.5),
-            ),
-          ),
-          onChanged: (String v) => setState(() => _query = v),
-        ),
-        const SizedBox(height: DswTokens.spaceMd),
-        if (_entries.isEmpty && _presets.isEmpty)
-          _EmptyBox(aliases: aliases, label: t('empty'))
-        else if (nothingMatches)
-          _EmptyBox(aliases: aliases, label: t('emptySearch'))
-        else ...[
-          if (selected != null)
-            _PresetGroupSection(
-              aliases: aliases,
-              t: t,
-              presetT: presetT,
-              preset: selected,
-              presets: _presets,
-              rows: selectedRows,
-              open: presetEffectiveOpen,
-              onToggleOpen: () =>
-                  setState(() => _presetOpen = !presetEffectiveOpen),
-              onSelectPreset: (String id) => setState(() {
-                _chosenPresetId = id;
-                _presetOpen = true;
-              }),
-              expandedKey: _expandedKey,
-              onToggleRow: (String key) => setState(
-                  () => _expandedKey = _expandedKey == key ? null : key),
-              otherPresetMatches: otherPresetMatches,
-              otherMatchCount: otherMatchCount,
-              query: q,
-            ),
-          if (_entries.isNotEmpty)
-            _GlobalGroupSection(
-              aliases: aliases,
-              t: t,
-              presetT: presetT,
-              failed: filteredFailed,
-              regular: filteredRegular,
-              globalCount: globalCount,
-              hasPresets: _presets.isNotEmpty,
-              open: globalEffectiveOpen,
-              onToggleOpen: () =>
-                  setState(() => _globalOpen = !globalEffectiveOpen),
-              enabledIn: enabledIn,
-              expandedKey: _expandedKey,
-              onToggleRow: (String key) => setState(
-                  () => _expandedKey = _expandedKey == key ? null : key),
-              onJumpToPreset: (String id) => setState(() {
-                _chosenPresetId = id;
-                _presetOpen = true;
-              }),
-              onRefresh: _load,
-            ),
-        ],
-        const SizedBox(height: DswTokens.spaceLg),
-        Container(
-          decoration: BoxDecoration(
-            color: aliases.bgLayer2,
-            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-            border: Border.all(color: aliases.borderL2),
-          ),
-          padding: const EdgeInsets.all(DswTokens.spaceLg),
-          child: Row(
-            children: [
-              Icon(Icons.inventory_2_outlined, size: 16, color: aliases.labelTertiary),
-              const SizedBox(width: DswTokens.spaceSm),
-              Expanded(
-                child: Text(
-                  '${_entries.length} ${t('countUnit')} · Host Loader inventory via pluginInventory/list (read-only).',
-                  style: TextStyle(fontSize: 11, color: aliases.labelCaption),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  t('tab'),
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeS14,
+                    fontWeight: FontWeight.w600,
+                    color: aliases.labelPrimary,
+                    letterSpacing: 0.2,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: DswTokens.spaceMd),
+                // Search
+                TextField(
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, size: 16),
+                    hintText: t('search'),
+                    hintStyle: TextStyle(
+                      color: aliases.labelCaption,
+                      fontSize: DswTokens.fontSizeS14,
+                    ),
+                    filled: true,
+                    fillColor: aliases.specificInputMajor,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: DswTokens.spaceMd,
+                      vertical: DswTokens.spaceSm,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+                      borderSide: BorderSide(color: aliases.borderL2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+                      borderSide: BorderSide(color: aliases.borderL2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+                      borderSide: BorderSide(
+                        color: aliases.stateBusinessPrimary,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  onChanged: (String v) => setState(() => _query = v),
+                ),
+                const SizedBox(height: DswTokens.spaceMd),
+                if (_entries.isEmpty && _presets.isEmpty)
+                  _EmptyBox(aliases: aliases, label: t('empty'))
+                else if (nothingMatches)
+                  _EmptyBox(aliases: aliases, label: t('emptySearch'))
+                else ...[
+                  if (selected != null)
+                    _PresetGroupSection(
+                      aliases: aliases,
+                      t: t,
+                      presetT: presetT,
+                      preset: selected,
+                      presets: _presets,
+                      rows: selectedRows,
+                      open: presetEffectiveOpen,
+                      onToggleOpen: () =>
+                          setState(() => _presetOpen = !presetEffectiveOpen),
+                      onSelectPreset: (String id) => setState(() {
+                        _chosenPresetId = id;
+                        _presetOpen = true;
+                      }),
+                      expandedKey: _expandedKey,
+                      onToggleRow: (String key) => setState(
+                        () => _expandedKey = _expandedKey == key ? null : key,
+                      ),
+                      otherPresetMatches: otherPresetMatches,
+                      otherMatchCount: otherMatchCount,
+                      query: q,
+                    ),
+                  if (_entries.isNotEmpty)
+                    _GlobalGroupSection(
+                      aliases: aliases,
+                      t: t,
+                      presetT: presetT,
+                      failed: filteredFailed,
+                      regular: filteredRegular,
+                      globalCount: globalCount,
+                      hasPresets: _presets.isNotEmpty,
+                      open: globalEffectiveOpen,
+                      onToggleOpen: () =>
+                          setState(() => _globalOpen = !globalEffectiveOpen),
+                      enabledIn: enabledIn,
+                      expandedKey: _expandedKey,
+                      onToggleRow: (String key) => setState(
+                        () => _expandedKey = _expandedKey == key ? null : key,
+                      ),
+                      onJumpToPreset: (String id) => setState(() {
+                        _chosenPresetId = id;
+                        _presetOpen = true;
+                      }),
+                      onRefresh: _load,
+                    ),
+                ],
+                const SizedBox(height: DswTokens.spaceLg),
+                Container(
+                  decoration: BoxDecoration(
+                    color: aliases.bgLayer2,
+                    borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+                    border: Border.all(color: aliases.borderL2),
+                  ),
+                  padding: const EdgeInsets.all(DswTokens.spaceLg),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 16,
+                        color: aliases.labelTertiary,
+                      ),
+                      const SizedBox(width: DswTokens.spaceSm),
+                      Expanded(
+                        child: Text(
+                          t('footer')
+                              .replaceAll('{count}', '${_entries.length}')
+                              .replaceAll('{countUnit}', t('countUnit')),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: aliases.labelCaption,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -528,15 +578,21 @@ class _PresetGroupSection extends StatelessWidget {
                     AnimatedRotation(
                       turns: open ? 0.25 : 0,
                       duration: DswTokens.transitionDurationFast,
-                      child: Icon(Icons.chevron_right,
-                          size: 14, color: aliases.labelTertiary),
+                      child: Icon(
+                        Icons.chevron_right,
+                        size: 14,
+                        color: aliases.labelTertiary,
+                      ),
                     ),
                     const SizedBox(width: 4),
-                    Text(t('presetTitle'),
-                        style: TextStyle(
-                            fontSize: DswTokens.fontSizeS14,
-                            fontWeight: FontWeight.w600,
-                            color: aliases.labelPrimary)),
+                    Text(
+                      t('presetTitle'),
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeS14,
+                        fontWeight: FontWeight.w600,
+                        color: aliases.labelPrimary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -552,10 +608,12 @@ class _PresetGroupSection extends StatelessWidget {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: preset.id,
-                  icon: Icon(Icons.keyboard_arrow_down,
-                      size: 14, color: aliases.labelTertiary),
-                  style: TextStyle(
-                      fontSize: 12, color: aliases.labelPrimary),
+                  icon: Icon(
+                    Icons.keyboard_arrow_down,
+                    size: 14,
+                    color: aliases.labelTertiary,
+                  ),
+                  style: TextStyle(fontSize: 12, color: aliases.labelPrimary),
                   dropdownColor: aliases.specificMenu,
                   hint: Text(t('switcherLabel')),
                   items: [
@@ -579,8 +637,9 @@ class _PresetGroupSection extends StatelessWidget {
           child: Text(
             '${t('presetSubtitle')} · ${rows.length} ${t('countUnit')}',
             style: TextStyle(
-                fontSize: DswTokens.fontSizeXxs12,
-                color: aliases.labelTertiary),
+              fontSize: DswTokens.fontSizeXxs12,
+              color: aliases.labelTertiary,
+            ),
           ),
         ),
         if (open) ...[
@@ -594,10 +653,13 @@ class _PresetGroupSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(DswTokens.radiusMd),
                 border: Border.all(color: aliases.stateErrorPrimary),
               ),
-              child: Text(preset.broken!,
-                  style: TextStyle(
-                      fontSize: DswTokens.fontSizeXxs12,
-                      color: aliases.stateErrorPrimary)),
+              child: Text(
+                preset.broken!,
+                style: TextStyle(
+                  fontSize: DswTokens.fontSizeXxs12,
+                  color: aliases.stateErrorPrimary,
+                ),
+              ),
             ),
           if (preset.broken != null) const SizedBox(height: DswTokens.spaceSm),
           _CardsWrap(
@@ -605,7 +667,10 @@ class _PresetGroupSection extends StatelessWidget {
             children: [
               for (int i = 0; i < preset.rows.length; i++)
                 if (_matches(
-                    preset.rows[i].moduleName, preset.rows[i].entryId, query))
+                  preset.rows[i].moduleName,
+                  preset.rows[i].entryId,
+                  query,
+                ))
                   _PresetRowCard(
                     preset: preset,
                     row: preset.rows[i],
@@ -627,8 +692,7 @@ class _PresetGroupSection extends StatelessWidget {
                 Text(
                   t('matchesInOtherPresets')
                       .replaceAll('{count}', '$otherMatchCount'),
-                  style: TextStyle(
-                      fontSize: 11, color: aliases.labelCaption),
+                  style: TextStyle(fontSize: 11, color: aliases.labelCaption),
                 ),
                 for (final p in otherPresetMatches)
                   TextButton(
@@ -638,8 +702,10 @@ class _PresetGroupSection extends StatelessWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                     ),
-                    child: Text(_presetDisplayName(p, presetT),
-                        style: const TextStyle(fontSize: 11)),
+                    child: Text(
+                      _presetDisplayName(p, presetT),
+                      style: const TextStyle(fontSize: 11),
+                    ),
                   ),
               ],
             ),
@@ -699,28 +765,38 @@ class _GlobalGroupSection extends StatelessWidget {
                     AnimatedRotation(
                       turns: open ? 0.25 : 0,
                       duration: DswTokens.transitionDurationFast,
-                      child: Icon(Icons.chevron_right,
-                          size: 14, color: aliases.labelTertiary),
+                      child: Icon(
+                        Icons.chevron_right,
+                        size: 14,
+                        color: aliases.labelTertiary,
+                      ),
                     ),
                     const SizedBox(width: 4),
-                    Text(t('globalTitle'),
-                        style: TextStyle(
-                            fontSize: DswTokens.fontSizeS14,
-                            fontWeight: FontWeight.w600,
-                            color: aliases.labelPrimary)),
+                    Text(
+                      t('globalTitle'),
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeS14,
+                        fontWeight: FontWeight.w600,
+                        color: aliases.labelPrimary,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            TextButton(onPressed: onRefresh, child: Text(t('retry') == 'Retry' ? 'Refresh' : t('retry'))),
+            TextButton(
+              onPressed: onRefresh,
+              child: Text(t('refresh')),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           '${t('globalSubtitle')} · $globalCount ${t('countUnit')}${failed.isNotEmpty ? ' · ${failed.length} ${t('failedCountLabel')}' : ''}',
           style: TextStyle(
-              fontSize: DswTokens.fontSizeXxs12,
-              color: aliases.labelTertiary),
+            fontSize: DswTokens.fontSizeXxs12,
+            color: aliases.labelTertiary,
+          ),
         ),
         if (open) ...[
           const SizedBox(height: DswTokens.spaceMd),
@@ -730,9 +806,7 @@ class _GlobalGroupSection extends StatelessWidget {
               for (final entry in [...failed, ...regular])
                 _GlobalRowCard(
                   entry: entry,
-                  providers: entry.enabled
-                      ? null
-                      : enabledIn[entry.moduleName],
+                  providers: entry.enabled ? null : enabledIn[entry.moduleName],
                   rowKey: 'global:${entry.entryId}',
                   aliases: aliases,
                   t: t,
@@ -842,40 +916,46 @@ class _PresetRowCard extends StatelessWidget {
           SelectableText(
             row.entryId!,
             style: TextStyle(
-                fontSize: 11,
-                color: aliases.labelSecondary,
-                fontFamily: 'SF Mono'),
+              fontSize: 11,
+              color: aliases.labelSecondary,
+              fontFamily: 'SF Mono',
+            ),
           ),
         if (row.entryId != null) const SizedBox(height: DswTokens.spaceMd),
         _DetailRow(
-            label: t('moduleLabel'),
-            value: row.moduleName,
-            aliases: aliases,
-            mono: true),
+          label: t('moduleLabel'),
+          value: row.moduleName,
+          aliases: aliases,
+          mono: true,
+        ),
         const SizedBox(height: DswTokens.spaceSm),
         _DetailRow(
-            label: t('fromPreset'),
-            value: _presetDisplayName(preset, presetT),
-            aliases: aliases),
+          label: t('fromPreset'),
+          value: _presetDisplayName(preset, presetT),
+          aliases: aliases,
+        ),
         const SizedBox(height: DswTokens.spaceSm),
         _DetailRow(
-            label: t('configuration'),
-            value: stateText,
-            aliases: aliases),
+          label: t('configuration'),
+          value: stateText,
+          aliases: aliases,
+        ),
         if (row.fiberPhase != null) ...[
           const SizedBox(height: DswTokens.spaceSm),
           _DetailRow(
-              label: t('runtime'),
-              value: _phaseLabel(row.fiberPhase, t),
-              aliases: aliases),
+            label: t('runtime'),
+            value: _phaseLabel(row.fiberPhase, t),
+            aliases: aliases,
+          ),
         ],
         if (row.condition != null) ...[
           const SizedBox(height: DswTokens.spaceSm),
           _DetailRow(
-              label: t('condition'),
-              value: row.condition!,
-              aliases: aliases,
-              mono: true),
+            label: t('condition'),
+            value: row.condition!,
+            aliases: aliases,
+            mono: true,
+          ),
         ],
       ],
     );
@@ -912,15 +992,15 @@ class _GlobalRowCard extends StatelessWidget {
     final String stateText = failed
         ? t('failedTag')
         : providers != null
-            ? t('presetEnabledTag')
-            : t(entry.enabled ? 'enabledTag' : 'disabledTag');
+        ? t('presetEnabledTag')
+        : t(entry.enabled ? 'enabledTag' : 'disabledTag');
     final String kind = failed
         ? 'failed'
         : providers != null
-            ? 'preset'
-            : entry.enabled
-                ? 'enabled'
-                : 'disabled';
+        ? 'preset'
+        : entry.enabled
+        ? 'enabled'
+        : 'disabled';
     return _CardShell(
       aliases: aliases,
       failed: failed,
@@ -928,8 +1008,7 @@ class _GlobalRowCard extends StatelessWidget {
       ariaLabel: '$title, $stateText',
       trailing: _Trailing(
         aliases: aliases,
-        showDot:
-            entry.enabled && !failed && entry.fiberPhase != null,
+        showDot: entry.enabled && !failed && entry.fiberPhase != null,
         phase: entry.fiberPhase,
         tagKind: kind,
         tagLabel: stateText,
@@ -940,26 +1019,31 @@ class _GlobalRowCard extends StatelessWidget {
         SelectableText(
           entry.entryId,
           style: TextStyle(
-              fontSize: 11,
-              color: aliases.labelSecondary,
-              fontFamily: 'SF Mono'),
+            fontSize: 11,
+            color: aliases.labelSecondary,
+            fontFamily: 'SF Mono',
+          ),
         ),
         const SizedBox(height: DswTokens.spaceMd),
         if (providers != null) ...[
           _DetailRow(
-              label: t('configuration'),
-              value: t('presetProvidedDetail'),
-              aliases: aliases),
+            label: t('configuration'),
+            value: t('presetProvidedDetail'),
+            aliases: aliases,
+          ),
           const SizedBox(height: DswTokens.spaceSm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
                 width: 120,
-                child: Text(t('enabledIn'),
-                    style: TextStyle(
-                        fontSize: DswTokens.fontSizeXxs12,
-                        color: aliases.labelTertiary)),
+                child: Text(
+                  t('enabledIn'),
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXxs12,
+                    color: aliases.labelTertiary,
+                  ),
+                ),
               ),
               Expanded(
                 child: Wrap(
@@ -971,19 +1055,21 @@ class _GlobalRowCard extends StatelessWidget {
                           .map((p) => _presetDisplayName(p, presetT))
                           .join(' · '),
                       style: TextStyle(
-                          fontSize: DswTokens.fontSizeXxs12,
-                          color: aliases.labelPrimary),
+                        fontSize: DswTokens.fontSizeXxs12,
+                        color: aliases.labelPrimary,
+                      ),
                     ),
                     TextButton(
                       onPressed: () => onJumpToPreset(providers!.first.id),
                       style: TextButton.styleFrom(
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
                       ),
-                      child: Text(t('viewInPreset'),
-                          style: const TextStyle(fontSize: 11)),
+                      child: Text(
+                        t('viewInPreset'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
                     ),
                   ],
                 ),
@@ -992,22 +1078,25 @@ class _GlobalRowCard extends StatelessWidget {
           ),
         ] else ...[
           _DetailRow(
-              label: t('configuration'),
-              value: t(entry.enabled ? 'enabledTag' : 'disabledTag'),
-              aliases: aliases),
+            label: t('configuration'),
+            value: t(entry.enabled ? 'enabledTag' : 'disabledTag'),
+            aliases: aliases,
+          ),
           if (entry.enabled) ...[
             const SizedBox(height: DswTokens.spaceSm),
             _DetailRow(
-                label: t('runtime'),
-                value: _phaseLabel(entry.fiberPhase, t),
-                aliases: aliases),
+              label: t('runtime'),
+              value: _phaseLabel(entry.fiberPhase, t),
+              aliases: aliases,
+            ),
           ],
           const SizedBox(height: DswTokens.spaceSm),
           _DetailRow(
-              label: t('moduleLabel'),
-              value: entry.moduleName,
-              aliases: aliases,
-              mono: true),
+            label: t('moduleLabel'),
+            value: entry.moduleName,
+            aliases: aliases,
+            mono: true,
+          ),
         ],
       ],
     );
@@ -1049,9 +1138,7 @@ class _Trailing extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: positive
-                ? aliases.stateSuccessTertiary
-                : aliases.bgOverlay,
+            color: positive ? aliases.stateSuccessTertiary : aliases.bgOverlay,
             borderRadius: BorderRadius.circular(DswTokens.radiusFull),
           ),
           child: Text(
@@ -1132,8 +1219,11 @@ class _CardShell extends StatelessWidget {
                   AnimatedRotation(
                     turns: expanded ? 0.5 : 0,
                     duration: DswTokens.transitionDurationFast,
-                    child: Icon(Icons.keyboard_arrow_down,
-                        size: 12, color: aliases.labelTertiary),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 12,
+                      color: aliases.labelTertiary,
+                    ),
                   ),
                 ],
               ),
@@ -1158,38 +1248,42 @@ class _CardShell extends StatelessWidget {
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow(
-      {required this.label,
-      required this.value,
-      required this.aliases,
-      this.mono = false});
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    required this.aliases,
+    this.mono = false,
+  });
   final String label;
   final String value;
   final DswAliases aliases;
   final bool mono;
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: DswTokens.fontSizeXxs12,
-                    color: aliases.labelTertiary)),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: 120,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: DswTokens.fontSizeXxs12,
+            color: aliases.labelTertiary,
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXxs12,
-                color: aliases.labelPrimary,
-                fontFamily: mono ? 'SF Mono' : null,
-              ),
-            ),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          value,
+          style: TextStyle(
+            fontSize: DswTokens.fontSizeXxs12,
+            color: aliases.labelPrimary,
+            fontFamily: mono ? 'SF Mono' : null,
           ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }
 
 class _EmptyBox extends StatelessWidget {
@@ -1207,10 +1301,13 @@ class _EmptyBox extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(DswTokens.spaceLg),
       child: Center(
-        child: Text(label,
-            style: TextStyle(
-                fontSize: DswTokens.fontSizeXxs12,
-                color: aliases.labelCaption)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: DswTokens.fontSizeXxs12,
+            color: aliases.labelCaption,
+          ),
+        ),
       ),
     );
   }

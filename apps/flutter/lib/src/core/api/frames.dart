@@ -88,6 +88,7 @@ class QueuedInboxItem {
     required this.id,
     required this.placement,
     required this.message,
+    this.rpcId,
   });
 
   /// Decodes from wire; throws [ArgumentError] on unknown placement.
@@ -107,6 +108,9 @@ class QueuedInboxItem {
       id: _requireString(json, 'id'),
       placement: placement,
       message: _requireMap(json, 'message'),
+      // Submitter-minted correlation (`Session.prompt` requestId); absent on
+      // older hosts. Lets the queue retire local submission echoes.
+      rpcId: json['rpcId'] as String?,
     );
   }
 
@@ -118,6 +122,9 @@ class QueuedInboxItem {
 
   /// Complete pending message (raw `Message` JSON; not durable until claimed).
   final Map<String, Object?> message;
+
+  /// Submitter-minted correlation id, when the host echoes it.
+  final String? rpcId;
 }
 
 /// Mux stream frames mirrored from `MuxFrame`: raw session-event passthrough +
@@ -450,9 +457,15 @@ sealed class HostFrame {
           sessionId: SessionId(_requireString(json, 'sessionId')),
         );
       case 'host/session-status':
+        final updatedAt = json['updatedAt'];
         return SessionStatusFrame(
           sessionId: SessionId(_requireString(json, 'sessionId')),
           running: _requireBool(json, 'running'),
+          updatedAt: updatedAt is int
+              ? updatedAt
+              : updatedAt is num
+              ? updatedAt.toInt()
+              : null,
         );
       case 'host/agent-error':
         return AgentErrorFrame(
@@ -543,9 +556,16 @@ class SessionRemovedFrame extends HostFrame {
 }
 
 /// `host/session-status` — running flip; also how clients clear `blank`.
+///
+/// Carries the list-ordering watermark when the status rode an
+/// `api-session/activity` emit (`updatedAt`); absent on plain running flips.
 class SessionStatusFrame extends HostFrame {
   /// Creates the frame.
-  const SessionStatusFrame({required this.sessionId, required this.running});
+  const SessionStatusFrame({
+    required this.sessionId,
+    required this.running,
+    this.updatedAt,
+  });
 
   @override
   String get typeWire => 'host/session-status';
@@ -555,6 +575,9 @@ class SessionStatusFrame extends HostFrame {
 
   /// Whether the attached agent is currently running.
   final bool running;
+
+  /// Milliseconds-since-epoch activity watermark, when carried.
+  final int? updatedAt;
 }
 
 /// `host/agent-error` — live failure with no turn position.

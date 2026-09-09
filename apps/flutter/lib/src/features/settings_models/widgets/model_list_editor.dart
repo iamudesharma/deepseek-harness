@@ -163,6 +163,7 @@ class ModelListEditor extends ConsumerStatefulWidget {
     required this.onDiscover,
     required this.disabled,
     required this.t,
+    this.hideFetch = false,
   });
 
   /// Rows as currently drafted (effective rows when inherited).
@@ -192,6 +193,11 @@ class ModelListEditor extends ConsumerStatefulWidget {
 
   /// Section copy lookup.
   final String Function(String key) t;
+
+  /// Hide the endpoint-interrogation action. The direct-DeepSeek family has
+  /// no probe UI in React (`DeepSeekModelsEditor` edits rows only), while the
+  /// pi-ai family interrogates its endpoint (`ModelListEditor` + probe).
+  final bool hideFetch;
 
   @override
   ConsumerState<ModelListEditor> createState() => _ModelListEditorState();
@@ -482,14 +488,15 @@ class _ModelListEditorState extends ConsumerState<ModelListEditor> {
             if (widget.overridden && widget.onReset != null)
               TextButton(
                 onPressed: widget.disabled ? null : widget.onReset,
-                child: Text(widget.t('restoreDefaults')),
+                child: Text(widget.t('resetModels')),
               ),
-            TextButton(
-              onPressed: fetchBlocked ? null : _fetchModels,
-              child: Text(
-                _busy ? widget.t('fetching') : widget.t('fetchModels'),
+            if (!widget.hideFetch)
+              TextButton(
+                onPressed: fetchBlocked ? null : _fetchModels,
+                child: Text(
+                  _busy ? widget.t('fetching') : widget.t('fetchModels'),
+                ),
               ),
-            ),
           ],
         ),
         if (widget.models.isEmpty)

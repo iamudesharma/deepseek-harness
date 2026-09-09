@@ -501,15 +501,13 @@ void main() {
 
     // The pick rode settings/update (host default for sessions created
     // later), not the per-session select — this is what reflects app-wide.
+    // (React's roster shows no success toast; the roster refresh below is
+    // the confirmation.)
     expect(client.calls, hasLength(1));
     final (method, payload) = client.calls.single;
     expect(method, 'settings/update');
     expect(payload['ns'], 'agent-presets');
     expect(payload['patch'], {'default': 'minimal'});
-    expect(
-      find.text('Preset "minimal" is now the default for new sessions'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('tapping a card body picks it as the default', (tester) async {

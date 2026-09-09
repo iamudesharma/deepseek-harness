@@ -1,5 +1,4 @@
 import 'package:dsh_flutter/src/core/connection/connection_client.dart';
-import 'package:dsh_flutter/src/core/connection/connection_controller.dart';
 import 'package:dsh_flutter/src/core/services/runtime_services.dart'
     show LocaleService, localeServiceProvider;
 import 'package:dsh_flutter/src/features/settings/settings_screen.dart';
@@ -15,6 +14,11 @@ import 'package:dsh_flutter/src/plugins/settings/children/plugin_inventory/plugi
     show kInventoryNamespace, kInventoryZh, kInventoryEn;
 import 'package:dsh_flutter/src/plugins/agent_preset/locales.dart'
     show kAgentPresetNamespace, kAgentPresetZh, kAgentPresetEn;
+import 'package:dsh_flutter/src/plugins/permission_presets/locales.dart'
+    show
+        kPermissionSettingsNamespace,
+        kPermissionSettingsZh,
+        kPermissionSettingsEn;
 import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,10 +30,13 @@ class _FakeClient extends ConnectionClient {
   _FakeClient() : super(baseUrl: '');
 
   final List<String> calls = [];
+  final List<Map<String, Object?>> mutates = [];
   Map<String, Object?> describeAnswer = const <String, dynamic>{};
   List<Map<String, dynamic>> inventoryEntries = const [];
   List<Map<String, dynamic>> inventoryPresets = const [];
   List<Map<String, dynamic>> presetRoster = const [];
+  List<Map<String, dynamic>> liveProviders = const [];
+  List<Map<String, dynamic>> configurableProviders = const [];
   final List<(String, Map<String, dynamic>)> presetWrites = [];
 
   @override
@@ -45,6 +52,7 @@ class _FakeClient extends ConnectionClient {
     int? expectedRevision,
   }) async {
     calls.add('settings.mutate');
+    mutates.add({'ns': ns, 'ops': ops, 'expectedRevision': expectedRevision});
     // Echo back the namespace as writable ready to keep form available.
     return <String, dynamic>{
       'namespace': {
@@ -87,7 +95,11 @@ class _FakeClient extends ConnectionClient {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> llmProviders() async => const [];
+  Future<List<Map<String, dynamic>>> llmListProviders() async => liveProviders;
+
+  @override
+  Future<List<Map<String, dynamic>>> llmListConfigurableProviders() async =>
+      configurableProviders;
 
   @override
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async =>
@@ -101,16 +113,60 @@ class _FakeClient extends ConnectionClient {
 }
 
 Map<String, Object?> _settingsDocument() => {
+  'writable': true,
+  // The shipped welcome notice is acknowledged, so the shell-level
+  // onboarding overlay stays hidden (mirrors the completed step).
   'namespaces': [
+    {
+      'ns': 'ui-onboarding',
+      'value': {'welcomeNoticeVersion': '2026-08-13.1'},
+      'revision': 1,
+    },
     {
       'ns': 'locale',
       'value': {'preference': 'en'},
       'revision': 1,
     },
     {
-      'ns': 'conversation',
+      'ns': 'ui-conversation',
       'value': {'busyEnter': 'queue'},
       'revision': 1,
+    },
+    {
+      'ns': 'ui-chat',
+      'value': {'transcriptView': 'compact'},
+      'revision': 1,
+    },
+    {
+      'ns': 'permission',
+      'value': {'defaultPreset': 'workspace-write'},
+      'revision': 1,
+      'writable': true,
+      'schema': {
+        'type': 'object',
+        'dict': {
+          'defaultPreset': {
+            'type': 'union',
+            'list': [
+              {
+                'type': 'const',
+                'value': 'read-only',
+                'meta': {'description': 'Read Only'},
+              },
+              {
+                'type': 'const',
+                'value': 'workspace-write',
+                'meta': {'description': 'Workspace Write'},
+              },
+              {
+                'type': 'const',
+                'value': 'danger-full-access',
+                'meta': {'description': 'Full access'},
+              },
+            ],
+          },
+        },
+      },
     },
     {'ns': 'ui-theme', 'value': <String, dynamic>{}, 'revision': 1},
     {'ns': 'shell', 'value': <String, dynamic>{}, 'revision': 1, 'writable': true},
@@ -146,7 +202,11 @@ List<Map<String, dynamic>> _inventoryPresets() => [
   },
 ];
 
-Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
+Future<void> _pumpScreen(
+  WidgetTester tester,
+  _FakeClient client, {
+  String localeId = 'en',
+}) async {
   final container = ProviderContainer(
     overrides: [connectionClientProvider.overrideWithValue(client)],
   );
@@ -167,11 +227,15 @@ Future<void> _pumpScreen(WidgetTester tester, _FakeClient client) async {
     'zh': kAgentPresetZh,
     'en': kAgentPresetEn,
   });
+  locale.register(kPermissionSettingsNamespace, {
+    'zh': kPermissionSettingsZh,
+    'en': kPermissionSettingsEn,
+  });
   locale.register(kConversationNamespace, {
     'zh': kConversationZh,
     'en': kConversationEn,
   });
-  locale.setLocale('en');
+  locale.setLocale(localeId);
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -211,7 +275,12 @@ void main() {
     expect(find.text('Language'), findsOneWidget);
     // The synced preference label shows in the selector.
     expect(find.text('English'), findsOneWidget);
-    // Enter-behavior row rides the same document (ns conversation).
+    // Enter-behavior row rides the same document (ns ui-conversation).
+    await tester.dragUntilVisible(
+      find.text('Enter behavior while busy'),
+      find.byType(ListView).first,
+      const Offset(0, -200),
+    );
     expect(find.text('Enter behavior while busy'), findsOneWidget);
     expect(find.text('Queue'), findsOneWidget);
   });
@@ -225,9 +294,14 @@ void main() {
             'value': <String, Object?>{'preference': 'en'},
             'revision': 1,
           },
-          'conversation': <String, Object?>{
-            'ns': 'conversation',
+          'ui-conversation': <String, Object?>{
+            'ns': 'ui-conversation',
             'value': <String, Object?>{'busyEnter': 'steer'},
+            'revision': 1,
+          },
+          'ui-onboarding': <String, Object?>{
+            'ns': 'ui-onboarding',
+            'value': <String, Object?>{'welcomeNoticeVersion': '2026-08-13.1'},
             'revision': 1,
           },
         },
@@ -235,6 +309,11 @@ void main() {
 
     await _pumpScreen(tester, client);
 
+    await tester.dragUntilVisible(
+      find.text('Enter behavior while busy'),
+      find.byType(ListView).first,
+      const Offset(0, -200),
+    );
     expect(find.text('Enter behavior while busy'), findsOneWidget);
     expect(find.text('Steer'), findsOneWidget);
   });
@@ -242,7 +321,10 @@ void main() {
   testWidgets('General tab carries notifications and workspace sections', (
     tester,
   ) async {
-    await _pumpScreen(tester, _FakeClient());
+    // Acknowledged onboarding keeps the shell overlay hidden so the
+    // below-fold sections stay reachable.
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
 
     // Sections below the fold live in the tab's lazy ListView.
     await tester.dragUntilVisible(
@@ -438,5 +520,229 @@ void main() {
     expect(method, 'settings/update');
     expect(payload['ns'], 'agent-presets');
     expect(payload['patch'], {'default': 'minimal'});
+  });
+
+  testWidgets('General tab renders the React General rows', (tester) async {
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
+
+    // React `settings.general.item` order: permission, language, appearance,
+    // font-size, transcript-view, busy-enter.
+    expect(find.text('Permission'), findsOneWidget);
+    expect(find.text('Workspace Write'), findsOneWidget);
+    expect(
+      find.text('Choose the default permission mode for new sessions'),
+      findsOneWidget,
+    );
+    expect(find.text('Font size'), findsOneWidget);
+    expect(find.text('14'), findsOneWidget);
+    expect(find.text('Conversation display'), findsOneWidget);
+    expect(find.text('Compact'), findsOneWidget);
+  });
+
+  testWidgets('Font-size stepper writes ui-theme with a revision fence', (
+    tester,
+  ) async {
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.bySemanticsLabel('Increase font size'));
+    await tester.pumpAndSettle();
+
+    final fontWrites = client.mutates.where((m) => m['ns'] == 'ui-theme');
+    expect(fontWrites, hasLength(1));
+    final write = fontWrites.single;
+    expect(write['ops'], [
+      {
+        'op': 'set',
+        'path': ['fontSize'],
+        'value': 15,
+      },
+    ]);
+    expect(write['expectedRevision'], 1);
+    expect(find.text('15'), findsOneWidget);
+  });
+
+  testWidgets('Busy-enter writes the ui-conversation namespace, not conversation', (
+    tester,
+  ) async {
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
+
+    await tester.dragUntilVisible(
+      find.text('Queue'),
+      find.byType(ListView).first,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Queue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Steer').last);
+    await tester.pumpAndSettle();
+
+    final enterWrites = client.mutates.where(
+      (m) => (m['ops'] as List).any(
+        (op) => (op['path'] as List).contains('busyEnter'),
+      ),
+    );
+    expect(enterWrites, hasLength(1));
+    expect(enterWrites.single['ns'], 'ui-conversation');
+  });
+
+  testWidgets('Permission full-access pick passes the risk gate', (
+    tester,
+  ) async {
+    // Laptop-tall viewport: the confirmation dialog is long and React's
+    // modal has no scroll container, so short windows clip its footer.
+    tester.view.physicalSize = const Size(900, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
+
+    await tester.tap(find.text('Workspace Write'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Full access').last);
+    await tester.pumpAndSettle();
+
+    // RiskConfirmation gate mirrors React: acknowledge before Enable.
+    expect(find.text('Enable Full access?'), findsOneWidget);
+    await tester.tap(
+      find.text('I understand the risks and want to continue'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enable Full access'));
+    await tester.pumpAndSettle();
+
+    final permWrites = client.mutates.where((m) => m['ns'] == 'permission');
+    expect(permWrites, hasLength(1));
+    expect(permWrites.single['ops'], [
+      {
+        'op': 'set',
+        'path': ['defaultPreset'],
+        'value': 'danger-full-access',
+      },
+    ]);
+  });
+
+  testWidgets('Models editor copy resolves through the models locale', (
+    tester,
+  ) async {
+    final doc = _settingsDocument()..['namespaces'] = [
+      ...(_settingsDocument()['namespaces'] as List),
+      {
+        'ns': 'llm-deepseek',
+        'value': <String, dynamic>{},
+        'revision': 1,
+        'writable': true,
+      },
+    ];
+    final client = _FakeClient()
+      ..describeAnswer = doc
+      ..liveProviders = [
+        {'id': 'llm-deepseek', 'name': 'DeepSeek'},
+      ]
+      ..configurableProviders = [
+        {
+          'provider': 'llm-deepseek',
+          'displayName': 'DeepSeek',
+          'settingsNs': 'llm-deepseek',
+          'settingsPath': <String>[],
+        },
+      ];
+    await _pumpScreen(tester, client, localeId: 'zh');
+
+    await tester.tap(find.text('模型').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('编辑'));
+    await tester.pumpAndSettle();
+
+    // Editor labels ride the settings.models dictionaries, not hardcoded copy.
+    expect(find.text('API 密钥'), findsOneWidget);
+    expect(find.text('自定义设置'), findsOneWidget);
+    // Model rows mount the shared ModelListEditor behind the Customized
+    // disclosure (inherited catalog state when nothing is stored).
+    await tester.tap(find.text('自定义设置'));
+    await tester.pumpAndSettle();
+    expect(find.text('模型目录'), findsOneWidget);
+    expect(
+      find.text('模型选择器中将不显示任何模型；目录外 ID 仍可直接发送。'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Welcome notice blocks until acknowledged', (tester) async {
+    // Fresh Host without the shipped acknowledgement: the shell-level
+    // onboarding overlay shows the internal-testing notice.
+    final doc = _settingsDocument()..['namespaces'] = [
+      for (final ns in _settingsDocument()['namespaces'] as List)
+        if ((ns as Map)['ns'] != 'ui-onboarding') ns,
+    ];
+    final client = _FakeClient()..describeAnswer = doc;
+    await _pumpScreen(tester, client);
+
+    expect(find.text('Internal Testing Notice'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
+
+    // The notice body scrolls in place on short viewports; bring the
+    // acknowledgement into view like a user would (scoped to the dialog's
+    // own scrollable — the General ListView sits underneath the mask).
+    final dialogScroll = find.ancestor(
+      of: find.text('Internal Testing Notice'),
+      matching: find.byType(SingleChildScrollView),
+    );
+    await tester.dragUntilVisible(
+      find.text('Continue'),
+      dialogScroll,
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    final ackWrites = client.mutates.where(
+      (m) => m['ns'] == 'ui-onboarding',
+    );
+    expect(ackWrites, hasLength(1));
+    expect(ackWrites.single['ops'], [
+      {
+        'op': 'set',
+        'path': ['welcomeNoticeVersion'],
+        'value': '2026-08-13.1',
+      },
+    ]);
+    expect(find.text('Internal Testing Notice'), findsNothing);
+  });
+
+  testWidgets('Transcript selector writes the ui-chat namespace', (
+    tester,
+  ) async {
+    final client = _FakeClient()..describeAnswer = _settingsDocument();
+    await _pumpScreen(tester, client);
+
+    await tester.dragUntilVisible(
+      find.text('Compact'),
+      find.byType(ListView).first,
+      const Offset(0, -200),
+    );
+    // dragUntilVisible stops at cache-extent visibility; bring the trigger
+    // fully on-screen so the tap lands on the DsSelect anchor.
+    await tester.ensureVisible(find.text('Compact'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Compact'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Normal').last);
+    await tester.pumpAndSettle();
+
+    final viewWrites = client.mutates.where((m) => m['ns'] == 'ui-chat');
+    expect(viewWrites, hasLength(1));
+    expect(viewWrites.single['ops'], [
+      {
+        'op': 'set',
+        'path': ['transcriptView'],
+        'value': 'normal',
+      },
+    ]);
   });
 }

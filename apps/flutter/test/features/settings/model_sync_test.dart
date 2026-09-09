@@ -26,6 +26,12 @@ class _FakeModelClient extends ConnectionClient {
   int providersCalls = 0;
   List<Map<String, dynamic>> catalogGroups = [];
   List<Map<String, dynamic>> liveProviders = [];
+  List<Map<String, dynamic>> configurableProviders = [];
+  Map<String, dynamic> describeAnswer = {
+    'writable': false,
+    'namespaces': const [],
+  };
+  Map<String, dynamic> credentialRecord = const {};
 
   @override
   Future<Map<String, dynamic>> sessionModelCatalog() async {
@@ -53,17 +59,14 @@ class _FakeModelClient extends ConnectionClient {
 
   @override
   Future<List<Map<String, dynamic>>> llmListConfigurableProviders() async =>
-      const [];
+      configurableProviders;
 
   @override
-  Future<Map<String, dynamic>> settingsDescribe() async => {
-    'writable': false,
-    'namespaces': const [],
-  };
+  Future<Map<String, dynamic>> settingsDescribe() async => describeAnswer;
 
   @override
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async =>
-      const {'credentials': {}};
+      credentialRecord;
 }
 
 ProviderContainer _container(_FakeModelClient client) {
@@ -206,6 +209,44 @@ void main() {
           .map((r) => r.entry.provider)
           .contains('opencode'),
     );
+  });
+
+  test('models settings joins the bare credentials record by ref', () async {
+    // Host `credentials/describe` answers `{ref: CredentialInfo}` with no
+    // wrapper — the page must join it or every keyed provider reads as
+    // unconfigured.
+    final client = _FakeModelClient()
+      ..liveProviders = [
+        {'id': 'llm-deepseek', 'name': 'DeepSeek'},
+      ]
+      ..configurableProviders = [
+        {
+          'provider': 'llm-deepseek',
+          'displayName': 'DeepSeek',
+          'settingsNs': 'llm-deepseek',
+          'settingsPath': const <String>[],
+        },
+      ]
+      ..describeAnswer = {
+        'writable': true,
+        'namespaces': [
+          {
+            'ns': 'llm-deepseek',
+            'value': {'apiKeyEnv': 'LLM_DEEPSEEK_API_KEY'},
+            'revision': 1,
+          },
+        ],
+      }
+      ..credentialRecord = {
+        'LLM_DEEPSEEK_API_KEY': {'configured': true, 'writable': true},
+      };
+    final container = _container(client);
+
+    await container.read(modelsSettingsControllerProvider.notifier).load();
+
+    final rows = container.read(modelsSettingsControllerProvider).rows;
+    expect(rows, hasLength(1));
+    expect(rows.single.credential?.configured, isTrue);
   });
 }
 

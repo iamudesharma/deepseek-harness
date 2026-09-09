@@ -20,9 +20,15 @@ import '../input_trigger/trigger_source.dart';
 import '../conversation/hub.dart' show ConversationController;
 import 'command_directory.dart';
 import 'command_service.dart';
+import 'locales.dart'
+    show
+        kSessionLogDownloadEn,
+        kSessionLogDownloadNamespace,
+        kSessionLogDownloadZh;
 import 'popup_select.dart' show TokenSegment;
 import 'session_export.dart' show SessionExportService, exportAwareExecutor;
 import 'ui/popup_select_overlay.dart';
+import 'ui/session_log_header_action.dart' show SessionLogHeaderAction;
 
 /// Plugin identity.
 const String kCommandsPluginId = 'ui-commands';
@@ -40,9 +46,11 @@ class CommandsPlugin extends DshPlugin {
   ///
   /// [onExportError] surfaces `/export` download failures (the command
   /// itself stays admitted — React reports them in its download modal).
-  const CommandsPlugin({CommandExecutor? executor, void Function(String)? onExportError})
-    : _executor = executor,
-      _onExportError = onExportError;
+  const CommandsPlugin({
+    CommandExecutor? executor,
+    void Function(String)? onExportError,
+  }) : _executor = executor,
+       _onExportError = onExportError;
 
   final CommandExecutor? _executor;
   final void Function(String)? _onExportError;
@@ -58,6 +66,7 @@ class CommandsPlugin extends DshPlugin {
     'remote',
     'conversation',
     'inputTriggers',
+    'locale',
   ];
 
   @override
@@ -67,6 +76,7 @@ class CommandsPlugin extends DshPlugin {
     ctx.require<SessionsService>('sessions');
     ctx.require<RemoteEventBus>('remote');
     ctx.require<ConversationController>('conversation');
+    final locale = ctx.require<LocaleService>('locale');
     final inputTriggers = ctx.require<TriggerSourceRegistry>(
       kInputTriggersServiceName,
     );
@@ -142,6 +152,30 @@ class CommandsPlugin extends DshPlugin {
     // global (bound at activation, cleared on teardown).
     bindActivatedCommandUi(service);
 
+    ctx.onDispose(
+      locale.register(kSessionLogDownloadNamespace, {
+        'zh': kSessionLogDownloadZh,
+        'en': kSessionLogDownloadEn,
+      }),
+    );
+
+    // The session-log download capsule (React `session-log-download` header
+    // action): a `header.utilities` contributor, not header-owned chrome.
+    final stopSessionLog = ctx.slots.inject(
+      'conversation.session.header.utilities',
+      () {
+        return [
+          ctx.slots.register(
+            const RegistrationOptions(
+              name: 'conversation.session.header.utilities',
+              id: 'session-log-download',
+            ),
+            (context, props) => const SessionLogHeaderAction(),
+          ),
+        ];
+      },
+    );
+
     // The popupSelect overlay waits for the conversation-owned overlay hole,
     // installs atomically, and leaves with this plugin (the MenuView entry
     // shares the anchor; list order refines by `order`).
@@ -165,6 +199,7 @@ class CommandsPlugin extends DshPlugin {
       service.disposePopups();
       disposeSource();
       stopOverlay();
+      stopSessionLog();
       directory.clearAll();
     });
   }

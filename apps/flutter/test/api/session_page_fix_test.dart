@@ -82,10 +82,7 @@ void main() {
             'rpcId': envelope['rpcId'],
             'result': {
               'ok': true,
-              'value': {
-                'records': [],
-                'hasMore': false,
-              },
+              'value': {'records': [], 'hasMore': false},
             },
           };
         }
@@ -106,7 +103,9 @@ void main() {
         host.requests.where((r) => r['method'] == 'session/page'),
         hasLength(1),
       );
-      final req = ((host.requests.first['payload'] as Map)['args'] as Map)['request'] as Map;
+      final req =
+          ((host.requests.first['payload'] as Map)['args'] as Map)['request']
+              as Map;
       expect(req['throughSeq'], -1);
     });
 
@@ -121,39 +120,56 @@ void main() {
     });
 
     test('no RegExp past cursor in connection_client', () {
-      final file = File(
-        'lib/src/core/connection/connection_client.dart',
-      ).readAsStringSync();
-      expect(file.contains('RegExp'), isFalse, reason: 'no RegExp past cursor probe');
-      expect(file.contains('past cursor'), isFalse, reason: 'no past cursor string');
-      expect(file.contains('1 << 30'), isFalse, reason: 'no 1<<30 probe in connection client');
+      final file = File('lib/src/core/connection/connection_client.dart')
+          .readAsStringSync();
+      expect(
+        file.contains('RegExp'),
+        isFalse,
+        reason: 'no RegExp past cursor probe',
+      );
+      expect(
+        file.contains('past cursor'),
+        isFalse,
+        reason: 'no past cursor string',
+      );
+      expect(
+        file.contains('1 << 30'),
+        isFalse,
+        reason: 'no 1<<30 probe in connection client',
+      );
       expect(file.contains('1073741824'), isFalse);
     });
   });
 
   group('B. Initial conversation uses session/follow', () {
-    test('messageListProvider does not call session/page when live empty', () async {
-      final client = _CaptureHost((_, e) => null);
-      final base = await client.start();
-      addTearDown(client.stop);
-      final container = ProviderContainer(
-        overrides: [
-          connectionClientProvider.overrideWithValue(
-            ConnectionClient(baseUrl: base),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+    test(
+      'messageListProvider does not call session/page when live empty',
+      () async {
+        final client = _CaptureHost((_, e) => null);
+        final base = await client.start();
+        addTearDown(client.stop);
+        final container = ProviderContainer(
+          overrides: [
+            connectionClientProvider.overrideWithValue(
+              ConnectionClient(baseUrl: base),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      // liveHistory is empty initially
-      expect(container.read(liveHistoryProvider('sess-b')), isEmpty);
+        // liveHistory is empty initially
+        expect(container.read(liveHistoryProvider('sess-b')), isEmpty);
 
-      // messageListProvider should return empty without HTTP
-      final msgs = await container.read(messageListProvider('sess-b').future);
-      expect(msgs, isEmpty);
-      expect(client.requests.where((r) => r['method'] == 'session/page'), isEmpty,
-          reason: 'initial load must not call session/page');
-    });
+        // messageListProvider should return empty without HTTP
+        final msgs = await container.read(messageListProvider('sess-b').future);
+        expect(msgs, isEmpty);
+        expect(
+          client.requests.where((r) => r['method'] == 'session/page'),
+          isEmpty,
+          reason: 'initial load must not call session/page',
+        );
+      },
+    );
 
     test('liveHistory populated via snapshot, not page', () async {
       final container = ProviderContainer();
@@ -163,10 +179,20 @@ void main() {
       // Simulate snapshot replaceAllWithCursorAndHasMore
       final entries = [
         HistoryEntry(
-          event: SessionEvent(type: 'user/message', data: {'content': 'hi'}, seq: 0, time: 1000),
+          event: SessionEvent(
+            type: 'user/message',
+            data: {'content': 'hi'},
+            seq: 0,
+            time: 1000,
+          ),
         ),
         HistoryEntry(
-          event: SessionEvent(type: 'assistant/message', data: {'content': 'hello'}, seq: 1, time: 1001),
+          event: SessionEvent(
+            type: 'assistant/message',
+            data: {'content': 'hello'},
+            seq: 1,
+            time: 1001,
+          ),
         ),
       ];
       notifier.replaceAllWithCursorAndHasMore(entries, 1, false);
@@ -202,13 +228,30 @@ void main() {
       addTearDown(container.dispose);
       const sid = 'sess-fence';
       final n = container.read(liveHistoryProvider(sid).notifier);
-      n.replaceAllWithCursor([HistoryEntry(event: SessionEvent(type: 'user/message', data: {}, seq: 5, time: 0))], 5);
+      n.replaceAllWithCursor([
+        HistoryEntry(
+          event: SessionEvent(type: 'user/message', data: {}, seq: 5, time: 0),
+        ),
+      ], 5);
       expect(n.acceptedSeq, 5);
       // Duplicate seq <= acceptedSeq dropped
-      n.appendLive(HistoryEntry(event: SessionEvent(type: 'tool/call', data: {}, seq: 5, time: 1)));
+      n.appendLive(
+        HistoryEntry(
+          event: SessionEvent(type: 'tool/call', data: {}, seq: 5, time: 1),
+        ),
+      );
       expect(container.read(liveHistoryProvider(sid)), hasLength(1));
       // Next seq accepted
-      n.appendLive(HistoryEntry(event: SessionEvent(type: 'assistant/message', data: {}, seq: 6, time: 2)));
+      n.appendLive(
+        HistoryEntry(
+          event: SessionEvent(
+            type: 'assistant/message',
+            data: {},
+            seq: 6,
+            time: 2,
+          ),
+        ),
+      );
       expect(container.read(liveHistoryProvider(sid)), hasLength(2));
     });
   });
@@ -217,7 +260,8 @@ void main() {
     test('loadOlder sends throughSeq=cursor and beforeSeq=firstSeq', () async {
       final host = _CaptureHost((path, envelope) {
         if (envelope['method'] == 'session/page') {
-          final req = ((envelope['payload'] as Map)['args'] as Map)['request'] as Map;
+          final req =
+              ((envelope['payload'] as Map)['args'] as Map)['request'] as Map;
           expect(req['throughSeq'], 1268);
           expect(req['beforeSeq'], 10);
           expect(req['maxMessages'], 50);
@@ -228,7 +272,15 @@ void main() {
               'ok': true,
               'value': {
                 'records': [
-                  {'type': 'event', 'event': {'type': 'user/message', 'seq': 5, 'time': 0, 'data': {}}},
+                  {
+                    'type': 'event',
+                    'event': {
+                      'type': 'user/message',
+                      'seq': 5,
+                      'time': 0,
+                      'data': {},
+                    },
+                  },
                 ],
                 'hasMore': true,
               },
@@ -241,20 +293,94 @@ void main() {
       addTearDown(host.stop);
       final container = ProviderContainer(
         overrides: [
-          connectionClientProvider.overrideWithValue(ConnectionClient(baseUrl: baseUrl)),
+          connectionClientProvider.overrideWithValue(
+            ConnectionClient(baseUrl: baseUrl),
+          ),
         ],
       );
       addTearDown(container.dispose);
       const sid = 'sess-older';
       final n = container.read(liveHistoryProvider(sid).notifier);
       // Seed with snapshot cursor 1268 and window 10..20
-      final window = List.generate(2, (i) => HistoryEntry(event: SessionEvent(type: 'user/message', data: {}, seq: 10 + i, time: 0)));
+      final window = List.generate(
+        2,
+        (i) => HistoryEntry(
+          event: SessionEvent(
+            type: 'user/message',
+            data: {},
+            seq: 10 + i,
+            time: 0,
+          ),
+        ),
+      );
       n.replaceAllWithCursorAndHasMore(window, 1268, true);
       expect(n.acceptedSeq, 1268);
       await n.loadOlder();
-      expect(host.requests.where((r) => r['method'] == 'session/page'), hasLength(1));
+      expect(
+        host.requests.where((r) => r['method'] == 'session/page'),
+        hasLength(1),
+      );
       // After loadOlder, window should be prepended
       expect(container.read(liveHistoryProvider(sid)).first.event.seq, 5);
+    });
+
+    test('loadOlder trusts wire hasMore on a short page', () async {
+      final host = _CaptureHost((path, envelope) {
+        if (envelope['method'] == 'session/page') {
+          return {
+            'type': 'server-response',
+            'rpcId': envelope['rpcId'],
+            'result': {
+              'ok': true,
+              'value': {
+                // Short page (< 50) with older history remaining: React
+                // `hasMore = cut > 0`. Fullness heuristic alone would stop.
+                'records': [
+                  {
+                    'type': 'event',
+                    'event': {
+                      'type': 'user/message',
+                      'seq': 5,
+                      'time': 0,
+                      'data': {},
+                    },
+                  },
+                ],
+                'hasMore': true,
+              },
+            },
+          };
+        }
+        return null;
+      });
+      final baseUrl = await host.start();
+      addTearDown(host.stop);
+      final container = ProviderContainer(
+        overrides: [
+          connectionClientProvider.overrideWithValue(
+            ConnectionClient(baseUrl: baseUrl),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      const sid = 'sess-short-page';
+      final n = container.read(liveHistoryProvider(sid).notifier);
+      final window = List.generate(
+        2,
+        (i) => HistoryEntry(
+          event: SessionEvent(
+            type: 'user/message',
+            data: {},
+            seq: 10 + i,
+            time: 0,
+          ),
+        ),
+      );
+      n.replaceAllWithCursorAndHasMore(window, 1268, true);
+      await n.loadOlder();
+      expect(container.read(liveHistoryProvider(sid)).first.event.seq, 5);
+      // Wire hasMore:true survives the short page — paging continues.
+      expect(container.read(liveHasMoreProvider(sid)), isTrue);
     });
 
     test('loadOlder without cursor does not call page', () async {
@@ -262,7 +388,11 @@ void main() {
       final baseUrl = await host.start();
       addTearDown(host.stop);
       final container = ProviderContainer(
-        overrides: [connectionClientProvider.overrideWithValue(ConnectionClient(baseUrl: baseUrl))],
+        overrides: [
+          connectionClientProvider.overrideWithValue(
+            ConnectionClient(baseUrl: baseUrl),
+          ),
+        ],
       );
       addTearDown(container.dispose);
       const sid = 'sess-nocursor';
@@ -272,7 +402,10 @@ void main() {
       // Enable hasMore artificially but cursor still -1 -> should not call
       container.read(liveHasMoreProvider(sid).notifier).state = true;
       await n.loadOlder();
-      expect(host.requests.where((r) => r['method'] == 'session/page'), isEmpty);
+      expect(
+        host.requests.where((r) => r['method'] == 'session/page'),
+        isEmpty,
+      );
     });
   });
 
@@ -287,8 +420,22 @@ void main() {
       // Seed live history with a turn
       final n = container.read(liveHistoryProvider(sid).notifier);
       n.replaceAll([
-        HistoryEntry(event: SessionEvent(type: 'user/message', data: {'content': 'hi'}, seq: 0, time: 0)),
-        HistoryEntry(event: SessionEvent(type: 'assistant/message', data: {'content': 'hello'}, seq: 1, time: 1)),
+        HistoryEntry(
+          event: SessionEvent(
+            type: 'user/message',
+            data: {'content': 'hi'},
+            seq: 0,
+            time: 0,
+          ),
+        ),
+        HistoryEntry(
+          event: SessionEvent(
+            type: 'assistant/message',
+            data: {'content': 'hello'},
+            seq: 1,
+            time: 1,
+          ),
+        ),
       ]);
       traj = await container.read(trajectoryProvider(sid).future);
       expect(traj.turns, isNotEmpty);
@@ -302,7 +449,14 @@ void main() {
       expect(tools, isEmpty);
       final n = container.read(liveHistoryProvider(sid).notifier);
       n.replaceAll([
-        HistoryEntry(event: SessionEvent(type: 'tool/call', data: {'callId': 'c1', 'name': 'bash'}, seq: 0, time: 0)),
+        HistoryEntry(
+          event: SessionEvent(
+            type: 'tool/call',
+            data: {'callId': 'c1', 'name': 'bash'},
+            seq: 0,
+            time: 0,
+          ),
+        ),
       ]);
       tools = await container.read(toolCallsProvider(sid).future);
       expect(tools, hasLength(1));
@@ -316,7 +470,11 @@ void main() {
       final base = await host.start();
       addTearDown(host.stop);
       final container = ProviderContainer(
-        overrides: [connectionClientProvider.overrideWithValue(ConnectionClient(baseUrl: base))],
+        overrides: [
+          connectionClientProvider.overrideWithValue(
+            ConnectionClient(baseUrl: base),
+          ),
+        ],
       );
       addTearDown(container.dispose);
       const sid = 'empty-sess';
@@ -325,20 +483,27 @@ void main() {
       expect(container.read(liveHistoryProvider(sid)), isEmpty);
       final msgs = await container.read(messageListProvider(sid).future);
       expect(msgs, isEmpty);
-      expect(host.requests.where((r) => r['method'] == 'session/page'), isEmpty);
+      expect(
+        host.requests.where((r) => r['method'] == 'session/page'),
+        isEmpty,
+      );
       // Explicit -1 page request is allowed but not used for initial load
       final client = ConnectionClient(baseUrl: base);
       addTearDown(client.dispose);
       // Direct call with throughSeq -1 should not probe, should return empty
       // We mock host to return empty for -1
-      final res = await client.getSessionHistory(SessionId(sid), throughSeq: -1);
+      final res = await client.getSessionHistory(
+        SessionId(sid),
+        throughSeq: -1,
+      );
       expect(res.entries, isEmpty);
     });
   });
 
   group('F. No regex cursor discovery', () {
     test('connection_client has no past-cursor parsing', () {
-      final src = File('lib/src/core/connection/connection_client.dart').readAsStringSync();
+      final src = File('lib/src/core/connection/connection_client.dart')
+          .readAsStringSync();
       expect(src.contains('past cursor'), isFalse);
       expect(src.contains('RegExp'), isFalse);
     });

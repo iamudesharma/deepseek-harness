@@ -87,6 +87,8 @@ const Map<String, String> kInventoryZh = {
   'active': '运行中',
   'failed': '启动失败',
   'unloading': '卸载中',
+  'refresh': '刷新',
+  'footer': '{count} {countUnit} · Host Loader inventory via pluginInventory/list (read-only).',
 };
 
 const Map<String, String> kInventoryEn = {
@@ -129,4 +131,6 @@ const Map<String, String> kInventoryEn = {
   'active': 'Mounted',
   'failed': 'Mount failed',
   'unloading': 'Unloading',
+  'refresh': 'Refresh',
+  'footer': '{count} {countUnit} · Host Loader inventory via pluginInventory/list (read-only).',
 };

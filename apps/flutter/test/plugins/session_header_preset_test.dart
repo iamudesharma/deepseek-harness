@@ -50,11 +50,14 @@ void main() {
     expect(find.text('Standard mode'), findsNothing);
   });
 
-  testWidgets('header keeps title, tabs, and session log', (tester) async {
+  testWidgets('header keeps title and tabs; session log is hole-owned', (tester) async {
     await pumpHeader(tester, summaryWithPreset());
     expect(find.text('Chat'), findsOneWidget);
     expect(find.text('Trajectory'), findsOneWidget);
-    expect(find.text('Session log'), findsOneWidget);
+    // The session-log capsule arrives only through the header.utilities
+    // hole (React `session-log-download` contributor); the header itself
+    // renders no hardcoded copy.
+    expect(find.text('Session log'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

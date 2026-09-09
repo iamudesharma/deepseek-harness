@@ -17,7 +17,7 @@ import '../../../features/conversation/composer_controller.dart';
 import '../../../platform/layout.dart' show isMobileLayout;
 import '../../../widgets/primitives/dsh_menu_scaffold.dart';
 import '../../../core/services/runtime_services.dart'
-    show localeServiceProvider;
+    show localeServiceProvider, LocaleBindOnWidgetRef;
 import '../../attachment/attachment_limits.dart';
 import '../locales.dart' show kConversationNamespace;
 import '../../input_trigger/input_trigger_controller.dart'
@@ -31,6 +31,7 @@ import '../hub.dart' show activatedHub, composerSubmitHookProvider;
 import '../../../core/api/frames.dart' show QueuedInboxItem;
 import '../../permission_presets/ui/permission_seat.dart' show PermissionSeat;
 import '../queue_state.dart';
+import 'context_meter.dart' show ContextMeter;
 import 'slots/hole_outlet.dart';
 
 /// Attachment source chosen in the mobile sheet. Every source funnels into
@@ -640,6 +641,7 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
     final ComposerState state = ref.watch(
       composerControllerProvider(widget.sessionId),
     );
+    final t = ref.bindLocale(kConversationNamespace);
     // Composition ledger for the composer-side holes (overlay + tool-row
     // seats). Empty until ui-conversation activates — outlets render nothing.
     final SlotRegistry slotRegistry = activatedHub?.slots ?? SlotRegistry();
@@ -681,11 +683,6 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
 
     final bool canSend = widget.enabled && state.canSubmit;
     final bool isSending = state.isSending;
-
-    // Empty-draft accelerated Enter steers the whole queue — InputBar.tsx
-    // canSteerQueue port: a running ordinary session with still-pending queued
-    // rows, empty draft, live input. (The subagent===null conjunct is not
-    // representable yet: SessionSummary carries no continuable-child marker.)
     final SessionSummary? summary = ref.watch(
       sessionByIdProvider(SessionId(widget.sessionId)),
     );
@@ -693,12 +690,39 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         ref.watch(queueProvider)[widget.sessionId] ?? const <QueuedInboxItem>[];
     final bool draftEmpty =
         state.text.trim().isEmpty && state.attachments.isEmpty;
+    // Empty-draft accelerated Enter steers the whole queue — InputBar.tsx
+    // canSteerQueue port: a running ordinary session with still-pending queued
+    // rows, empty draft, live input. (The subagent===null conjunct is not
+    // representable yet: SessionSummary carries no continuable-child marker.)
     final bool canSteerQueue =
         draftEmpty &&
         widget.enabled &&
         !isSending &&
         (summary?.running ?? false) &&
         queueRows.any((row) => row.placement == 'queued');
+
+    // Stop posture (InputBar.tsx `primaryStops` / `interruptible`): a running
+    // ordinary session turns the primary disc into Stop over an empty (or
+    // owner-blocked) draft; a running subagent session keeps Send primary and
+    // exposes Stop independently. `subagent === null` reads as
+    // `origin != 'subagent'`; the continuable-child marker is not
+    // representable yet, so any running subagent session gets the
+    // independent Stop (its composer is live exactly when continuable wins
+    // the chain).
+    final bool running = summary?.running ?? false;
+    final stopPosture = composerStopPosture(
+      running: running,
+      origin: summary?.origin,
+      draftEmpty: draftEmpty,
+      enabled: widget.enabled,
+    );
+    final bool primaryStops = stopPosture.primaryStops;
+    final bool independentStop = stopPosture.independentStop;
+    void handleStop() {
+      try {
+        activatedHub?.controller.cancelTurn(SessionId(widget.sessionId));
+      } catch (_) {}
+    }
 
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
@@ -888,9 +912,6 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                               }
                               final bool attachEnabled =
                                   widget.enabled && !isSending;
-                              debugPrint(
-                                '[composer] build attachEnabled=$attachEnabled isMobileLayout=$isMobileLayout width=${MediaQuery.sizeOf(context).width}',
-                              );
                               return Row(
                                 children: <Widget>[
                                   // Session command menu trigger — React
@@ -904,8 +925,7 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                                     sessionId: widget.sessionId,
                                     field: _controller,
                                     focusNode: _focusNode,
-                                    enabled:
-                                        widget.enabled && !isSending,
+                                    enabled: widget.enabled && !isSending,
                                   ),
                                   permissionSeat,
                                   HoleOutlet(
@@ -938,14 +958,52 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                                     slotKey: 'conversation.input.right',
                                   ),
                                   modelSeat,
+                                  // Context-occupancy ring beside send (React
+                                  // InputBar trailing: model seat,
+                                  // ContextMeter, [stop], primary). Renders
+                                  // nothing until pressure + capacity arrive.
+                                  ContextMeter(sessionId: widget.sessionId),
+                                  // Independent Stop for a running subagent
+                                  // session (React `interruptible`): Send
+                                  // stays primary and Stop rides alongside.
+                                  if (independentStop)
+                                    Tooltip(
+                                      message: t('input.stop'),
+                                      preferBelow: false,
+                                      waitDuration: const Duration(
+                                        milliseconds: 500,
+                                      ),
+                                      child: _SendDisc(
+                                        enabled: widget.enabled,
+                                        isSending: false,
+                                        isStop: true,
+                                        aliases: aliases,
+                                        onPressed: handleStop,
+                                      ),
+                                    ),
                                   const SizedBox(width: DswTokens.spaceSm),
                                   // Send disc — figma IconButton 34:10465: 34px circle, info-fill pair (500→400) + white glyph.
                                   // Mirrors `InputBar.module.css .primary`: `background: var(--dsw-alias-button-info-fill)`.
-                                  _SendDisc(
-                                    enabled: canSend && !isSending,
-                                    isSending: isSending,
-                                    aliases: aliases,
-                                    onPressed: canSend ? _handleSubmit : null,
+                                  // While `primaryStops` the disc becomes Stop (16px rounded square, React primary stop glyph).
+                                  Tooltip(
+                                    message: primaryStops && !isSending
+                                        ? t('input.stop')
+                                        : t('input.send'),
+                                    preferBelow: false,
+                                    waitDuration: const Duration(
+                                      milliseconds: 500,
+                                    ),
+                                    child: _SendDisc(
+                                      enabled: primaryStops
+                                          ? widget.enabled
+                                          : canSend && !isSending,
+                                      isSending: isSending,
+                                      isStop: primaryStops && !isSending,
+                                      aliases: aliases,
+                                      onPressed: primaryStops
+                                          ? (isSending ? null : handleStop)
+                                          : (canSend ? _handleSubmit : null),
+                                    ),
                                   ),
                                 ],
                               );
@@ -1098,15 +1156,41 @@ class _NewlineIntent extends Intent {
   const _NewlineIntent();
 }
 
+/// Stop posture for the composer trailing row — pure port of InputBar.tsx
+/// `primaryStops` (`running && subagent === null && (empty || blocked)`) and
+/// `interruptible` (`running && continuable`).
+///
+/// `subagent === null` reads as `origin != 'subagent'`; the continuable-child
+/// marker is not representable yet, so any running subagent session gets the
+/// independent Stop (its composer is live exactly when continuable wins the
+/// chain).
+({bool primaryStops, bool independentStop}) composerStopPosture({
+  required bool running,
+  required String? origin,
+  required bool draftEmpty,
+  required bool enabled,
+}) {
+  final bool isSubagentSession = (origin ?? '') == 'subagent';
+  return (
+    primaryStops: running && !isSubagentSession && (draftEmpty || !enabled),
+    independentStop: running && isSubagentSession,
+  );
+}
+
 class _SendDisc extends StatelessWidget {
   const _SendDisc({
     required this.enabled,
     required this.isSending,
     required this.aliases,
+    this.isStop = false,
     this.onPressed,
   });
   final bool enabled;
   final bool isSending;
+
+  /// Stop posture (React primary-stop glyph): 10px rounded square instead of
+  /// the send arrow. Spinner still wins while a submission is in flight.
+  final bool isStop;
   final DswAliases aliases;
   final VoidCallback? onPressed;
 
@@ -1132,6 +1216,15 @@ class _SendDisc extends StatelessWidget {
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Color(0xFFFFFFFF),
+                      ),
+                    )
+                  : isStop
+                  ? Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(3),
                       ),
                     )
                   : const Icon(
@@ -1192,6 +1285,7 @@ class _LiveModelDropdown extends ConsumerStatefulWidget {
 class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
   final GlobalKey _anchorKey = GlobalKey();
   final OverlayPortalController _portal = OverlayPortalController();
+  final ValueNotifier<bool> _menuOpen = ValueNotifier<bool>(false);
   _ModelPane _pane = _ModelPane.root;
 
   /// Resolves `(group, model)` for [current] strictly from [groups]; absent →
@@ -1218,6 +1312,18 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
           .catchError((Object _) => <String, dynamic>{});
     }
     _portal.show();
+    _menuOpen.value = true;
+  }
+
+  void _closeMenu() {
+    if (_portal.isShowing) _portal.hide();
+    _menuOpen.value = false;
+  }
+
+  @override
+  void dispose() {
+    _menuOpen.dispose();
+    super.dispose();
   }
 
   Future<void> _select(ModelSelection selection) async {
@@ -1227,7 +1333,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
           .select(selection);
       // Accepted selections close the menu (React settleSelection(true)).
       if (!mounted || !_portal.isShowing) return;
-      _portal.hide();
+      _closeMenu();
     } catch (_) {
       // Rejection keeps the menu open; the in-menu error strip carries the
       // directory's failure text with its Retry (load) affordance.
@@ -1267,6 +1373,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
         currentModel?.name ?? effectiveCurrent?.model ?? 'Select model';
 
     return OverlayPortal(
+      key: const ValueKey('model-select-trigger'),
       controller: _portal,
       overlayChildBuilder: (BuildContext overlayContext) => DshMenuScaffold(
         onClose: () => _portal.hide(),
@@ -1323,11 +1430,19 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
       ),
       child: Container(
         key: _anchorKey,
-        padding: const EdgeInsets.symmetric(horizontal: DswTokens.spaceSm),
+        // React `.trigger`: 28px row, max-width 220, transparent with hover
+        // wash, 13/20 w500 secondary label, inline caption effort, 12px
+        // caption chevron, 24px radius.
+        constraints: BoxConstraints(
+          maxWidth: widget.compact ? widget.compactMaxWidth : 220,
+        ),
+        height: 28,
+        padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
         decoration: BoxDecoration(
-          color: aliases.specificSelector,
-          borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-          border: Border.all(color: aliases.borderL2),
+          color: _portal.isShowing
+              ? aliases.interactiveBgHover
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: InkWell(
           onTap: widget.enabled
@@ -1335,59 +1450,53 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
                   ref.read(modelDirectoryProvider(widget.sessionId)),
                 )
               : null,
-          borderRadius: BorderRadius.circular(DswTokens.radiusFull),
+          hoverColor: aliases.interactiveBgHover,
+          borderRadius: BorderRadius.circular(24),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.memory_outlined,
-                size: 12,
-                color: aliases.labelSecondary,
-              ),
-              const SizedBox(width: 4),
               Flexible(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: widget.compact ? 72 : 160,
-                  ),
-                  child: Text(
-                    modelLabel,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: DswTokens.fontSizeXxs12,
-                      fontWeight: FontWeight.w600,
-                      color: currentModel == null
-                          ? aliases.labelTertiary
-                          : aliases.labelPrimary,
-                    ),
+                child: Text(
+                  modelLabel,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    height: 20 / 13,
+                    fontWeight: FontWeight.w500,
+                    color: widget.enabled
+                        ? aliases.labelSecondary
+                        : aliases.labelDimmed,
                   ),
                 ),
               ),
               if (effortLabel != null) ...[
                 const SizedBox(width: 4),
                 Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: aliases.bgOverlay,
-                      borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-                    ),
-                    child: Text(
-                      effortLabel,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: aliases.labelSecondary,
-                      ),
+                  child: Text(
+                    effortLabel,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: DswTokens.fontSizeXs13,
+                      height: 20 / 13,
+                      fontWeight: FontWeight.w500,
+                      color: aliases.labelCaption,
                     ),
                   ),
                 ),
               ],
               const SizedBox(width: 4),
-              Icon(Icons.expand_more, size: 14, color: aliases.labelTertiary),
+              ListenableBuilder(
+                listenable: _menuOpen,
+                builder: (context, _) => AnimatedRotation(
+                  turns: _menuOpen.value ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 120),
+                  child: Icon(
+                    Icons.expand_more,
+                    size: 12,
+                    color: aliases.labelCaption,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1796,9 +1905,7 @@ class _CommandMenuButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final t = ref
-        .read(localeServiceProvider)
-        .bind(kConversationNamespace);
+    final t = ref.read(localeServiceProvider).bind(kConversationNamespace);
     final registry = activatedRegistry;
     final controller = registry?.controllers[sessionId];
     final bool canOpen = enabled && controller != null;
@@ -1816,9 +1923,7 @@ class _CommandMenuButton extends ConsumerWidget {
                 if (!context.mounted) return;
                 final selection = field.selection;
                 final caret = selection.isValid
-                    ? selection.baseOffset
-                          .clamp(0, field.text.length)
-                          .toInt()
+                    ? selection.baseOffset.clamp(0, field.text.length).toInt()
                     : field.text.length;
                 controller.toggleLauncherSource(
                   source: 'command',

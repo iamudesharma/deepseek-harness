@@ -1,5 +1,7 @@
+import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/slots/slot_registry.dart';
+import 'package:dsh_flutter/src/plugins/plan/locales.dart';
 import 'package:dsh_flutter/src/plugins/plan/plan_control.dart';
 import 'package:dsh_flutter/src/plugins/plan/plan_plugin.dart';
 import 'package:dsh_flutter/src/plugins/plan/ui/plan_chip_dock.dart'
@@ -115,6 +117,12 @@ void main() {
   ) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
+    // The bare scope has no plugin activation: register the plan
+    // dictionaries the chip's copy comes from (production does this in
+    // `PlanPlugin.apply`).
+    container
+        .read(localeServiceProvider)
+        .register(kPlanNamespace, {'zh': kPlanZh, 'en': kPlanEn});
 
     Widget seat() => UncontrolledProviderScope(
       container: container,

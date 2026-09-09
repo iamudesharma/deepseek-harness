@@ -33,9 +33,11 @@ void main() {
       itemId: MessageId('m1'),
       action: const QueueActionRemove(),
     );
-    expect(captured!['method'], 'session.updateQueue');
-    expect((captured!['payload'] as Map)['itemId'], 'm1');
-    expect(((captured!['payload'] as Map)['action'] as Map)['kind'], 'remove');
+    expect(captured!['method'], 'session/updateQueue');
+    final args = captured!['payload'] as Map;
+    final request = (args['args'] as Map)['request'] as Map;
+    expect(request['itemId'], 'm1');
+    expect((request['action'] as Map)['kind'], 'remove');
   });
   test('updateQueue edit payload', () async {
     Map<String, dynamic>? captured;
@@ -65,11 +67,10 @@ void main() {
         {'type': 'text', 'text': 'hello'},
       ]),
     );
-    expect(((captured!['payload'] as Map)['action'] as Map)['kind'], 'edit');
-    expect(
-      ((captured!['payload'] as Map)['action'] as Map)['content'][0]['text'],
-      'hello',
-    );
+    final args = captured!['payload'] as Map;
+    final request = (args['args'] as Map)['request'] as Map;
+    expect((request['action'] as Map)['kind'], 'edit');
+    expect((request['action'] as Map)['content'][0]['text'], 'hello');
   });
   test('updateQueue steer payload', () async {
     Map<String, dynamic>? captured;
@@ -97,6 +98,8 @@ void main() {
       itemId: MessageId('m3'),
       action: const QueueActionSteer(),
     );
-    expect(((captured!['payload'] as Map)['action'] as Map)['kind'], 'steer');
+    final args = captured!['payload'] as Map;
+    final request = (args['args'] as Map)['request'] as Map;
+    expect((request['action'] as Map)['kind'], 'steer');
   });
 }

@@ -108,6 +108,10 @@ class Message {
   /// Whether this message is a retry disclosure (vs user/assistant).
   bool get isRetry => retry != null;
 
+  /// Submitter-minted correlation (`session/prompt` requestId) carried by
+  /// optimistic user bubbles so queue echoes retire on host admission.
+  final String? requestId;
+
   /// Creates a message.
   const Message({
     required this.id,
@@ -123,6 +127,7 @@ class Message {
     this.delayMs,
     this.failureMessage,
     this.retryMode,
+    this.requestId,
   });
 }
 
@@ -202,9 +207,7 @@ List<Message> messagesFromHistory(
           ? (event.data['message'] as Map).cast<String, dynamic>()
           : event.data;
       final String text = _unescapeHtml(_extractText(msgData));
-      final List<Citation> citations = _extractCitations(
-        entry.view ?? msgData,
-      );
+      final List<Citation> citations = _extractCitations(entry.view ?? msgData);
       // Try to preserve structured blocks for rich rendering (text / reasoning / tool-call)
       List<AssistantBlock>? blocks;
       final dynamic rawContent = msgData['content'] ?? event.data['content'];
@@ -259,7 +262,11 @@ List<Message> messagesFromHistory(
       // New StreamChunk shape (packages/core/session/src/types.ts:251):
       // {turn,step,chunk:{type:'block-start'|'block-end'|'usage'|'finish', ...}}
       // Old shape was {delta|chunk|text: string|{type,text}} — keep backward compat.
-      final dynamic rawChunk = event.data['chunk'] ?? event.data['delta'] ?? event.data['text'] ?? event.data['block'];
+      final dynamic rawChunk =
+          event.data['chunk'] ??
+          event.data['delta'] ??
+          event.data['text'] ??
+          event.data['block'];
       String delta = '';
       String? deltaType;
       if (rawChunk is String) {
@@ -294,7 +301,8 @@ List<Message> messagesFromHistory(
         } else {
           // Legacy: {type:'text', text} or {delta, content}
           deltaType = t;
-          delta = _asString(m['text']) ??
+          delta =
+              _asString(m['text']) ??
               _asString(m['delta']) ??
               _asString(m['content']) ??
               _asString(m['block']) ??
@@ -533,12 +541,16 @@ final messageListProvider = FutureProvider.family<List<Message>, String>((
 /// Whether older history remains before the current window.
 ///
 /// Mirrors `SessionSnapshot.hasMore` from `packages/api/session-controller`.
-final liveHasMoreProvider = StateProvider.family<bool, String>((ref, _) => false);
+final liveHasMoreProvider = StateProvider.family<bool, String>(
+  (ref, _) => false,
+);
 
 /// Whether a `loadOlder` page fetch is in flight.
 ///
 /// Mirrors `SessionSnapshot.loadingOlder`.
-final liveLoadingOlderProvider = StateProvider.family<bool, String>((ref, _) => false);
+final liveLoadingOlderProvider = StateProvider.family<bool, String>(
+  (ref, _) => false,
+);
 
 class LiveHistory extends FamilyNotifier<List<HistoryEntry>, String> {
   /// Accepted cursor from the latest follow snapshot. Events with `seq` <=
@@ -668,9 +680,11 @@ class LiveHistory extends FamilyNotifier<List<HistoryEntry>, String> {
         maxMessages: 50,
       );
       final List<HistoryEntry> entries = result.entries;
-      // Host `hasMore` is not returned by `getSessionHistory`'s projection
-      // shape; derive from page fullness like React's `hasMore = cut>0`.
-      final bool hasMore = entries.length >= 50;
+      // Authoritative remainder comes from the wire `hasMore`
+      // (`SessionPage.hasMore`, React `cut > 0`). Only when the host omits
+      // it (legacy shapes) fall back to page fullness — a short full page
+      // with older history remaining must not terminate paging.
+      final bool hasMore = result.hasMore ?? entries.length >= 50;
       if (entries.isNotEmpty) {
         prependOlder(entries, hasMore);
       } else {

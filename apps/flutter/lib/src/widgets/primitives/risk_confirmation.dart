@@ -75,8 +75,10 @@ class DsRiskConfirmation extends ConsumerWidget {
       title: title,
       onClose: onCancel,
       width: 440,
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      footer: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: DswTokens.spaceSm,
+        runSpacing: DswTokens.spaceSm,
         children: <Widget>[
           ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 72),
@@ -86,7 +88,6 @@ class DsRiskConfirmation extends ConsumerWidget {
               onPressed: onCancel,
             ),
           ),
-          const SizedBox(width: DswTokens.spaceSm),
           ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 136),
             child: DsButton(
@@ -129,7 +130,10 @@ class DsRiskConfirmation extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          // Acknowledgement checkbox — mirrors `.acknowledgement`.
+          // Acknowledgement checkbox — mirrors `.acknowledgement`. The row
+          // InkWell owns the tap (single event per tap): the inner checkbox
+          // is display-only so one user tap cannot write both onChanged and
+          // the row toggle with a stale value.
           InkWell(
             onTap: disabled ? null : () => onAcknowledgedChange(!acknowledged),
             borderRadius: BorderRadius.circular(DswTokens.radiusSm),
@@ -139,16 +143,19 @@ class DsRiskConfirmation extends ConsumerWidget {
                 SizedBox(
                   width: 16,
                   height: 16,
-                  child: Checkbox(
-                    value: acknowledged,
-                    onChanged: disabled
-                        ? null
-                        : (bool? v) => onAcknowledgedChange(v ?? false),
-                    activeColor: aliases.buttonPrimaryFill,
-                    checkColor: aliases.labelPrimaryInverted,
-                    side: BorderSide(color: aliases.borderL3),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
+                  child: IgnorePointer(
+                    ignoring: true,
+                    child: Checkbox(
+                      value: acknowledged,
+                      onChanged: disabled
+                          ? null
+                          : (bool? v) => onAcknowledgedChange(v ?? false),
+                      activeColor: aliases.buttonPrimaryFill,
+                      checkColor: aliases.labelPrimaryInverted,
+                      side: BorderSide(color: aliases.borderL3),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),

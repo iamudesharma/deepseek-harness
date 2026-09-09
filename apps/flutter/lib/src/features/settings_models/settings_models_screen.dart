@@ -183,16 +183,40 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
     setState(() => _deleting = false);
   }
 
+  /// Ids the directory already uses (React `takenIds`): creating over one
+  /// reports `customRouteTaken` instead of relying on the server conflict.
+  Set<String> _takenIds(ModelsSettingsState state) => {
+    for (final row in state.rows) row.entry.provider,
+  };
+
+  /// Whether the custom form can submit (React `ready`): a valid untaken
+  /// route, an endpoint, and at least one model.
+  bool _customReady(Set<String> takenIds) {
+    final routePattern = RegExp(r'^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$');
+    if (_customRoute.isEmpty || !routePattern.hasMatch(_customRoute)) {
+      return false;
+    }
+    if (takenIds.contains(_customRoute)) return false;
+    if (_customBaseUrl.isEmpty) return false;
+    return _customModelsText
+        .split(',')
+        .map((e) => e.trim())
+        .any((e) => e.isNotEmpty);
+  }
+
   Future<void> _createCustom() async {
     final routePattern = RegExp(r'^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$');
     if (_customRoute.isEmpty || !routePattern.hasMatch(_customRoute)) {
-      setState(
-        () => _customFailure = 'Start with a lowercase letter; then lowercase letters, digits, and dashes.',
-      );
+      setState(() => _customFailure = _t('customRouteInvalid'));
+      return;
+    }
+    final takenIds = _takenIds(ref.read(modelsSettingsControllerProvider));
+    if (takenIds.contains(_customRoute)) {
+      setState(() => _customFailure = _t('customRouteTaken'));
       return;
     }
     if (_customBaseUrl.isEmpty) {
-      setState(() => _customFailure = 'A custom provider needs a base URL.');
+      setState(() => _customFailure = _t('customNeedsBaseUrl'));
       return;
     }
     final ids = _customModelsText
@@ -201,9 +225,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
         .where((e) => e.isNotEmpty)
         .toList();
     if (ids.isEmpty) {
-      setState(
-        () => _customFailure = 'A custom provider needs at least one model.',
-      );
+      setState(() => _customFailure = _t('customNeedsModels'));
       return;
     }
     setState(() {
@@ -215,7 +237,9 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
       final controller = ref.read(modelsSettingsControllerProvider.notifier);
       final ns = 'llm-pi-ai';
       final nsView = ref.read(modelsSettingsControllerProvider).namespaces[ns];
-      final revision = nsView?.revision ?? 0;
+      // A missing view means no fence is known — write unconditionally like
+      // React's creation path instead of fencing a fabricated revision 0.
+      final int? revision = nsView?.revision;
       final keyValue = _customKeyDraft.trim();
       final keyRef = deriveKeyRef(_customRoute);
       final profile = <String, dynamic>{
@@ -323,63 +347,8 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
       );
     }
 
-    if (state.status == ModelsSettingsStatus.ready && state.rows.isEmpty) {
-      // Host returned no providers: the wire call succeeded but the LLM plugin
-      // and the user's settings profile produced an empty directory. Surface
-      // the cause so the page never looks blank.
-      final hint = state.writable
-          ? 'No providers available. The host LLM plugin may not be mounted, '
-              'or no profile is declared in your settings.'
-          : 'No providers available, and settings are read-only in this host.';
-      return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: Padding(
-          padding: const EdgeInsets.all(DswTokens.spaceLg),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _t('title'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 24 / 16,
-                    fontWeight: FontWeight.w500,
-                    color: aliases.labelPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _t('intro'),
-                  style: TextStyle(
-                    fontSize: DswTokens.fontSizeS14,
-                    height: 22 / 14,
-                    color: aliases.labelTertiary,
-                  ),
-                ),
-                const SizedBox(height: DswTokens.spaceMd),
-                Text(
-                  hint,
-                  style: TextStyle(
-                    fontSize: DswTokens.fontSizeXxs12,
-                    height: 18 / 12,
-                    color: aliases.labelSecondary,
-                  ),
-                ),
-                const SizedBox(height: DswTokens.spaceMd),
-                DsButton(
-                  variant: DsButtonVariant.ghost,
-                  size: DsButtonSize.md,
-                  label: _t('retry'),
-                  onPressed: () => controller.load(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+    // An empty directory renders the normal section (title, intro, add
+    // actions) — React has no empty state.
 
     // Derive savedIdentity like React
     ProviderRow? savedRow;
@@ -409,7 +378,10 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
     final addNamespace = addTarget != null
         ? state.namespaces[addTarget.settingsNs]
         : null;
-    final protocols = const ['openai', 'anthropic', 'google'];
+    // Hand-declared routes live in the pi-ai namespace, which is also the
+    // only one whose schema names the protocols one may speak; without it
+    // mounted there is nothing to declare (React `protocolChoices`).
+    final protocols = protocolChoicesOf(state.namespaces['llm-pi-ai']);
 
     // show delete dialog if needed
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -471,17 +443,6 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                         fontSize: DswTokens.fontSizeXxs12,
                         height: 18 / 12,
                         color: aliases.stateSuccessPrimary,
-                      ),
-                    ),
-                  ],
-                  if (state.credentialError != null) ...[
-                    const SizedBox(height: DswTokens.spaceSm),
-                    Text(
-                      'Credentials unavailable: ${state.credentialError}',
-                      style: TextStyle(
-                        fontSize: DswTokens.fontSizeXxs12,
-                        height: 18 / 12,
-                        color: aliases.stateWarnLabel,
                       ),
                     ),
                   ],
@@ -599,6 +560,11 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                                   variant: DsButtonVariant.ghost,
                                   size: DsButtonSize.sm,
                                   label: _t('edit'),
+                                  semanticLabel: _providerCopy(
+                                    _t('editProvider'),
+                                    target.provider,
+                                    target.displayName,
+                                  ),
                                   onPressed: () {
                                     setState(() {
                                       _savedTarget = null;
@@ -614,6 +580,11 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                                     variant: DsButtonVariant.ghost,
                                     size: DsButtonSize.sm,
                                     label: _t('remove'),
+                                    semanticLabel: _providerCopy(
+                                      _t('removeProvider'),
+                                      target.provider,
+                                      target.displayName,
+                                    ),
                                     onPressed: !state.writable
                                         ? null
                                         : () {
@@ -703,7 +674,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'Custom provider',
+                            _t('customTitle'),
                             style: TextStyle(
                               fontSize: DswTokens.fontSizeS14,
                               fontWeight: FontWeight.w500,
@@ -713,7 +684,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           const SizedBox(height: DswTokens.spaceMd),
                           TextField(
                             decoration: InputDecoration(
-                              labelText: 'Provider ID',
+                              labelText: _t('customRoute'),
                               hintText: 'acme-gateway',
                               filled: true,
                               fillColor: aliases.bgLayer1,
@@ -731,7 +702,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Lowercase identifier, starting with a letter.',
+                            _t('customRouteHint'),
                             style: TextStyle(
                               fontSize: DswTokens.fontSizeXxs12,
                               color: aliases.labelTertiary,
@@ -740,9 +711,9 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           const SizedBox(height: DswTokens.spaceMd),
                           TextField(
                             decoration: InputDecoration(
-                              labelText: 'Display name',
+                              labelText: _t('customDisplayName'),
                               hintText: _customRoute.isEmpty
-                                  ? 'Custom provider'
+                                  ? _t('customDisplayName')
                                   : _customRoute,
                               filled: true,
                               fillColor: aliases.bgLayer1,
@@ -762,8 +733,8 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           const SizedBox(height: DswTokens.spaceMd),
                           TextField(
                             decoration: InputDecoration(
-                              labelText: 'Base URL',
-                              hintText: 'https://gateway.example/v1',
+                              labelText: _t('baseUrl'),
+                              hintText: _t('customBaseUrlPlaceholder'),
                               filled: true,
                               fillColor: aliases.bgLayer1,
                               border: OutlineInputBorder(
@@ -781,7 +752,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           ),
                           const SizedBox(height: DswTokens.spaceMd),
                           DsSelect(
-                            label: 'API protocol',
+                            label: _t('customApi'),
                             value: _customProtocol,
                             enabled:
                                 !_customCommitted &&
@@ -796,8 +767,8 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           const SizedBox(height: DswTokens.spaceMd),
                           TextField(
                             decoration: InputDecoration(
-                              labelText: 'API key',
-                              hintText: 'Enter your API key',
+                              labelText: _t('keyInput'),
+                              hintText: _t('keyPlaceholder'),
                               filled: true,
                               fillColor: aliases.bgLayer1,
                               border: OutlineInputBorder(
@@ -814,7 +785,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                           const SizedBox(height: DswTokens.spaceMd),
                           TextField(
                             decoration: InputDecoration(
-                              labelText: 'Models (comma separated)',
+                              labelText: _t('models'),
                               hintText: 'gpt-4, gpt-3.5-turbo',
                               filled: true,
                               fillColor: aliases.bgLayer1,
@@ -867,10 +838,13 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                               DsButton(
                                 variant: DsButtonVariant.primary,
                                 label: _customBusy
-                                    ? 'Creating…'
-                                    : 'Create provider',
+                                    ? _t('creating')
+                                    : _t('create'),
                                 loading: _customBusy,
-                                onPressed: !_customBusy && state.writable
+                                onPressed:
+                                    !_customBusy &&
+                                        state.writable &&
+                                        _customReady(_takenIds(state))
                                     ? _createCustom
                                     : null,
                               ),
@@ -919,21 +893,6 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                         ),
                       ],
                     ),
-                    if (!state.writable || addable.isEmpty) ...[
-                      const SizedBox(height: DswTokens.spaceSm),
-                      Text(
-                        !state.writable
-                            ? _t('readOnly')
-                            : 'No declared providers available to add. '
-                                'The host LLM plugin may not be mounted, or '
-                                'every declared provider is already configured.',
-                        style: TextStyle(
-                          fontSize: DswTokens.fontSizeXxs12,
-                          height: 18 / 12,
-                          color: aliases.labelTertiary,
-                        ),
-                      ),
-                    ],
                   ],
                 ],
               ),
@@ -948,6 +907,7 @@ class _SettingsModelsScreenState extends ConsumerState<SettingsModelsScreen> {
                 _deleteTarget!.provider,
                 _deleteTarget!.displayName,
               ),
+              closeLabel: _t('close'),
               description: _providerCopy(
                 _deleteTarget!.credentialRef == null
                     ? _t('deleteDescription')

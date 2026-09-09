@@ -33,6 +33,9 @@ abstract final class DswTokens {
   static const Color blue800 = Color(0xFF1E40AF); // rgb(30,64,175)
   static const Color blue900 = Color(0xFF0E3074); // rgb(14,48,116)
   static const Color blue950 = Color(0xFF172554); // rgb(23,37,84)
+  // Context-meter tools segment: the design platform ships no purple static
+  // token, so `ContextMeter.module.css` uses this violet literal verbatim.
+  static const Color meterToolsViolet = Color(0xFFA78BFA); // rgb(167,139,250)
 
   // DeepSeek — 10 stops (+ delete)
   static const Color deepseek50 = Color(0xFFEDF3FE); // rgb(237,243,254)

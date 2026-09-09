@@ -20,6 +20,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/rpc_envelope.dart' show RemoteMethodException;
 import '../../../core/connection/connection_client.dart';
 import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate, localeRevisionProvider;
@@ -111,44 +112,70 @@ class AgentPresetHeroSeat extends ConsumerWidget {
           final result = await ref
               .read(connectionClientProvider)
               .agentPresetSelect(sessionId: sessionId.value, agentPreset: id);
-          final String newPreset =
-              (result['agentPreset'] as String?) ?? id;
+          final String newPreset = (result['agentPreset'] as String?) ?? id;
           // Host-authoritative: update session summary from RPC echo; the
           // remote-event fanout (live_sync remoteBus) will also fold the
           // committed agent-preset/selected, idempotently.
           ref
               .read(sessionsProvider.notifier)
-              .updateSession(sessionId, (s) => s.copyWith(agentPreset: newPreset));
-        } catch (_) {
+              .updateSession(
+                sessionId,
+                (s) => s.copyWith(agentPreset: newPreset),
+              );
+        } catch (e) {
           // Host rejected (agent-preset-locked, not-found, etc.) — preserve
-          // previous mode and keep checkmark on it.
+          // the previous mode and keep checkmark on it, and announce the
+          // refusal once (React `switchRefused` banner, 8s hold).
+          final String reason = e is RemoteMethodException ? e.message : '$e';
+          final String refusedName = chosenText?.name ?? chosenRaw?.name ?? id;
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  t('switchRefused')
+                      .replaceAll('{name}', refusedName)
+                      .replaceAll('{reason}', reason),
+                ),
+                duration: const Duration(seconds: 8),
+              ),
+            );
+          }
         }
       },
-      triggerBuilder: (context, open) => Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DswTokens.spaceSm,
-          vertical: 4,
-        ),
-        decoration: BoxDecoration(
-          color: open ? aliases.interactiveBgHover : aliases.bgOverlay,
-          borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-          border: Border.all(color: aliases.borderL2),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(Icons.tune, size: 12, color: aliases.labelTertiary),
-            const SizedBox(width: 4),
-            Text(
-              chosenText?.name ?? chosenRaw?.name ?? current,
-              style: TextStyle(
-                fontSize: DswTokens.fontSizeXxs12,
-                fontWeight: FontWeight.w600,
-                color: aliases.labelSecondary,
+      triggerBuilder: (context, open) => ConstrainedBox(
+        // React `.seat`: inline-flex center row, gap 4, max-width
+        // min(100%, 240px), min-height 28, padding 0 8px, 16px radius,
+        // transparent with hover wash, 13/20 w500 primary label, 16px
+        // preset glyph, 14px caption chevron.
+        constraints: const BoxConstraints(maxWidth: 240),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: open ? aliases.interactiveBgHover : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.tune, size: 16, color: aliases.labelPrimary),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  chosenText?.name ?? chosenRaw?.name ?? current,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    height: 20 / 13,
+                    fontWeight: FontWeight.w500,
+                    color: aliases.labelPrimary,
+                  ),
+                ),
               ),
-            ),
-            Icon(Icons.expand_more, size: 12, color: aliases.labelTertiary),
-          ],
+              const SizedBox(width: 4),
+              Icon(Icons.expand_more, size: 14, color: aliases.labelCaption),
+            ],
+          ),
         ),
       ),
     );

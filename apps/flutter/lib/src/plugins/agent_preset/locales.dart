@@ -48,6 +48,7 @@ const Map<String, String> kAgentPresetEn = {
   'builtInGroup': 'Built-in',
   'customGroup': 'Custom',
   'noDescription': 'No description.',
+  'switchRefused': 'Could not switch to {name}: {reason}',
   'brokenBadge': 'Failed to load',
   'cancel': 'Cancel',
   'close': 'Close',
@@ -74,6 +75,9 @@ const Map<String, String> kAgentPresetEn = {
   'allPresets': 'All presets',
   'defaultBadge': 'default',
   'deleteUnavailable': 'This deployment has no writable preset directory',
+  'copyFailed': 'Failed to create "{id}": {error}',
+  'deleteFailed': 'Failed to delete "{id}": {error}',
+  'defaultFailed': 'Failed to set default: {error}',
 };
 
 /// Simplified Chinese copy.
@@ -94,8 +98,7 @@ const Map<String, String> kAgentPresetZh = {
   'presetStandardDescription':
       '功能完整的编码 Agent，支持文件编辑、Shell、文件与网页检索、Skills、计划、目标、子代理和工作流。',
   'presetPtcName': 'PTC 模式',
-  'presetPtcDescription':
-      '功能完整的编码 Agent，但默认不提供 workflow 工具；其他工具通过 PTC 模式 SDK 呈现，让模型用一个 TypeScript 程序组合多步操作。',
+  'presetPtcDescription': '功能完整的编码 Agent，但默认不提供 workflow 工具；其他工具通过 PTC 模式 SDK 呈现，让模型用一个 TypeScript 程序组合多步操作。',
   'presetMinimalName': '极简模式',
   'presetMinimalDescription': '仅提供持久 bash 与 str_replace_editor 的双工具编码 Agent。',
   'presetCordisName': '创造模式',
@@ -113,6 +116,7 @@ const Map<String, String> kAgentPresetZh = {
   'builtInGroup': '内置',
   'customGroup': '自定义',
   'noDescription': '暂无描述。',
+  'switchRefused': '无法切换到「{name}」：{reason}',
   'brokenBadge': '加载失败',
   'cancel': '取消',
   'close': '关闭',
@@ -137,6 +141,9 @@ const Map<String, String> kAgentPresetZh = {
   'allPresets': '全部预设',
   'defaultBadge': '默认',
   'deleteUnavailable': '此部署未配置可写的预设目录',
+  'copyFailed': '创建“{id}”失败：{error}',
+  'deleteFailed': '删除“{id}”失败：{error}',
+  'defaultFailed': '设置默认失败：{error}',
 };
 
 /// Localized name/description keys per shipped preset id — user-authored

@@ -205,12 +205,17 @@ void main() {
         kPluginInventoryServiceName,
       )!;
       client.answers['pluginInventory/list'] = {
-        'items': [
-          {'name': 'ui-tool', 'version': '0.0.0', 'enabled': true},
+        'entries': [
+          {
+            'entryId': 'ui-tool',
+            'moduleName': 'ui-tool',
+            'enabled': true,
+            'fiberPhase': 'active',
+          },
         ],
       };
       final rows = await inventory.list();
-      expect(rows.single.name, 'ui-tool');
+      expect(rows.single.moduleName, 'ui-tool');
       expect(client.calls, contains('pluginInventory/list'));
     },
   );

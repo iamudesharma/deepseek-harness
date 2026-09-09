@@ -20,12 +20,24 @@ import 'session_models.dart';
 
 /// Builds the `session.create` wire payload: the workspace binding travels
 /// only when declared; an absent binding lets the host apply its default.
-Map<String, dynamic> sessionCreatePayload({String? workspaceId, String? cwd}) {
+///
+/// `sessionId` (idempotent adopt) and `agentPreset` (preset composition)
+/// mirror `SessionCreateRequest` (`packages/api/session-controller/src/types.ts`).
+Map<String, dynamic> sessionCreatePayload({
+  String? workspaceId,
+  String? cwd,
+  String? sessionId,
+  String? agentPreset,
+}) {
   return {
     // ignore: use_null_aware_elements
     if (workspaceId != null) 'workspaceId': workspaceId,
     // ignore: use_null_aware_elements
     if (cwd != null) 'cwd': cwd,
+    // ignore: use_null_aware_elements
+    if (sessionId != null) 'sessionId': sessionId,
+    // ignore: use_null_aware_elements
+    if (agentPreset != null) 'agentPreset': agentPreset,
   };
 }
 

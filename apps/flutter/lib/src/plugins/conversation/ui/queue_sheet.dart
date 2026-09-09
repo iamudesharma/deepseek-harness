@@ -2,49 +2,161 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/frames.dart';
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef;
 import '../../../core/session/session_models.dart';
+import '../../../core/session/sessions_controller.dart';
+import '../../../features/conversation/message_provider.dart'
+    show Message, MessageRole, optimisticMessagesProvider;
 import '../../../theme/app_theme.dart';
+import '../../conversation/locales.dart' show kConversationNamespace;
 import '../hub.dart';
 import '../queue_state.dart';
 
-/// Bottom sheet that lists authoritative queued inbox items and exposes
-/// per-item edit/remove/steer via the canonical `session.updateQueue`.
+/// Bottom sheet listing the session's queue with per-item edit/remove/steer.
 ///
-/// Only `queued` and `steering` placements are visible (mirrors React's
-/// `QueueDock` filtering). `context` items stay invisible until the agent
-/// claims them. Host remains authoritative — sheet reflects `queueProvider`
-/// which is driven by `session/queue` frames, and actions only complete
-/// when the host pushes the updated snapshot.
-class QueueSheet extends ConsumerWidget {
+/// Flutter port of React `QueueDock` (`queue/QueueDock.tsx`) in sheet chrome:
+/// only `queued` rows show (React filters `placement === 'queued'`), plus
+/// local submission echoes (still-pending optimistic prompts not yet admitted
+/// by queue `rpcId`, React `pendingQueue`) with sending status and disabled
+/// actions until their host rows arrive. Actions run through the canonical
+/// `session.updateQueue`; failures surface localized notices and the busy row
+/// disables its actions while its RPC is in flight.
+class QueueSheet extends ConsumerStatefulWidget {
   const QueueSheet({super.key, required this.sessionId});
   final String sessionId;
 
-  String _preview(QueuedInboxItem item) {
-    final msg = item.message;
-    // Try to extract text preview from the queued message's content blocks.
-    // The host stores `message` as the original prompt's wire shape; for
-    // queued user messages it's typically {content: [{type:'text',text:...}]}.
-    final content = msg['content'];
-    if (content is List) {
-      final texts = content
-          .whereType<Map>()
-          .map((b) => b['text'])
-          .whereType<String>()
-          .toList();
-      if (texts.isNotEmpty) return texts.join(' ').trim();
+  @override
+  ConsumerState<QueueSheet> createState() => _QueueSheetState();
+}
+
+/// Text content of a queued wire message, or null for non-text rows
+/// (React `row.text === null` disables edit with the unsupported hint).
+String? _rowText(Map<String, Object?> msg) {
+  final content = msg['content'];
+  if (content is List) {
+    final texts = content
+        .whereType<Map>()
+        .map((b) => b['text'])
+        .whereType<String>()
+        .toList();
+    if (texts.isNotEmpty) return texts.join(' ').trim();
+  }
+  final text = msg['text'];
+  if (text is String && text.isNotEmpty) return text;
+  return null;
+}
+
+class _QueueSheetState extends ConsumerState<QueueSheet> {
+  /// Item id with an in-flight `updateQueue` RPC (React `busy`).
+  String? _busyId;
+
+  String _fill(String template, Map<String, String> values) {
+    var out = template;
+    values.forEach((key, value) {
+      out = out.replaceAll('{$key}', value);
+    });
+    return out;
+  }
+
+  Future<bool> _applyAction(
+    String itemId,
+    QueueAction action,
+    String failure,
+  ) async {
+    final hub = activatedHub;
+    if (hub == null) return false;
+    setState(() => _busyId = itemId);
+    try {
+      await hub.controller.updateQueue(
+        SessionId(widget.sessionId),
+        MessageId(itemId),
+        action,
+      );
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(failure)));
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (_busyId == itemId) _busyId = null;
+        });
+      }
     }
-    // Fallback to direct text field or id.
-    final text = msg['text'];
-    if (text is String && text.isNotEmpty) return text;
-    return item.id;
+  }
+
+  Future<void> _editRow(
+    String itemId,
+    String initial,
+    String Function(String) t,
+  ) async {
+    final controller = TextEditingController(text: initial);
+    final newText = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t('queue.edit')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t('queue.cancelEdit')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(t('queue.save')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newText == null || newText.trim().isEmpty || newText == initial) {
+      return;
+    }
+    await _applyAction(
+      itemId,
+      QueueActionEdit([
+        {'type': 'text', 'text': newText},
+      ]),
+      t('queue.editFailed'),
+    );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final items =
-        (ref.watch(queueProvider)[sessionId] ?? const <QueuedInboxItem>[])
-            .where((i) => i.placement != 'context')
+  Widget build(BuildContext context) {
+    final t = ref.bindLocale(kConversationNamespace);
+    final running = ref.watch(
+      sessionsProvider.select(
+        (s) => s.byId[SessionId(widget.sessionId)]?.running ?? false,
+      ),
+    );
+    final rows =
+        (ref.watch(queueProvider)[widget.sessionId] ??
+                const <QueuedInboxItem>[])
+            .where((i) => i.placement == 'queued')
             .toList();
+    // Local submission echoes: optimistic user prompts carrying a requestId
+    // the host has not admitted yet (React `pendingQueue`: queued placement,
+    // requestId absent from admitted queue rpcIds).
+    final admitted = rows.map((r) => r.rpcId).whereType<String>().toSet();
+    final pending = ref
+        .watch(optimisticMessagesProvider(widget.sessionId))
+        .where(
+          (m) =>
+              m.role == MessageRole.user &&
+              m.requestId != null &&
+              !admitted.contains(m.requestId),
+        )
+        .toList();
+    final rowCount = rows.length + pending.length;
+
     final aliases =
         Theme.of(context).extension<DswThemeExtension>()?.aliases ??
         (Theme.of(context).brightness == Brightness.dark
@@ -59,12 +171,18 @@ class QueueSheet extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.low_priority, size: 16),
-                const SizedBox(width: 8),
+                Icon(
+                  Icons.low_priority,
+                  size: 14,
+                  color: aliases.labelTertiary,
+                ),
+                const SizedBox(width: 10),
                 Text(
-                  '${items.length} queued',
+                  _fill(t('queue.count'), {'n': '$rowCount'}),
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                    fontSize: DswTokens.fontSizeXs13,
+                    height: 24 / 13,
+                    fontWeight: FontWeight.w500,
                     color: aliases.labelPrimary,
                   ),
                 ),
@@ -75,198 +193,208 @@ class QueueSheet extends ConsumerWidget {
                 ),
               ],
             ),
-            const Divider(height: 16),
-            if (items.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text(
-                  'No queued messages',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: aliases.labelSecondary),
-                ),
-              )
-            else
+            const SizedBox(height: 8),
+            if (rowCount > 0)
               Flexible(
                 child: ListView.separated(
                   shrinkWrap: true,
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemCount: rows.length + pending.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: aliases.borderL1,
+                    indent: 12,
+                    endIndent: 5,
+                  ),
                   itemBuilder: (context, idx) {
-                    final item = items[idx];
-                    final preview = _preview(item);
-                    final isSteering = item.placement == 'steering';
-                    return Card(
-                      child: ListTile(
-                        dense: true,
-                        title: Text(
-                          preview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          '${item.placement} • ${item.id}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        trailing: Wrap(
-                          spacing: 4,
-                          children: [
-                            if (!isSteering)
-                              IconButton(
-                                tooltip: 'Steer',
-                                icon: const Icon(
-                                  Icons.airplanemode_active,
-                                  size: 16,
-                                ),
-                                onPressed: () async {
-                                  final hub = activatedHub;
-                                  if (hub == null) return;
-                                  try {
-                                    await hub.controller.updateQueue(
-                                      SessionId(sessionId),
-                                      MessageId(item.id),
-                                      const QueueActionSteer(),
-                                    );
-                                  } catch (e) {
-                                    if (context.mounted)
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                            SnackBar(
-                                              content: Text('Steer failed: $e'),
-                                            ),
-                                          );
-                                  }
-                                },
+                    if (idx < rows.length) {
+                      return _QueueRow(
+                        key: ValueKey('queue-${rows[idx].id}'),
+                        text: _rowText(rows[idx].message),
+                        fallback: rows[idx].id,
+                        status: null,
+                        running: running,
+                        aliases: aliases,
+                        t: t.call,
+                        onEdit: _busyId != null
+                            ? null
+                            : () => _editRow(
+                                rows[idx].id,
+                                _rowText(rows[idx].message) ?? '',
+                                t.call,
                               ),
-                            IconButton(
-                              tooltip: 'Edit',
-                              icon: const Icon(Icons.edit_outlined, size: 16),
-                              onPressed: () async {
-                                final controller = TextEditingController(
-                                  text: preview,
-                                );
-                                final newText = await showDialog<String>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Edit queued message'),
-                                    content: TextField(
-                                      controller: controller,
-                                      autofocus: true,
-                                      maxLines: 4,
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(ctx),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, controller.text),
-                                        child: const Text('Save'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                controller.dispose();
-                                if (newText == null ||
-                                    newText.trim().isEmpty ||
-                                    newText == preview)
-                                  return;
-                                final hub = activatedHub;
-                                if (hub == null) return;
-                                try {
-                                  await hub.controller.updateQueue(
-                                    SessionId(sessionId),
-                                    MessageId(item.id),
-                                    QueueActionEdit([
-                                      {'type': 'text', 'text': newText},
-                                    ]),
-                                  );
-                                } catch (e) {
-                                  if (context.mounted)
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Edit failed: $e'),
-                                      ),
-                                    );
-                                }
-                              },
-                            ),
-                            IconButton(
-                              tooltip: 'Remove',
-                              icon: const Icon(Icons.delete_outline, size: 16),
-                              onPressed: () async {
-                                final confirmed = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: const Text('Remove queued message?'),
-                                    content: Text(
-                                      '"$preview" will be removed from the queue.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      FilledButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: const Text('Remove'),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirmed != true) return;
-                                final hub = activatedHub;
-                                if (hub == null) return;
-                                try {
-                                  await hub.controller.updateQueue(
-                                    SessionId(sessionId),
-                                    MessageId(item.id),
-                                    const QueueActionRemove(),
-                                  );
-                                } catch (e) {
-                                  if (context.mounted)
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Remove failed: $e'),
-                                      ),
-                                    );
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
+                        onRemove: _busyId != null
+                            ? null
+                            : () => _applyAction(
+                                rows[idx].id,
+                                const QueueActionRemove(),
+                                t('queue.removeFailed'),
+                              ),
+                        onSteer: _busyId != null || !running
+                            ? null
+                            : () => _applyAction(
+                                rows[idx].id,
+                                const QueueActionSteer(),
+                                t('queue.steerFailed'),
+                              ),
+                      );
+                    }
+                    final Message echo = pending[idx - rows.length];
+                    return _QueueRow(
+                      key: ValueKey('queue-pending-${echo.requestId}'),
+                      text: echo.content,
+                      fallback: echo.requestId!,
+                      status: t('queue.sending'),
+                      running: running,
+                      aliases: aliases,
+                      t: t.call,
+                      onEdit: null,
+                      onRemove: null,
+                      onSteer: null,
                     );
                   },
                 ),
               ),
-            const SizedBox(height: 12),
-            if (items.any((i) => i.placement == 'queued'))
-              FilledButton.icon(
-                onPressed: () async {
-                  final hub = activatedHub;
-                  if (hub == null) return;
-                  // Steer all queued items via the same hook the empty-draft Enter uses.
-                  for (final item in items.where(
-                    (i) => i.placement == 'queued',
-                  )) {
-                    try {
-                      await hub.controller.updateQueue(
-                        SessionId(sessionId),
-                        MessageId(item.id),
-                        const QueueActionSteer(),
-                      );
-                    } catch (_) {}
-                  }
-                },
-                icon: const Icon(Icons.airplanemode_active, size: 16),
-                label: const Text('Steer all queued'),
-              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One queue row: preview text, optional sending status, edit/remove/steer
+/// actions (React `.row`: 36px, 13px preview, 28px circle actions).
+class _QueueRow extends StatelessWidget {
+  const _QueueRow({
+    super.key,
+    required this.text,
+    required this.fallback,
+    required this.status,
+    required this.running,
+    required this.aliases,
+    required this.t,
+    required this.onEdit,
+    required this.onRemove,
+    required this.onSteer,
+  });
+
+  /// Text preview, or null for non-text rows (edit disabled).
+  final String? text;
+  final String fallback;
+  final String? status;
+  final bool running;
+  final DswAliases aliases;
+  final String Function(String key) t;
+  final VoidCallback? onEdit;
+  final VoidCallback? onRemove;
+  final VoidCallback? onSteer;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool editable = text != null;
+    return SizedBox(
+      height: 36,
+      child: Row(
+        children: [
+          Icon(Icons.low_priority, size: 14, color: aliases.labelTertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text ?? fallback,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelPrimaryDimmed,
+              ),
+            ),
+          ),
+          if (status != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              status!,
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeXs13,
+                color: aliases.labelTertiary,
+              ),
+            ),
+          ],
+          const SizedBox(width: 10),
+          _QueueAction(
+            tooltip: editable ? t('queue.edit') : t('queue.edit.unsupported'),
+            icon: Icons.edit_outlined,
+            aliases: aliases,
+            onPressed: editable ? onEdit : null,
+          ),
+          _QueueAction(
+            tooltip: t('queue.remove'),
+            icon: Icons.delete_outline,
+            aliases: aliases,
+            onPressed: onRemove,
+          ),
+          Tooltip(
+            message: running ? t('queue.steer') : t('queue.steer.unavailable'),
+            waitDuration: const Duration(milliseconds: 500),
+            child: _QueueAction(
+              tooltip: null,
+              icon: Icons.send_outlined,
+              aliases: aliases,
+              onPressed: onSteer,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 28px circle row action (React `.action`): tertiary glyph, hover tint,
+/// 0.45 opacity while disabled.
+class _QueueAction extends StatelessWidget {
+  const _QueueAction({
+    required this.tooltip,
+    required this.icon,
+    required this.aliases,
+    required this.onPressed,
+  });
+
+  final String? tooltip;
+  final IconData icon;
+  final DswAliases aliases;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = onPressed != null;
+    final Widget button = Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          hoverColor: aliases.interactiveBgHover,
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: Center(
+              child: Icon(icon, size: 14, color: aliases.labelTertiary),
+            ),
+          ),
+        ),
+      ),
+    );
+    if (tooltip == null) return button;
+    // Disabled buttons fire no hover events, so the unsupported hint stays
+    // a native title (React QueueDock).
+    if (!enabled) {
+      return Tooltip(message: tooltip, child: button);
+    }
+    return Tooltip(
+      message: tooltip!,
+      waitDuration: const Duration(milliseconds: 500),
+      child: button,
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connection/connection_client.dart';
+import '../../core/services/runtime_services.dart' show LocaleBindOnWidgetRef;
 import '../../core/settings/settings_scope.dart';
 import '../../theme/app_theme.dart';
 import '../settings_plugins/card_form.dart';
@@ -26,6 +27,8 @@ import '../settings_plugins/cards/web_search_card.dart';
 import '../settings_plugins/widgets/fields.dart';
 import '../settings_plugins/widgets/plugin_card.dart';
 import '../../plugins/settings/registry/settings_plugin_registry.dart';
+import '../../plugins/settings/children/plugins/plugins_settings_plugin.dart'
+    show kPluginsNamespace;
 
 /// Namespace keys — must match Host `settings.describe` entries and
 /// `packages/client/ui-settings-plugins/src/client/*-controller.ts`.
@@ -110,7 +113,9 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
               // Resolve ref from current apiKeyEnv or default.
               final Object? v = _webScope.snapshot.value;
               String ref = 'DEEPSEEK_API_KEY';
-              if (v is Map && v['apiKeyEnv'] is String && (v['apiKeyEnv'] as String).isNotEmpty) {
+              if (v is Map &&
+                  v['apiKeyEnv'] is String &&
+                  (v['apiKeyEnv'] as String).isNotEmpty) {
                 ref = v['apiKeyEnv'] as String;
               }
               await client.credentialsSet(ref: ref, value: text);
@@ -122,7 +127,10 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
         ),
       ],
     );
-    _subagentController = SubagentController(scope: _subagentScope, client: client);
+    _subagentController = SubagentController(
+      scope: _subagentScope,
+      client: client,
+    );
     _extraStore = PluginCardFormStore(
       settingsFaceFactory: (String ns) => SettingsScope<Map<String, Object?>>(
         face: SettingsRpcFace(ref.read(connectionClientProvider)),
@@ -170,17 +178,22 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
     final ConnectionClient client = ref.read(connectionClientProvider);
     final Object? v = _webScope.snapshot.value;
     String refName = 'DEEPSEEK_API_KEY';
-    if (v is Map && v['apiKeyEnv'] is String && (v['apiKeyEnv'] as String).isNotEmpty) {
+    if (v is Map &&
+        v['apiKeyEnv'] is String &&
+        (v['apiKeyEnv'] as String).isNotEmpty) {
       refName = v['apiKeyEnv'] as String;
     }
     try {
-      final Map<String, dynamic> res = await client.credentialsDescribe([refName]);
+      final Map<String, dynamic> res = await client.credentialsDescribe([
+        refName,
+      ]);
       // credentialsDescribe returns {refs: {ref: {configured,writable}}} or similar.
       // Handle both shapes: {value: {ref: ...}} or direct.
       Map<String, dynamic>? view;
       if (res.containsKey('value') && res['value'] is Map) {
         final Map m = res['value'] as Map;
-        if (m.containsKey(refName)) view = (m[refName] as Map?)?.cast<String, dynamic>();
+        if (m.containsKey(refName))
+          view = (m[refName] as Map?)?.cast<String, dynamic>();
       } else if (res.containsKey(refName)) {
         view = (res[refName] as Map?)?.cast<String, dynamic>();
       }
@@ -208,7 +221,8 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
       ]);
       await _refreshWebCredential();
       // Kick subagent catalog if enabled (controller also does on scope change).
-      if (_subagentController.state.enabled && _subagentController.state.catalogStatus == 'idle') {
+      if (_subagentController.state.enabled &&
+          _subagentController.state.catalogStatus == 'idle') {
         _subagentController.refreshCatalog();
       }
       if (!mounted) return;
@@ -236,17 +250,21 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
   @override
   Widget build(BuildContext context) {
     final DswAliases aliases = widget.aliases;
+    final t = ref.bindLocale(kPluginsNamespace);
 
     if (_error != null) {
       return ListView(
         padding: const EdgeInsets.all(DswTokens.spaceLg),
         children: [
           Text(
-            'Loading plugin configuration failed: $_error',
-            style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.stateErrorPrimary),
+            '${t('loadFailed')}: $_error',
+            style: TextStyle(
+              fontSize: DswTokens.fontSizeXxs12,
+              color: aliases.stateErrorPrimary,
+            ),
           ),
           const SizedBox(height: DswTokens.spaceMd),
-          FilledButton(onPressed: _load, child: const Text('Retry')),
+          FilledButton(onPressed: _load, child: Text(t('retry'))),
         ],
       );
     }
@@ -270,7 +288,13 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
     // Third-party cards via registry — mirrors `settings.plugin.item` slot.
     final SettingsPluginRegistry registry = _registry;
     for (final SettingsPluginCardDescriptor desc in registry.cards) {
-      if ({_kShellNs, _kAgentLoopNs, _kWebSearchNs, _kSubagentNs}.contains(desc.namespace)) continue;
+      if ({
+        _kShellNs,
+        _kAgentLoopNs,
+        _kWebSearchNs,
+        _kSubagentNs,
+      }.contains(desc.namespace))
+        continue;
       final CardForm<Map<String, Object?>> form = _extraStore.formFor(desc);
       if (!form.shell().available) continue;
       cards.add(_GenericPluginCard(descriptor: desc, form: form));
@@ -299,23 +323,39 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
         child: ListView(
           padding: const EdgeInsets.all(DswTokens.spaceLg),
           children: [
-            _SectionHeader(title: 'Plugins', aliases: aliases),
-            const SizedBox(height: 4),
-            Text(
-              'Configure and inspect the plugins installed in this deployment.',
-              style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary),
-            ),
-            const SizedBox(height: DswTokens.spaceLg),
-            Container(
-              padding: const EdgeInsets.all(DswTokens.spaceLg),
-              decoration: BoxDecoration(
-                color: aliases.bgLayer2,
-                borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-                border: Border.all(color: aliases.borderL2),
-              ),
-              child: Text(
-                'This deployment exposes no plugin settings.',
-                style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionHeader(title: t('title'), aliases: aliases),
+                    const SizedBox(height: 4),
+                    Text(
+                      t('intro'),
+                      style: TextStyle(
+                        fontSize: DswTokens.fontSizeXxs12,
+                        color: aliases.labelTertiary,
+                      ),
+                    ),
+                    const SizedBox(height: DswTokens.spaceLg),
+                    Container(
+                      padding: const EdgeInsets.all(DswTokens.spaceLg),
+                      decoration: BoxDecoration(
+                        color: aliases.bgLayer2,
+                        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+                        border: Border.all(color: aliases.borderL2),
+                      ),
+                      child: Text(
+                        t('empty'),
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXxs12,
+                          color: aliases.labelTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -328,44 +368,65 @@ class _PluginsTabState extends ConsumerState<PluginsTab> {
       child: ListView(
         padding: const EdgeInsets.all(DswTokens.spaceLg),
         children: [
-          Text(
-            'Plugins',
-            style: TextStyle(
-              fontSize: DswTokens.fontSizeS14,
-              fontWeight: FontWeight.w600,
-              color: aliases.labelPrimary,
-              letterSpacing: 0.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Configure and inspect the plugins installed in this deployment.',
-            style: TextStyle(fontSize: DswTokens.fontSizeXxs12, color: aliases.labelTertiary),
-          ),
-          const SizedBox(height: DswTokens.spaceMd),
-          for (final Widget card in cards) ...[
-            card,
-            const SizedBox(height: DswTokens.spaceSm),
-          ],
-          const SizedBox(height: DswTokens.spaceLg),
-          Container(
-            decoration: BoxDecoration(
-              color: aliases.bgLayer2,
-              borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-              border: Border.all(color: aliases.borderL2),
-            ),
-            padding: const EdgeInsets.all(DswTokens.spaceLg),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: aliases.labelTertiary),
-                const SizedBox(width: DswTokens.spaceSm),
-                Expanded(
-                  child: Text(
-                    '$availableCount plugin settings · Cards are contributed via settings.plugin.item; unavailable plugins leave no trace.',
-                    style: TextStyle(fontSize: 11, color: aliases.labelCaption),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    t('title'),
+                    style: TextStyle(
+                      fontSize: DswTokens.fontSizeS14,
+                      fontWeight: FontWeight.w600,
+                      color: aliases.labelPrimary,
+                      letterSpacing: 0.2,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    t('intro'),
+                    style: TextStyle(
+                      fontSize: DswTokens.fontSizeXxs12,
+                      color: aliases.labelTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: DswTokens.spaceMd),
+                  for (final Widget card in cards) ...[
+                    card,
+                    const SizedBox(height: DswTokens.spaceSm),
+                  ],
+                  const SizedBox(height: DswTokens.spaceLg),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: aliases.bgLayer2,
+                      borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+                      border: Border.all(color: aliases.borderL2),
+                    ),
+                    padding: const EdgeInsets.all(DswTokens.spaceLg),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: aliases.labelTertiary,
+                        ),
+                        const SizedBox(width: DswTokens.spaceSm),
+                        Expanded(
+                          child: Text(
+                            t('countLine')
+                                .replaceAll('{count}', '$availableCount'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: aliases.labelCaption,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -380,14 +441,14 @@ class _SectionHeader extends StatelessWidget {
   final DswAliases aliases;
   @override
   Widget build(BuildContext context) => Text(
-        title,
-        style: TextStyle(
-          fontSize: DswTokens.fontSizeS14,
-          fontWeight: FontWeight.w600,
-          color: aliases.labelPrimary,
-          letterSpacing: 0.2,
-        ),
-      );
+    title,
+    style: TextStyle(
+      fontSize: DswTokens.fontSizeS14,
+      fontWeight: FontWeight.w600,
+      color: aliases.labelPrimary,
+      letterSpacing: 0.2,
+    ),
+  );
 }
 
 /// Generic card for third-party `settings.plugin.item` descriptors.
@@ -399,56 +460,57 @@ class _GenericPluginCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: form,
-        builder: (context, _) {
-          final CardShell shell = form.shell();
-          return PluginCard(
-            title: descriptor.title,
-            description: descriptor.description,
-            shell: shell,
-            onSave: () => form.save(),
-            onDiscard: () => form.discard(),
-            child: Column(
-              children: [
-                for (final CardFieldSpec spec in descriptor.fieldSpecs)
-                  Builder(
-                    builder: (context) {
-                      final CardFieldState st = form.field(spec.field);
-                      return ValueField(
-                        id: 'plugin-config-${descriptor.namespace}-${spec.field}',
-                        label: spec.field,
-                        hint: '',
-                        text: st.text,
-                        overridden: st.overridden,
-                        invalid: st.invalid,
-                        overriddenLabel: 'Overridden',
-                        resetLabel: 'Reset to default',
-                        invalidLabel: 'Enter a number, or leave blank to use the default.',
-                        disabled: !shell.writable,
-                        onEdit: (v) => form.edit(spec.field, v),
-                        onReset: () => form.resetField(spec.field),
-                      );
-                    },
-                  ),
-                for (final CardSecretSpec secret in descriptor.secretSpecs)
-                  Builder(
-                    builder: (context) {
-                      final CardFieldState st = form.field(secret.field);
-                      return SecretField(
-                        id: 'plugin-config-${descriptor.namespace}-${secret.field}',
-                        label: secret.field,
-                        hint: 'Stored outside the settings file. Leave blank to keep the current value.',
-                        text: st.text,
-                        disabled: false,
-                        configured: false,
-                        stateLabel: 'No value configured',
-                        onEdit: (v) => form.edit(secret.field, v),
-                      );
-                    },
-                  ),
-              ],
-            ),
-          );
-        },
+    animation: form,
+    builder: (context, _) {
+      final CardShell shell = form.shell();
+      return PluginCard(
+        title: descriptor.title,
+        description: descriptor.description,
+        shell: shell,
+        onSave: () => form.save(),
+        onDiscard: () => form.discard(),
+        child: Column(
+          children: [
+            for (final CardFieldSpec spec in descriptor.fieldSpecs)
+              Builder(
+                builder: (context) {
+                  final CardFieldState st = form.field(spec.field);
+                  return ValueField(
+                    id: 'plugin-config-${descriptor.namespace}-${spec.field}',
+                    label: spec.field,
+                    hint: '',
+                    text: st.text,
+                    overridden: st.overridden,
+                    invalid: st.invalid,
+                    overriddenLabel: 'Overridden',
+                    resetLabel: 'Reset to default',
+                    invalidLabel:
+                        'Enter a number, or leave blank to use the default.',
+                    disabled: !shell.writable,
+                    onEdit: (v) => form.edit(spec.field, v),
+                    onReset: () => form.resetField(spec.field),
+                  );
+                },
+              ),
+            for (final CardSecretSpec secret in descriptor.secretSpecs)
+              Builder(
+                builder: (context) {
+                  final CardFieldState st = form.field(secret.field);
+                  return SecretField(
+                    id: 'plugin-config-${descriptor.namespace}-${secret.field}',
+                    label: secret.field,
+                    hint: 'Stored outside the settings file. Leave blank to keep the current value.',
+                    text: st.text,
+                    disabled: false,
+                    configured: false,
+                    stateLabel: 'No value configured',
+                    onEdit: (v) => form.edit(secret.field, v),
+                  );
+                },
+              ),
+          ],
+        ),
       );
+    },
+  );
 }

@@ -2,44 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/connection/connection_client.dart';
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef, Translate;
 import '../../../theme/app_theme.dart';
+import '../../../plugins/settings/children/models/models_settings_plugin.dart'
+    show kModelsNamespace;
 import '../../../widgets/primitives/ds_button.dart';
 import '../../../widgets/primitives/ds_input.dart';
 import '../../../widgets/primitives/ds_select.dart';
 import '../models_store.dart';
+import 'model_list_editor.dart'
+    show
+        ModelDraft,
+        ModelListEditor,
+        ProbeTarget,
+        modelDrafts,
+        validateModels;
 
-/// Localized copy for Models settings — mirrors `en` in `locales.ts`.
-const Map<String, String> _t = {
-  'keyInput': 'API key',
-  'keyPlaceholder': 'Enter your API key',
-  'keyPlaceholderNative':
-      'Enter an API key, or leave blank to use environment authentication',
-  'keyStored': 'Configured — enter a new value to replace',
-  'keyEnvLocked': 'Provided by the launch environment (read-only)',
-  'baseUrl': 'Base URL',
-  'baseUrlDefault': 'Provider default',
-  'customized': 'Customized settings',
-  'customDisplayName': 'Display name',
-  'customApi': 'API protocol',
-  'customApiUnset': 'Not selected',
-  'advancedHint':
-      'Other fields live in settings.yaml; edit that section directly.',
-  'cancel': 'Cancel',
-  'apply': 'Apply',
-  'applying': 'Applying…',
-  'model': 'Model',
-  'keyBlank':
-      'Enter the API key, or leave the field empty to keep the stored one.',
-  'keyIllegalCharacters':
-      'This API key is not in a valid format. Please check it.',
-  'conflict': 'Someone else changed these settings while this card was open. Close it and reopen to edit the current values.',
-};
-
-String _tr(String key) => _t[key] ?? key;
-
-// ---------------------------------------------------------------------------
-// Validation helpers — mirrors `apiKey.ts`
-// ---------------------------------------------------------------------------
+// Validation helpers — mirrors `apiKey.ts`. Failure keys resolve through the
+// `settings.models` locale namespace at render; no English copy lives here.
 
 final RegExp _legalApiKey = RegExp(r'^[\x21-\x7E]+$');
 final RegExp _envLine = RegExp(r'^[A-Z][A-Z0-9_]*=[^=]');
@@ -257,7 +238,13 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
   late TextEditingController _keyController;
   late TextEditingController _baseUrlController;
   late TextEditingController _displayNameController;
-  late TextEditingController _modelsController;
+
+  /// Curated model rows (React `catalogProps.models`): the user override when
+  /// one is stored, else the inherited catalog. Edits always materialize a
+  /// user override; reset deletes it back to inheritance.
+  late List<ModelDraft> _modelDrafts;
+  late bool _modelsOverridden;
+  bool _modelsTouched = false;
 
   String? _selectedApi;
   bool _showCustomized = false;
@@ -275,19 +262,20 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
     _displayNameController = TextEditingController(
       text: _stringAt(null, _draft, 'displayName') ?? '',
     );
-    // Models as JSON-ish simple list string for now
-    final models = _draft['models'];
-    _modelsController = TextEditingController(
-      text: models is List
-          ? models
-                .map(
-                  (e) => e is Map
-                      ? (e['id'] ?? e.toString()).toString()
-                      : e.toString(),
-                )
-                .join(', ')
-          : '',
-    );
+    // Models rows: the stored user override, else the inherited catalog
+    // (base pin; React also consults the schema default, which has no Dart
+    // face yet — see ModelsSettingsService).
+    final userModels = getPath(widget.namespace.user, [
+      ...widget.settingsPath,
+      'models',
+    ]);
+    if (userModels is List) {
+      _modelDrafts = modelDrafts(userModels);
+      _modelsOverridden = true;
+    } else {
+      _modelsOverridden = false;
+      _modelDrafts = _inheritedModels();
+    }
     // Determine initial api
     final probeApi =
         _stringAt(null, _draft, 'api') ??
@@ -309,8 +297,8 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
     try {
       final client = ref.read(connectionClientProvider);
       final value = await client.credentialsDescribe([ref_]);
-      final creds = value['credentials'] as Map? ?? {};
-      final entry = creds[ref_];
+      // The Host returns the record bare (`{ref: CredentialInfo}`).
+      final entry = value[ref_];
       if (!mounted) return;
       if (entry is Map) {
         setState(
@@ -324,12 +312,17 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
     }
   }
 
+  /// The catalog beneath the user layer (React `inheritedModels` without the
+  /// schema-default fallback, which has no Dart face yet).
+  List<ModelDraft> _inheritedModels() => modelDrafts(
+    getPath(widget.namespace.base, [...widget.settingsPath, 'models']),
+  );
+
   @override
   void dispose() {
     _keyController.dispose();
     _baseUrlController.dispose();
     _displayNameController.dispose();
-    _modelsController.dispose();
     super.dispose();
   }
 
@@ -340,6 +333,7 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
   }
 
   Future<String?> _applyOnce() async {
+    final Translate t = ref.bindLocale(kModelsNamespace);
     final ns = widget.namespace.ns;
     final layout = _layout;
     // pi-ai profile names conventional ref only when storing a key
@@ -358,21 +352,20 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
       next = _setPath(_draft, ['apiKeyEnv'], ref_);
     }
 
-    // Apply models from text field if changed
-    if (_modelsController.text.trim().isNotEmpty) {
-      final ids = _modelsController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-      final models = ids.map((id) => <String, dynamic>{'id': id}).toList();
-      // Only update if different from current
-      next = _setPath(next, ['models'], models);
-    } else if (_modelsController.text.trim().isEmpty &&
-        _draft.containsKey('models')) {
-      // Keep empty string as no change? If user cleared, unset?
-      // For now if cleared and draft had models, remove?
-      // Keep original draft behavior: only if field was explicitly cleared with spaces -> delete
+    // Models rows mirror React's catalogProps contract: row edits
+    // materialize a user override, reset deletes it back to inheritance, and
+    // untouched rows keep the stored layer as-is (names and capacities ride
+    // along instead of being dropped to bare ids).
+    if (_modelsTouched) {
+      if (_modelsOverridden) {
+        final modelFailure = validateModels(_modelDrafts);
+        if (modelFailure != null) {
+          return "${t('model')} ${modelFailure.index + 1}: ${t(modelFailure.key)}";
+        }
+        next = _setPath(next, ['models'], _modelDrafts);
+      } else if (hasPath(_draft, ['models'])) {
+        next = _deletePath(next, ['models']);
+      }
     }
 
     // Sync typed fields into next
@@ -433,7 +426,9 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
         });
       } catch (e) {
         final msg = e.toString();
-        if (msg.contains('settings-conflict')) return _tr('conflict');
+        if (msg.contains('settings-conflict')) {
+          return ref.bindLocale(kModelsNamespace)('conflict');
+        }
         // Extract message after ':'
         return msg.contains(':') ? msg.split(':').last.trim() : msg;
       }
@@ -487,6 +482,7 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final Translate t = ref.bindLocale(kModelsNamespace);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??
         (theme.brightness == Brightness.dark
@@ -502,26 +498,32 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
     final bool keyLocked = _keyState?.writable == false;
     final String keyPlaceholder;
     if (keyLocked) {
-      keyPlaceholder = _tr('keyEnvLocked');
+      keyPlaceholder = t('keyEnvLocked');
     } else if (_keyState?.configured == true) {
-      keyPlaceholder = _tr('keyStored');
+      keyPlaceholder = t('keyStored');
     } else if (layout == 'pi-ai') {
-      keyPlaceholder = _tr('keyPlaceholderNative');
+      keyPlaceholder = t('keyPlaceholderNative');
     } else {
-      keyPlaceholder = _tr('keyPlaceholder');
+      keyPlaceholder = t('keyPlaceholder');
     }
 
     final ownsIdentity = layout == 'pi-ai' && widget.declared;
+    // A catalog route with custom models also needs the API protocol field.
+    // Protocols come from the owning schema (React `protocolChoices`): no
+    // schema union, no choices — never a hardcoded fallback.
+    final hasCustomModels = layout == 'pi-ai' && _modelsOverridden;
+    final showProtocol = ownsIdentity || hasCustomModels;
+    final List<String> protocols = protocolChoicesOf(widget.namespace);
 
-    // For pi-ai, protocols are the union choices; fallback to common set
-    final List<String> protocols = const ['openai', 'anthropic', 'google'];
+    final modelFailure = _modelsOverridden
+        ? validateModels(_modelDrafts)
+        : null;
 
     final bool submitDisabled =
         disabled ||
         isUnknown ||
         keyFailure != null ||
-        _keyDraft.trim().isEmpty &&
-            false; // credentialRequired not used in normal editor
+        modelFailure != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -563,7 +565,7 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
           ],
           if (isUnknown)
             Text(
-              '${_tr('advancedHint')} (${widget.namespace.ns})',
+              '${t('advancedHint')} (${widget.namespace.ns})',
               style: TextStyle(
                 fontSize: DswTokens.fontSizeXxs12,
                 height: 18 / 12,
@@ -572,13 +574,13 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
             )
           else ...[
             DsInput(
-              label: _tr('keyInput'),
+              label: t('keyInput'),
               hintText: keyPlaceholder,
               controller: _keyController,
               enabled: !disabled && !keyLocked,
               obscureText: true,
               onChanged: (v) => setState(() => _keyDraft = v),
-              errorText: keyFailure != null ? _tr(keyFailure) : null,
+              errorText: keyFailure != null ? t(keyFailure) : null,
             ),
             const SizedBox(height: DswTokens.spaceMd),
             // Customized disclosure
@@ -606,7 +608,7 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          _tr('customized'),
+                          t('customized'),
                           style: TextStyle(
                             fontSize: DswTokens.fontSizeXxs12,
                             fontWeight: FontWeight.w500,
@@ -620,7 +622,7 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
                     const SizedBox(height: DswTokens.spaceMd),
                     if (ownsIdentity) ...[
                       DsInput(
-                        label: _tr('customDisplayName'),
+                        label: t('customDisplayName'),
                         hintText: widget.provider,
                         controller: _displayNameController,
                         enabled: !disabled,
@@ -629,35 +631,91 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
                       const SizedBox(height: DswTokens.spaceMd),
                     ],
                     DsInput(
-                      label: _tr('baseUrl'),
+                      label: t('baseUrl'),
                       hintText: layout == 'deepseek'
                           ? 'https://api.deepseek.com'
-                          : _tr('baseUrlDefault'),
+                          : t('baseUrlDefault'),
                       controller: _baseUrlController,
                       enabled: !disabled,
                       onChanged: (_) => setState(() {}),
                     ),
                     const SizedBox(height: DswTokens.spaceMd),
-                    if (ownsIdentity)
+                    if (showProtocol)
                       DsSelect(
-                        label: _tr('customApi'),
+                        label: t('customApi'),
                         value: _selectedApi,
                         enabled: !disabled,
-                        placeholder: _tr('customApiUnset'),
+                        placeholder: t('customApiUnset'),
                         options: protocols
                             .map((p) => DsSelectOption(value: p, label: p))
                             .toList(),
                         onChanged: (v) => setState(() => _selectedApi = v),
                       ),
-                    if (ownsIdentity) const SizedBox(height: DswTokens.spaceMd),
-                    DsInput(
-                      label: _tr('model'),
-                      hintText: 'model-id, comma separated',
-                      controller: _modelsController,
-                      enabled: !disabled,
-                      onChanged: (_) => setState(() {}),
-                      helperText: _tr('advancedHint'),
+                    if (showProtocol) const SizedBox(height: DswTokens.spaceMd),
+                    if (hasCustomModels)
+                      Text(
+                        t('protocolHint'),
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXxs12,
+                          height: 18 / 12,
+                          color: aliases.labelTertiary,
+                        ),
+                      ),
+                    if (hasCustomModels)
+                      const SizedBox(height: DswTokens.spaceMd),
+                    // Both families edit the same rows through the same
+                    // contract; only the extras differ — pi-ai interrogates
+                    // its endpoint, the direct-DeepSeek family edits rows
+                    // only (React `DeepSeekModelsEditor` has no probe UI).
+                    ModelListEditor(
+                      models: _modelDrafts,
+                      overridden: _modelsOverridden,
+                      onChange: (nextModels) => setState(() {
+                        _modelDrafts = nextModels;
+                        _modelsOverridden = true;
+                        _modelsTouched = true;
+                      }),
+                      onReset: () => setState(() {
+                        _modelDrafts = _inheritedModels();
+                        _modelsOverridden = false;
+                        _modelsTouched = true;
+                      }),
+                      probe: ProbeTarget(
+                        settingsNs: widget.namespace.ns,
+                        provider: layout == 'pi-ai' ? widget.provider : null,
+                        baseURL: _baseUrlController.text.trim().isEmpty
+                            ? null
+                            : _baseUrlController.text.trim(),
+                        api: _selectedApi,
+                        apiKey: _keyDraft.trim().isEmpty
+                            ? null
+                            : _keyDraft.trim(),
+                      ),
+                      probeBlockedMessage: keyFailure != null
+                          ? t(keyFailure)
+                          : null,
+                      onDiscover: (probe) => ref
+                          .read(connectionClientProvider)
+                          .llmDiscoverModels(
+                            settingsNs: probe.settingsNs,
+                            provider: probe.provider,
+                            baseURL: probe.baseURL,
+                            api: probe.api,
+                            apiKey: probe.apiKey,
+                          ),
+                      disabled: disabled,
+                      hideFetch: layout != 'pi-ai',
+                      t: t,
                     ),
+                    if (modelFailure != null)
+                      Text(
+                        "${t('model')} ${modelFailure.index + 1}: ${t(modelFailure.key)}",
+                        style: TextStyle(
+                          fontSize: DswTokens.fontSizeXxs12,
+                          height: 18 / 12,
+                          color: aliases.stateErrorPrimary,
+                        ),
+                      ),
                   ],
                 ],
               ),
@@ -681,14 +739,14 @@ class _ProviderEditorState extends ConsumerState<ProviderEditor> {
               DsButton(
                 variant: DsButtonVariant.ghost,
                 size: DsButtonSize.md,
-                label: _tr('cancel'),
+                label: t('cancel'),
                 onPressed: _busy ? null : () => widget.onClose(false),
               ),
               const SizedBox(width: DswTokens.spaceSm),
               DsButton(
                 variant: DsButtonVariant.primary,
                 size: DsButtonSize.md,
-                label: _busy ? _tr('applying') : _tr('apply'),
+                label: _busy ? t('applying') : t('apply'),
                 loading: _busy,
                 onPressed: submitDisabled ? null : _apply,
               ),

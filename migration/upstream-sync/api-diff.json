@@ -1,22 +1,74 @@
 {
-  "generatedAt": "2026-09-05T08:30:53.454Z",
-  "oldSha": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
-  "newSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-  "total": 1,
+  "generatedAt": "2026-09-09T01:19:04.559Z",
+  "oldSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
+  "newSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+  "total": 5,
   "breaking": 0,
-  "additive": 1,
+  "additive": 5,
   "entries": [
     {
-      "id": "added:fileUploads/upload",
+      "id": "added:workspaceFiles/changes",
       "kind": "added",
       "oldEndpoint": null,
-      "newEndpoint": "fileUploads/upload",
+      "newEndpoint": "workspaceFiles/changes",
       "oldValue": null,
-      "newValue": "fileUploads/upload",
+      "newValue": "workspaceFiles/changes",
       "severity": "P2",
-      "description": "Endpoint added: fileUploads/upload (service fileUploads, mode unary) from packages/client/file-upload/src/index.ts:106",
+      "description": "Endpoint added: workspaceFiles/changes (service workspaceFiles, mode stream) from packages/api/workspace-files/src/index.ts:274",
       "sourceFiles": [
-        "packages/client/file-upload/src/index.ts"
+        "packages/api/workspace-files/src/index.ts"
+      ]
+    },
+    {
+      "id": "added:workspaceFiles/list",
+      "kind": "added",
+      "oldEndpoint": null,
+      "newEndpoint": "workspaceFiles/list",
+      "oldValue": null,
+      "newValue": "workspaceFiles/list",
+      "severity": "P2",
+      "description": "Endpoint added: workspaceFiles/list (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:246",
+      "sourceFiles": [
+        "packages/api/workspace-files/src/index.ts"
+      ]
+    },
+    {
+      "id": "added:workspaceFiles/read",
+      "kind": "added",
+      "oldEndpoint": null,
+      "newEndpoint": "workspaceFiles/read",
+      "oldValue": null,
+      "newValue": "workspaceFiles/read",
+      "severity": "P2",
+      "description": "Endpoint added: workspaceFiles/read (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:197",
+      "sourceFiles": [
+        "packages/api/workspace-files/src/index.ts"
+      ]
+    },
+    {
+      "id": "added:workspaceFiles/readBytes",
+      "kind": "added",
+      "oldEndpoint": null,
+      "newEndpoint": "workspaceFiles/readBytes",
+      "oldValue": null,
+      "newValue": "workspaceFiles/readBytes",
+      "severity": "P2",
+      "description": "Endpoint added: workspaceFiles/readBytes (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:217",
+      "sourceFiles": [
+        "packages/api/workspace-files/src/index.ts"
+      ]
+    },
+    {
+      "id": "added:workspaceFiles/stat",
+      "kind": "added",
+      "oldEndpoint": null,
+      "newEndpoint": "workspaceFiles/stat",
+      "oldValue": null,
+      "newValue": "workspaceFiles/stat",
+      "severity": "P2",
+      "description": "Endpoint added: workspaceFiles/stat (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:233",
+      "sourceFiles": [
+        "packages/api/workspace-files/src/index.ts"
       ]
     }
   ]

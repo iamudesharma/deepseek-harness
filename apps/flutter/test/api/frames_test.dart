@@ -145,6 +145,25 @@ void main() {
         isFalse,
       );
 
+      // `api-session/activity` watermark rides the status frame for list
+      // ordering (React `SessionListState` activity fold).
+      final activityStatus = HostFrame.fromJson({
+        'type': 'host/session-status',
+        'sessionId': 's2',
+        'running': true,
+        'updatedAt': 4242,
+      }) as SessionStatusFrame;
+      expect(activityStatus.running, isTrue);
+      expect(activityStatus.updatedAt, 4242);
+      expect(
+        (HostFrame.fromJson({
+          'type': 'host/session-status',
+          'sessionId': 's2',
+          'running': true,
+        }) as SessionStatusFrame).updatedAt,
+        isNull,
+      );
+
       expect(
         (HostFrame.fromJson({
           'type': 'host/agent-error',

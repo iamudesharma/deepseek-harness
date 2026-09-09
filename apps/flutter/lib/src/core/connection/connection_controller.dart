@@ -511,10 +511,16 @@ class FlutterConnectionController {
           };
         } else if (frame.event == 'api-session/activity') {
           final sid = frame.args.length > 0 ? frame.args[0] : '';
+          // `api-session/activity(sessionId, updatedAt)`: fold the watermark
+          // for list ordering (React `SessionListState` activity fold) —
+          // never drop it to a bare running flip.
+          final stamp = frame.args.length > 1 ? frame.args[1] : null;
           synthetic = {
             'type': 'host/session-status',
             'sessionId': sid is String ? sid : '',
             'running': true,
+            if (stamp is int) 'updatedAt': stamp,
+            if (stamp is num && stamp is! int) 'updatedAt': stamp.toInt(),
           };
           // Also update via onHostEnvelope will handle; for now pass through
         } else if (frame.event == 'api-session/error') {

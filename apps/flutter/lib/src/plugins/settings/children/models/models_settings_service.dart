@@ -38,6 +38,11 @@ class WelcomeNoticeScope extends ChangeNotifier {
 
   final SettingsScope<Object?> _scope;
 
+  /// Whether the first describe round settled (React renders nothing while
+  /// the step is idle/loading, instead of flashing the notice).
+  bool get settled =>
+      _scope.snapshot.status != SettingsScopeStatus.loading;
+
   /// Whether the current notice version needs showing.
   bool get needsShow {
     final value = _scope.snapshot.value;

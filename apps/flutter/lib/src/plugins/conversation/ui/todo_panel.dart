@@ -1,30 +1,32 @@
 /// Todo dock panel — Flutter port of React `TodoPanel.tsx` (`TodoDock`).
 ///
-/// Collapsed-by-default bar above the composer showing `To-dos` + progress
-/// (`5 completed` / active / pending counts), expanding to status-glyphed
-/// rows. Source is the last `todo_write` tool call in the live history
-/// window (the host `todos` projection has no Dart face yet); empty renders
+/// Collapsed-by-default bar above the composer showing the localized title +
+/// progress counts, expanding to status-glyphed rows. Source is the host
+/// `todos` projection ([todoProjectionProvider], React `useProjection`);
+/// while the projection is absent (before the first write) it falls back to
+/// the last `todo_write` tool call in the live history window. Empty renders
 /// nothing, matching React's dock.
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef;
 import '../../../core/session/session_models.dart';
 import '../../../features/conversation/message_provider.dart'
     show liveHistoryProvider;
 import '../../../theme/app_theme.dart';
-
-/// One todo item for the panel.
-class TodoItem {
-  const TodoItem({required this.content, required this.status});
-  final String content;
-  final String status;
-}
+import '../locales.dart' show kConversationNamespace;
+import '../todo_state.dart' show TodoItem, todoProjectionProvider;
 
 /// Derives the current todo list from history: last `todo_write` call args.
+///
+/// Fallback while the host `todos` projection is absent. Mirrors the
+/// tool-card fold's arg sources (`args | arguments | input`, string or map).
 List<TodoItem> currentTodosFromHistory(List<HistoryEntry> history) {
   Map<String, dynamic>? lastArgs;
   for (final entry in history) {
@@ -54,8 +56,7 @@ List<TodoItem> currentTodosFromHistory(List<HistoryEntry> history) {
   final out = <TodoItem>[];
   for (final t in todos) {
     if (t is Map) {
-      final content =
-          (t['content'] ?? t['text'] ?? '').toString();
+      final content = (t['content'] ?? t['text'] ?? '').toString();
       final status = (t['status'] ?? 'pending').toString();
       if (content.isNotEmpty) {
         out.add(TodoItem(content: content, status: status));
@@ -65,15 +66,34 @@ List<TodoItem> currentTodosFromHistory(List<HistoryEntry> history) {
   return out;
 }
 
-String _progressLabel(List<TodoItem> todos) {
+/// Fill a `{name}` template (the `Translate` face takes bare keys only).
+String _fill(String template, Map<String, String> values) {
+  var out = template;
+  values.forEach((key, value) {
+    out = out.replaceAll('{$key}', value);
+  });
+  return out;
+}
+
+/// Header summary: per-status counts joined with en-space + `·`;
+/// zero-count segments omitted (React `progressLabel`).
+String progressLabel(List<TodoItem> todos, String Function(String key) t) {
   final done = todos.where((t) => t.status == 'completed').length;
   final active = todos.where((t) => t.status == 'in_progress').length;
   final pending = todos.length - done - active;
   final parts = <String>[];
-  if (done > 0) parts.add('$done completed');
-  if (active > 0) parts.add('$active in progress');
-  if (pending > 0) parts.add('$pending pending');
-  return parts.join(' · ');
+  if (done > 0) {
+    parts.add(_fill(t('todo.progress.done'), {'done': '$done'}));
+  }
+  if (active > 0) {
+    parts.add(_fill(t('todo.progress.active'), {'active': '$active'}));
+  }
+  if (pending > 0) {
+    parts.add(_fill(t('todo.progress.pending'), {'pending': '$pending'}));
+  }
+  // En spaces (U+2002): HTML collapses runs of ASCII spaces; the separator
+  // needs the literal wide space (React progressLabel).
+  return parts.join(' · ');
 }
 
 /// Dock panel for one session, mounted above the composer.
@@ -90,8 +110,10 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
 
   @override
   Widget build(BuildContext context) {
+    // Projection first (React `TodoDock`), history fallback while absent.
+    final projected = ref.watch(todoProjectionProvider(widget.sessionId));
     final history = ref.watch(liveHistoryProvider(widget.sessionId));
-    final todos = currentTodosFromHistory(history);
+    final todos = projected ?? currentTodosFromHistory(history);
     if (todos.isEmpty) return const SizedBox.shrink();
 
     final ThemeData theme = Theme.of(context);
@@ -100,6 +122,7 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
         (theme.brightness == Brightness.dark
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
+    final t = ref.bindLocale(kConversationNamespace);
 
     // Same horizontal bounds as the composer card below (`composer.dart`:
     // outer `Padding(16,0,16,8)` + `Center` + `ConstrainedBox(maxWidth:780)`
@@ -110,94 +133,115 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 780),
+          // React `.root`: 0.5px l1 border, 12px radius, tip-surface fill.
           child: Container(
             decoration: BoxDecoration(
-              color: aliases.bgLayer2,
+              color: aliases.specificTip,
               borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-              border: Border.all(color: aliases.borderL2),
+              border: Border.all(color: aliases.borderL1, width: 0.5),
             ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-          InkWell(
-            onTap: () => setState(() => _collapsed = !_collapsed),
-            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
+            // React `.body`: column, gap 8, padding 6px 12px.
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Icon(Icons.checklist_rounded,
-                      size: 14, color: aliases.labelTertiary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'To-dos',
-                    style: TextStyle(
-                      fontSize: DswTokens.fontSizeS14,
-                      fontWeight: FontWeight.w600,
-                      color: aliases.labelPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _progressLabel(todos),
-                      style: TextStyle(
-                        fontSize: DswTokens.fontSizeXxs12,
-                        color: aliases.labelSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(
-                    _collapsed
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    size: 16,
-                    color: aliases.labelTertiary,
-                  ),
-                ],
+                horizontal: DswTokens.spaceMd,
+                vertical: 6,
               ),
-            ),
-          ),
-          if (!_collapsed)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final item in todos)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _StatusGlyph(
-                              status: item.status, aliases: aliases),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              item.content,
-                              style: TextStyle(
-                                fontSize: DswTokens.fontSizeS14,
-                                color: item.status == 'completed'
-                                    ? aliases.labelTertiary
-                                    : aliases.labelPrimary,
-                                decoration: item.status == 'completed'
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                              ),
-                            ),
+                  InkWell(
+                    onTap: () => setState(() => _collapsed = !_collapsed),
+                    borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.checklist_rounded,
+                          size: 14,
+                          color: aliases.labelTertiary,
+                        ),
+                        const SizedBox(width: 10),
+                        // React `.title`: 13/24 w500 primary, flex none.
+                        Text(
+                          t('todo.title'),
+                          style: TextStyle(
+                            fontSize: DswTokens.fontSizeXs13,
+                            height: 24 / 13,
+                            fontWeight: FontWeight.w500,
+                            color: aliases.labelPrimary,
                           ),
-                        ],
+                        ),
+                        const SizedBox(width: 10),
+                        // React `.progress`: 13/20 tertiary, ellipsis.
+                        Expanded(
+                          child: Text(
+                            progressLabel(todos, t),
+                            style: TextStyle(
+                              fontSize: DswTokens.fontSizeXs13,
+                              height: 20 / 13,
+                              color: aliases.labelTertiary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(
+                          _collapsed
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          size: 14,
+                          color: aliases.labelTertiary,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!_collapsed) ...[
+                    const SizedBox(height: DswTokens.spaceSm),
+                    // React `.list`: max-height 180px, scrolls inside.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final item in todos)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                // React `.item`: 13/20 secondary, gap 10.
+                                child: Row(
+                                  children: [
+                                    _StatusGlyph(
+                                      status: item.status,
+                                      aliases: aliases,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    // Figma strip is single-line: long items
+                                    // ellipsize with no inline expand.
+                                    Expanded(
+                                      child: Text(
+                                        item.content,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: DswTokens.fontSizeXs13,
+                                          height: 20 / 13,
+                                          color: aliases.labelSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
-        ],
           ),
         ),
-      ),
       ),
     );
   }
@@ -210,24 +254,97 @@ class _StatusGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    IconData icon;
-    Color color;
-    switch (status) {
-      case 'completed':
-        icon = Icons.check_circle_rounded;
-        color = aliases.stateSuccessPrimary;
-        break;
-      case 'in_progress':
-        icon = Icons.autorenew_rounded;
-        color = aliases.stateBusinessPrimary;
-        break;
-      default:
-        icon = Icons.radio_button_unchecked_rounded;
-        color = aliases.labelTertiary;
-    }
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Icon(icon, size: 14, color: color),
+    // React glyphs share the 14px artboard centered in a 16px cell.
+    return SizedBox(
+      width: 16,
+      height: 16,
+      child: Center(
+        child: SizedBox(
+          width: 14,
+          height: 14,
+          child: switch (status) {
+            'completed' => Icon(
+              Icons.check_circle_outline_rounded,
+              size: 14,
+              color: aliases.stateSuccessPrimary,
+            ),
+            'in_progress' => _ProgressRing(color: aliases.stateBusinessPrimary),
+            _ => Icon(
+              Icons.radio_button_unchecked_rounded,
+              size: 14,
+              color: aliases.labelCaption,
+            ),
+          },
+        ),
+      ),
     );
   }
+}
+
+/// In-progress ring: business-blue arc spinning 1s linear infinite
+/// (React `.glyphProgress` + `todo-progress-spin`).
+class _ProgressRing extends StatefulWidget {
+  const _ProgressRing({required this.color});
+  final Color color;
+
+  @override
+  State<_ProgressRing> createState() => _ProgressRingState();
+}
+
+class _ProgressRingState extends State<_ProgressRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: CustomPaint(painter: _RingPainter(color: widget.color)),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+    final r = (size.shortestSide - 1.2) / 2;
+    // Fading arc (gradient approximated by a 270° sweep); rotation comes
+    // from the wrapping RotationTransition.
+    canvas.drawArc(
+      Rect.fromCircle(
+        center: Offset(size.width / 2, size.height / 2),
+        radius: r,
+      ),
+      -math.pi / 2,
+      math.pi * 1.5,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) => old.color != color;
 }

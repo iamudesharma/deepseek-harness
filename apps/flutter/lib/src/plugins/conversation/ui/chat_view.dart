@@ -45,8 +45,7 @@ import '../../deliverables/deliverables_mentions.dart'
     show producedPathsForTurn;
 import '../../deliverables/deliverables_open.dart'
     show canOpenHostPathProvider, openHostPath;
-import '../../deliverables/ui/produced_files_row.dart'
-    show ProducedFilesRow;
+import '../../deliverables/ui/produced_files_row.dart' show ProducedFilesRow;
 
 /// In-memory reader position resilient to transcript width reflow.
 class ChatScrollPosition {
@@ -528,9 +527,8 @@ class _ChatViewState extends ConsumerState<ChatView> {
         atSeq: seq,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Forked to $childId')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Forked to $childId')));
         try {
           final all = await client.getSessions();
           ref.read(sessionsProvider.notifier).setAll(all);
@@ -651,10 +649,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
     // Anchor order (React `orderedVisibleChatNodes`): request-anchored system
     // rows sort with their turn start, ahead of the user bubble they belong
     // to; every other node keeps event order via a stable sort.
-    final ordered = stableChatOrder(
-      items,
-      (it) => chatNodeOrderKey(it.node),
-    );
+    final ordered = stableChatOrder(items, (it) => chatNodeOrderKey(it.node));
     items
       ..clear()
       ..addAll(ordered);
@@ -1450,11 +1445,12 @@ String _formatMessageClock(int timeMs, {int? nowMs}) {
 // ---- TurnTail footer card (mirrors TurnTailNodeView.tsx + TurnUsageDisclosure.tsx) ----
 
 class _TurnTailCard extends ConsumerStatefulWidget {
-  const _TurnTailCard(
-      {required this.node,
-      required this.aliases,
-      this.onFork,
-      required this.sessionId});
+  const _TurnTailCard({
+    required this.node,
+    required this.aliases,
+    this.onFork,
+    required this.sessionId,
+  });
   final TurnTailNode node;
   final DswAliases aliases;
   final VoidCallback? onFork;
@@ -1478,11 +1474,14 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Turn usage · ${_formatTokens(usage.totalTokens)} tok',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: widget.aliases.labelPrimary)),
+              Text(
+                'Turn usage · ${_formatTokens(usage.totalTokens)} tok',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: widget.aliases.labelPrimary,
+                ),
+              ),
               const SizedBox(height: 12),
               _usageRow('Input (uncached)', usage.uncachedInputTokens),
               _usageRow('Output', usage.outputTokens),
@@ -1494,16 +1493,22 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
                 _usageRow('Reasoning', usage.reasoningTokens!),
               if (usage.routes != null && usage.routes!.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text('Routes',
-                    style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: widget.aliases.labelTertiary)),
+                Text(
+                  'Routes',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: widget.aliases.labelTertiary,
+                  ),
+                ),
                 for (final r in usage.routes!)
-                  Text('${r.provider}/${r.model}',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: widget.aliases.labelSecondary)),
+                  Text(
+                    '${r.provider}/${r.model}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: widget.aliases.labelSecondary,
+                    ),
+                  ),
               ],
             ],
           ),
@@ -1518,14 +1523,22 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
       child: Row(
         children: [
           SizedBox(
-              width: 140,
-              child: Text(label,
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: widget.aliases.labelTertiary))),
-          Text(_formatExactTokens(value),
+            width: 140,
+            child: Text(
+              label,
               style: TextStyle(
-                  fontSize: 12, color: widget.aliases.labelSecondary)),
+                fontSize: 12,
+                color: widget.aliases.labelTertiary,
+              ),
+            ),
+          ),
+          Text(
+            _formatExactTokens(value),
+            style: TextStyle(
+              fontSize: 12,
+              color: widget.aliases.labelSecondary,
+            ),
+          ),
         ],
       ),
     );
@@ -1543,46 +1556,65 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Turn time',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: widget.aliases.labelPrimary)),
+              Text(
+                'Turn time',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: widget.aliases.labelPrimary,
+                ),
+              ),
               const SizedBox(height: 12),
-              if (node.runMs != null)
-                _usageRow('Duration', node.runMs!),
+              if (node.runMs != null) _usageRow('Duration', node.runMs!),
               if (node.tokensPerSecond != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(children: [
-                    SizedBox(
+                  child: Row(
+                    children: [
+                      SizedBox(
                         width: 140,
-                        child: Text('Speed',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: widget.aliases.labelTertiary))),
-                    Text(
+                        child: Text(
+                          'Speed',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: widget.aliases.labelTertiary,
+                          ),
+                        ),
+                      ),
+                      Text(
                         '${_formatTokensPerSecond(node.tokensPerSecond!)} tok/s',
                         style: TextStyle(
-                            fontSize: 12,
-                            color: widget.aliases.labelSecondary)),
-                  ]),
+                          fontSize: 12,
+                          color: widget.aliases.labelSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               if (node.ttftMs != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(children: [
-                    SizedBox(
+                  child: Row(
+                    children: [
+                      SizedBox(
                         width: 140,
-                        child: Text('TTFT',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: widget.aliases.labelTertiary))),
-                    Text('${_formatLatencySeconds(node.ttftMs!)}s',
-                        style: TextStyle(
+                        child: Text(
+                          'TTFT',
+                          style: TextStyle(
                             fontSize: 12,
-                            color: widget.aliases.labelSecondary)),
-                  ]),
+                            color: widget.aliases.labelTertiary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${_formatLatencySeconds(node.ttftMs!)}s',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: widget.aliases.labelSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
@@ -1605,8 +1637,11 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
     List<String> produced = const [];
     try {
       final history = ref.watch(liveHistoryProvider(widget.sessionId));
-      produced = producedPathsForTurn(history,
-          turn: node.turn, closingSeq: node.closingSeq ?? node.seq);
+      produced = producedPathsForTurn(
+        history,
+        turn: node.turn,
+        closingSeq: node.closingSeq ?? node.seq,
+      );
     } catch (_) {
       produced = const [];
     }
@@ -1624,13 +1659,12 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
               canOpenPath: canOpen,
               onOpenFile: (path) async {
                 try {
-                  await openHostPath(
-                      ref.read(connectionClientProvider), path);
+                  await openHostPath(ref.read(connectionClientProvider), path);
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Open failed: $e')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('Open failed: $e')));
                   }
                 }
               },
@@ -1676,9 +1710,7 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
                 message: _thumbsDown ? 'Disliked' : 'Dislike',
                 child: IconButton(
                   icon: Icon(
-                    _thumbsDown
-                        ? Icons.thumb_down
-                        : Icons.thumb_down_outlined,
+                    _thumbsDown ? Icons.thumb_down : Icons.thumb_down_outlined,
                     size: 14,
                     color: _thumbsDown
                         ? aliases.stateBusinessPrimary
@@ -1722,35 +1754,43 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
               if (usage != null)
                 TextButton.icon(
                   onPressed: () => _showUsageSheet(usage),
-                  icon: Icon(Icons.data_usage_outlined,
-                      size: 14, color: aliases.labelTertiary),
+                  icon: Icon(
+                    Icons.data_usage_outlined,
+                    size: 14,
+                    color: aliases.labelTertiary,
+                  ),
                   label: Text(
                     'Usage ${_formatTokens(usage.totalTokens)} tok',
                     style: TextStyle(
-                        fontSize: 12, color: aliases.labelSecondary),
+                      fontSize: 12,
+                      color: aliases.labelSecondary,
+                    ),
                   ),
                   style: TextButton.styleFrom(
                     minimumSize: const Size(0, 28),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                 ),
               if (runLabel != null)
                 TextButton.icon(
                   onPressed: _showTimeSheet,
-                  icon: Icon(Icons.schedule_outlined,
-                      size: 14, color: aliases.labelTertiary),
+                  icon: Icon(
+                    Icons.schedule_outlined,
+                    size: 14,
+                    color: aliases.labelTertiary,
+                  ),
                   label: Text(
                     'Ran for $runLabel',
                     style: TextStyle(
-                        fontSize: 12, color: aliases.labelSecondary),
+                      fontSize: 12,
+                      color: aliases.labelSecondary,
+                    ),
                   ),
                   style: TextButton.styleFrom(
                     minimumSize: const Size(0, 28),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                 ),
               Padding(
@@ -2206,7 +2246,8 @@ List<Message> retireOptimisticWithHistory(
       for (final blk in content) {
         if (blk is Map) {
           final text = blk['text'];
-          if (text is String && text.trim().isNotEmpty) buf.writeln(text.trim());
+          if (text is String && text.trim().isNotEmpty)
+            buf.writeln(text.trim());
           if (blk['type'] == 'image') confirmedHasImages = true;
         } else if (blk is String && blk.trim().isNotEmpty) {
           buf.writeln(blk.trim());
@@ -2259,6 +2300,7 @@ class _ReasoningRow extends StatefulWidget {
 
 class _ReasoningRowState extends State<_ReasoningRow> {
   bool _expanded = false;
+  bool _hovered = false;
   final _summaryKey = GlobalKey();
   final _scrollController = ScrollController();
 
@@ -2266,6 +2308,17 @@ class _ReasoningRowState extends State<_ReasoningRow> {
     final locale = Localizations.localeOf(context).languageCode;
     if (locale == 'zh') return kConversationZh['message.think'] ?? 'Think';
     return kConversationEn['message.think'] ?? 'Think';
+  }
+
+  String _runningLabel(BuildContext context) {
+    final locale = Localizations.localeOf(context).languageCode;
+    if (locale == 'zh') return kConversationZh['row.running'] ?? 'Running';
+    return kConversationEn['row.running'] ?? 'Running';
+  }
+
+  bool _animationsDisabled(BuildContext context) {
+    final media = MediaQuery.maybeOf(context);
+    return media?.disableAnimations ?? false;
   }
 
   String _firstLine(String text) {
@@ -2308,89 +2361,177 @@ class _ReasoningRowState extends State<_ReasoningRow> {
     final summary = widget.running
         ? _latestLine(widget.text)
         : _firstLine(widget.text);
-    return Container(
-      decoration: BoxDecoration(
-        color: widget.aliases.bgOverlay.withOpacity(0.6),
-        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-        border: Border.all(color: widget.aliases.borderL2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    // React `ReasoningRow` (+ `DisclosureRow` primitive): transparent 24px
+    // header row — 16px leading box (14px think glyph, chevron on hover),
+    // 13/24 secondary title, 2px separator dot, 13/20 tertiary summary with
+    // end-follow while running; expanded body indented 22px.
+    final header = SizedBox(
+      height: 24,
+      child: Row(
         children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 14,
-                    color: widget.aliases.labelTertiary,
-                  ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.lightbulb_outline,
-                    size: 14,
-                    color: widget.aliases.labelTertiary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _thinkTitle(context),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: widget.aliases.labelTertiary,
-                    ),
-                  ),
-                  if (summary.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        key: _summaryKey,
-                        controller: _scrollController,
-                        scrollDirection: Axis.horizontal,
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Text(
-                          summary,
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: widget.aliases.labelCaption,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(width: 8),
-                  Text(
-                    _expanded ? 'Hide' : 'Show',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: widget.aliases.labelCaption,
-                    ),
-                  ),
-                ],
+          MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: Center(
+                child: Icon(
+                  _hovered || _expanded
+                      ? (_expanded ? Icons.expand_less : Icons.expand_more)
+                      : Icons.lightbulb_outline,
+                  size: 14,
+                  color: widget.aliases.labelTertiary,
+                ),
               ),
             ),
           ),
+          const SizedBox(width: 6),
+          Text(
+            _thinkTitle(context),
+            style: TextStyle(
+              fontSize: DswTokens.fontSizeXs13,
+              height: 24 / 13,
+              color: widget.aliases.labelSecondary,
+            ),
+          ),
+          if (summary.isNotEmpty) ...[
+            Container(
+              width: 2,
+              height: 2,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: widget.aliases.labelCaption,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                key: _summaryKey,
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(),
+                child: Text(
+                  summary,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: DswTokens.fontSizeXs13,
+                    height: 20 / 13,
+                    color: widget.aliases.labelTertiary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    return Semantics(
+      container: true,
+      label: widget.running ? _runningLabel(context) : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Stack(
+            children: [
+              InkWell(
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: header,
+              ),
+              if (widget.running && !_animationsDisabled(context))
+                Positioned.fill(
+                  child: IgnorePointer(child: _Sweep(aliases: widget.aliases)),
+                ),
+            ],
+          ),
           if (_expanded)
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+              padding: const EdgeInsets.fromLTRB(22, 4, 0, 4),
               child: SelectableText(
                 widget.text,
                 style: TextStyle(
-                  fontSize: 12,
-                  color: widget.aliases.labelSecondary,
-                  fontStyle: FontStyle.italic,
-                  height: 1.4,
+                  fontSize: DswTokens.fontSizeXs13,
+                  height: 20 / 13,
+                  color: widget.aliases.labelTertiary,
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Running-state sweep across the reasoning header (React
+/// `dsh-reasoning-row-sweep`: 300px highlight gliding left to right every
+/// 2.6s ease-out). Skipped under reduced motion by the caller.
+class _Sweep extends StatefulWidget {
+  const _Sweep({required this.aliases});
+  final DswAliases aliases;
+
+  @override
+  State<_Sweep> createState() => _SweepState();
+}
+
+class _SweepState extends State<_Sweep> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : 300;
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            // 90% travel then hold, mirroring the keyframe stops.
+            final double t = _controller.value;
+            final double travel = t < 0.9
+                ? Curves.easeOut.transform(t / 0.9)
+                : 1;
+            final double left = -300 + travel * (width + 300);
+            return Stack(
+              children: [
+                Positioned(
+                  left: left,
+                  top: 0,
+                  bottom: 0,
+                  width: 300,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          widget.aliases.bgBase.withValues(alpha: 0.6),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.55, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -2420,7 +2561,11 @@ class _ToolFallbackRowState extends ConsumerState<_ToolFallbackRow> {
         ? widget.aliases.stateBusinessPrimary
         : widget.aliases.labelTertiary;
     return switch (variant) {
-      row_model.ToolRowVariant.search => Icon(Icons.search, size: 14, color: iconColor),
+      row_model.ToolRowVariant.search => Icon(
+        Icons.search,
+        size: 14,
+        color: iconColor,
+      ),
       row_model.ToolRowVariant.read => Icon(
         Icons.description_outlined,
         size: 14,
@@ -3130,11 +3275,17 @@ class _TurnProcessRowState extends ConsumerState<_TurnProcessRow> {
 
   @override
   Widget build(BuildContext context) {
-    final bool open =
-        ref.watch(turnProcessOpenProvider('${widget.sessionId}:${widget.turn}'));
-    void toggle() => ref
-        .read(turnProcessOpenProvider('${widget.sessionId}:${widget.turn}').notifier)
-        .state = !open;
+    final bool open = ref.watch(
+      turnProcessOpenProvider('${widget.sessionId}:${widget.turn}'),
+    );
+    void toggle() =>
+        ref
+                .read(
+                  turnProcessOpenProvider('${widget.sessionId}:${widget.turn}')
+                      .notifier,
+                )
+                .state =
+            !open;
     final bool foldable =
         widget.messageCount > 0 ||
         widget.toolCallCount > 0 ||
@@ -3323,8 +3474,9 @@ final _imageBytesProvider =
 /// TurnProcess `open` store). Lifted out of the row widget so the list can
 /// suppress a collapsed settled turn's member tool rows, mirroring the React
 /// disclosure owning its tool cards.
-final turnProcessOpenProvider =
-    StateProvider.family<bool, String>((ref, _) => false);
+final turnProcessOpenProvider = StateProvider.family<bool, String>(
+  (ref, _) => false,
+);
 
 /// Sort key placing request-anchored system rows with their turn start
 /// (React `requestPromptAnchor`); turn footers (process/tail) sort by their

@@ -22,6 +22,8 @@ import '../../plugins/plan/ui/plan_provider.dart';
 import '../../plugins/permission_presets/permission_session_provider.dart';
 import '../../plugins/attachment/attachment_limits.dart';
 import '../../platform/drag_drop.dart' show ImageLimits;
+import '../../plugins/conversation/todo_state.dart'
+    show todoProjectionProvider, decodeTodoProjection;
 import '../../features/model_selection/model_directory.dart'
     show modelSelectionProjectionProvider, ModelSelection;
 
@@ -138,7 +140,8 @@ ModelSelection? _parseLiveModelSelection(Map<String, dynamic> json) {
     return {
       'provider': p,
       'model': m,
-      if (node['reasoningEffort'] is String) 'reasoningEffort': node['reasoningEffort'],
+      if (node['reasoningEffort'] is String)
+        'reasoningEffort': node['reasoningEffort'],
     };
   }
 
@@ -273,7 +276,7 @@ final liveSyncProvider = Provider<void>((ref) {
               '[liveSync] session/subscribed (legacy, no page) ${sessionId.value} lastSeq $lastSeq',
             );
           }
-          // No `getSessionHistory` — follow snapshot owns the window.
+        // No `getSessionHistory` — follow snapshot owns the window.
         case SessionQueueFrame(:final sessionId, :final items):
           // Authoritative whole-snapshot inbox: store for the queue dock.
           // No `messageListProvider` invalidation — that provider is now a pure
@@ -429,17 +432,32 @@ final liveSyncProvider = Provider<void>((ref) {
               if (value is Map) {
                 final sel = _parseLiveModelSelection(
                   (value is Map<String, dynamic>
-                          ? value
-                          : (value as Map).cast<String, dynamic>()),
+                      ? value
+                      : (value as Map).cast<String, dynamic>()),
                 );
                 ref
-                    .read(modelSelectionProjectionProvider(sessionId.value).notifier)
-                    .state = sel;
+                        .read(
+                          modelSelectionProjectionProvider(sessionId.value)
+                              .notifier,
+                        )
+                        .state =
+                    sel;
               } else {
                 ref
-                    .read(modelSelectionProjectionProvider(sessionId.value).notifier)
-                    .state = null;
+                        .read(
+                          modelSelectionProjectionProvider(sessionId.value)
+                              .notifier,
+                        )
+                        .state =
+                    null;
               }
+            } catch (_) {}
+          } else if (key == 'todos') {
+            // Host `todos` projection: whole `TodoItem[]` snapshot or null
+            // before the first write (last-wins; React `TodoDock`).
+            try {
+              ref.read(todoProjectionProvider(sessionId.value).notifier).state =
+                  decodeTodoProjection(value);
             } catch (_) {}
           }
           break;
@@ -503,10 +521,17 @@ final liveSyncProvider = Provider<void>((ref) {
           // host/session-removed arm drops the tracked interactions).
           questionsCtrl.clear(sessionId.value);
           approvalsCtrl.clear(sessionId.value);
-        case SessionStatusFrame(:final sessionId, :final running):
+        case SessionStatusFrame(
+          :final sessionId,
+          :final running,
+          :final updatedAt,
+        ):
           ref
               .read(sessionsProvider.notifier)
-              .updateSession(sessionId, (s) => s.copyWith(running: running));
+              .updateSession(
+                sessionId,
+                (s) => s.copyWith(running: running, updatedAt: updatedAt),
+              );
         case AgentErrorFrame(:final sessionId, :final message):
           if (kDebugMode)
             debugPrint(
@@ -594,111 +619,140 @@ final liveSyncProvider = Provider<void>((ref) {
     followSessionId = sid;
     followGen = gen;
     final stream = mux.openSessionFollow(sid.value, maxMessages: 50);
-    followSub = stream.listen(
-      (raw) {
-        if (followGen != gen || followSessionId != sid) return;
-        final type = raw['type'] as String?;
-        if (type == 'snapshot') {
-          try {
-            final cursor = raw['cursor'];
-            // Host snapshot.cursor is required by the follow protocol. Do not
-            // replace history from a malformed snapshot: the cursor is the
-            // authoritative cut required by session/page.
-            if (cursor is! int) return;
-            final records = (raw['records'] as List? ?? const [])
-                .whereType<Map>()
-                .map((m) => m.cast<String, dynamic>())
-                .toList();
-            final entries = <HistoryEntry>[];
-            for (final r in records) {
-              if (r['type'] == 'event' && r['event'] is Map) {
-                try {
-                  entries.add(HistoryEntry(
-                    event: SessionEvent.fromJson((r['event'] as Map).cast<String, dynamic>()),
+    followSub = stream.listen((raw) {
+      if (followGen != gen || followSessionId != sid) return;
+      final type = raw['type'] as String?;
+      if (type == 'snapshot') {
+        try {
+          final cursor = raw['cursor'];
+          // Host snapshot.cursor is required by the follow protocol. Do not
+          // replace history from a malformed snapshot: the cursor is the
+          // authoritative cut required by session/page.
+          if (cursor is! int) return;
+          final records = (raw['records'] as List? ?? const [])
+              .whereType<Map>()
+              .map((m) => m.cast<String, dynamic>())
+              .toList();
+          final entries = <HistoryEntry>[];
+          for (final r in records) {
+            if (r['type'] == 'event' && r['event'] is Map) {
+              try {
+                entries.add(
+                  HistoryEntry(
+                    event: SessionEvent.fromJson(
+                      (r['event'] as Map).cast<String, dynamic>(),
+                    ),
                     view: (r['view'] as Map?)?.cast<String, dynamic>(),
-                  ));
-                } catch (_) {}
-              } else if (r['type'] == 'chunks') {
-                // Chunk rows are packed assistant deltas; live streaming handles
-                // them via 'event' type 'assistant/chunk' etc, ignore for history
-              } else if (r.containsKey('type') && r.containsKey('seq')) {
-                try {
-                  entries.add(HistoryEntry(event: SessionEvent.fromJson(r), view: null));
-                } catch (_) {}
-              }
+                  ),
+                );
+              } catch (_) {}
+            } else if (r['type'] == 'chunks') {
+              // Chunk rows are packed assistant deltas; live streaming handles
+              // them via 'event' type 'assistant/chunk' etc, ignore for history
+            } else if (r.containsKey('type') && r.containsKey('seq')) {
+              try {
+                entries.add(
+                  HistoryEntry(event: SessionEvent.fromJson(r), view: null),
+                );
+              } catch (_) {}
             }
-            final bool hasMore = raw['hasMore'] as bool? ?? false;
-            // Use cursor-aware replace to fence live events <= cursor per master sequence rule.
+          }
+          final bool hasMore = raw['hasMore'] as bool? ?? false;
+          // Use cursor-aware replace to fence live events <= cursor per master sequence rule.
+          try {
+            ref
+                .read(liveHistoryProvider(sid.value).notifier)
+                .replaceAllWithCursorAndHasMore(entries, cursor, hasMore);
+          } catch (_) {
             try {
               ref
                   .read(liveHistoryProvider(sid.value).notifier)
-                  .replaceAllWithCursorAndHasMore(entries, cursor, hasMore);
+                  .replaceAllWithCursor(entries, cursor);
+              ref
+                  .read(liveHistoryProvider(sid.value).notifier)
+                  .setHasMore(hasMore);
             } catch (_) {
-              try {
-                ref.read(liveHistoryProvider(sid.value).notifier).replaceAllWithCursor(entries, cursor);
-                ref.read(liveHistoryProvider(sid.value).notifier).setHasMore(hasMore);
-              } catch (_) {
-                ref.read(liveHistoryProvider(sid.value).notifier).replaceAll(entries);
+              ref
+                  .read(liveHistoryProvider(sid.value).notifier)
+                  .replaceAll(entries);
+            }
+          }
+          final proj = raw['projections'] as Map?;
+          if (proj != null) {
+            try {
+              final block = SessionProjectionsBlock.fromJson(
+                proj.cast<String, dynamic>(),
+              );
+              final publishable = publishableProjectionKeys(
+                ref.read(sessionProjectionStores(sid.value)),
+                block,
+              );
+              if (publishable.contains('title')) {
+                final title = block.values['title'];
+                ref
+                    .read(sessionsProvider.notifier)
+                    .updateSession(
+                      sid,
+                      (s) => s.withTitle(
+                        title is String && title.isNotEmpty ? title : null,
+                      ),
+                    );
               }
-            }
-            final proj = raw['projections'] as Map?;
-            if (proj != null) {
-              try {
-                final block = SessionProjectionsBlock.fromJson(proj.cast<String, dynamic>());
-                final publishable = publishableProjectionKeys(
-                  ref.read(sessionProjectionStores(sid.value)),
-                  block,
-                );
-                if (publishable.contains('title')) {
-                  final title = block.values['title'];
-                  ref.read(sessionsProvider.notifier).updateSession(
-                        sid,
-                        (s) => s.withTitle(title is String && title.isNotEmpty ? title : null),
-                      );
-                }
-                if (publishable.contains('modelSelection')) {
-                  final rawMs = block.values['modelSelection'];
-                  if (rawMs is Map) {
-                    try {
-                      final sel = _parseLiveModelSelection(
-                        rawMs.cast<String, dynamic>(),
-                      );
-                      ref
-                          .read(
-                            modelSelectionProjectionProvider(sid.value).notifier,
-                          )
-                          .state = sel;
-                    } catch (_) {}
-                  } else {
+              if (publishable.contains('modelSelection')) {
+                final rawMs = block.values['modelSelection'];
+                if (rawMs is Map) {
+                  try {
+                    final sel = _parseLiveModelSelection(
+                      rawMs.cast<String, dynamic>(),
+                    );
                     ref
-                        .read(modelSelectionProjectionProvider(sid.value).notifier)
-                        .state = null;
-                  }
+                            .read(
+                              modelSelectionProjectionProvider(sid.value)
+                                  .notifier,
+                            )
+                            .state =
+                        sel;
+                  } catch (_) {}
+                } else {
+                  ref
+                          .read(
+                            modelSelectionProjectionProvider(sid.value)
+                                .notifier,
+                          )
+                          .state =
+                      null;
                 }
-              } catch (_) {}
-            }
-          } catch (_) {}
-        } else if (type == 'event') {
-          final ev = raw['event'] as Map?;
-          if (ev == null) return;
-          try {
-            final entry = HistoryEntry(
-              event: SessionEvent.fromJson(ev.cast<String, dynamic>()),
-              view: (raw['view'] as Map?)?.cast<String, dynamic>(),
-            );
-            ref.read(liveHistoryProvider(sid.value).notifier).appendLive(entry);
-            final eventType = ev['type'] as String?;
-            if (eventType != null) {
-              ref.read(sessionsProvider.notifier).updateSession(
-                    sid,
-                    (s) => applySessionEventToSummary(s, eventType) ?? s,
-                  );
-            }
-          } catch (_) {}
-        }
-      },
-      onError: (_) {},
-    );
+              }
+              if (publishable.contains('todos')) {
+                try {
+                  ref.read(todoProjectionProvider(sid.value).notifier).state =
+                      decodeTodoProjection(block.values['todos']);
+                } catch (_) {}
+              }
+            } catch (_) {}
+          }
+        } catch (_) {}
+      } else if (type == 'event') {
+        final ev = raw['event'] as Map?;
+        if (ev == null) return;
+        try {
+          final entry = HistoryEntry(
+            event: SessionEvent.fromJson(ev.cast<String, dynamic>()),
+            view: (raw['view'] as Map?)?.cast<String, dynamic>(),
+          );
+          ref.read(liveHistoryProvider(sid.value).notifier).appendLive(entry);
+          final eventType = ev['type'] as String?;
+          if (eventType != null) {
+            ref
+                .read(sessionsProvider.notifier)
+                .updateSession(
+                  sid,
+                  (s) => applySessionEventToSummary(s, eventType) ?? s,
+                );
+          }
+        } catch (_) {}
+      }
+    }, onError: (_) {});
   }
 
   // State-driven follow-stream opening. Three signals feed the same effect:

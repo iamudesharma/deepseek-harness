@@ -10,26 +10,39 @@ import '../../../../core/connection/connection_client.dart';
 const String kPluginInventoryServiceName = 'settings.pluginInventory';
 
 /// One read-only row of the Host plugin inventory.
+///
+/// Mirrors `PluginInventoryEntry` in `packages/host/plugin-inventory/src/types.ts`:
+/// the Loader order entry id, manifest module name, enabled state, and runtime
+/// fiber phase. There is no version field on the wire.
 class PluginInventoryRow {
   /// Creates one row.
-  const PluginInventoryRow({required this.name, this.version, this.enabled});
+  const PluginInventoryRow({
+    required this.entryId,
+    required this.moduleName,
+    required this.enabled,
+    this.fiberPhase,
+  });
 
   /// Parses one snapshot entry (tolerant: display-only rows).
   factory PluginInventoryRow.fromJson(Map<String, dynamic> json) =>
       PluginInventoryRow(
-        name: json['name'] as String? ?? '',
-        version: json['version'] as String?,
-        enabled: json['enabled'] is bool ? json['enabled'] as bool : null,
+        entryId: json['entryId'] as String? ?? '',
+        moduleName: json['moduleName'] as String? ?? '',
+        enabled: json['enabled'] is bool ? json['enabled'] as bool : false,
+        fiberPhase: json['fiberPhase'] as String?,
       );
 
-  /// Plugin manifest name.
-  final String name;
+  /// Loader entry id.
+  final String entryId;
 
-  /// Resolved version, when the host reports one.
-  final String? version;
+  /// Plugin manifest module name.
+  final String moduleName;
 
-  /// Enabled state, when the host reports one.
-  final bool? enabled;
+  /// Enabled state.
+  final bool enabled;
+
+  /// Runtime fiber phase, when the host reports one.
+  final String? fiberPhase;
 }
 
 /// Read-only inventory list face.
@@ -42,9 +55,9 @@ class PluginInventoryService {
   /// Fetches the Host plugin inventory snapshot.
   Future<List<PluginInventoryRow>> list() async {
     final value = await _client.callMethod('pluginInventory/list', {});
-    final items = value['items'] ?? value['plugins'];
-    if (items is List) {
-      return items
+    final entries = value['entries'];
+    if (entries is List) {
+      return entries
           .whereType<Map>()
           .map((e) => PluginInventoryRow.fromJson(e.cast<String, dynamic>()))
           .toList();

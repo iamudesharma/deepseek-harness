@@ -192,7 +192,8 @@ class ConnectionClient {
           ? baseUrl.substring(0, baseUrl.length - 1)
           : baseUrl,
     );
-    final baseQuery = Map<String, String>.from(baseUri.queryParameters)..remove('token');
+    final baseQuery = Map<String, String>.from(baseUri.queryParameters)
+      ..remove('token');
     final mergedQuery = <String, String>{
       ...baseQuery,
       if (query != null) ...query,
@@ -407,7 +408,13 @@ class ConnectionClient {
   /// cursor must not call this method — wait for the snapshot. `acceptedSeq`
   /// is kept as a deprecated alias for `throughSeq` to preserve existing
   /// valid call sites (`LiveHistory.loadOlder`).
-  Future<({List<HistoryEntry> entries, SessionProjectionsBlock? projections})>
+  Future<
+    ({
+      List<HistoryEntry> entries,
+      SessionProjectionsBlock? projections,
+      bool? hasMore,
+    })
+  >
   getSessionHistory(
     SessionId id, {
     int? beforeSeq,
@@ -439,9 +446,17 @@ class ConnectionClient {
     final entries = _extractEvents(body).map(HistoryEntry.fromJson).toList();
     // Tail projections block carries the current title etc. under `projections`.
     SessionProjectionsBlock? block;
+    // Wire `hasMore` (React `SessionPage.hasMore`, `cut > 0`): authoritative
+    // older-history remainder. Absent on legacy shapes — callers fall back
+    // to the page-fullness heuristic.
+    bool? wireHasMore;
     dynamic cur = body;
     if (cur is Map && cur.containsKey('result')) cur = cur['result'];
     if (cur is Map && cur.containsKey('value')) cur = cur['value'];
+    if (cur is Map && cur.containsKey('hasMore')) {
+      final hm = cur['hasMore'];
+      if (hm is bool) wireHasMore = hm;
+    }
     if (cur is Map && cur.containsKey('projections')) {
       final proj = cur['projections'];
       if (proj is Map) {
@@ -452,7 +467,7 @@ class ConnectionClient {
         } catch (_) {}
       }
     }
-    return (entries: entries, projections: block);
+    return (entries: entries, projections: block, hasMore: wireHasMore);
   }
 
   /// Send a message to [sessionId].
@@ -498,9 +513,19 @@ class ConnectionClient {
   /// `workspace/not-found`, `session/workspace-attach-failed`) throw a typed
   /// [RemoteMethodException] via [_unwrapValue] so callers can classify
   /// retryable workspace-binding rejections without parsing strings.
-  Future<SessionId> createSession({String? workspaceId, String? cwd}) async {
+  Future<SessionId> createSession({
+    String? workspaceId,
+    String? cwd,
+    String? sessionId,
+    String? agentPreset,
+  }) async {
     final body = await _postTypert('session/create', {
-      'request': sessionCreatePayload(workspaceId: workspaceId, cwd: cwd),
+      'request': sessionCreatePayload(
+        workspaceId: workspaceId,
+        cwd: cwd,
+        sessionId: sessionId,
+        agentPreset: agentPreset,
+      ),
     });
     final value = _unwrapValue(body, 'session/create');
     final sid = value['sessionId'];
@@ -518,7 +543,7 @@ class ConnectionClient {
 
   /// `session.updateQueue { sessionId, itemId, action }` — edit/remove/steer
   /// one pending queued occurrence. Mirrors
-  /// `QueueAction` in `packages/host/apiproxy/src/api/sessions.ts`.
+  /// `QueueAction` in `packages/api/session-controller/src/types.ts`.
   Future<void> updateQueue({
     required SessionId sessionId,
     required MessageId itemId,
@@ -946,9 +971,7 @@ class ConnectionClient {
   /// `session/openWorkspacePath { path }` — open one session-aware path on
   /// the host desktop. Never a client-side launcher open: the path lives on
   /// the host machine.
-  Future<Map<String, dynamic>> openWorkspacePath({
-    required String path,
-  }) async {
+  Future<Map<String, dynamic>> openWorkspacePath({required String path}) async {
     final body = await _postTypert('session/openWorkspacePath', {
       'request': {'path': path},
     });
@@ -958,15 +981,9 @@ class ConnectionClient {
   /// `session/fork { sessionId, atSeq? }` — fork one completed-turn prefix
   /// into a new session. Typed face so both call sites share one wire shape
   /// (React `manager.fork` sends `{ sessionId, atSeq? }` under `request`).
-  Future<String> forkSession({
-    required String sessionId,
-    int? atSeq,
-  }) async {
+  Future<String> forkSession({required String sessionId, int? atSeq}) async {
     final body = await _postTypert('session/fork', {
-      'request': {
-        'sessionId': sessionId,
-        if (atSeq != null) 'atSeq': atSeq,
-      },
+      'request': {'sessionId': sessionId, if (atSeq != null) 'atSeq': atSeq},
     });
     final value = _unwrapValue(body, 'session/fork');
     final sid = value['sessionId'];
@@ -1043,6 +1060,7 @@ class ConnectionClient {
     });
     _unwrapValue(body, 'subagents/interruptByParent');
   }
+
   Future<Map<String, dynamic>> credentialsDescribe(List<String> refs) async {
     final body = await _postTypert('credentials/describe', {'refs': refs});
     return _unwrapValue(body, 'credentials/describe');
@@ -1685,7 +1703,8 @@ class ConnectionClient {
     var uri = source.replace(scheme: scheme, path: path);
     // Strip ?token=... for the same reason as _uri — token is only for
     // `GET /?token=` → `Set-Cookie`, not for `wss://…/api/remote.mux?ticket=`.
-    final query = Map<String, String>.from(uri.queryParameters)..remove('token');
+    final query = Map<String, String>.from(uri.queryParameters)
+      ..remove('token');
     if (ticket != null) query['ticket'] = ticket;
     return uri.replace(queryParameters: query.isEmpty ? null : query);
   }

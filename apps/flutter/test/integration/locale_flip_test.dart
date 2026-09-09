@@ -38,7 +38,7 @@ import 'package:dsh_flutter/src/plugins/workspace/locales.dart';
 import 'package:dsh_flutter/src/routing/app_router.dart' show appRouterProvider;
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugDefaultTargetPlatformOverride;
-import 'package:flutter/material.dart' show Size;
+import 'package:flutter/material.dart' show ListView, Size;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -266,7 +266,11 @@ void main() {
 
       container.read(localeServiceProvider).setLocale('zh');
       await tester.pump(const Duration(milliseconds: 50));
-      expect(find.text('工作区'), findsWidgets);
+      expect(
+        find.text('选择工作区'),
+        findsOneWidget,
+        reason: 'hero picker chip placeholder (conversation.hero.chooseWorkspace)',
+      );
     } finally {
       debugDefaultTargetPlatformOverride = prev;
     }

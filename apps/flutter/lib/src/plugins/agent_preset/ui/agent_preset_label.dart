@@ -43,20 +43,29 @@ class AgentPresetHeaderLabel extends ConsumerWidget {
         builder: (context, constraints) {
           final bool iconOnly =
               constraints.maxWidth < 64 && constraints.maxWidth.isFinite;
+          // React `.label`: static 22px row, 6px radius, translucent
+          // secondary fill (token `--dsw-alias-fill-tsp-secondary` is
+          // referenced but undefined upstream, so transparent stands in),
+          // 12/22 secondary text, 4px gap, max-width 180, icon at 70%.
           return Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: iconOnly ? 2 : DswTokens.spaceSm,
-              vertical: 4,
-            ),
+            constraints: const BoxConstraints(maxWidth: 180),
+            height: 22,
+            padding: const EdgeInsets.only(right: 2),
             decoration: BoxDecoration(
-              color: aliases.bgOverlay,
-              borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-              border: Border.all(color: aliases.borderL2),
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.tune, size: 12, color: aliases.labelTertiary),
+                Opacity(
+                  opacity: 0.7,
+                  child: Icon(
+                    Icons.tune,
+                    size: 12,
+                    color: aliases.labelSecondary,
+                  ),
+                ),
                 if (!iconOnly) ...[
                   const SizedBox(width: 4),
                   Flexible(
@@ -65,7 +74,7 @@ class AgentPresetHeaderLabel extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: DswTokens.fontSizeXxs12,
-                        fontWeight: FontWeight.w600,
+                        height: 22 / 12,
                         color: aliases.labelSecondary,
                       ),
                     ),

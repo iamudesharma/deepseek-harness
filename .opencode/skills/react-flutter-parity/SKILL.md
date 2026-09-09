@@ -67,3 +67,9 @@ Detect even when code compiles:
 - **P1:** feature broken/degraded (tool card, queue, trajectory)
 - **P2:** compat risk (new optional field ignored)
 - **P3/UNKNOWN:** informational — **UNKNOWN must be classified** before merge.
+
+## Relation to react-flutter-translation
+
+This skill is the parity-matrix step of the authoritative
+`react-flutter-translation` workflow. For the translation workflow
+itself (box model, tokens, states, screenshots), see that skill.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dsh_flutter/src/core/session/session_models.dart';
+import 'package:dsh_flutter/src/plugins/conversation/todo_state.dart';
 import 'package:dsh_flutter/src/plugins/conversation/ui/todo_panel.dart';
 import 'package:dsh_flutter/src/plugins/deliverables/deliverables_mentions.dart'
     show producedPathsForTurn;
@@ -39,7 +40,7 @@ HistoryEntry _toolResult({
         'message': {
           'source': {'callId': callId},
           'content': [
-            {'type': 'text', 'text': 'ok'}
+            {'type': 'text', 'text': 'ok'},
           ],
         },
         if (isError) 'isError': true,
@@ -54,20 +55,28 @@ void main() {
   group('currentTodosFromHistory', () {
     test('returns last todo_write list', () {
       final history = [
-        _toolCall(seq: 1, name: 'todo_write', args: {
-          'todos': [
-            {'content': 'A', 'status': 'completed'},
-            {'content': 'B', 'status': 'in_progress'},
-          ]
-        }),
+        _toolCall(
+          seq: 1,
+          name: 'todo_write',
+          args: {
+            'todos': [
+              {'content': 'A', 'status': 'completed'},
+              {'content': 'B', 'status': 'in_progress'},
+            ],
+          },
+        ),
         _toolCall(seq: 2, name: 'bash', args: {'command': 'ls'}),
-        _toolCall(seq: 3, name: 'todo_write', args: {
-          'todos': [
-            {'content': 'A', 'status': 'completed'},
-            {'content': 'B', 'status': 'completed'},
-            {'content': 'C', 'status': 'pending'},
-          ]
-        }),
+        _toolCall(
+          seq: 3,
+          name: 'todo_write',
+          args: {
+            'todos': [
+              {'content': 'A', 'status': 'completed'},
+              {'content': 'B', 'status': 'completed'},
+              {'content': 'C', 'status': 'pending'},
+            ],
+          },
+        ),
       ];
       final todos = currentTodosFromHistory(history);
       expect(todos.map((t) => t.content), ['A', 'B', 'C']);
@@ -79,18 +88,45 @@ void main() {
     });
   });
 
+  group('decodeTodoProjection', () {
+    test('decodes whole-list snapshot', () {
+      final todos = decodeTodoProjection([
+        {'content': 'A', 'status': 'completed'},
+        {'content': 'B', 'status': 'in_progress'},
+      ]);
+      expect(todos!.map((t) => t.content), ['A', 'B']);
+      expect(todos.map((t) => t.status), ['completed', 'in_progress']);
+    });
+
+    test('null clears, malformed clears', () {
+      expect(decodeTodoProjection(null), isNull);
+      expect(decodeTodoProjection('oops'), isNull);
+    });
+
+    test('drops empty content, defaults status to pending', () {
+      final todos = decodeTodoProjection([
+        {'content': '', 'status': 'completed'},
+        {'text': 'Kept'},
+      ]);
+      expect(todos!.map((t) => t.content), ['Kept']);
+      expect(todos.single.status, 'pending');
+    });
+  });
+
   group('producedPathsForTurn', () {
     test('write + success yields path, error excluded', () {
       final history = [
-        _toolCall(seq: 1, name: 'write', args: {
-          'file_path': 'src/App.jsx',
-          'content': 'x',
-        }),
+        _toolCall(
+          seq: 1,
+          name: 'write',
+          args: {'file_path': 'src/App.jsx', 'content': 'x'},
+        ),
         _toolResult(seq: 2, callId: 'c1'),
-        _toolCall(seq: 3, name: 'write', args: {
-          'file_path': 'bad.txt',
-          'content': 'x',
-        }),
+        _toolCall(
+          seq: 3,
+          name: 'write',
+          args: {'file_path': 'bad.txt', 'content': 'x'},
+        ),
         _toolResult(seq: 4, callId: 'c3', isError: true),
       ];
       expect(producedPathsForTurn(history, turn: 1), ['src/App.jsx']);
@@ -98,10 +134,11 @@ void main() {
 
     test('dedupes write then edit same path', () {
       final history = [
-        _toolCall(seq: 1, name: 'write', args: {
-          'file_path': 'a.txt',
-          'content': 'x',
-        }),
+        _toolCall(
+          seq: 1,
+          name: 'write',
+          args: {'file_path': 'a.txt', 'content': 'x'},
+        ),
         _toolResult(seq: 2, callId: 'c1'),
         HistoryEntry(
           event: SessionEvent(

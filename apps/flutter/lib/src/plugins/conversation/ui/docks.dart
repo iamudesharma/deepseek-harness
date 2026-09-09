@@ -5,7 +5,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/frames.dart' show QueuedInboxItem;
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef;
+import '../../../features/conversation/message_provider.dart'
+    show MessageRole, optimisticMessagesProvider;
 import '../../../theme/app_theme.dart';
+import '../../conversation/locales.dart' show kConversationNamespace;
 import '../hub.dart';
 import 'queue_sheet.dart';
 import '../queue_state.dart';
@@ -23,12 +29,25 @@ class DocksRow extends ConsumerWidget {
     final hub = activatedHub;
     if (hub == null) return const SizedBox.shrink();
 
-    final queueCount =
+    // React `QueueDock.rowCount`: durable `queued` rows plus local submission
+    // echoes not yet admitted by queue rpcId.
+    final queued =
         ref
             .watch(queueProvider)[sessionId]
-            ?.where((i) => i.placement != 'context')
-            .length ??
-        0;
+            ?.where((i) => i.placement == 'queued')
+            .toList() ??
+        const <QueuedInboxItem>[];
+    final admitted = queued.map((r) => r.rpcId).whereType<String>().toSet();
+    final pendingCount = ref
+        .watch(optimisticMessagesProvider(sessionId))
+        .where(
+          (m) =>
+              m.role == MessageRole.user &&
+              m.requestId != null &&
+              !admitted.contains(m.requestId),
+        )
+        .length;
+    final queueCount = queued.length + pendingCount;
 
     // No docks and no queued rows → no strip at all (the React input dock
     // renders null when its entries are empty).
@@ -42,6 +61,7 @@ class DocksRow extends ConsumerWidget {
         (theme.brightness == Brightness.dark
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
+    final t = ref.bindLocale(kConversationNamespace);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -61,7 +81,7 @@ class DocksRow extends ConsumerWidget {
               borderRadius: BorderRadius.circular(10),
               child: _Chip(
                 icon: Icons.low_priority,
-                label: '$queueCount queued',
+                label: t('queue.count').replaceAll('{n}', '$queueCount'),
               ),
             ),
           for (final id in hub.controller.dockIds)
