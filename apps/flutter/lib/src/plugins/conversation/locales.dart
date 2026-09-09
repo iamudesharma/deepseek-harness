@@ -43,6 +43,15 @@ const Map<String, String> kConversationZh = {
   'tool.title.webFetch': '网页抓取',
   'todo.rowTitle': '更新任务清单',
   // Composer "+" command-menu trigger — mirrors `input.commands` in
+  // Hero workspace placeholder — mirrors `hero.chooseWorkspace` in
+  // ui-conversation locales (React `NS = 'conversation'`).
+  'hero.chooseWorkspace': '选择工作区',
+  // Hero composer placeholder with a workspace — mirrors
+  // `placeholder.hero` in ui-conversation locales.
+  'placeholder.hero': '描述你想要构建的内容… / 调用指令 @ 文件或对话',
+  // Hero composer placeholder with no workspace (composer inert) — mirrors
+  // `placeholder.workspace` in ui-conversation locales.
+  'placeholder.workspace': '选择一个工作区开始',
   // ui-conversation locales (React `+` button tooltip/aria-label).
   'input.commands': '指令',  'todo.completed': '{done}/{total} 已完成',
   'message.think': '思考',
@@ -102,6 +111,15 @@ const Map<String, String> kConversationEn = {
   'tool.title.webFetch': 'Web fetch',
   'todo.rowTitle': 'Update to-do list',
   // Composer "+" command-menu trigger — mirrors `input.commands` in
+  // Hero workspace placeholder — mirrors `hero.chooseWorkspace` in
+  // ui-conversation locales (React `NS = 'conversation'`).
+  'hero.chooseWorkspace': 'Choose workspace',
+  // Hero composer placeholder with a workspace — mirrors
+  // `placeholder.hero` in ui-conversation locales.
+  'placeholder.hero': 'Describe what you want to build... / commands, @ files or sessions',
+  // Hero composer placeholder with no workspace (composer inert) — mirrors
+  // `placeholder.workspace` in ui-conversation locales.
+  'placeholder.workspace': 'Choose a workspace to start',
   // ui-conversation locales (React `+` button tooltip/aria-label).
   'input.commands': 'Commands',
   'todo.completed': '{done}/{total} completed',

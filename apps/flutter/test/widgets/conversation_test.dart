@@ -1,7 +1,9 @@
 import 'package:dsh_flutter/src/core/connection/connection_client.dart';
+import 'package:dsh_flutter/src/core/services/runtime_services.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
 import 'package:dsh_flutter/src/features/conversation/composer_controller.dart';
+import 'package:dsh_flutter/src/plugins/conversation/locales.dart';
 import 'package:dsh_flutter/src/plugins/conversation/ui/conversation_screen.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
 import 'package:dsh_flutter/src/core/settings/settings_scope.dart';
@@ -115,6 +117,14 @@ void main() {
       final seeded = ProviderContainer();
       addTearDown(seeded.dispose);
       seeded.read(sessionsProvider.notifier).addSession(summary);
+      // The bare scope has no plugin activation: register the conversation
+      // dictionaries the hero's copy comes from (production does this in
+      // `ConversationPlugin.apply`) and select English for the assertions.
+      seeded.read(localeServiceProvider).register(kConversationNamespace, {
+        'zh': kConversationZh,
+        'en': kConversationEn,
+      });
+      seeded.read(localeServiceProvider).setLocale('en');
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: seeded,
@@ -133,7 +143,10 @@ void main() {
       expect(find.text('New session'), findsNothing);
       expect(find.text('Into the Unknown'), findsOneWidget);
       expect(find.text('Preview'), findsOneWidget);
-      expect(find.text('Ask anything…'), findsOneWidget);
+      // No workspace on this bare blank: the hero shows the choose-workspace
+      // placeholder with an inert composer (React `placeholder.workspace`).
+      expect(find.text('Choose a workspace to start'), findsOneWidget);
+      expect(find.text('Ask anything…'), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
 

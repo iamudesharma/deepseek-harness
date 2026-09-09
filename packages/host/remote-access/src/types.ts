@@ -78,6 +78,16 @@ export interface WsTicketRequest {
   readonly _empty?: never
 }
 
+/** Public host description for pairing bootstrap (unauthenticated). */
+export interface DescribeResult {
+  /** Stable host identifier. */
+  readonly hostId: string
+  /** Host public key SPKI DER, base64 (for device-side pinning). */
+  readonly hostPublicKey: string
+  /** TLS fingerprint when the remote listener is up. */
+  readonly tlsFingerprint?: string
+}
+
 /** Short-lived WebSocket ticket result. */
 export interface WsTicketResult {
   /** Opaque ticket (signed, 60s TTL). */

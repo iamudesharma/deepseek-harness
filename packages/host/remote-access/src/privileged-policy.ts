@@ -42,12 +42,14 @@ const PRIVILEGED_EXACT: ReadonlySet<string> = new Set([
 
 /**
  * Classify a Remote or RPC endpoint.
- * @param endpoint - wire endpoint like 'session.list' or 'remote.pair'.
+ * @param endpoint - wire endpoint like 'session.list', 'session/list', or 'remote.pair'.
  * @returns 'privileged' or 'safe'.
  */
 export function classifyRemoteMethod(endpoint: string): RemoteMethodClass {
-  if (PRIVILEGED_EXACT.has(endpoint)) return 'privileged'
-  if (PRIVILEGED_PREFIXES.some(prefix => endpoint.startsWith(prefix))) return 'privileged'
+  // The wire carries slash form (`credentials/set`); the table is dot form.
+  const dotted = endpoint.replaceAll('/', '.')
+  if (PRIVILEGED_EXACT.has(dotted)) return 'privileged'
+  if (PRIVILEGED_PREFIXES.some(prefix => dotted.startsWith(prefix))) return 'privileged'
   return 'safe'
 }
 
@@ -64,13 +66,15 @@ export function isRemoteAuthorized(
   tokenScope?: string,
 ): boolean {
   if (authority === 'loopback' || authority === 'trusted-host') return true
+  // The wire carries slash form; classify dot form.
+  const dotted = endpoint.replaceAll('/', '.')
   // Bearer path: safe methods allowed only with 'full' (ws tickets must not be used for HTTP RPC).
-  const klass = classifyRemoteMethod(endpoint)
+  const klass = classifyRemoteMethod(dotted)
   if (klass === 'safe') return tokenScope === 'full'
   // Privileged remote is DENIED unless explicitly authorized (future scope).
   // Phase 2: "For privileged methods, require explicit remote scope/authorization. Do not silently convert loopback into full."
   // Exception: remote.* management endpoints are bearer-full allowed (except pair which is unauthenticated).
-  if (endpoint.startsWith('remote.')) {
+  if (dotted.startsWith('remote.')) {
     return tokenScope === 'full'
   }
   return false

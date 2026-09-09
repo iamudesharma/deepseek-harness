@@ -238,6 +238,19 @@ class ConnectionClient {
     return store.read(t.deviceId);
   }
 
+  /// Drop the cached `GET /?token=` mint after a 401/403.
+  ///
+  /// The rejection may mean the launch token rotated under a live client
+  /// (backend restart) and the minted cookie no longer authenticates.
+  /// Evicting lets the next generation re-mint instead of replaying the dead
+  /// cookie until a full page reload. The rejection itself still throws, so
+  /// the controller's 401 → backoff/`needsReauth` contract is unchanged.
+  void _evictCookieMint() {
+    try {
+      browser_cookie.evictBrowserCookieMint(baseUrl);
+    } catch (_) {}
+  }
+
   /// Normalize a Typert endpoint name to its canonical wire form.
   ///
   /// The host's `endpointFromPath` (`packages/client/connection/src/rpc-host.ts`)
@@ -287,6 +300,7 @@ class ConnectionClient {
       body: jsonEncode(envelope),
     );
     if (resp.statusCode == 401 || resp.statusCode == 403) {
+      _evictCookieMint();
       throw RemoteAuthException(
         resp.statusCode,
         'POST /api/$wire rejected: ${resp.statusCode}',
@@ -324,6 +338,7 @@ class ConnectionClient {
       body: jsonEncode({'rpcId': id, ...payload}),
     );
     if (resp.statusCode == 401 || resp.statusCode == 403) {
+      _evictCookieMint();
       throw RemoteAuthException(
         resp.statusCode,
         'POST $path rejected: ${resp.statusCode}',
@@ -599,6 +614,7 @@ class ConnectionClient {
       body: jsonEncode(message),
     );
     if (resp.statusCode == 401 || resp.statusCode == 403) {
+      _evictCookieMint();
       throw RemoteAuthException(
         resp.statusCode,
         'POST /api/respond rejected: ${resp.statusCode}',
@@ -1156,7 +1172,10 @@ class ConnectionClient {
     };
     final body = await _postTypert('llm/discoverModels', payload);
     final value = _unwrapValue(body, 'llm/discoverModels');
-    final models = value['models'];
+    // The host returns a bare array (`RemoteResult<readonly T[]>`), which
+    // [_unwrapValue] wraps as `{'_list': ...}` (same as `llmListProviders`).
+    // Keep the `models` key as a fallback for older/other reply shapes.
+    final models = value['_list'] ?? value['models'];
     if (models is List) {
       return models
           .whereType<Map>()
@@ -1452,6 +1471,7 @@ class ConnectionClient {
         // into the empty compat stub. Other non-2xx keep the retired-
         // endpoint fallback.
         if (resp.statusCode == 401 || resp.statusCode == 403) {
+          _evictCookieMint();
           throw RemoteAuthException(
             resp.statusCode,
             'POST /api/host.describe rejected: ${resp.statusCode}',

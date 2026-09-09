@@ -83,3 +83,15 @@ void storeBrowserCookie(String authority, String setCookieHeader) {
   if (!setCookieHeader.contains('dsh-auth-')) return;
   _jar[authority] = _cookieNameValue(setCookieHeader);
 }
+
+/// Forget the cached cookie for [baseUrl]'s authority.
+///
+/// The retained `?token=` (when one was ever seen) is kept, so the next
+/// [getBrowserCookie] call re-runs `GET /?token=` and re-mints. Called after
+/// a 401/403, which may mean the launch token rotated (backend restart) and
+/// the cached cookie no longer authenticates.
+void evictBrowserCookieMint(String baseUrl) {
+  final authority = Uri.tryParse(baseUrl)?.authority;
+  if (authority == null || authority.isEmpty) return;
+  _jar.remove(authority);
+}

@@ -27,10 +27,18 @@ export interface AuthRequest {
   readonly url?: string
 }
 
-/** Pairing endpoint that is intentionally unauthenticated. */
-const PAIR_ENDPOINT = 'remote/pair'
+/** Pairing-bootstrap endpoints that are intentionally unauthenticated. */
+const PAIRING_BOOTSTRAP_ENDPOINTS: ReadonlySet<string> = new Set([
+  'remote/pair',
+  'remote/describe',
+])
 
-function bearerToken(headers: IncomingHttpHeaders | Headers): string | undefined {
+/**
+ * Extract one bearer token from request headers (plain object or Fetch Headers).
+ * @param headers - request headers.
+ * @returns the token, or undefined when no bearer credential is present.
+ */
+export function bearerToken(headers: IncomingHttpHeaders | Headers): string | undefined {
   const raw = headers instanceof Headers
     ? headers.get('authorization') ?? headers.get('Authorization') ?? undefined
     : (headers['authorization'] as string | undefined)
@@ -61,7 +69,7 @@ export async function authenticateRequest(
   devices: DeviceRegistry,
   audit: AuditLog,
 ): Promise<RequestAuthority> {
-  if (endpoint === PAIR_ENDPOINT) {
+  if (PAIRING_BOOTSTRAP_ENDPOINTS.has(endpoint)) {
     return { kind: 'pairing' }
   }
   const token = bearerToken(request.headers)

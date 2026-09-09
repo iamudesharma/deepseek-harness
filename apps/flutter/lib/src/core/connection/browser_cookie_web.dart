@@ -2,7 +2,7 @@
 ///
 /// `BrowserClient.withCredentials = true` (http_client_web.dart) will send
 /// `Cookie: dsh-auth-*` automatically **iff** the browser already has it.
-/// The cookie is `HttpOnly SameSite=Strict` set by `GET http://127.0.0.1:3080/?token=...`
+/// The cookie is `HttpOnly SameSite=Lax` set by `GET http://127.0.0.1:3080/?token=...`
 /// → `303` + `Set-Cookie`. React gets it because it is served from `3080`
 /// same-origin. Flutter Web at `5001` is **cross-origin** (different port)
 /// and never hits `GET /?token=` on its own, so every `/api/*` is `401`.
@@ -40,20 +40,42 @@ Future<String?> getBrowserCookie(String baseUrl) async {
   final token = uri.queryParameters['token'];
   if (token == null || token.isEmpty) return null;
   final tokenUrl = uri.replace(path: '/', queryParameters: {'token': token});
+  final client = BrowserClient()..withCredentials = true;
   try {
-    final client = BrowserClient()..withCredentials = true;
     // `GET /?token=` → `303` + `Set-Cookie: dsh-auth-...; Path=/; HttpOnly; SameSite=Lax`
     // Browser stores it for `127.0.0.1:3080`; subsequent fetches to that authority
     // include `Cookie` automatically because `http_client_web.dart` also uses
     // `withCredentials:true` and our webserver CORS is `Allow-Credentials:true`.
-    await client.get(tokenUrl);
-    _fetchedAuthorities.add(authority);
+    // `BrowserClient` follows the `303` to `GET /`, which serves `200` once the
+    // cookie lands, so a 2xx/3xx here means the mint succeeded.
+    final response = await client.get(tokenUrl);
+    if (response.statusCode >= 200 && response.statusCode < 400) {
+      _fetchedAuthorities.add(authority);
+    }
+    // A non-2xx/3xx (e.g. `401` after the launch token rotated under a live
+    // client on backend restart) stays uncached so the next call retries the
+    // mint instead of 401ing every `/api/*` until a full page reload.
   } catch (_) {
     // Non-fatal — the next Typert POST will still 401 and the controller will
     // retry after the cookie is eventually set. Do not cache failures so the
     // next call retries the mint. Do not block the caller.
+  } finally {
+    client.close();
   }
   return null;
+}
+
+/// Forget the cached mint for [baseUrl]'s authority.
+///
+/// The browser's jar keeps whatever cookie it holds; this only clears the
+/// "mint already attempted" latch so the next call retries `GET /?token=`.
+/// Called after a 401/403, which may mean the launch token rotated (backend
+/// restart) and the minted cookie no longer authenticates.
+void evictBrowserCookieMint(String baseUrl) {
+  final authority = Uri.tryParse(baseUrl)?.authority;
+  if (authority != null && authority.isNotEmpty) {
+    _fetchedAuthorities.remove(authority);
+  }
 }
 
 /// No-op on web — the browser's jar is authoritative.

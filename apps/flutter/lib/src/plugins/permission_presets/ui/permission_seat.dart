@@ -9,7 +9,7 @@ import '../../../core/session/session_models.dart'
 import '../../../core/session/session_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/primitives/anchored_menu.dart';
-import '../locales.dart';
+import '../locales.dart' show displayPermissionPreset, kPermissionAccessNamespace;
 import '../permission_session_provider.dart';
 
 /// Current-session permission seat — port of React's `ui-permission-presets`
@@ -158,10 +158,20 @@ class _PermissionSeatState extends ConsumerState<PermissionSeat> {
     final Translate tcommon = ref.bindLocale(kCommonNamespace);
     final current = select.currentValue;
     final isCustom = select.isCustom;
+    // Built-in values resolve through the locale dictionary (React
+    // `displayPermissionPreset`); renamed customs keep their own name.
+    String presetLabel(String value, String name) =>
+        displayPermissionPreset(value, name, t);
     final label = isCustom
         ? t('custom')
-        : select.options.where((o) => o.value == current).firstOrNull?.name ??
-              current;
+        : presetLabel(
+            current,
+            select.options
+                    .where((o) => o.value == current)
+                    .firstOrNull
+                    ?.name ??
+                current,
+          );
 
     return AnchoredMenu(
       aliases: aliases,
@@ -169,7 +179,7 @@ class _PermissionSeatState extends ConsumerState<PermissionSeat> {
         for (final opt in select.options)
           AnchoredMenuItem(
             value: opt.value,
-            label: opt.name,
+            label: presetLabel(opt.value, opt.name),
             description: opt.description,
             selected: current == opt.value,
             enabled: opt.value != 'custom' && !_switching,

@@ -986,20 +986,10 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                                 ],
                               ),
                             ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            // Desktop submits via the shortcut; touch uses
-                            // the send disc, so the hint is desktop-only.
-                            child: isMobileLayout
-                                ? const SizedBox.shrink()
-                                : Text(
-                                    'Cmd+Enter to send',
-                                    style: TextStyle(
-                                      fontSize: DswTokens.fontSizeXxs12,
-                                      color: aliases.labelCaption,
-                                    ),
-                                  ),
-                          ),
+                          // No submit-hint line: React has none in either hero or
+                          // docked composer (helper copy lives in the notice
+                          // strip / Toasts). Desktop submits via the
+                          // Shortcuts above, touch via the send disc.
                         ],
                       ),
                     ),

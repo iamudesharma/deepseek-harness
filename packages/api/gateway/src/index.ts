@@ -162,6 +162,19 @@ export class TypertGatewayError extends RemoteError<TypertGatewayErrorCode> {
 }
 
 /**
+ * Ticket/mux upgrade authorizer contributed by the remote-access foundation
+ * when mounted. Structural (no package dependency): the gateway must not
+ * require remote access to serve loopback browsers.
+ */
+interface MuxUpgradeAuthorizer {
+  /**
+   * Authorize one remote.mux upgrade from its request url.
+   * @param url - upgrade request url carrying `?ticket=`.
+   * @returns the authorization decision.
+   */
+  authorizeMuxUpgrade(url: string | undefined): Promise<'proceed' | 'forbidden' | 'unauthenticated'>
+}
+/**
  * Resolve strict generated definitions or conservative SRC markers against
  * current Cordis Services and Typert providers.
  * @typert service typertGateway
@@ -213,11 +226,31 @@ export class TypertGatewayService extends Service implements TypertGateway {
           path: REMOTE_STREAM_MUX_PATH,
           handler: (req, socket, head) => {
             const rejection = webCtx.connection.requestRejection(req)
-            if (rejection !== undefined) {
-              rejectRemoteStreamUpgrade(socket, rejection)
+            // Remote-access foundation mounted: single-use ws tickets admit
+            // callers the browser fence turns away (LAN clients without the
+            // cookie session). Absent foundation preserves loopback-only
+            // behavior; a passed fence never consults tickets.
+            const foundation = webCtx.get('remoteAccessFoundation') as MuxUpgradeAuthorizer | undefined
+            if (foundation === undefined || rejection === undefined) {
+              if (rejection !== undefined) {
+                rejectRemoteStreamUpgrade(socket, rejection)
+                return
+              }
+              mux.handleUpgrade(req, socket, head)
               return
             }
-            mux.handleUpgrade(req, socket, head)
+            foundation.authorizeMuxUpgrade(req.url).then(
+              (decision) => {
+                if (decision === 'proceed') {
+                  mux.handleUpgrade(req, socket, head)
+                  return
+                }
+                rejectRemoteStreamUpgrade(socket, decision === 'forbidden' ? 403 : 401)
+              },
+              () => {
+                rejectRemoteStreamUpgrade(socket, 401)
+              },
+            )
           },
         }
         const unregister = webCtx.webServer.registerUpgrade(route)

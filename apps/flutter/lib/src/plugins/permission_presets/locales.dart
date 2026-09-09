@@ -36,6 +36,11 @@ const Map<String, String> kPermissionSettingsEn = {
 
 /// Simplified Chinese dictionary for the current-session popup gate.
 const Map<String, String> kPermissionAccessZh = {
+  // Built-in product labels (mirrors accessZh preset.* — the seat resolves
+  // conventional values through these, like React `displayPermissionPreset`).
+  'preset.readOnly': '仅可查看',
+  'preset.workspaceWrite': '工作区内修改',
+  'preset.fullAccess': '完全权限',
   // Flutter-surface additions: the composer gate chip's own chrome.
   'accessMode': '访问模式',
   'custom': '自定义',
@@ -49,6 +54,9 @@ const Map<String, String> kPermissionAccessZh = {
 
 /// English dictionary for the current-session popup gate.
 const Map<String, String> kPermissionAccessEn = {
+  'preset.readOnly': 'Read Only',
+  'preset.workspaceWrite': 'Workspace Write',
+  'preset.fullAccess': 'Full access',
   'accessMode': 'Access mode',
   'custom': 'Custom',
   'switchFailed': 'Permission switch failed',
@@ -62,6 +70,50 @@ const Map<String, String> kPermissionAccessEn = {
 /// Machine value of the preset that requires an explicit GUI risk gate
 /// (mirrors presentation.ts FULL_ACCESS_PRESET).
 const String kFullAccessPreset = 'danger-full-access';
+
+// ---------------------------------------------------------------------------
+// Preset labels — mirrors `presentation.ts`
+// ---------------------------------------------------------------------------
+
+/// Locale key for a built-in permission preset label.
+const Map<String, String> kPresetLabelKeys = {
+  'read-only': 'preset.readOnly',
+  'workspace-write': 'preset.workspaceWrite',
+  kFullAccessPreset: 'preset.fullAccess',
+};
+
+/// English defaults used to recognize host-supplied conventional names.
+const Map<String, String> kDefaultPresetLabels = {
+  'preset.readOnly': 'Read Only',
+  'preset.workspaceWrite': 'Workspace Write',
+  'preset.fullAccess': 'Full access',
+};
+
+/// Converts conventional kebab-case preset names into title case, mirroring
+/// `displayPresetName` (non-kebab labels pass through unchanged).
+String displayPresetName(String name) {
+  if (!RegExp(r'^[a-z0-9]+(-[a-z0-9]+)*$').hasMatch(name)) return name;
+  return name
+      .split('-')
+      .map((word) => word[0].toUpperCase() + word.substring(1))
+      .join(' ');
+}
+
+/// Renders a permission preset under its product label, mirroring
+/// `displayPermissionPreset`: a built-in value whose host name is still the
+/// conventional default resolves through the locale dictionary; a renamed
+/// (custom) preset keeps its own name verbatim.
+String displayPermissionPreset(
+  String value,
+  String name,
+  String Function(String key) t,
+) {
+  final key = kPresetLabelKeys[value];
+  if (key != null && (name == value || name == kDefaultPresetLabels[key])) {
+    return t(key);
+  }
+  return displayPresetName(name);
+}
 
 /// Host settings namespace the default preset is persisted under
 /// (mirrors settings-store.ts PERMISSION_SETTINGS_NS).

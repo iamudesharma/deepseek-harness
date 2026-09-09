@@ -21,3 +21,10 @@ Future<String?> getBrowserCookie(String baseUrl) async => null;
 /// No-op on web. On native, extracts the `name=value` prefix before `;`
 /// and caches it keyed by authority.
 void storeBrowserCookie(String authority, String setCookieHeader) {}
+
+/// Forget the cached cookie mint for [baseUrl]'s authority.
+///
+/// No-op when nothing was cached. The next [getBrowserCookie] call retries
+/// `GET /?token=` — the recovery path after a 401/403 that may mean the
+/// launch token rotated under a live client (backend restart).
+void evictBrowserCookieMint(String baseUrl) {}

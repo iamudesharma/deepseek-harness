@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connection/connection_client.dart';
 import '../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
+import '../../plugins/agent_preset/locales.dart'
+    show kAgentPresetNamespace, presetDisplayText;
 import '../../plugins/settings/children/plugin_inventory/plugin_inventory_plugin.dart'
     show kInventoryNamespace;
 import '../../theme/app_theme.dart';
@@ -80,6 +82,7 @@ class _PresetRow {
 class _PresetGroup {
   const _PresetGroup({
     required this.id,
+    required this.trust,
     required this.name,
     required this.isDefault,
     required this.broken,
@@ -87,6 +90,7 @@ class _PresetGroup {
   });
 
   final String id;
+  final String trust;
   final String? name;
   final bool isDefault;
   final String? broken;
@@ -96,6 +100,9 @@ class _PresetGroup {
     final List<dynamic> raw = j['rows'] as List<dynamic>? ?? const [];
     return _PresetGroup(
       id: j['id'] as String? ?? '',
+      // Absent trust never localizes (React's `trust === 'system'` fold):
+      // unknown provenance keeps file metadata verbatim.
+      trust: j['trust'] as String? ?? 'user',
       name: j['name'] as String?,
       isDefault: j['isDefault'] as bool? ?? false,
       broken: j['broken'] as String?,
@@ -106,7 +113,19 @@ class _PresetGroup {
     );
   }
 
-  String get displayName => name ?? id;
+}
+
+/// Preset name exactly as React's injected `presetName`: shipped system
+/// presets resolve through the agent-preset locale dictionary, user-authored
+/// metadata passes through verbatim. [presetT] is bound to
+/// [kAgentPresetNamespace], not the inventory chrome dictionary.
+String _presetDisplayName(_PresetGroup preset, Translate presetT) {
+  return presetDisplayText(
+    id: preset.id,
+    builtIn: preset.trust == 'system',
+    t: presetT,
+    name: preset.name,
+  ).name;
 }
 
 String _shortName(String moduleName) {
@@ -162,8 +181,8 @@ _PresetGroup? _fallbackPreset(List<_PresetGroup> presets) {
   return presets.isEmpty ? null : presets.first;
 }
 
-String _presetLabel(_PresetGroup preset, Translate t) {
-  final String name = preset.displayName;
+String _presetLabel(_PresetGroup preset, Translate t, Translate presetT) {
+  final String name = _presetDisplayName(preset, presetT);
   if (preset.broken != null) {
     return t('presetOptionBroken').replaceAll('{name}', name);
   }
@@ -241,6 +260,10 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
   Widget build(BuildContext context) {
     final DswAliases aliases = widget.aliases;
     final Translate t = ref.bindLocale(kInventoryNamespace);
+    // Shipped preset names resolve through the agent-preset dictionary (React
+    // binds `settings.agentPreset` for the same switcher); inventory chrome
+    // stays on its own namespace.
+    final Translate presetT = ref.bindLocale(kAgentPresetNamespace);
 
     if (_status == _InvStatus.loading) {
       return Center(child: Text(t('loading')));
@@ -386,6 +409,7 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
             _PresetGroupSection(
               aliases: aliases,
               t: t,
+              presetT: presetT,
               preset: selected,
               presets: _presets,
               rows: selectedRows,
@@ -407,6 +431,7 @@ class _InventoryTabState extends ConsumerState<InventoryTab> {
             _GlobalGroupSection(
               aliases: aliases,
               t: t,
+              presetT: presetT,
               failed: filteredFailed,
               regular: filteredRegular,
               globalCount: globalCount,
@@ -459,6 +484,7 @@ class _PresetGroupSection extends StatelessWidget {
   const _PresetGroupSection({
     required this.aliases,
     required this.t,
+    required this.presetT,
     required this.preset,
     required this.presets,
     required this.rows,
@@ -474,6 +500,7 @@ class _PresetGroupSection extends StatelessWidget {
 
   final DswAliases aliases;
   final Translate t;
+  final Translate presetT;
   final _PresetGroup preset;
   final List<_PresetGroup> presets;
   final List<_PresetRow> rows;
@@ -535,7 +562,7 @@ class _PresetGroupSection extends StatelessWidget {
                     for (final p in presets)
                       DropdownMenuItem<String>(
                         value: p.id,
-                        child: Text(_presetLabel(p, t)),
+                        child: Text(_presetLabel(p, t, presetT)),
                       ),
                   ],
                   onChanged: (String? next) {
@@ -585,6 +612,7 @@ class _PresetGroupSection extends StatelessWidget {
                     rowKey: 'preset:${preset.id}:$i',
                     aliases: aliases,
                     t: t,
+                    presetT: presetT,
                     expanded: expandedKey == 'preset:${preset.id}:$i',
                     onToggle: () => onToggleRow('preset:${preset.id}:$i'),
                   ),
@@ -610,7 +638,7 @@ class _PresetGroupSection extends StatelessWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                     ),
-                    child: Text(p.displayName,
+                    child: Text(_presetDisplayName(p, presetT),
                         style: const TextStyle(fontSize: 11)),
                   ),
               ],
@@ -627,6 +655,7 @@ class _GlobalGroupSection extends StatelessWidget {
   const _GlobalGroupSection({
     required this.aliases,
     required this.t,
+    required this.presetT,
     required this.failed,
     required this.regular,
     required this.globalCount,
@@ -642,6 +671,7 @@ class _GlobalGroupSection extends StatelessWidget {
 
   final DswAliases aliases;
   final Translate t;
+  final Translate presetT;
   final List<_Entry> failed;
   final List<_Entry> regular;
   final int globalCount;
@@ -706,6 +736,7 @@ class _GlobalGroupSection extends StatelessWidget {
                   rowKey: 'global:${entry.entryId}',
                   aliases: aliases,
                   t: t,
+                  presetT: presetT,
                   expanded: expandedKey == 'global:${entry.entryId}',
                   onToggle: () => onToggleRow('global:${entry.entryId}'),
                   onJumpToPreset: onJumpToPreset,
@@ -772,6 +803,7 @@ class _PresetRowCard extends StatelessWidget {
     required this.rowKey,
     required this.aliases,
     required this.t,
+    required this.presetT,
     required this.expanded,
     required this.onToggle,
   });
@@ -781,6 +813,7 @@ class _PresetRowCard extends StatelessWidget {
   final String rowKey;
   final DswAliases aliases;
   final Translate t;
+  final Translate presetT;
   final bool expanded;
   final VoidCallback onToggle;
 
@@ -822,7 +855,7 @@ class _PresetRowCard extends StatelessWidget {
         const SizedBox(height: DswTokens.spaceSm),
         _DetailRow(
             label: t('fromPreset'),
-            value: preset.displayName,
+            value: _presetDisplayName(preset, presetT),
             aliases: aliases),
         const SizedBox(height: DswTokens.spaceSm),
         _DetailRow(
@@ -856,6 +889,7 @@ class _GlobalRowCard extends StatelessWidget {
     required this.rowKey,
     required this.aliases,
     required this.t,
+    required this.presetT,
     required this.expanded,
     required this.onToggle,
     required this.onJumpToPreset,
@@ -866,6 +900,7 @@ class _GlobalRowCard extends StatelessWidget {
   final String rowKey;
   final DswAliases aliases;
   final Translate t;
+  final Translate presetT;
   final bool expanded;
   final VoidCallback onToggle;
   final ValueChanged<String> onJumpToPreset;
@@ -932,7 +967,9 @@ class _GlobalRowCard extends StatelessWidget {
                   spacing: 4,
                   children: [
                     Text(
-                      providers!.map((p) => p.displayName).join(' · '),
+                      providers!
+                          .map((p) => _presetDisplayName(p, presetT))
+                          .join(' · '),
                       style: TextStyle(
                           fontSize: DswTokens.fontSizeXxs12,
                           color: aliases.labelPrimary),

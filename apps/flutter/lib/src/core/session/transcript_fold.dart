@@ -122,6 +122,12 @@ class TranscriptFolder {
             ? ' interrupted'
             : '';
         _lines.add('${_prefix(sid, envelope)} chunks=$chunks$interrupted');
+      case 'assistant/attempt':
+        // Log-only settled attempt with no surface message (React
+        // deriveMessages skips it too): a diagnostic line, never a row.
+        _lines.add(
+          '${_prefix(sid, envelope)} t=${envelope.data['turn']} s=${envelope.data['step']}',
+        );
       case 'tool/call':
         _lines.add(
           '${_prefix(sid, envelope)} call=${envelope.data['callId']} name=${envelope.data['name']}',

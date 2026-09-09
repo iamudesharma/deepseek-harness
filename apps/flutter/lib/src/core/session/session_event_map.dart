@@ -21,6 +21,10 @@ const Set<String> kCoreSessionEventTypes = {
   'user/message',
   'assistant/chunk',
   'assistant/message',
+  // A model attempt that committed no surface message (failed, retried,
+  // cancelled, or stream-error at settlement). Core member — log-only
+  // diagnostics, never enters derived history.
+  'assistant/attempt',
   'tool/call',
   'tool/result',
   'todo/write',
@@ -32,7 +36,7 @@ const Set<String> kCoreSessionEventTypes = {
 /// Plugin-contributed members merged into `SessionEventMap` across the
 /// workspace, extracted mechanically from every `declare module` augmentation
 /// (`packages/core/agent`, `core/tools`, `interaction/{user-approval,commands,
-/// permission-presets}`, `sandbox/sandbox-policy`, `compaction`, `goal`,
+/// permission-presets}`, `feedback/message-feedback`, `sandbox/sandbox-policy`, `compaction`, `goal`,
 /// `subagent`, `schedule`, `plan-mode`, `preset/agent-presets`,
 /// `session/session-title*`, `llm/llm-retry`, `hooks/hook-protocol`,
 /// `workflow/tool-workflow`, `feedback/command-feedback`,
@@ -50,6 +54,8 @@ const Set<String> kPluginSessionEventTypes = {
   'compaction/prune',
   'compaction/start',
   'compaction/summary',
+  'feedback/message-delete',
+  'feedback/message-put',
   'feedback/record',
   'goal/change',
   'hook/invoked',

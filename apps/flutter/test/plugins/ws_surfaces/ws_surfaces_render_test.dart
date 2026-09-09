@@ -11,6 +11,7 @@ import 'package:dsh_flutter/src/plugins/brand_official/brand_official_plugin.dar
 import 'package:dsh_flutter/src/plugins/model_selection/model_directory_service.dart';
 import 'package:dsh_flutter/src/plugins/model_selection/locales.dart';
 import 'package:dsh_flutter/src/plugins/model_selection/ui/model_seat.dart';
+import 'package:dsh_flutter/src/plugins/conversation/locales.dart';
 import 'package:dsh_flutter/src/plugins/workspace/locales.dart';
 import 'package:dsh_flutter/src/plugins/workspace/ui/workspace_picker_chip.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,10 @@ void _registerLocaleDictionaries(ProviderContainer container) {
   locale.register(kWorkspaceNamespace, {
     'zh': kWorkspaceZh,
     'en': kWorkspaceEn,
+  });
+  locale.register(kConversationNamespace, {
+    'zh': kConversationZh,
+    'en': kConversationEn,
   });
 }
 
@@ -114,8 +119,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Chip label resolves workspace.section.workspaces in the default (zh)
-    // service locale.
-    expect(find.text('工作区'), findsOneWidget);
+    // Chip label walks the hero resolution (React `ConversationRoot`
+    // chipTitle): no session and no pick here, so the hero-owned
+    // choose-workspace placeholder shows in the default (zh) locale.
+    expect(find.text('选择工作区'), findsOneWidget);
   });
 }

@@ -8,6 +8,8 @@
 
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse, Server } from 'node:http'
+import { createServer as createTlsServer, type Server as TlsServer } from 'node:https'
+import { X509Certificate, createPublicKey } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 import type { Duplex } from 'node:stream'
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -114,6 +116,26 @@ function createGzipMiddleware(config: ResolvedConfig): NodeMiddleware {
   }
 }
 
+/** Options for one HTTPS listener sharing this service's route tables. */
+export interface TlsListenerOptions {
+  /** PEM-encoded certificate chain. */
+  certPem: string
+  /** PEM-encoded private key. */
+  keyPem: string
+  /** Bind host literal. */
+  host: '127.0.0.1' | '0.0.0.0'
+  /** Listen port; zero requests an OS-assigned port. */
+  port: number
+}
+
+/** Owned HTTPS listener: bound port plus graceful stop. */
+export interface TlsListenerHandle {
+  /** The bound port (the OS-assigned value when options.port is 0). */
+  port: number
+  /** Stop accepting, drop connections, and release the port. */
+  stop: () => Promise<void>
+}
+
 /**
  * The browser HTTP carrier service. Activation listens immediately. Route
  * registration order does not affect requests because configured named routes
@@ -218,106 +240,12 @@ export class WebServer extends Service {
 
   /** Listen; resolves once the socket is bound (rejection = FAILED fiber). */
   async [Service.init](): Promise<void> {
-    const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
-      // CORS for Flutter web dev (different origin than 127.0.0.1:3080) — loopback only.
-      // Flutter's BrowserClient (browser_client.dart:83 `fetch`) is cross-origin when
-      // `flutter run -d web-server` serves on its own port; without these headers
-      // every `session.list`/`settings.describe`/`workspace.list` is blocked as
-      // `CORS error` (see screenshot: fetch → browser_client.dart:83 → 0.0 kB).
-      // Production Flutter (built and served by this host's fallback) is same-origin
-      // and these headers are harmless. API auth is cookie `dsh-auth-*` (HttpOnly,
-      // SameSite=Strict) minted from `?token=` on first `/` load — browser must
-      // send it, so we echo the request Origin and allow credentials. Without
-      // `credentials: 'include'` + `Allow-Credentials: true` the cookie is never
-      // sent cross-port and every `/api/*` is `401 Unauthorized` (second screenshot).
-      const origin = req.headers.origin as string | undefined
-      if (origin !== undefined) {
-        res.setHeader('Access-Control-Allow-Origin', origin)
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.setHeader(
-          'Access-Control-Allow-Headers',
-          'Content-Type, Authorization, X-Rpc-Id, X-Requested-With, Accept, Origin, Cookie',
-        )
-        res.setHeader('Access-Control-Allow-Credentials', 'true')
-        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie')
-        res.setHeader('Access-Control-Max-Age', '86400')
-        res.setHeader('Vary', 'Origin')
-      }
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204)
-        res.end()
-        return
-      }
-      /* v8 ignore next -- `?? '/'` arm: node:http always sets url on server
-      requests; the field is only optional on the client-side IncomingMessage type */
-      const rawPath = new URL(req.url ?? '/', 'http://x').pathname
-      const route = this.match(rawPath)
-      if (route !== undefined) {
-        await route.handler(req, res)
-        return
-      }
-      const fallback = this.fallback
-      if (fallback === undefined) {
-        res.writeHead(404)
-        res.end()
-        return
-      }
-      await fallback(req, res)
-    }
-    // Last-resort guard: handle() rejecting would otherwise be an unhandled
-    // rejection killing the process on one malformed request (bad %-escape,
-    // client dropping mid-body). Per-request failures log and answer 400 —
-    // never a process exit.
     this.server = createServer((req, res) => {
-      const next = (): void => {
-        void handle(req, res).catch((err: unknown) => {
-          this.ctx.logger.warn(err instanceof Error ? err : new Error(String(err)))
-          if (res.headersSent) {
-            res.destroy()
-            return
-          }
-          res.writeHead(400)
-          res.end()
-        })
-      }
-      if (this.gzip === undefined) next()
-      else this.gzip(req, res, next)
+      this.serve(req, res)
     })
     this.server.on('upgrade', (req, socket, head) => {
-      const onError = (error: Error): void => {
-        this.ctx.logger.warn(error)
-        socket.destroy()
-      }
-      socket.on('error', onError)
-      socket.once('close', () => {
-        socket.off('error', onError)
-        this.upgradedSockets.delete(socket)
-      })
-      let route: WebUpgradeRoute | undefined
-      try {
-        /* v8 ignore next -- node:http always sets url on server requests. */
-        route = this.upgrades.get(new URL(req.url ?? '/', 'http://x').pathname)
-      } catch (error) {
-        this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
-        socket.destroy()
-        return
-      }
-      if (route === undefined) {
-        socket.destroy()
-        return
-      }
-      this.upgradedSockets.add(socket)
-      try {
-        Promise.resolve(route.handler(req, socket, head)).catch((error: unknown) => {
-          this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
-          socket.destroy()
-        })
-      } catch (error) {
-        this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
-        socket.destroy()
-      }
+      this.serveUpgrade(req, socket, head, this.upgradedSockets)
     })
-
     await new Promise<void>((resolve, reject) => {
       this.server.once('error', reject)
       this.server.listen(this.config.port, this.config.host, () => {
@@ -341,6 +269,174 @@ export class WebServer extends Service {
       }))
       await Promise.all([serverClosed, ...upgradedClosed])
     }, 'webServer.listen')
+  }
+
+  /**
+   * Serve one request through gzip (when configured), CORS, and the shared
+   * route tables. Handler ownership and failure semantics match the
+   * plaintext listener exactly; both listeners share this pipeline.
+   * @param req - incoming request.
+   * @param res - owned response.
+   */
+  private serve(req: IncomingMessage, res: ServerResponse): void {
+    const next = (): void => {
+      void this.handle(req, res).catch((err: unknown) => {
+        this.ctx.logger.warn(err instanceof Error ? err : new Error(String(err)))
+        if (res.headersSent) {
+          res.destroy()
+          return
+        }
+        res.writeHead(400)
+        res.end()
+      })
+    }
+    if (this.gzip === undefined) next()
+    else this.gzip(req, res, next)
+  }
+
+  /**
+   * Dispatch one upgrade through the shared upgrade table into `owned`.
+   * @param req - upgrade request.
+   * @param socket - carrier socket.
+   * @param head - buffered head bytes.
+   * @param owned - socket set tracking this listener's upgrades for teardown.
+   */
+  private serveUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer, owned: Set<Duplex>): void {
+    const onError = (error: Error): void => {
+      this.ctx.logger.warn(error)
+      socket.destroy()
+    }
+    socket.on('error', onError)
+    socket.once('close', () => {
+      socket.off('error', onError)
+      owned.delete(socket)
+      this.upgradedSockets.delete(socket)
+    })
+    let route: WebUpgradeRoute | undefined
+    try {
+      /* v8 ignore next -- node:http always sets url on server requests. */
+      route = this.upgrades.get(new URL(req.url ?? '/', 'http://x').pathname)
+    } catch (error) {
+      this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
+      socket.destroy()
+      return
+    }
+    if (route === undefined) {
+      socket.destroy()
+      return
+    }
+    owned.add(socket)
+    this.upgradedSockets.add(socket)
+    try {
+      Promise.resolve(route.handler(req, socket, head)).catch((error: unknown) => {
+        this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
+        socket.destroy()
+      })
+    } catch (error) {
+      this.ctx.logger.warn(error instanceof Error ? error : new Error(String(error)))
+      socket.destroy()
+    }
+  }
+
+  /**
+   * Shared request pipeline behind both listeners: CORS, OPTIONS, named
+   * routes, then the fallback seat (404 when nobody claims the seat).
+   * @param req - incoming request.
+   * @param res - owned response.
+   */
+  private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // CORS for Flutter web dev (different origin than 127.0.0.1:3080) — loopback only.
+    // Flutter's BrowserClient (browser_client.dart:83 `fetch`) is cross-origin when
+    // `flutter run -d web-server` serves on its own port; without these headers
+    // every `session.list`/`settings.describe`/`workspace.list` is blocked as
+    // `CORS error` (see screenshot: fetch → browser_client.dart:83 → 0.0 kB).
+    // Production Flutter (built and served by this host's fallback) is same-origin
+    // and these headers are harmless. API auth is cookie `dsh-auth-*` (HttpOnly,
+    // SameSite=Strict) minted from `?token=` on first `/` load — browser must
+    // send it, so we echo the request Origin and allow credentials. Without
+    // `credentials: 'include'` + `Allow-Credentials: true` the cookie is never
+    // sent cross-port and every `/api/*` is `401 Unauthorized` (second screenshot).
+    const origin = req.headers.origin as string | undefined
+    if (origin !== undefined) {
+      res.setHeader('Access-Control-Allow-Origin', origin)
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, X-Rpc-Id, X-Requested-With, Accept, Origin, Cookie',
+      )
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
+      res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie')
+      res.setHeader('Access-Control-Max-Age', '86400')
+      res.setHeader('Vary', 'Origin')
+    }
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204)
+      res.end()
+      return
+    }
+    /* v8 ignore next -- `?? '/'` arm: node:http always sets url on server
+      requests; the field is only optional on the client-side IncomingMessage type */
+    const rawPath = new URL(req.url ?? '/', 'http://x').pathname
+    const route = this.match(rawPath)
+    if (route !== undefined) {
+      await route.handler(req, res)
+      return
+    }
+    const fallback = this.fallback
+    if (fallback === undefined) {
+      res.writeHead(404)
+      res.end()
+      return
+    }
+    await fallback(req, res)
+  }
+
+  /**
+   * Serve the shared route tables over HTTPS with explicit certificate
+   * material. The TLS listener is owned by its caller (the remote-access
+   * tls-listener row stops it); request, upgrade, and failure semantics match
+   * the plaintext listener exactly.
+   * @param options - certificate material plus bind host and port.
+   * @returns the bound port and a graceful stop.
+   */
+  async listenTls(options: TlsListenerOptions): Promise<TlsListenerHandle> {
+    let server: TlsServer
+    try {
+      // Parse eagerly so malformed material fails here, before binding.
+      new X509Certificate(options.certPem)
+      createPublicKey(options.keyPem)
+      server = createTlsServer({ cert: options.certPem, key: options.keyPem }, (req, res) => {
+        this.serve(req, res)
+      })
+    } catch {
+      throw new Error('webserver: invalid TLS certificate material')
+    }
+    const owned = new Set<Duplex>()
+    server.on('upgrade', (req, socket, head) => {
+      this.serveUpgrade(req, socket, head, owned)
+    })
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(options.port, options.host, () => {
+        server.off('error', reject)
+        server.on('error', (err) => { this.ctx.logger.error(err) })
+        resolve()
+      })
+    })
+    return {
+      port: (server.address() as AddressInfo).port,
+      stop: async () => {
+        const closed = new Promise<void>((resolve) => {
+          server.close(() => { resolve() })
+        })
+        server.closeAllConnections()
+        const ownedClosed = [...owned].map(socket => new Promise<void>((resolve) => {
+          socket.once('close', () => { resolve() })
+          socket.destroy()
+        }))
+        await Promise.all([closed, ...ownedClosed])
+      },
+    }
   }
 
   /** Longest-prefix-wins over the prefix table after an exact-table miss. */

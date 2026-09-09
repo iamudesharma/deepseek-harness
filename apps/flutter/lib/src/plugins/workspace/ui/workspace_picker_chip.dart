@@ -7,17 +7,27 @@
 /// error dialog, never as a silent no-op.
 library;
 
+import 'dart:async' show unawaited;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/connection/connection_client.dart';
-import '../../../core/connection/connection_controller.dart'
-    show connectionClientProvider;
 import '../../../core/services/runtime_services.dart';
+import '../../../core/session/session_models.dart'
+    show SessionId, SessionSummary, WorkspaceId;
+import '../../../core/session/session_provider.dart' show currentSessionProvider;
 import '../../../features/workspace/workspace_provider.dart'
-    show selectedWorkspaceProvider, workspaceListProvider;
+    show
+        ensureBlankSessionInWorkspace,
+        resolveSessionWorkspace,
+        selectedWorkspaceProvider,
+        workspaceListProvider;
 import '../../../theme/app_theme.dart';
+import '../../../utils/workspace_labels.dart' show workspaceLabel;
+import '../../conversation/locales.dart' show kConversationNamespace;
 import '../../directory_picker/directory_browser.dart';
 import '../../directory_picker/directory_picker_plugin.dart'
     show activatedPickDirectory;
@@ -42,7 +52,33 @@ class WorkspacePickerChip extends ConsumerStatefulWidget {
 class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
   final OverlayPortalController _portal = OverlayPortalController();
   bool _busy = false;
+  bool _switching = false;
   String? _error;
+
+  /// Pick a workspace from the hero chip — React `selectWorkspace`: publish
+  /// the pick, then open that workspace's blank session (reuse-or-create).
+  /// On the welcome route there is no open session, so publishing is enough:
+  /// `WelcomeScreen` completes the creation. Inside a session the chip
+  /// completes it here and navigates.
+  Future<void> _pickWorkspace(WorkspaceId id) async {
+    ref.read(selectedWorkspaceProvider.notifier).state = id;
+    if (_portal.isShowing) _portal.hide();
+    if (_switching) return;
+    final bool inSession = ref.read(currentSessionProvider) != null;
+    if (!inSession) return;
+    setState(() => _switching = true);
+    try {
+      final SessionId next = await ensureBlankSessionInWorkspace(ref, id);
+      final SessionId? current = ref.read(currentSessionProvider)?.sessionId;
+      if (mounted && context.mounted && next != current) {
+        context.go('/sessions/${next.value}');
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = '$error');
+    } finally {
+      if (mounted) setState(() => _switching = false);
+    }
+  }
 
   Future<void> _addWorkspace() async {
     if (_busy) return;
@@ -109,7 +145,28 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
     // bindLocale watches localeRevisionProvider, so a Language-row switch
     // rebuilds the chip and its overlay copy together.
     final t = ref.bindLocale(kWorkspaceNamespace);
+    final heroT = ref.bindLocale(kConversationNamespace);
     final workspaces = ref.watch(workspaceListProvider);
+    final SessionSummary? summary = ref.watch(currentSessionProvider);
+    final WorkspaceId? selectedId = ref.watch(selectedWorkspaceProvider);
+    // Chip title walk — React `ConversationRoot` chipTitle: explicit pick →
+    // session workspace → cwd-basename bridge → choose-workspace placeholder.
+    final String chipLabel = (() {
+      final items = workspaces.valueOrNull;
+      if (items != null) {
+        final resolved = resolveSessionWorkspace(
+          summary: summary,
+          selectedId: selectedId,
+          workspaces: items,
+        );
+        if (resolved != null) return resolved.name;
+      }
+      final String? cwd = summary?.cwd;
+      if (cwd != null && cwd.isNotEmpty) return workspaceLabel(cwd);
+      // Placeholder copy is hero-owned (React `hero.chooseWorkspace` under
+      // the `conversation` namespace), not picker chrome.
+      return heroT('hero.chooseWorkspace');
+    })();
 
     return OverlayPortal(
       controller: _portal,
@@ -160,11 +217,7 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
                                   ),
                                 ),
                                 onTap: () {
-                                  ref
-                                      .read(selectedWorkspaceProvider.notifier)
-                                      .state = workspace
-                                      .workspaceId;
-                                  if (_portal.isShowing) _portal.hide();
+                                  unawaited(_pickWorkspace(workspace.workspaceId));
                                 },
                               ),
                           ],
@@ -235,7 +288,7 @@ class _WorkspacePickerChipState extends ConsumerState<WorkspacePickerChip> {
           color: aliases.labelSecondary,
         ),
         label: Text(
-          t('section.workspaces'),
+          chipLabel,
           style: TextStyle(
             fontSize: DswTokens.fontSizeXxs12,
             fontWeight: FontWeight.w600,

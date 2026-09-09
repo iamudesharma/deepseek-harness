@@ -18,12 +18,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/session/session_models.dart';
 import '../../../core/session/session_provider.dart';
+import '../../../core/services/runtime_services.dart'
+    show LocaleBindOnWidgetRef;
 import '../../../core/slots/slot_registry.dart' show SlotRegistry;
+import '../../../features/workspace/workspace_provider.dart'
+    show
+        resolveSessionWorkspace,
+        selectedWorkspaceProvider,
+        workspaceListProvider;
 import '../../../theme/app_theme.dart';
 import '../../../widgets/primitives/fish_logo.dart';
 import '../../terminal/ui/terminal_dock.dart';
 import '../hub.dart'
     show activatedHub, hubControllerProvider, composerSubmitHookProvider;
+import '../locales.dart' show kConversationNamespace;
 import 'slots/hole_outlet.dart';
 import 'composer.dart' show ConversationComposer;
 import 'chat_view.dart';
@@ -165,20 +173,37 @@ class _HeroPhase extends ConsumerWidget {
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
     final SlotRegistry slots = activatedHub?.slots ?? SlotRegistry();
-    // Hero stack centered in the viewport, scrolls when it does not fit.
-    // Replaces the previous SliverFillRemaining which required tight height
-    // from the parent and caused LayoutBuilder intrinsic errors on some
-    // Xiaomi/MIUI routes. This version uses a simple SingleChildScrollView
-    // with Center, which works with the outer Center+ConstrainedBox without
-    // needing LayoutBuilder.
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: DswTokens.space2xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+    final t = ref.bindLocale(kConversationNamespace);
+    // Hero composer posture — React `ConversationRoot` owner props: the hero
+    // placeholder applies when a workspace is set, otherwise the
+    // choose-workspace placeholder with an inert composer.
+    final SessionSummary? summary =
+        ref.watch(sessionByIdProvider(SessionId(sessionId)));
+    final List<WorkspaceView> heroWorkspaces =
+        ref.watch(workspaceListProvider).valueOrNull ?? const <WorkspaceView>[];
+    final bool hasWorkspace =
+        resolveSessionWorkspace(
+          summary: summary,
+          selectedId: ref.watch(selectedWorkspaceProvider),
+          workspaces: heroWorkspaces,
+        ) !=
+            null ||
+        (summary?.cwd?.isNotEmpty ?? false);
+    // Hero stack centered in the viewport, scrolls when it does not fit: a
+    // bounded `LayoutBuilder` viewport floors the scroll content at the
+    // viewport height so `Center` truly centers (a bare `Center` inside an
+    // unbounded scroll view top-aligns). Unbounded parents keep the plain
+    // scroll with no viewport math — `SliverFillRemaining` and unconditional
+    // tight-height reads caused LayoutBuilder intrinsic errors on some
+    // Xiaomi/MIUI routes.
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints viewport) {
+        Widget stack = Center(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: DswTokens.space2xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
               // Glow backdrop behind the stack — simplified to a centered
               // container with radial gradient, not Positioned.fill, to avoid
               // Stack + Sliver complexity.
@@ -272,7 +297,15 @@ class _HeroPhase extends ConsumerWidget {
                         onCancel: () => ref
                             .read(hubControllerProvider)
                             ?.cancelTurn(SessionId(sessionId)),
-                        child: ConversationComposer(sessionId: sessionId),
+                        child: ConversationComposer(
+                          sessionId: sessionId,
+                          hintText: hasWorkspace
+                              ? t('placeholder.hero')
+                              : t('placeholder.workspace'),
+                          // React inert hero: no workspace → the composer is
+                          // not submittable; the workspace chip is the action.
+                          enabled: hasWorkspace,
+                        ),
                       ),
                     ],
                   ),
@@ -281,7 +314,30 @@ class _HeroPhase extends ConsumerWidget {
             ],
           ),
         ),
-      ),
+      );
+        // React `.root[data-phase='hero'] .scrollBody { justify-content:
+        // center }`: the stack sits centered in the viewport and scrolls only
+        // when it does not fit. `Center` alone top-aligns inside an unbounded
+        // scroll view, so floor the scroll content at the viewport height when
+        // bounded (the 24px vertical padding is excluded from the floor).
+        // Unbounded parents (intrinsic measuring — the Xiaomi/MIUI crash
+        // above) keep the old top-aligned scroll with no LayoutBuilder math.
+        if (!viewport.hasBoundedHeight) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: stack,
+          );
+        }
+        final double floorHeight = (viewport.maxHeight - 48)
+            .clamp(0.0, double.infinity);
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: floorHeight),
+            child: stack,
+          ),
+        );
+      },
     );
   }
 }

@@ -19,10 +19,11 @@ import { DeviceRegistry } from './device-registry.ts'
 import { loadOrCreateHostIdentity, type HostIdentity } from './host-identity.ts'
 import { PairingStore } from './pairing-store.ts'
 import { PairingApprovalStore } from './pairing-approval.ts'
-import { TokenService } from './token-service.ts'
+import { TokenService, TokenError } from './token-service.ts'
 import { RemoteAccessService } from './remote-service.ts'
 import { AuditLog } from './audit.ts'
-import { WsTicketStore } from './auth-middleware.ts'
+import { WsTicketStore, bearerToken, remoteAuthStorage, ticketFromUrl, AuthError } from './auth-middleware.ts'
+import { isRemoteAuthorized } from './privileged-policy.ts'
 import { ensureHostCertificate } from './tls.ts'
 
 export type { HostIdentity } from './host-identity.ts'
@@ -38,7 +39,7 @@ export type { TokenPayload, MintTokenOptions, VerifyTokenOptions } from './token
 export { RemoteAccessService } from './remote-service.ts'
 export { AuditLog } from './audit.ts'
 export type { AuditEvent, AuditEventKind } from './audit.ts'
-export { WsTicketStore, remoteAuthStorage, ticketFromUrl, redactedLogContext, authenticateRequest, AuthError } from './auth-middleware.ts'
+export { WsTicketStore, bearerToken, remoteAuthStorage, ticketFromUrl, redactedLogContext, authenticateRequest, AuthError } from './auth-middleware.ts'
 export { classifyRemoteMethod, isRemoteAuthorized } from './privileged-policy.ts'
 export { ensureHostCertificate, certFingerprint, hasHostCertificate } from './tls.ts'
 export * from './types.ts'
@@ -59,6 +60,18 @@ export interface Config {
   /** Whether remote access is enabled. */
   enabled?: boolean
 }
+
+/**
+ * Authorization decision for one remote request: run the handler (`proceed`),
+ * answer 401 (`unauthenticated`), or answer 403 (`forbidden`).
+ */
+export type RemoteAuthDecision = 'proceed' | 'unauthenticated' | 'forbidden'
+
+/** Pairing-bootstrap endpoints that intentionally skip bearer auth. */
+const PAIRING_BOOTSTRAP_ENDPOINTS: ReadonlySet<string> = new Set([
+  'remote/pair',
+  'remote/describe',
+])
 
 /**
  * Remote-access foundation service.
@@ -92,6 +105,9 @@ export class RemoteAccessFoundation extends Service {
   /** TLS fingerprint when remote enabled. */
   tlsFingerprint?: string
 
+  /** Bound HTTPS port of the remote TLS listener (set by the tls-listener row). */
+  tlsPort?: number
+
   /** Whether remote access is enabled (explicit opt-in). */
   get isEnabled(): boolean {
     return this.config.enabled === true
@@ -100,6 +116,81 @@ export class RemoteAccessFoundation extends Service {
   /** Raw config (for describe). */
   get configSnapshot(): Config {
     return { ...this.config }
+  }
+
+  /**
+   * Host certificate material for the remote TLS listener.
+   * @returns cert and key PEM (never the fingerprint alone).
+   */
+  async tlsMaterial(): Promise<{ certPem: string; keyPem: string }> {
+    const { certPem, keyPem } = await ensureHostCertificate(this.hostIdentity.hostId)
+    return { certPem, keyPem }
+  }
+
+  /**
+   * Authorize one remote API request: disabled stays rejected, pairing
+   * bootstrap runs without a bearer, otherwise a full-scope device bearer
+   * runs inside its ALS context when the endpoint authorizes it.
+   * @param endpoint - wire endpoint like 'session/list' (slash or dot form).
+   * @param headers - request headers (plain object or Fetch Headers).
+   * @param run - handler owning the response lifecycle.
+   * @returns the authorization decision; `run` executes only on `proceed`.
+   */
+  async authorizeApiRequest(
+    endpoint: string,
+    headers: Record<string, string> | Headers,
+    run: () => Promise<unknown>,
+  ): Promise<RemoteAuthDecision> {
+    if (!this.isEnabled) return 'unauthenticated'
+    if (PAIRING_BOOTSTRAP_ENDPOINTS.has(endpoint)) {
+      await run()
+      return 'proceed'
+    }
+    const token = bearerToken(headers)
+    if (token === undefined) {
+      this.audit.record({ kind: 'auth-failure', detail: 'missing-token' })
+      return 'unauthenticated'
+    }
+    let payload: Awaited<ReturnType<TokenService['verify']>>
+    try {
+      payload = await this.tokenService.verify(token, {
+        requiredScope: 'full',
+        deviceLookup: async (deviceId) => {
+          const device = await this.devices.find(deviceId)
+          return device === undefined ? undefined : { revoked: device.revoked }
+        },
+      })
+    } catch (error) {
+      const code = (error as TokenError | null)?.code
+      const at = Date.now()
+      this.audit.record({ kind: 'auth-failure', at, detail: String(code ?? 'unknown') })
+      if (code === 'token-scope-mismatch') return 'forbidden'
+      return 'unauthenticated'
+    }
+    // Update lastSeen opportunistically (best-effort, not blocking auth).
+    void this.devices.update(payload.sub, current => ({ ...current, lastSeenAt: Date.now(), lastJti: payload.jti }))
+      .catch(() => {})
+    this.audit.record({ kind: 'device-authenticated', deviceId: payload.sub, hostId: this.hostIdentity.hostId })
+    if (!isRemoteAuthorized(endpoint, 'bearer', payload.scope)) return 'forbidden'
+    await remoteAuthStorage.run(payload, run)
+    return 'proceed'
+  }
+
+  /**
+   * Authorize one remote.mux upgrade from its ticket query: fresh single-use
+   * ws tickets proceed, replays and bearer tokens do not.
+   * @param url - upgrade request url carrying `?ticket=`.
+   * @returns the authorization decision.
+   */
+  async authorizeMuxUpgrade(url: string | undefined): Promise<RemoteAuthDecision> {
+    if (!this.isEnabled) return 'unauthenticated'
+    try {
+      await this.wsTickets.validate(ticketFromUrl(url), this.tokenService, this.devices, this.audit)
+      return 'proceed'
+    } catch (error) {
+      if (error instanceof AuthError) return error.status === 403 ? 'forbidden' : 'unauthenticated'
+      return 'unauthenticated'
+    }
   }
 
   constructor(ctx: Context, private readonly config: Config) {

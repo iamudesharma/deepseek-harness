@@ -135,7 +135,12 @@ void main() {
       expect(
         find.text('工作区'),
         findsWidgets,
-        reason: 'hero picker chip label (workspace.section.workspaces)',
+        reason: 'sidebar section header (workspace.section.workspaces)',
+      );
+      expect(
+        find.text('选择工作区'),
+        findsOneWidget,
+        reason: 'hero picker chip placeholder (conversation.hero.chooseWorkspace)',
       );
       expect(
         find.text('新建会话'),
@@ -156,6 +161,13 @@ void main() {
         findsWidgets,
         reason: 'General tab (settings.general.nav)',
       );
+      await tester.dragUntilVisible(
+        find.text('繁忙时 Enter 键行为'),
+        find.byType(ListView).first,
+        const Offset(0, -200),
+      );
+      await tester.ensureVisible(find.text('繁忙时 Enter 键行为'));
+      await tester.pumpAndSettle();
       expect(
         find.text('繁忙时 Enter 键行为'),
         findsOneWidget,
@@ -169,11 +181,18 @@ void main() {
 
       expect(find.text('Language'), findsOneWidget);
       expect(find.text('General'), findsWidgets);
+      await tester.ensureVisible(find.text('Enter behavior while busy'));
+      await tester.pumpAndSettle();
       expect(find.text('Enter behavior while busy'), findsOneWidget);
 
       // Back to the hero: chip + sidebar switched too.
       await _navigate(tester, container, '/');
       expect(find.text('Workspaces'), findsWidgets);
+      expect(
+        find.text('Choose workspace'),
+        findsOneWidget,
+        reason: 'hero picker chip placeholder (conversation.hero.chooseWorkspace)',
+      );
       expect(find.text('New session'), findsOneWidget);
 
       // FLIP BACK — restore matches the initial state.
@@ -181,6 +200,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('工作区'), findsWidgets);
+      expect(
+        find.text('选择工作区'),
+        findsOneWidget,
+        reason: 'hero picker chip placeholder (conversation.hero.chooseWorkspace)',
+      );
       expect(find.text('新建会话'), findsOneWidget);
 
       await _navigate(tester, container, '/settings');
@@ -223,13 +247,21 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 50));
       // Mobile: hero chip still locale-sensitive, sidebar button hidden behind mobile shell.
-      expect(find.text('工作区'), findsWidgets);
+      expect(
+        find.text('选择工作区'),
+        findsOneWidget,
+        reason: 'hero picker chip placeholder (conversation.hero.chooseWorkspace)',
+      );
       // Desktop-only sidebar element must NOT appear in mobile shell.
       expect(find.text('新建会话'), findsNothing);
 
       container.read(localeServiceProvider).setLocale('en');
       await tester.pump(const Duration(milliseconds: 50));
-      expect(find.text('Workspaces'), findsWidgets);
+      expect(
+        find.text('Choose workspace'),
+        findsOneWidget,
+        reason: 'hero picker chip placeholder (conversation.hero.chooseWorkspace)',
+      );
       expect(find.text('New session'), findsNothing);
 
       container.read(localeServiceProvider).setLocale('zh');

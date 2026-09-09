@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/rpc_envelope.dart' show RemoteMethodException;
 import '../../core/connection/connection_client.dart';
 import '../../core/connection/remote_mux_client.dart';
+import '../../core/session/host_session_policy.dart'
+    show adoptHostBornSession, isWorkspaceAttachFailure;
 import '../../core/session/live_sync.dart';
 import '../../core/session/session_models.dart';
 import '../../core/session/sessions_controller.dart';
@@ -333,3 +336,139 @@ final hostDescribeProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 
 final selectedWorkspaceProvider = StateProvider<WorkspaceId?>((ref) => null);
 final workspaceSavingProvider = StateProvider<bool>((ref) => false);
+
+/// Resolve the workspace a session belongs to — React `ConversationRoot`
+/// chip-title walk: explicit pick → session workspace (membership) → none
+/// (the caller bridges a bare `cwd` through `workspaceLabel`, else the
+/// choose-workspace placeholder). Never synthesizes a workspace row.
+WorkspaceView? resolveSessionWorkspace({
+  required SessionSummary? summary,
+  required WorkspaceId? selectedId,
+  required List<WorkspaceView> workspaces,
+}) {
+  if (selectedId != null) {
+    for (final WorkspaceView w in workspaces) {
+      if (w.workspaceId == selectedId) return w;
+    }
+  }
+  final SessionId? sid = summary?.sessionId;
+  if (sid != null) {
+    for (final WorkspaceView w in workspaces) {
+      if (w.sessionIds.contains(sid)) return w;
+    }
+  }
+  return null;
+}
+
+/// One `session/create` round with the sanctioned workspace-attach fallback
+/// (host_session_policy.dart): workspace binding → Host-published echo id →
+/// `cwd` retry → bare create. Every return is Host-minted; nothing here
+/// fabricates a session id.
+Future<SessionId> createSessionWithFallback(
+  ConnectionClient client, {
+  WorkspaceId? workspaceId,
+  String? cwd,
+}) async {
+  if (workspaceId != null) {
+    try {
+      return await client.createSession(workspaceId: workspaceId.value);
+    } catch (e) {
+      if (!isWorkspaceAttachFailure(e)) rethrow;
+      final Object? published =
+          e is RemoteMethodException ? e.details['sessionId'] : null;
+      if (published is String && published.isNotEmpty) {
+        return SessionId(published);
+      }
+      if (cwd != null && cwd.isNotEmpty) {
+        return client.createSession(cwd: cwd);
+      }
+      return client.createSession();
+    }
+  }
+  if (cwd != null && cwd.isNotEmpty) return client.createSession(cwd: cwd);
+  return client.createSession();
+}
+
+/// In-flight blank-session resolutions per workspace — React
+/// `UiWorkspaceService.connecting`: concurrent picks share one Host
+/// round-trip instead of creating duplicate sessions. Released in
+/// `whenComplete` either way so a later pick retries.
+final _connectingSessionsProvider =
+    StateProvider<Map<String, Future<SessionId>>>((ref) => const {});
+
+/// Open-or-create the blank session for [workspaceId] — React
+/// `UiWorkspaceService.connectWorkspace`: reuse a blank session already in
+/// this workspace (same cwd, not archived) else create (with fallback),
+/// adopt the Host id, refresh, and select. Returns the Host-authoritative
+/// session id; the caller navigates. Drafts need no hand-off: composer
+/// drafts are already keyed per session (`composerControllerProvider`
+/// family), unlike React's shell-resident draft.
+Future<SessionId> ensureBlankSessionInWorkspace(
+  WidgetRef ref,
+  WorkspaceId workspaceId,
+) {
+  final String key = workspaceId.value;
+  final Future<SessionId>? pending =
+      ref.read(_connectingSessionsProvider)[key];
+  if (pending != null) return pending;
+  final Future<SessionId> future =
+      _ensureBlankSessionInWorkspace(ref, workspaceId);
+  ref.read(_connectingSessionsProvider.notifier).state = <String, Future<SessionId>>{
+    ...ref.read(_connectingSessionsProvider),
+    key: future,
+  };
+  future.whenComplete(() {
+    final Map<String, Future<SessionId>> current =
+        ref.read(_connectingSessionsProvider);
+    if (identical(current[key], future)) {
+      final Map<String, Future<SessionId>> next = <String, Future<SessionId>>{
+        ...current,
+      }..remove(key);
+      ref.read(_connectingSessionsProvider.notifier).state = next;
+    }
+  });
+  return future;
+}
+
+Future<SessionId> _ensureBlankSessionInWorkspace(
+  WidgetRef ref,
+  WorkspaceId workspaceId,
+) async {
+  final ConnectionClient client = ref.read(connectionClientProvider);
+  final SessionsState sessions = ref.read(sessionsProvider);
+  final List<WorkspaceView> workspaces =
+      ref.read(workspaceListProvider).valueOrNull ?? const <WorkspaceView>[];
+  WorkspaceView? workspace;
+  for (final WorkspaceView w in workspaces) {
+    if (w.workspaceId == workspaceId) workspace = w;
+  }
+  final String? cwd = workspace?.cwd;
+  final Set<SessionId> archived = ref.read(workspaceArchivedIdsProvider);
+  // Reuse: blank + same cwd + in this workspace + not archived — React
+  // `connectWorkspace` reuse arm. Opening the existing Host session keeps
+  // one blank per workspace instead of piling up empties per tap.
+  if (cwd != null && cwd.isNotEmpty && workspace != null) {
+    for (final SessionSummary s in sessions.byId.values) {
+      if (s.blank &&
+          !s.running &&
+          s.cwd == cwd &&
+          workspace.sessionIds.contains(s.sessionId) &&
+          !archived.contains(s.sessionId)) {
+        ref.read(sessionsProvider.notifier).setCurrent(s.sessionId);
+        return s.sessionId;
+      }
+    }
+  }
+  final SessionId newId = await createSessionWithFallback(
+    client,
+    workspaceId: workspaceId,
+    cwd: cwd,
+  );
+  // Same adoption shape as the welcome/sidebar creators: project the
+  // host-born id synchronously, confirm via list pull, then select.
+  ref.read(sessionsProvider.notifier).addSession(adoptHostBornSession(newId));
+  final List<SessionSummary> fresh = await client.getSessions();
+  ref.read(sessionsProvider.notifier).setAll(fresh);
+  ref.read(sessionsProvider.notifier).setCurrent(newId);
+  return newId;
+}

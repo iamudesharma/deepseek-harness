@@ -1,15 +1,16 @@
 /**
  * Canonical Remote API contract for `remote.*` (Typert) — Phase 2 real handlers.
  *
- * This is the single source of truth for the five remote endpoints:
- * `remote.pair`, `remote.devices`, `remote.revoke`, `remote.refresh`,
- * `remote.ws-ticket`. Typert generation produces strict Zod codecs and
+ * This is the single source of truth for the six remote endpoints:
+ * `remote.describe`, `remote.pair`, `remote.devices`, `remote.revoke`,
+ * `remote.refresh`, `remote.ws-ticket`. Typert generation produces strict Zod codecs and
  * declaration merges for both Host dispatch and Client `ctx.remote.*`
  * callers; Flutter consumes the same envelope over HTTP (`POST /api/remote/*`)
  * with `http` + `json_serializable`, not a second schema.
  *
  * Pairing (`remote.pair`) is the ONLY intentional unauthenticated entry point
  * and requires a valid nonce/PIN, explicit host approval, and hostId validation.
+ * `remote.describe` exposes only public identity facts for bootstrap.
  * All other endpoints require bearer authentication (verified by auth middleware
  * via AsyncLocalStorage) and are subject to the privileged policy.
  *
@@ -19,6 +20,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 import type {
+  DescribeResult,
   DevicesResult,
   PairRequest,
   PairResult,
@@ -51,6 +53,20 @@ export class RemoteAccessService extends TypertRemoteService {
       .remoteAccessFoundation
     if (foundation === undefined) throw new Error('remote-access: foundation not available')
     return foundation
+  }
+
+  /**
+   * Describe the public host identity for pairing bootstrap (unauthenticated).
+   * @returns host id, public key, and the TLS fingerprint when serving.
+   */
+  @Remote('describe')
+  async describe(): Promise<DescribeResult> {
+    const foundation = this.foundation
+    return {
+      hostId: foundation.hostIdentity.hostId,
+      hostPublicKey: foundation.hostIdentity.publicKeyDer.toString('base64'),
+      ...(foundation.tlsFingerprint === undefined ? {} : { tlsFingerprint: foundation.tlsFingerprint }),
+    }
   }
 
   /**

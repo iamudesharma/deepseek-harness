@@ -12,6 +12,7 @@
     { "path": "../../util/home-paths" },
     { "path": "../../util/atomic-write" },
     { "path": "../../typert/protocol" },
+    { "path": "../webserver" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]
 }
