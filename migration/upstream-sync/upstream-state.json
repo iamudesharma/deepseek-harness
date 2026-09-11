@@ -1,13 +1,13 @@
 {
   "upstreamRepository": "https://github.com/deepseek-ai/deepseek-harness.git",
   "upstreamBranch": "master",
-  "lastSynchronizedSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+  "lastSynchronizedSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
   "currentUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
-  "localForkSha": "2b8b3d40191afc91156512a8df78e2269972598d",
-  "mergeBase": "b0a7d2ce3b4c19d7452e364b2d7acbfa87e707ed",
-  "originMasterSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
-  "synchronizationTimestamp": "2026-09-11T09:23:24.731Z",
-  "behindBy": 422,
-  "aheadBy": 149,
+  "localForkSha": "79600811092d504fcd40e1147bf7d716ad7ff9e2",
+  "mergeBase": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "originMasterSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+  "synchronizationTimestamp": "2026-09-11T15:38:02.116Z",
+  "behindBy": 0,
+  "aheadBy": 152,
   "generatedBy": "upstream-sync phase 0 baseline"
 }
