@@ -146,5 +146,23 @@ void main() {
       });
       expect(envelope.requireKnown().isKnown, isTrue);
     });
+
+    test('Host-required plugin event types pass the gate', () {
+      for (final type in [
+        'deliverables/presented',
+        'subagent/catalog',
+        'tool/ptc-dispatch',
+        'tool/ptc-dispatch-start',
+      ]) {
+        final envelope = SessionEventEnvelope.fromJson({
+          'type': type,
+          'seq': 12,
+          'time': 0,
+          'data': <String, Object?>{},
+        });
+        expect(envelope.isKnown, isTrue, reason: '$type must be known');
+        expect(envelope.requireKnown(), same(envelope));
+      }
+    });
   });
 }

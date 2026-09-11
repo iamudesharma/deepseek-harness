@@ -343,7 +343,7 @@ class WorkspaceFilesClient {
   Future<WorkspaceFileStat> stat(SessionId sessionId, String path) async {
     try {
       final result = await _client.callMethod('workspaceFiles/stat', {
-        'sessionId': sessionId.value,
+        'workspaceFileScopeId': sessionId.value,
         'path': path,
       });
       return WorkspaceFileStat.fromJson(result);
@@ -363,7 +363,7 @@ class WorkspaceFilesClient {
   }) async {
     try {
       final result = await _client.callMethod('workspaceFiles/read', {
-        'sessionId': sessionId.value,
+        'workspaceFileScopeId': sessionId.value,
         'path': path,
         'range': {
           'offset': offset,
@@ -385,7 +385,7 @@ class WorkspaceFilesClient {
   }) async {
     try {
       final result = await _client.callMethod('workspaceFiles/readBytes', {
-        'sessionId': sessionId.value,
+        'workspaceFileScopeId': sessionId.value,
         'path': path,
         'range': {
           'offset': offset,
@@ -404,7 +404,7 @@ class WorkspaceFilesClient {
   Future<WorkspaceDirectoryListing> list(SessionId sessionId, String path) async {
     try {
       final result = await _client.callMethod('workspaceFiles/list', {
-        'sessionId': sessionId.value,
+        'workspaceFileScopeId': sessionId.value,
         'path': path,
       });
       return WorkspaceDirectoryListing.fromJson(result);
@@ -424,7 +424,7 @@ class WorkspaceFilesClient {
     }
     await for (final raw in mux.open('workspaceFiles/changes', {
       'args': {
-        'sessionId': sessionId.value,
+        'workspaceFileScopeId': sessionId.value,
       },
     })) {
       final kind = raw['kind'];

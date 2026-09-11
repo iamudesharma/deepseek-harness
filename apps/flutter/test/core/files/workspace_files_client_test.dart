@@ -59,12 +59,16 @@ class _FakeMux extends RemoteMuxClient {
   /// Endpoints opened, in order.
   final List<String> opens = [];
 
+  /// Payloads passed to [open], in order.
+  final List<Map<String, dynamic>> payloads = [];
+
   @override
   Stream<Map<String, dynamic>> open(
     String endpoint,
     Map<String, dynamic> payload,
   ) async* {
     opens.add(endpoint);
+    payloads.add(payload);
     for (final frame in frames) {
       yield frame;
     }
@@ -110,7 +114,7 @@ void main() {
       expect(stat.version, 'v1');
       // Session travels with the call; read uses absolute paths.
       expect(client.seenPayloads['workspaceFiles/stat'], {
-        'sessionId': 's1',
+        'workspaceFileScopeId': 's1',
         'path': '/w/a.txt',
       });
       final text = await files.read(sid(), '/w/a.txt');
@@ -119,7 +123,7 @@ void main() {
       expect(
         client.seenPayloads['workspaceFiles/read'],
         {
-          'sessionId': 's1',
+          'workspaceFileScopeId': 's1',
           'path': '/w/a.txt',
           'range': {'offset': 1},
         },
@@ -149,7 +153,7 @@ void main() {
       expect(
         client.seenPayloads['workspaceFiles/readBytes'],
         {
-          'sessionId': 's1',
+          'workspaceFileScopeId': 's1',
           'path': '/w/a.bin',
           'range': {'offset': 8, 'length': 16},
         },
@@ -234,6 +238,9 @@ void main() {
       );
       final frames = await files.watch(sid()).toList();
       expect(mux.opens, ['workspaceFiles/changes']);
+      expect(mux.payloads.single, {
+        'args': {'workspaceFileScopeId': 's1'},
+      });
       expect(frames.first.isReady, isTrue);
       expect(frames[1].change?.version, 'v2');
       expect(frames[2].change?.absent, isTrue);
@@ -311,7 +318,7 @@ void main() {
       final files = WorkspaceFilesClient(client);
       final stat = await files.stat(SessionId('remote-session'), '/remote/w/a.txt');
       expect(stat.version, 'r7');
-      expect(client.seenPayloads['workspaceFiles/stat']?['sessionId'], 'remote-session');
+      expect(client.seenPayloads['workspaceFiles/stat']?['workspaceFileScopeId'], 'remote-session');
     });
   });
 }
