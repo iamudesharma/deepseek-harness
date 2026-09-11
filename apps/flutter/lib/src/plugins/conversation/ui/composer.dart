@@ -25,8 +25,13 @@ import '../../input_trigger/input_trigger_controller.dart'
 import '../../input_trigger/input_trigger_service.dart';
 import '../../input_trigger/trigger_source.dart' show PickOutcome, TokenSpan;
 import '../../input_trigger/ui/composer_trigger_binding.dart';
+import '../../input_trigger/ui/input_menu_anchor.dart'
+    show registerComposerCard, unregisterComposerCard;
 import '../../input_trigger/ui/input_keyboard_producer.dart';
 import '../../input_trigger/ui/input_trigger_shortcuts.dart';
+import '../../commands/ui/popup_select_overlay.dart'
+    show activatedCommandUi;
+import '../../model_selection/locales.dart' show kModelNamespace;
 import '../hub.dart' show activatedHub, composerSubmitHookProvider;
 import '../../../core/api/frames.dart' show QueuedInboxItem;
 import '../../permission_presets/ui/permission_seat.dart' show PermissionSeat;
@@ -105,6 +110,11 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
   ComposerTriggerBinding? _triggerBinding;
   bool _ownsTriggerController = false;
 
+  /// This card's key in the trigger menu's outside-close registry (per
+  /// instance: two composers can co-mount during route transitions, so a
+  /// shared key would throw `Multiple widgets used the same GlobalKey`).
+  final GlobalKey _cardKey = GlobalKey(debugLabel: 'composer-card');
+
   /// Seeds a fresh owned controller from composer state (the externally
   /// supplied one, when given, is adopted as-is).
   TextEditingController _createFieldController() {
@@ -117,6 +127,7 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
   @override
   void initState() {
     super.initState();
+    registerComposerCard(_cardKey);
     // Platform seam: register submit hook for ConversationShortcuts (Enter).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && context.mounted) {
@@ -181,6 +192,7 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
 
   @override
   void dispose() {
+    unregisterComposerCard(_cardKey);
     _teardownTriggerBinding();
     _ownedFieldController?.dispose();
     _focusNode.dispose();
@@ -278,6 +290,14 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
 
   /// The composer text field, extracted so both the bound and pre-activation
   /// mount paths share one construction.
+  ///
+  /// Claim ghost hint (React `InputBar` claimActive minimal parity): when the
+  /// draft starts with a known input-taking command token and its args are
+  /// blank, the translated per-command hint renders as trailing caption text
+  /// in a Stack overlay (caret untouched, input unblocked, normal placeholder
+  /// suppressed). The full claimed-phase transaction (attachments gate,
+  /// `claim.submit`, the claimed/submitting phase machine) is deferred and
+  /// not built here.
   Widget _buildField(bool isSending) {
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
@@ -285,7 +305,19 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         (theme.brightness == Brightness.dark
             ? DswTokens.darkAliases
             : DswTokens.lightAliases);
-    return TextField(
+    final ghost = _claimGhostHint();
+    final fieldStyle = TextStyle(
+      fontSize: DswTokens.fontSizeS14,
+      height: DswTokens.lineHeightS14 / DswTokens.fontSizeS14,
+      color: aliases.labelPrimary,
+      fontFamily: 'SF Pro',
+      fontFamilyFallback: DswTokens.fontFamilyFallback,
+    );
+    const contentPadding = EdgeInsets.symmetric(
+      horizontal: DswTokens.spaceSm,
+      vertical: DswTokens.spaceSm,
+    );
+    final field = TextField(
       controller: _controller,
       focusNode: _focusNode,
       enabled: widget.enabled && !isSending,
@@ -293,15 +325,11 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
       minLines: 1,
       textInputAction: TextInputAction.newline,
       onChanged: _commitComposerText,
-      style: TextStyle(
-        fontSize: DswTokens.fontSizeS14,
-        height: DswTokens.lineHeightS14 / DswTokens.fontSizeS14,
-        color: aliases.labelPrimary,
-        fontFamily: 'SF Pro',
-        fontFamilyFallback: DswTokens.fontFamilyFallback,
-      ),
+      style: fieldStyle,
       decoration: InputDecoration(
-        hintText: widget.hintText,
+        // Suppressed while the claim ghost is active (React
+        // `empty && !claimActive` placeholder gate).
+        hintText: ghost != null ? null : widget.hintText,
         hintStyle: TextStyle(
           fontSize: DswTokens.fontSizeS14,
           color: aliases.labelCaption,
@@ -310,13 +338,77 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: DswTokens.spaceSm,
-          vertical: DswTokens.spaceSm,
-        ),
+        contentPadding: contentPadding,
         isDense: true,
       ),
     );
+    if (ghost == null) return field;
+    // Transparent-draft overlay: the invisible draft copy positions the hint
+    // exactly after the live text (same font/padding/wrap as the field), so
+    // the caret never moves and taps pass through (IgnorePointer).
+    return Stack(
+      children: [
+        field,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Padding(
+              padding: contentPadding,
+              child: Text.rich(
+                key: const ValueKey('claim-ghost-hint'),
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: _controller.text,
+                      style: fieldStyle.copyWith(
+                        color: const Color(0x00000000),
+                      ),
+                    ),
+                    TextSpan(
+                      text: ghost,
+                      style: fieldStyle.copyWith(
+                        color: aliases.labelCaption,
+                      ),
+                    ),
+                  ],
+                ),
+                maxLines: 6,
+                overflow: TextOverflow.clip,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Resolve the claim ghost hint for the current draft, or null when none
+  /// applies: the draft must start with a known input-taking command token
+  /// (`/name `, resolved through the bound commandUi directory) with blank
+  /// args. The translated `conversation/hint.<name>` wins over the claim's
+  /// own hint; the `goal`-active variant needs the goal projection and falls
+  /// back to `hint.goal` until that seam lands.
+  String? _claimGhostHint() {
+    final draft = _controller.text;
+    if (!draft.startsWith('/')) return null;
+    final ws = draft.indexOf(RegExp(r'\s'));
+    if (ws < 0) return null;
+    final name = draft.substring(1, ws);
+    if (name.isEmpty) return null;
+    final token = '/$name ';
+    if (!draft.startsWith(token)) return null;
+    if (draft.substring(token.length).trim().isNotEmpty) return null;
+    final service = activatedCommandUi;
+    if (service == null) return null;
+    final desc = service.directory.resolve(
+      SessionId(widget.sessionId),
+      name,
+    );
+    final rawHint = desc?.hint;
+    if (rawHint == null) return null;
+    final t = ref.bindLocale(kConversationNamespace);
+    final key = 'hint.$name';
+    final translated = t(key);
+    return translated != key ? translated : rawHint;
   }
 
   /// Batch image intake — Dart port of `InputBar.intakeImages`; delegates to
@@ -795,8 +887,13 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
                 constraints: const BoxConstraints(maxWidth: 780),
                 // The card is the overlay positioning context (InputBar.module.css
                 // `.card { position: relative }`): open entries float ABOVE the
-                // card's top edge without pushing the field down.
+                // card's top edge without pushing the field down. Tagged with
+                // this card's registry key (the Stack sizes to the card
+                // Container, its only non-positioned child): the trigger
+                // menu's outside-close exempts taps inside it, mirroring
+                // React `[data-composer-card]`.
                 child: Stack(
+                  key: _cardKey,
                   clipBehavior: Clip.none,
                   children: <Widget>[
                     Container(
@@ -1357,8 +1454,7 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
     final ModelInfo? currentModel = resolved.$2;
     final ModelReasoning? reasoning = currentModel?.reasoning;
     final String? effectiveEffort =
-        effectiveCurrent?.reasoningEffort ?? reasoning?.defaultEffort;
-    String? effortLabel;
+        effectiveCurrent?.reasoningEffort ?? reasoning?.defaultEffort;    String? effortLabel;
     if (reasoning != null) {
       if (effectiveEffort == null) {
         effortLabel = 'Provider default';
@@ -1369,8 +1465,21 @@ class _LiveModelDropdownState extends ConsumerState<_LiveModelDropdown> {
         effortLabel = match?.name ?? effectiveEffort;
       }
     }
-    final String modelLabel =
-        currentModel?.name ?? effectiveCurrent?.model ?? 'Select model';
+    final String modelLabel;
+    {
+      // React parity (ModelSelect `waiting`): while no selection resolved and
+      // a load is in flight, the trigger names the load instead of flashing
+      // the empty fallback.
+      final t = ref.bindLocale(kModelNamespace);
+      final waiting =
+          effectiveCurrent == null &&
+          (dirState.status == 'loading' || dirState.status == 'selecting');
+      modelLabel = waiting
+          ? t('trigger.loading')
+          : currentModel?.name ??
+                effectiveCurrent?.model ??
+                t('trigger.fallback');
+    }
 
     return OverlayPortal(
       key: const ValueKey('model-select-trigger'),

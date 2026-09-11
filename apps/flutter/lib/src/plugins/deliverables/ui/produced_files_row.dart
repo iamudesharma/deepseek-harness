@@ -1,10 +1,12 @@
 /// Produced-files row — Flutter port of `ProducedFiles.tsx`.
 ///
-/// The produced-file row a finished turn ends with: quiet label, openable
-/// basename chips (full path as tooltip), remainder as `+ N`, and the
-/// `Show in folder` action gated on the Host's `canOpenPath` capability.
-/// Clicking one goes through the chat view's file opener — the Host's own
-/// opener, on the Host machine.
+/// The produced-file summary a finished turn ends with: a quiet `Produced`
+/// label and one nowrap lane of openable file links (full path as tooltip,
+/// basename as the link text), a counted remainder when the lane cannot fit
+/// everything, and the `Show in folder` action. React renders this as a
+/// chromeless grid of plain link-colored text buttons — no card, no chips —
+/// with container-query bands deciding how many links fit; the band
+/// thresholds below are the same budgets the CSS bands encode.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,14 +15,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
 import '../../../theme/app_theme.dart';
+import '../../../widgets/primitives/link_icon.dart';
 import '../deliverables_mentions.dart' show basename;
 import '../locales.dart';
 
-/// At most six chips compete for the one-line summary; every other path
-/// stays counted (React `SHOWN_LIMIT` parity).
+/// Maximum number of file links rendered before the remainder counter
+/// (React `SHOWN_LIMIT`).
 const int kProducedShownLimit = 6;
 
-/// Renders one turn's produced files as openable chips.
+/// Container-query band from `ProducedFiles.module.css`: each band budgets
+/// 96px per file, 8px gaps, and 64px for the remainder.
+/// @param laneWidth - the file lane's live width.
+/// @returns how many of the six candidates fit at this width.
+int producedShownBand(double laneWidth) {
+  if (laneWidth > 687) return 6;
+  if (laneWidth > 583) return 5;
+  if (laneWidth > 479) return 4;
+  if (laneWidth > 375) return 3;
+  if (laneWidth > 271) return 2;
+  return 1;
+}
+
+/// Renders one turn's produced files as openable plain-text links.
 class ProducedFilesRow extends ConsumerWidget {
   /// Creates the row over selector-matched paths.
   const ProducedFilesRow({
@@ -50,116 +66,230 @@ class ProducedFilesRow extends ConsumerWidget {
     // Product copy resolves through the deliverables dictionaries; the
     // revision watch inside bindLocale re-renders on a Language-row switch.
     final Translate t = ref.bindLocale(kDeliverablesNamespace);
-    final int shownCount = paths.length > kProducedShownLimit
-        ? kProducedShownLimit
-        : paths.length;
-    final List<String> shown = paths.take(shownCount).toList();
-    final int hidden = paths.length - shown.length;
 
-    return Container(
-      padding: const EdgeInsets.all(DswTokens.spaceMd),
-      decoration: BoxDecoration(
-        color: aliases.bgLayer2,
-        borderRadius: BorderRadius.circular(DswTokens.radiusLg),
-        border: Border.all(color: aliases.borderL2),
-      ),
-      child: Column(
+    // React `.root`: label and lane share one grid row, 8px column gap,
+    // 16px above the row; the lane decides how many links fit.
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             t('produced.label'),
             style: TextStyle(
-              fontSize: DswTokens.fontSizeXxs12,
-              fontWeight: FontWeight.w600,
-              color: aliases.labelCaption,
-              letterSpacing: 0.4,
+              fontSize: DswTokens.fontSizeXs13,
+              height: 22 / 13,
+              color: aliases.labelTertiary,
             ),
           ),
-          const SizedBox(height: DswTokens.spaceSm),
-          Wrap(
-            spacing: DswTokens.spaceSm,
-            runSpacing: DswTokens.spaceSm,
-            children: [
-              for (final path in shown)
-                // The full path is the disambiguator when two turns produce
-                // files that share a basename; the chip itself stays short.
-                // Tooltip carries the title parity; Semantics carries the
-                // `produced.open` accessible name React puts in aria-label.
-                Semantics(
-                  label: t(
-                    'produced.open',
-                  ).replaceAll('{name}', path),
-                  button: true,
-                  child: Tooltip(
-                    message: path,
-                    child: ActionChip(
-                      label: Text(
-                        basename(path),
-                        style: TextStyle(
-                          fontSize: DswTokens.fontSizeXxs12,
-                          color: aliases.labelPrimary,
-                        ),
-                      ),
-                      backgroundColor: aliases.bgOverlay,
-                      side: BorderSide(color: aliases.borderL2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          DswTokens.radiusFull,
-                        ),
-                      ),
-                      onPressed: onOpenFile == null
-                          ? null
-                          : () => onOpenFile!(path),
+          const SizedBox(width: 8),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints lane) {
+                final int band = producedShownBand(lane.maxWidth);
+                final int cap = paths.length < kProducedShownLimit
+                    ? paths.length
+                    : kProducedShownLimit;
+                final int shownCount = cap < band ? cap : band;
+                final int hidden = paths.length - shownCount;
+                // React `.lane`: 6px row gap between the links row and the
+                // folder action.
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        for (int i = 0; i < shownCount; i++) ...[
+                          if (i > 0) const SizedBox(width: 8),
+                          Flexible(
+                            child: _ProducedFileLink(
+                              path: paths[i],
+                              openLabel: t(
+                                'produced.open',
+                              ).replaceAll('{name}', paths[i]),
+                              onPressed: onOpenFile == null
+                                  ? null
+                                  : () => onOpenFile!(paths[i]),
+                            ),
+                          ),
+                        ],
+                        if (hidden > 0) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            producedMoreLabel(t, hidden),
+                            style: TextStyle(
+                              fontSize: DswTokens.fontSizeXs13,
+                              height: 22 / 13,
+                              color: aliases.labelTertiary,
+                            ),
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                ),
-              if (hidden > 0)
-                Chip(
-                  label: Text(
-                    _moreLabel(t, hidden),
-                    style: TextStyle(
-                      fontSize: DswTokens.fontSizeXxs12,
-                      color: aliases.labelSecondary,
-                    ),
-                  ),
-                  backgroundColor: aliases.bgOverlay,
-                  side: BorderSide(color: aliases.borderL2),
-                ),
-            ],
-          ),
-          // React renders the folder action when `paths.length > 1`, but its
-          // CSS keeps it `display: none` until a `.more` remainder is visible
-          // at the current container width (`:has(.more[data-shown])`). The
-          // Flutter row wraps instead of overflow-hiding, so visible parity
-          // is overflow-only: the action appears only when paths overflow
-          // the six-chip cap and the Host opener is available.
-          if (hidden > 0 && canOpenPath && onOpenFile != null) ...[
-            const SizedBox(height: DswTokens.spaceSm),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => onOpenFile!('.'),
-                icon: Icon(
-                  Icons.folder_open,
-                  size: 14,
-                  color: aliases.stateBusinessPrimary,
-                ),
-                label: Text(
-                  t('produced.showInFolder'),
-                  style: TextStyle(
-                    fontSize: DswTokens.fontSizeXxs12,
-                    color: aliases.stateBusinessPrimary,
-                  ),
-                ),
-              ),
+                    // React `.lane:has(.more) > .showFolder`: the folder
+                    // action appears only when a remainder is visible.
+                    if (hidden > 0 && canOpenPath && onOpenFile != null) ...[
+                      const SizedBox(height: 6),
+                      _ShowFolderLink(
+                        label: t('produced.showInFolder'),
+                        onPressed: () => onOpenFile!('.'),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
 
-  static String _moreLabel(Translate t, int count) => count == 1
-      ? t('produced.moreOne')
-      : t('produced.more').replaceAll('{count}', '$count');
+/// Pluralized remainder copy (React `moreLabel`).
+String producedMoreLabel(Translate t, int count) => count == 1
+    ? t('produced.moreOne')
+    : t('produced.more').replaceAll('{count}', '$count');
+
+/// One openable file link: category glyph plus basename, link-colored at
+/// rest and dotted-underlined on hover (React `.file`).
+class _ProducedFileLink extends StatefulWidget {
+  const _ProducedFileLink({
+    required this.path,
+    required this.openLabel,
+    required this.onPressed,
+  });
+
+  final String path;
+  final String openLabel;
+  final VoidCallback? onPressed;
+
+  @override
+  State<_ProducedFileLink> createState() => _ProducedFileLinkState();
+}
+
+class _ProducedFileLinkState extends State<_ProducedFileLink> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    // --dsw-alias-link maps to the business-primary blue in Flutter.
+    final Color color = aliases.stateBusinessPrimary;
+    final TextStyle style = TextStyle(
+      fontSize: DswTokens.fontSizeXs13,
+      height: 22 / 13,
+      fontWeight: FontWeight.w500,
+      color: color,
+      decoration: _hovered ? TextDecoration.underline : TextDecoration.none,
+      decorationStyle: TextDecorationStyle.dotted,
+      decorationColor: color,
+    );
+    return Semantics(
+      label: widget.openLabel,
+      button: true,
+      child: Tooltip(
+        message: widget.path,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onPressed,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconTheme.merge(
+                  data: IconThemeData(color: color, size: 14),
+                  child: DsLinkIcon(kind: classifyLinkPath(widget.path)),
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    basename(widget.path),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: style,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// `Show in folder` action (React `.showFolder`): tertiary at rest, secondary
+/// with an underline on hover.
+class _ShowFolderLink extends StatefulWidget {
+  const _ShowFolderLink({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  State<_ShowFolderLink> createState() => _ShowFolderLinkState();
+}
+
+class _ShowFolderLinkState extends State<_ShowFolderLink> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final DswAliases aliases =
+        theme.extension<DswThemeExtension>()?.aliases ??
+        (theme.brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final Color color = _hovered
+        ? aliases.labelSecondary
+        : aliases.labelTertiary;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconTheme.merge(
+                data: IconThemeData(color: color, size: 14),
+                child: const DsLinkIcon(kind: LinkIconKind.folder),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: DswTokens.fontSizeXs13,
+                  height: 20 / 13,
+                  color: color,
+                  decoration: _hovered
+                      ? TextDecoration.underline
+                      : TextDecoration.none,
+                  decorationColor: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

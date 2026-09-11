@@ -146,7 +146,7 @@ void main() {
       // No workspace on this bare blank: the hero shows the choose-workspace
       // placeholder with an inert composer (React `placeholder.workspace`).
       expect(find.text('Choose a workspace to start'), findsOneWidget);
-      expect(find.text('Ask anything…'), findsNothing);
+      expect(find.text('Message or run a task... / commands, @ files or sessions'), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
 
@@ -162,6 +162,13 @@ void main() {
         ],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
+      // Bare scope has no plugin activation: register the conversation
+      // dictionaries for the locale-owned composer hint and select English.
+      container.read(localeServiceProvider).register(kConversationNamespace, {
+        'zh': kConversationZh,
+        'en': kConversationEn,
+      });
+      container.read(localeServiceProvider).setLocale('en');
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -182,7 +189,7 @@ void main() {
       // ("No messages yet", "Start the conversation below.", "Cmd+Enter…")
       // no longer renders. Check that the app bar and the input are present.
       expect(find.text('Session $sid'), findsOneWidget);
-      expect(find.text('Ask anything…'), findsOneWidget);
+      expect(find.text('Message or run a task... / commands, @ files or sessions'), findsOneWidget);
     });
 
     testWidgets('folds live history into node bubbles', (tester) async {
@@ -252,6 +259,13 @@ void main() {
         ],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
+      // Bare scope has no plugin activation: register the conversation
+      // dictionaries for the locale-owned composer hint and select English.
+      container.read(localeServiceProvider).register(kConversationNamespace, {
+        'zh': kConversationZh,
+        'en': kConversationEn,
+      });
+      container.read(localeServiceProvider).setLocale('en');
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -266,7 +280,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('Ask anything…'), findsOneWidget);
+      expect(find.text('Message or run a task... / commands, @ files or sessions'), findsOneWidget);
       expect(
         container.read(composerControllerProvider(sid)).canSubmit,
         isFalse,
@@ -288,6 +302,13 @@ void main() {
         ],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
+      // Bare scope has no plugin activation: register the conversation
+      // dictionaries for the locale-owned composer hint and select English.
+      container.read(localeServiceProvider).register(kConversationNamespace, {
+        'zh': kConversationZh,
+        'en': kConversationEn,
+      });
+      container.read(localeServiceProvider).setLocale('en');
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -375,6 +396,13 @@ void main() {
         overrides: [connectionClientProvider.overrideWithValue(client)],
       );
       container.read(sessionsProvider.notifier).addSession(summary);
+      // Bare scope has no plugin activation: register the conversation
+      // dictionaries for the locale-owned composer hint and select English.
+      container.read(localeServiceProvider).register(kConversationNamespace, {
+        'zh': kConversationZh,
+        'en': kConversationEn,
+      });
+      container.read(localeServiceProvider).setLocale('en');
       addTearDown(container.dispose);
 
       await tester.pumpWidget(

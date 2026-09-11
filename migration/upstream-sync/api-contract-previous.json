@@ -1,6 +1,6 @@
 {
-  "rev": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-  "generatedAt": "2026-09-09T01:19:01.851Z",
+  "rev": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+  "generatedAt": "2026-09-11T09:23:25.422Z",
   "operations": [
     {
       "namespace": "agentPresets",
@@ -659,7 +659,7 @@
       "mode": "unary",
       "serviceKey": "goals",
       "sourceFile": "packages/goal/goal/src/index.ts",
-      "line": 431,
+      "line": 433,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -679,7 +679,7 @@
       "mode": "unary",
       "serviceKey": "goals",
       "sourceFile": "packages/goal/goal/src/index.ts",
-      "line": 389,
+      "line": 391,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -720,7 +720,7 @@
       "mode": "unary",
       "serviceKey": "goals",
       "sourceFile": "packages/goal/goal/src/index.ts",
-      "line": 327,
+      "line": 329,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -856,7 +856,7 @@
       "mode": "unary",
       "serviceKey": "goals",
       "sourceFile": "packages/goal/goal/src/index.ts",
-      "line": 350,
+      "line": 352,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -912,7 +912,7 @@
       "mode": "unary",
       "serviceKey": "goals",
       "sourceFile": "packages/goal/goal/src/index.ts",
-      "line": 362,
+      "line": 364,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -970,7 +970,7 @@
       "mode": "unary",
       "serviceKey": "llm",
       "sourceFile": "packages/llm/llm/src/index.ts",
-      "line": 625,
+      "line": 628,
       "requestShape": "string",
       "responseShape": null,
       "args": [
@@ -991,7 +991,7 @@
       "mode": "unary",
       "serviceKey": "llm",
       "sourceFile": "packages/llm/llm/src/index.ts",
-      "line": 538,
+      "line": 541,
       "requestShape": null,
       "responseShape": null,
       "args": [],
@@ -1008,7 +1008,7 @@
       "mode": "unary",
       "serviceKey": "llm",
       "sourceFile": "packages/llm/llm/src/index.ts",
-      "line": 466,
+      "line": 469,
       "requestShape": null,
       "responseShape": null,
       "args": [],
@@ -1025,7 +1025,7 @@
       "mode": "unary",
       "serviceKey": "messageFeedback",
       "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-      "line": 279,
+      "line": 203,
       "requestShape": "MessageFeedbackDeleteRequest",
       "responseShape": null,
       "args": [
@@ -1044,7 +1044,7 @@
       "mode": "unary",
       "serviceKey": "messageFeedback",
       "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-      "line": 197,
+      "line": 153,
       "requestShape": "MessageFeedbackListRequest",
       "responseShape": null,
       "args": [
@@ -1063,7 +1063,7 @@
       "mode": "unary",
       "serviceKey": "messageFeedback",
       "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-      "line": 213,
+      "line": 165,
       "requestShape": "MessageFeedbackPutRequest",
       "responseShape": null,
       "args": [
@@ -1099,7 +1099,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 340,
+      "line": 342,
       "requestShape": "SessionAttachmentRequest",
       "responseShape": null,
       "args": [
@@ -1118,7 +1118,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 360,
+      "line": 362,
       "requestShape": "SessionCancelRequest",
       "responseShape": null,
       "args": [
@@ -1137,7 +1137,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 265,
+      "line": 267,
       "requestShape": null,
       "responseShape": null,
       "args": [],
@@ -1154,7 +1154,7 @@
       "mode": "stream",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 393,
+      "line": 395,
       "requestShape": "AbortSignal",
       "responseShape": null,
       "args": [
@@ -1173,7 +1173,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 237,
+      "line": 239,
       "requestShape": "SessionCreateRequest",
       "responseShape": null,
       "args": [
@@ -1192,7 +1192,7 @@
       "mode": "stream",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 383,
+      "line": 385,
       "requestShape": "SessionFollowRequest",
       "responseShape": null,
       "args": [
@@ -1212,7 +1212,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 318,
+      "line": 320,
       "requestShape": "SessionForkRequest",
       "responseShape": null,
       "args": [
@@ -1231,7 +1231,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 216,
+      "line": 218,
       "requestShape": "SessionListRequest",
       "responseShape": null,
       "args": [
@@ -1251,7 +1251,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 256,
+      "line": 258,
       "requestShape": null,
       "responseShape": null,
       "args": [],
@@ -1268,7 +1268,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 277,
+      "line": 279,
       "requestShape": "SessionOpenWorkspacePathRequest",
       "responseShape": null,
       "args": [
@@ -1288,7 +1288,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 371,
+      "line": 373,
       "requestShape": "SessionPageRequest",
       "responseShape": null,
       "args": [
@@ -1308,7 +1308,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 329,
+      "line": 331,
       "requestShape": "SessionPromptRequest",
       "responseShape": null,
       "args": [
@@ -1328,7 +1328,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 308,
+      "line": 310,
       "requestShape": "SessionRenameRequest",
       "responseShape": null,
       "args": [
@@ -1347,7 +1347,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 227,
+      "line": 229,
       "requestShape": "SessionSearchRequest",
       "responseShape": null,
       "args": [
@@ -1367,7 +1367,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 247,
+      "line": 249,
       "requestShape": "SessionSelectModelRequest",
       "responseShape": null,
       "args": [
@@ -1386,7 +1386,7 @@
       "mode": "unary",
       "serviceKey": "sessionController",
       "sourceFile": "packages/api/session-controller/src/index.ts",
-      "line": 350,
+      "line": 352,
       "requestShape": "SessionUpdateQueueRequest",
       "responseShape": null,
       "args": [
@@ -1405,7 +1405,7 @@
       "mode": "unary",
       "serviceKey": "sessionReferenceResolver",
       "sourceFile": "packages/context/session-reference/src/index.ts",
-      "line": 252,
+      "line": 274,
       "requestShape": "Agent",
       "responseShape": null,
       "args": [
@@ -1584,7 +1584,7 @@
       "mode": "unary",
       "serviceKey": "subagents",
       "sourceFile": "packages/subagent/subagent/src/index.ts",
-      "line": 480,
+      "line": 477,
       "requestShape": "SessionId",
       "responseShape": null,
       "args": [
@@ -1605,7 +1605,7 @@
       "mode": "unary",
       "serviceKey": "subagents",
       "sourceFile": "packages/subagent/subagent/src/index.ts",
-      "line": 387,
+      "line": 383,
       "requestShape": "SessionId",
       "responseShape": null,
       "args": [
@@ -1625,7 +1625,7 @@
       "mode": "unary",
       "serviceKey": "subagents",
       "sourceFile": "packages/subagent/subagent/src/index.ts",
-      "line": 413,
+      "line": 410,
       "requestShape": "SubagentPromptRequest",
       "responseShape": null,
       "args": [
@@ -1767,6 +1767,112 @@
       ],
       "transport": "typert/unary",
       "authorization": "browser"
+    },
+    {
+      "namespace": "workspaceFiles",
+      "operation": "changes",
+      "endpoint": "workspaceFiles/changes",
+      "wireEndpoint": "/api/workspaceFiles/changes",
+      "method": "changes",
+      "exportName": null,
+      "mode": "stream",
+      "serviceKey": "workspaceFiles",
+      "sourceFile": "packages/api/workspace-files/src/index.ts",
+      "line": 274,
+      "requestShape": "Agent",
+      "responseShape": null,
+      "args": [
+        "agent",
+        "signal"
+      ],
+      "transport": "typert/stream",
+      "authorization": "browser"
+    },
+    {
+      "namespace": "workspaceFiles",
+      "operation": "list",
+      "endpoint": "workspaceFiles/list",
+      "wireEndpoint": "/api/workspaceFiles/list",
+      "method": "list",
+      "exportName": null,
+      "mode": "unary",
+      "serviceKey": "workspaceFiles",
+      "sourceFile": "packages/api/workspace-files/src/index.ts",
+      "line": 246,
+      "requestShape": "Agent",
+      "responseShape": null,
+      "args": [
+        "agent",
+        "path",
+        "signal"
+      ],
+      "transport": "typert/unary",
+      "authorization": "browser"
+    },
+    {
+      "namespace": "workspaceFiles",
+      "operation": "read",
+      "endpoint": "workspaceFiles/read",
+      "wireEndpoint": "/api/workspaceFiles/read",
+      "method": "read",
+      "exportName": null,
+      "mode": "unary",
+      "serviceKey": "workspaceFiles",
+      "sourceFile": "packages/api/workspace-files/src/index.ts",
+      "line": 197,
+      "requestShape": "Agent",
+      "responseShape": null,
+      "args": [
+        "agent",
+        "path",
+        "range",
+        "signal"
+      ],
+      "transport": "typert/unary",
+      "authorization": "browser"
+    },
+    {
+      "namespace": "workspaceFiles",
+      "operation": "readBytes",
+      "endpoint": "workspaceFiles/readBytes",
+      "wireEndpoint": "/api/workspaceFiles/readBytes",
+      "method": "readBytes",
+      "exportName": null,
+      "mode": "unary",
+      "serviceKey": "workspaceFiles",
+      "sourceFile": "packages/api/workspace-files/src/index.ts",
+      "line": 217,
+      "requestShape": "Agent",
+      "responseShape": null,
+      "args": [
+        "agent",
+        "path",
+        "range",
+        "signal"
+      ],
+      "transport": "typert/unary",
+      "authorization": "browser"
+    },
+    {
+      "namespace": "workspaceFiles",
+      "operation": "stat",
+      "endpoint": "workspaceFiles/stat",
+      "wireEndpoint": "/api/workspaceFiles/stat",
+      "method": "stat",
+      "exportName": null,
+      "mode": "unary",
+      "serviceKey": "workspaceFiles",
+      "sourceFile": "packages/api/workspace-files/src/index.ts",
+      "line": 233,
+      "requestShape": "Agent",
+      "responseShape": null,
+      "args": [
+        "agent",
+        "path",
+        "signal"
+      ],
+      "transport": "typert/unary",
+      "authorization": "browser"
     }
   ],
   "namespaces": [
@@ -1788,7 +1894,8 @@
     "settings",
     "skills",
     "subagents",
-    "workspace"
+    "workspace",
+    "workspaceFiles"
   ],
   "endpoints": [
     "agentPresets/copy",
@@ -1882,7 +1989,12 @@
     "workspace/follow",
     "workspace/insertBefore",
     "workspace/insertSessionBefore",
-    "workspace/rename"
+    "workspace/rename",
+    "workspaceFiles/changes",
+    "workspaceFiles/list",
+    "workspaceFiles/read",
+    "workspaceFiles/readBytes",
+    "workspaceFiles/stat"
   ],
   "byNamespace": {
     "agentPresets": [
@@ -2561,7 +2673,7 @@
         "mode": "unary",
         "serviceKey": "goals",
         "sourceFile": "packages/goal/goal/src/index.ts",
-        "line": 431,
+        "line": 433,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -2581,7 +2693,7 @@
         "mode": "unary",
         "serviceKey": "goals",
         "sourceFile": "packages/goal/goal/src/index.ts",
-        "line": 389,
+        "line": 391,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -2622,7 +2734,7 @@
         "mode": "unary",
         "serviceKey": "goals",
         "sourceFile": "packages/goal/goal/src/index.ts",
-        "line": 327,
+        "line": 329,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -2758,7 +2870,7 @@
         "mode": "unary",
         "serviceKey": "goals",
         "sourceFile": "packages/goal/goal/src/index.ts",
-        "line": 350,
+        "line": 352,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -2814,7 +2926,7 @@
         "mode": "unary",
         "serviceKey": "goals",
         "sourceFile": "packages/goal/goal/src/index.ts",
-        "line": 362,
+        "line": 364,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -2874,7 +2986,7 @@
         "mode": "unary",
         "serviceKey": "llm",
         "sourceFile": "packages/llm/llm/src/index.ts",
-        "line": 625,
+        "line": 628,
         "requestShape": "string",
         "responseShape": null,
         "args": [
@@ -2895,7 +3007,7 @@
         "mode": "unary",
         "serviceKey": "llm",
         "sourceFile": "packages/llm/llm/src/index.ts",
-        "line": 538,
+        "line": 541,
         "requestShape": null,
         "responseShape": null,
         "args": [],
@@ -2912,7 +3024,7 @@
         "mode": "unary",
         "serviceKey": "llm",
         "sourceFile": "packages/llm/llm/src/index.ts",
-        "line": 466,
+        "line": 469,
         "requestShape": null,
         "responseShape": null,
         "args": [],
@@ -2931,7 +3043,7 @@
         "mode": "unary",
         "serviceKey": "messageFeedback",
         "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-        "line": 279,
+        "line": 203,
         "requestShape": "MessageFeedbackDeleteRequest",
         "responseShape": null,
         "args": [
@@ -2950,7 +3062,7 @@
         "mode": "unary",
         "serviceKey": "messageFeedback",
         "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-        "line": 197,
+        "line": 153,
         "requestShape": "MessageFeedbackListRequest",
         "responseShape": null,
         "args": [
@@ -2969,7 +3081,7 @@
         "mode": "unary",
         "serviceKey": "messageFeedback",
         "sourceFile": "packages/feedback/message-feedback/src/index.ts",
-        "line": 213,
+        "line": 165,
         "requestShape": "MessageFeedbackPutRequest",
         "responseShape": null,
         "args": [
@@ -3009,7 +3121,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 340,
+        "line": 342,
         "requestShape": "SessionAttachmentRequest",
         "responseShape": null,
         "args": [
@@ -3028,7 +3140,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 360,
+        "line": 362,
         "requestShape": "SessionCancelRequest",
         "responseShape": null,
         "args": [
@@ -3047,7 +3159,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 265,
+        "line": 267,
         "requestShape": null,
         "responseShape": null,
         "args": [],
@@ -3064,7 +3176,7 @@
         "mode": "stream",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 393,
+        "line": 395,
         "requestShape": "AbortSignal",
         "responseShape": null,
         "args": [
@@ -3083,7 +3195,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 237,
+        "line": 239,
         "requestShape": "SessionCreateRequest",
         "responseShape": null,
         "args": [
@@ -3102,7 +3214,7 @@
         "mode": "stream",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 383,
+        "line": 385,
         "requestShape": "SessionFollowRequest",
         "responseShape": null,
         "args": [
@@ -3122,7 +3234,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 318,
+        "line": 320,
         "requestShape": "SessionForkRequest",
         "responseShape": null,
         "args": [
@@ -3141,7 +3253,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 216,
+        "line": 218,
         "requestShape": "SessionListRequest",
         "responseShape": null,
         "args": [
@@ -3161,7 +3273,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 256,
+        "line": 258,
         "requestShape": null,
         "responseShape": null,
         "args": [],
@@ -3178,7 +3290,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 277,
+        "line": 279,
         "requestShape": "SessionOpenWorkspacePathRequest",
         "responseShape": null,
         "args": [
@@ -3198,7 +3310,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 371,
+        "line": 373,
         "requestShape": "SessionPageRequest",
         "responseShape": null,
         "args": [
@@ -3218,7 +3330,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 329,
+        "line": 331,
         "requestShape": "SessionPromptRequest",
         "responseShape": null,
         "args": [
@@ -3238,7 +3350,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 308,
+        "line": 310,
         "requestShape": "SessionRenameRequest",
         "responseShape": null,
         "args": [
@@ -3257,7 +3369,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 227,
+        "line": 229,
         "requestShape": "SessionSearchRequest",
         "responseShape": null,
         "args": [
@@ -3277,7 +3389,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 247,
+        "line": 249,
         "requestShape": "SessionSelectModelRequest",
         "responseShape": null,
         "args": [
@@ -3296,7 +3408,7 @@
         "mode": "unary",
         "serviceKey": "sessionController",
         "sourceFile": "packages/api/session-controller/src/index.ts",
-        "line": 350,
+        "line": 352,
         "requestShape": "SessionUpdateQueueRequest",
         "responseShape": null,
         "args": [
@@ -3317,7 +3429,7 @@
         "mode": "unary",
         "serviceKey": "sessionReferenceResolver",
         "sourceFile": "packages/context/session-reference/src/index.ts",
-        "line": 252,
+        "line": 274,
         "requestShape": "Agent",
         "responseShape": null,
         "args": [
@@ -3502,7 +3614,7 @@
         "mode": "unary",
         "serviceKey": "subagents",
         "sourceFile": "packages/subagent/subagent/src/index.ts",
-        "line": 480,
+        "line": 477,
         "requestShape": "SessionId",
         "responseShape": null,
         "args": [
@@ -3523,7 +3635,7 @@
         "mode": "unary",
         "serviceKey": "subagents",
         "sourceFile": "packages/subagent/subagent/src/index.ts",
-        "line": 387,
+        "line": 383,
         "requestShape": "SessionId",
         "responseShape": null,
         "args": [
@@ -3543,7 +3655,7 @@
         "mode": "unary",
         "serviceKey": "subagents",
         "sourceFile": "packages/subagent/subagent/src/index.ts",
-        "line": 413,
+        "line": 410,
         "requestShape": "SubagentPromptRequest",
         "responseShape": null,
         "args": [
@@ -3688,7 +3800,115 @@
         "transport": "typert/unary",
         "authorization": "browser"
       }
+    ],
+    "workspaceFiles": [
+      {
+        "namespace": "workspaceFiles",
+        "operation": "changes",
+        "endpoint": "workspaceFiles/changes",
+        "wireEndpoint": "/api/workspaceFiles/changes",
+        "method": "changes",
+        "exportName": null,
+        "mode": "stream",
+        "serviceKey": "workspaceFiles",
+        "sourceFile": "packages/api/workspace-files/src/index.ts",
+        "line": 274,
+        "requestShape": "Agent",
+        "responseShape": null,
+        "args": [
+          "agent",
+          "signal"
+        ],
+        "transport": "typert/stream",
+        "authorization": "browser"
+      },
+      {
+        "namespace": "workspaceFiles",
+        "operation": "list",
+        "endpoint": "workspaceFiles/list",
+        "wireEndpoint": "/api/workspaceFiles/list",
+        "method": "list",
+        "exportName": null,
+        "mode": "unary",
+        "serviceKey": "workspaceFiles",
+        "sourceFile": "packages/api/workspace-files/src/index.ts",
+        "line": 246,
+        "requestShape": "Agent",
+        "responseShape": null,
+        "args": [
+          "agent",
+          "path",
+          "signal"
+        ],
+        "transport": "typert/unary",
+        "authorization": "browser"
+      },
+      {
+        "namespace": "workspaceFiles",
+        "operation": "read",
+        "endpoint": "workspaceFiles/read",
+        "wireEndpoint": "/api/workspaceFiles/read",
+        "method": "read",
+        "exportName": null,
+        "mode": "unary",
+        "serviceKey": "workspaceFiles",
+        "sourceFile": "packages/api/workspace-files/src/index.ts",
+        "line": 197,
+        "requestShape": "Agent",
+        "responseShape": null,
+        "args": [
+          "agent",
+          "path",
+          "range",
+          "signal"
+        ],
+        "transport": "typert/unary",
+        "authorization": "browser"
+      },
+      {
+        "namespace": "workspaceFiles",
+        "operation": "readBytes",
+        "endpoint": "workspaceFiles/readBytes",
+        "wireEndpoint": "/api/workspaceFiles/readBytes",
+        "method": "readBytes",
+        "exportName": null,
+        "mode": "unary",
+        "serviceKey": "workspaceFiles",
+        "sourceFile": "packages/api/workspace-files/src/index.ts",
+        "line": 217,
+        "requestShape": "Agent",
+        "responseShape": null,
+        "args": [
+          "agent",
+          "path",
+          "range",
+          "signal"
+        ],
+        "transport": "typert/unary",
+        "authorization": "browser"
+      },
+      {
+        "namespace": "workspaceFiles",
+        "operation": "stat",
+        "endpoint": "workspaceFiles/stat",
+        "wireEndpoint": "/api/workspaceFiles/stat",
+        "method": "stat",
+        "exportName": null,
+        "mode": "unary",
+        "serviceKey": "workspaceFiles",
+        "sourceFile": "packages/api/workspace-files/src/index.ts",
+        "line": 233,
+        "requestShape": "Agent",
+        "responseShape": null,
+        "args": [
+          "agent",
+          "path",
+          "signal"
+        ],
+        "transport": "typert/unary",
+        "authorization": "browser"
+      }
     ]
   },
-  "sourceFilesScanned": 30
+  "sourceFilesScanned": 31
 }

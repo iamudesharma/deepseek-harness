@@ -203,7 +203,16 @@ class ModelDirectory extends StateNotifier<ModelDirectoryState> {
       try {
         final perSession = await _client.sessionModels(sessionId: _sessionId.value);
         if (perSession.containsKey('current') || perSession.containsKey('groups')) {
-          value = perSession;
+          value = Map<String, dynamic>.from(perSession);
+          // Current hosts answer the legacy per-session call with the GLOBAL
+          // catalog shape ({default, groups}, no per-session `current`).
+          // Resolve exactly like React (`projected.next ?? catalog.default`):
+          // keep a per-session current, else fall back to the catalog
+          // default — a new session must offer the deployment default, never
+          // an empty seat.
+          if (!value.containsKey('current') && catalog['default'] is Map) {
+            value['current'] = catalog['default'];
+          }
         } else {
           value = {
             'current': catalog['default'],

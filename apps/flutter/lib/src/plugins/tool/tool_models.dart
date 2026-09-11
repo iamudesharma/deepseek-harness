@@ -191,7 +191,7 @@ String flattenResultContent(Object? content) {
     errorCode = error;
   }
   final bool isError =
-      (data['isError'] as bool?) ?? error != null || errorCode == 'interrupted';
+      data['isError'] == true || error != null || errorCode == 'interrupted';
   String? text;
   final dynamic message = data['message'];
   if (message is Map) {
@@ -210,6 +210,11 @@ String flattenResultContent(Object? content) {
   return (text: text, isError: isError, errorCode: errorCode, meta: meta);
 }
 
+/// Reads a host event field that must be a string: non-strings yield null
+/// instead of throwing (a direct `as String?` cast red-screens the fold
+/// when the host sends a map for `callId`/`name`).
+String? _eventStr(dynamic value) => value is String ? value : null;
+
 /// Fold history entries into a list of [ToolCall]s.
 ///
 /// Joins `tool/call` (seq, args) with the later `tool/result` (status,
@@ -223,12 +228,12 @@ List<ToolCall> toolCallsFromHistory(List<HistoryEntry> entries) {
     final String type = event.type;
     if (type == 'tool/call' || type == 'tools/call') {
       final String callId =
-          (event.data['callId'] as String?) ??
-          (event.data['toolCallId'] as String?) ??
+          _eventStr(event.data['callId']) ??
+          _eventStr(event.data['toolCallId']) ??
           'call-${event.seq}';
       final String toolName =
-          (event.data['name'] as String?) ??
-          (event.data['tool'] as String?) ??
+          _eventStr(event.data['name']) ??
+          _eventStr(event.data['tool']) ??
           'tool';
       final decoded = decodeCallArgs(event.data);
       final ToolCall call = ToolCall(
@@ -247,8 +252,8 @@ List<ToolCall> toolCallsFromHistory(List<HistoryEntry> entries) {
         type == 'tools/result' ||
         type == 'tool/result/batch') {
       final String callId =
-          (event.data['callId'] as String?) ??
-          (event.data['toolCallId'] as String?) ??
+          _eventStr(event.data['callId']) ??
+          _eventStr(event.data['toolCallId']) ??
           '';
       if (callId.isEmpty) continue;
       final ToolCall? existing = byId[callId];
@@ -273,7 +278,7 @@ List<ToolCall> toolCallsFromHistory(List<HistoryEntry> entries) {
         // Orphan result — synthesize a generic call.
         byId[callId] = ToolCall(
           id: callId,
-          toolName: (event.data['name'] as String?) ?? 'tool',
+          toolName: _eventStr(event.data['name']) ?? 'tool',
           kind: ToolCallKind.generic,
           status: isError ? ToolCallStatus.error : ToolCallStatus.success,
           args: const {},

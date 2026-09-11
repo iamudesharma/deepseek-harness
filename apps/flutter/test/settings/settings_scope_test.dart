@@ -148,4 +148,41 @@ void main() {
     await scope.refreshFromDescribe(); // same content, fresh snapshot object
     expect(calls, afterLoad + 1);
   });
+
+  test('refresh handles host List namespaces form', () async {
+    final face = _FakeSettingsFace()
+      ..document = {
+        'writable': true,
+        'namespaces': [
+          {
+            'ns': 'ui-theme',
+            'schema': {},
+            'value': {'preference': 'dark'},
+            'revision': 5,
+          },
+        ],
+      };
+    final scope = SettingsScope<Object?>(face: face, namespace: 'ui-theme');
+    await scope.refreshFromDescribe();
+    expect(scope.snapshot.status, SettingsScopeStatus.ready);
+    expect(scope.snapshot.revision, 5);
+    expect(scope.snapshot.writable, isTrue);
+    expect((scope.snapshot.value as Map)['preference'], 'dark');
+  });
+
+  test('List form with unknown namespace reports unavailable', () async {
+    final face = _FakeSettingsFace()
+      ..document = {
+        'namespaces': [
+          {'ns': 'other', 'value': {}, 'revision': 1},
+        ],
+      };
+    final scope = SettingsScope<Object?>(
+      face: face,
+      namespace: 'nope',
+    );
+    await scope.refreshFromDescribe();
+    expect(scope.snapshot.status, SettingsScopeStatus.unavailable);
+    expect(scope.snapshot.writable, isFalse);
+  });
 }

@@ -12,11 +12,6 @@ import 'package:web_socket_channel/io.dart';
 /// event streams over WebSocket with runtime-controllable frame injection and
 /// closure, so reconnect-generation semantics run against a real carrier.
 class _ScriptedHost {
-  _ScriptedHost({this.muxScript = const []});
-
-  /// Frames replayed on every new mux socket connection.
-  final List<Map<String, dynamic>> muxScript;
-
   HttpServer? _server;
   bool streamsUp = true;
   final List<IOWebSocketChannel> _muxSockets = [];
@@ -59,9 +54,6 @@ class _ScriptedHost {
         final channel = await WebSocketTransformer.upgrade(request)
             .then(IOWebSocketChannel.new);
         _muxSockets.add(channel);
-        for (final frame in muxScript) {
-          channel.sink.add(jsonEncode(frame));
-        }
         // Hold the socket open; tests close it explicitly.
         return;
       }
@@ -113,89 +105,13 @@ class _DescribeGatedClient extends http.BaseClient {
 }
 
 void main() {
-  test('generation increments on stream loss and state walks connected→reconnecting→connected', () async {
-    final host = _ScriptedHost(
-      muxScript: [
-        {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 0},
-      ],
-    );
-    final baseUrl = await host.start();
-    final states = <ConnectionState>[];
-    final controller = FlutterConnectionController(
-      ConnectionClient(baseUrl: baseUrl),
-      onStateChange: states.add,
-      config: const ConnectionConfig(backoffBaseMs: 5, backoffMaxMs: 10),
-    )..start();
-
-    while (!states.contains(ConnectionState.connected)) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-    }
-    expect(controller.currentAttempt, 0);
-
-    final genBefore = controller.generation;
-    host.closeMuxSockets();
-
-    while (controller.generation <= genBefore) {
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-      if (!controller.isRunning) break;
-    }
-    expect(controller.generation, greaterThan(genBefore));
-    expect(states.contains(ConnectionState.reconnecting), isTrue);
-
-    controller.stop();
-    await host.stop();
-  });
-
-  test(
-    'stream/error ends the generation and is not delivered to sinks',
-    () async {
-      final host = _ScriptedHost(
-        muxScript: [
-          {'type': 'session/subscribed', 'sessionId': 's1', 'lastSeq': 0},
-        ],
-      );
-      final baseUrl = await host.start();
-      final delivered = <Map<String, dynamic>>[];
-      final controller = FlutterConnectionController(
-        ConnectionClient(baseUrl: baseUrl),
-        onMuxEnvelope: delivered.add,
-        config: const ConnectionConfig(backoffBaseMs: 5, backoffMaxMs: 10),
-      )..start();
-
-      while (!delivered.any((f) => f['type'] == 'session/subscribed')) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
-      final genBefore = controller.generation;
-
-      host.pushMux({
-        'type': 'session/event',
-        'sessionId': 's1',
-        'event': {'type': 'turn/start', 'seq': 1},
-      });
-      host.pushMux({
-        'type': 'stream/error',
-        'error': {
-          'code': 'internal',
-          'message': 'carriage detached',
-          'details': {},
-        },
-      });
-
-      // Wait up to 200ms for the generation to turn over (30ms is tight under
-      // full-suite load; poll like the first test).
-      for (var i = 0; i < 20; i++) {
-        if (controller.generation > genBefore) break;
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
-
-      expect(delivered.any((f) => f['type'] == 'session/event'), isTrue);
-      expect(delivered.any((f) => f['type'] == 'stream/error'), isFalse);
-      expect(controller.generation, greaterThan(genBefore));
-
-      controller.stop();
-      await host.stop();
-    },
-  );
+  // NOTE: the retired-transport generation tests lived here. They drove
+  // `host.describe` + raw `session/subscribed` sockets, which the remote.mux
+  // transport replaced: without a `$events` ready frame no generation can
+  // establish, so they failed at HEAD and poisoned neighboring tests with
+  // hot-looping leaked controllers. Their behaviors now live in
+  // `connection_recovery_test.dart` (turnover, resubscription) and
+  // `remote_mux_events_test.dart` (stream/error delivery).
 
   test(
     'stop during handshake never fires onConnected for a dead generation',

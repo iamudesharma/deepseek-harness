@@ -93,6 +93,31 @@ class Turn {
   }
 }
 
+/// One system prompt visible to the trajectory: a `system/message` surface
+/// event folded from history. Mirrors React `TrajectorySnapshot.systemPrompts`
+/// (prompts whose header is outside the window travel with the snapshot).
+class TrajectorySystemPrompt {
+  /// Creates the trajectory system prompt.
+  const TrajectorySystemPrompt({
+    required this.seq,
+    required this.time,
+    required this.text,
+    required this.update,
+  });
+
+  /// Owning event seq.
+  final int seq;
+
+  /// Event wall time.
+  final int time;
+
+  /// Exact model-visible text.
+  final String text;
+
+  /// Whether the event updates an already-shown prompt.
+  final bool update;
+}
+
 /// Trajectory — ordered sequence of turns for a session.
 ///
 /// Mirrors host `Trajectory` projection and the web `TrajectoryScreen` data
@@ -104,6 +129,9 @@ class Trajectory {
 
   /// Ordered turns (oldest first).
   final List<Turn> turns;
+
+  /// System prompts folded from `system/message` events, in seq order.
+  final List<TrajectorySystemPrompt> systemPrompts;
 
   /// Whether the whole trajectory is still streaming (last turn running).
   bool get isRunning => turns.any((t) => t.status == TurnStatus.running);
@@ -118,17 +146,60 @@ class Trajectory {
   }
 
   /// Creates a trajectory.
-  const Trajectory({required this.sessionId, required this.turns});
+  const Trajectory({
+    required this.sessionId,
+    required this.turns,
+    this.systemPrompts = const [],
+  });
 
   /// Empty trajectory for a session with no turns.
-  factory Trajectory.empty(String sessionId) =>
-      Trajectory(sessionId: sessionId, turns: const []);
+  factory Trajectory.empty(String sessionId) => Trajectory(
+    sessionId: sessionId,
+    turns: const [],
+    systemPrompts: const [],
+  );
+}
+
+/// Fold `system/message` events into trajectory system prompts in seq
+/// order. Empty content records removal (kept as an empty-text prompt so
+/// the row can clear); `update` marks appends that follow a shown prompt,
+/// mirroring the inspector rule.
+/// @param entries - session history entries in log order.
+/// @returns prompts in seq order (possibly empty, never null).
+List<TrajectorySystemPrompt> _systemPromptsFrom(List<HistoryEntry> entries) {
+  final prompts = <TrajectorySystemPrompt>[];
+  var shownNonEmpty = false;
+  for (final entry in entries) {
+    final ev = entry.event;
+    if (ev.type != 'system/message') continue;
+    final message = ev.data['message'];
+    final content = message is Map ? message['content'] : null;
+    final parts = <String>[];
+    if (content is List) {
+      for (final block in content) {
+        if (block is Map && block['type'] == 'text') {
+          final text = block['text'];
+          if (text is String) parts.add(text);
+        }
+      }
+    }
+    final text = parts.join('');
+    prompts.add(
+      TrajectorySystemPrompt(
+        seq: ev.seq,
+        time: ev.time,
+        text: text,
+        update: text.isNotEmpty && shownNonEmpty,
+      ),
+    );
+    if (text.isNotEmpty) shownNonEmpty = true;
+  }
+  return List.unmodifiable(prompts);
 }
 
 /// Fold raw [HistoryEntry]s into a [Trajectory].
 ///
-/// Strategy:
-/// - When `turn/start` / `turn/end` envelopes exist, use them as turn
+/// Strategy:/// - When `turn/start` / `turn/end` envelopes exist, use them as turn
 ///   boundaries and join tool calls by callId within each turn.
 /// - Otherwise synthesize turns from `user/message` boundaries: each user
 ///   message starts a turn, terminated by the next user message or log end.
@@ -197,14 +268,14 @@ Trajectory _fromTurnEnvelopes(String sessionId, List<HistoryEntry> entries) {
       if (currentId != null)
         flush(status: TurnStatus.completed, endTime: ev.time, endSeq: ev.seq);
       currentId =
-          (ev.data['turnId'] as String?) ??
-          (ev.data['id'] as String?) ??
+          _str(ev.data['turnId']) ??
+          _str(ev.data['id']) ??
           'turn-${ev.seq}';
       startSeq = ev.seq;
       startTime = ev.time;
       title =
-          (ev.data['title'] as String?) ??
-          (ev.data['prompt'] as String?) ??
+          _str(ev.data['title']) ??
+          _str(ev.data['prompt']) ??
           'Turn ${ordinal + 1}';
       // Also check toolsById presence for synthetic linkage (unused here).
       if (toolsById.isEmpty) {
@@ -212,12 +283,12 @@ Trajectory _fromTurnEnvelopes(String sessionId, List<HistoryEntry> entries) {
       }
     } else if (ev.type == 'turn/end') {
       final String turnId =
-          (ev.data['turnId'] as String?) ??
-          (ev.data['id'] as String?) ??
+          _str(ev.data['turnId']) ??
+          _str(ev.data['id']) ??
           currentId ??
           'turn-${ev.seq}';
       if (currentId == turnId || currentId == null) {
-        final bool isError = (ev.data['isError'] as bool?) ?? false;
+        final bool isError = ev.data['isError'] == true;
         flush(
           status: isError ? TurnStatus.failed : TurnStatus.completed,
           endTime: ev.time,
@@ -238,7 +309,11 @@ Trajectory _fromTurnEnvelopes(String sessionId, List<HistoryEntry> entries) {
   // Fallback: if no turns were emitted, synthesize from user boundaries.
   if (turns.isEmpty) return _fromUserBoundaries(sessionId, entries);
 
-  return Trajectory(sessionId: sessionId, turns: List.unmodifiable(turns));
+  return Trajectory(
+    sessionId: sessionId,
+    turns: List.unmodifiable(turns),
+    systemPrompts: _systemPromptsFrom(entries),
+  );
 }
 
 Trajectory _fromUserBoundaries(String sessionId, List<HistoryEntry> entries) {
@@ -277,6 +352,7 @@ Trajectory _fromUserBoundaries(String sessionId, List<HistoryEntry> entries) {
           messageCount: entries.length,
         ),
       ],
+      systemPrompts: _systemPromptsFrom(entries),
     );
   }
 
@@ -348,7 +424,11 @@ Trajectory _fromUserBoundaries(String sessionId, List<HistoryEntry> entries) {
     );
   }
 
-  return Trajectory(sessionId: sessionId, turns: List.unmodifiable(turns));
+  return Trajectory(
+    sessionId: sessionId,
+    turns: List.unmodifiable(turns),
+    systemPrompts: _systemPromptsFrom(entries),
+  );
 }
 
 String _summaryForRange(List<HistoryEntry> range, int startSeq, int endSeq) {
@@ -362,26 +442,48 @@ String _summaryForRange(List<HistoryEntry> range, int startSeq, int endSeq) {
   return parts.join('\n\n');
 }
 
+/// Reads a host field that must be a string: non-strings (maps, numbers,
+/// blocks) yield null instead of throwing. Host payloads vary by version —
+/// `text`, `title`, `prompt`, and `name` fields have all arrived as maps —
+/// and a direct `as String?` cast red-screens the trajectory fold.
+/// @param value - raw field value.
+/// @returns the string, or null when absent or not a string.
+String? _str(dynamic value) => value is String ? value : null;
+
+/// Reads one content block's text without throwing on non-string `text` or
+/// `content` (nested blocks, image payloads).
+String _blockText(dynamic block) {
+  if (block is String) return block;
+  if (block is List) {
+    return block
+        .map(_blockText)
+        .where((s) => s.isNotEmpty)
+        .join('\n');
+  }
+  if (block is Map) {
+    return _str(block['text']) ?? _str(block['content']) ?? '';
+  }
+  return '';
+}
+
 String _extractText(Map<String, dynamic> data) {
   final dynamic content = data['content'];
   if (content is String) return content;
   if (content is List) {
     final sb = StringBuffer();
     for (final block in content) {
-      if (block is Map) {
-        final String? t =
-            block['text'] as String? ?? block['content'] as String?;
-        if (t != null) sb.writeln(t);
-      } else if (block is String) {
-        sb.writeln(block);
-      }
+      final t = _blockText(block);
+      if (t.isNotEmpty) sb.writeln(t);
     }
     final s = sb.toString().trim();
     if (s.isNotEmpty) return s;
+  } else if (content is Map) {
+    final t = _blockText(content);
+    if (t.isNotEmpty) return t;
   }
-  return (data['text'] as String?) ??
-      (data['message'] as String?) ??
-      (data['prompt'] as String?) ??
+  return _str(data['text']) ??
+      _str(data['message']) ??
+      _str(data['prompt']) ??
       '';
 }
 

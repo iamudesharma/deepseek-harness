@@ -1,0 +1,166 @@
+{
+  "cssModules": [
+    {
+      "file": "packages/client/ui-chat/src/client/chat/MessageIconActions.module.css",
+      "vars": [
+        "--dsw-alias-label-tertiary",
+        "--dsw-alias-label-secondary",
+        "--dsw-alias-interactive-bg-hover",
+        "--dsh-content-font-delta",
+        "--dsh-content-font-size-secondary"
+      ]
+    },
+    {
+      "file": "packages/client/ui-chat/src/client/chat/TurnTailNodeView.module.css",
+      "vars": []
+    },
+    {
+      "file": "packages/client/ui-chat/src/client/chat/StatsLine.module.css",
+      "vars": [
+        "--dsw-alias-label-tertiary",
+        "--dsw-alias-border-separator",
+        "--dsh-content-font-size-secondary",
+        "--dsh-content-font-delta"
+      ]
+    },
+    {
+      "file": "packages/client/ui-deliverables/src/client/ProducedFiles.module.css",
+      "vars": [
+        "--dsw-alias-label-tertiary",
+        "--dsw-alias-link",
+        "--dsh-content-font-delta"
+      ]
+    },
+    {
+      "file": "packages/client/ui-conversation/src/client/skeleton/TodoPanel.module.css",
+      "vars": [
+        "--dsw-alias-border-l1",
+        "--dsw-specific-tip",
+        "--dsw-alias-label-primary",
+        "--dsw-alias-label-secondary",
+        "--dsw-alias-label-tertiary",
+        "--dsw-alias-label-caption",
+        "--dsw-alias-state-success-primary",
+        "--dsw-alias-state-business-primary"
+      ]
+    },
+    {
+      "file": "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
+      "vars": [
+        "--dsw-specific-input-major",
+        "--dsw-alias-label-primary",
+        "--dsw-alias-label-caption",
+        "--dsw-alias-label-tertiary",
+        "--dsw-alias-selector-fill",
+        "--dsw-alias-info-fill"
+      ]
+    },
+    {
+      "file": "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+      "vars": []
+    }
+  ],
+  "cssVarsCount": 21,
+  "fileCount": 12,
+  "flutterTargets": [
+    "apps/flutter/lib/src/plugins/conversation/ui/chat_view.dart (_MessageIconActions, turn-tail footer)",
+    "apps/flutter/lib/src/plugins/deliverables/ui/produced_files_row.dart",
+    "apps/flutter/lib/src/plugins/conversation/ui/todo_panel.dart",
+    "apps/flutter/lib/src/plugins/conversation/ui/session_stats_pills.dart",
+    "apps/flutter/lib/src/plugins/conversation/ui/composer.dart",
+    "apps/flutter/lib/src/plugins/conversation/ui/column.dart (_ActiveBody)"
+  ],
+  "fixes20260910": {
+    "composerHint": {
+      "flutterAfter": "hintText: t('placeholder.default') at column.dart _ActiveBody; dictionaries gain placeholder.default (EN + ZH)",
+      "react": "placeholder.default: 'Message or run a task... / commands, @ files or sessions' / '\u53d1\u6d88\u606f\u6216\u505a\u4efb\u52a1\u2026 / \u8c03\u7528\u6307\u4ee4 @ \u6587\u4ef6\u6216\u5bf9\u8bdd' (locales.ts:16,180)",
+      "was": "hardcoded 'Ask anything\u2026'"
+    },
+    "footerClock": {
+      "flutterAfter": "13px, height 24/13, tertiary, no leading padding (Wrap 8px gap spaces it)",
+      "react": ".timeEnd 13px/24px tertiary, no padding (row 8px gap)",
+      "was": "12px, height 20/12, Padding(left:4)"
+    },
+    "footerRowGap": {
+      "flutterAfter": "Wrap spacing/runSpacing 8; _MessageIconActions SizedBox 6\u21928",
+      "react": ".actions flex gap 8px; action 28px, padding 6, radius 28, tertiary",
+      "was": "Wrap spacing/runSpacing 2; SizedBox 6"
+    },
+    "producedCard": {
+      "flutterAfter": "chromeless grid: Produced label left (col gap 8), nowrap link lane (8px gaps), plain link-colored text links with dotted hover underline and 14px glyph, tertiary remainder, tertiary Show in folder, top margin 16; producedShownBand >687/>583/>479/>375/>271 = 6/5/4/3/2/1",
+      "react": "ProducedFiles.tsx + ProducedFiles.module.css exactly (bands from the @container queries)",
+      "was": "card (bgLayer2/border/radius12/pad12) with ActionChip pills wrapped to two rows, label above, blue Show in folder"
+    },
+    "statsPillsHeader": {
+      "flutterAfter": "conversation.composer.dock mounts SessionStatsLine (React StatsLine port): one plain centered 13/20 tertiary text row, groups joined by ' | ', projection-first with window fallback; SessionStatsPills + dialogs deleted",
+      "react": "composer.dock mounts StatsLine (apply.ts:155-158); no StatsPills.tsx exists",
+      "was": "headers claimed 'port of React StatsPills.tsx' + TimePill/UsagePill parity"
+    },
+    "tailProducedGap": {
+      "flutterAfter": "SizedBox 16",
+      "react": ".root column gap 16px",
+      "was": "SizedBox 4"
+    },
+    "todoStackGap": {
+      "flutterAfter": "outer bottom 8\u21926",
+      "react": ".composerStack gap 6px",
+      "was": "Padding(16,0,16,8)"
+    }
+  },
+  "knownGaps": [
+    "Assistant-row 4th action is Share (unimplemented snackbar) in _MessageIconActions vs Branch/fork in React MessageIconActions; turn-tail row already uses branch+fork.",
+    "Mobile goldens + chat matrix/scroll failures reproduce on clean HEAD (toolchain drift / stale 'Thinking' assertion).",
+    "Tool time in the fold fallback stays 0 (TurnTailNode carries no toolMs); the durable sessionStats projection supplies it whenever the host serves the unit."
+  ],
+  "pkg": "message-row",
+  "props": {
+    "inject": [],
+    "propsRenderSlots": [
+      "conversation.chat.assistant-actions (message-feedback injects like/dislike)",
+      "conversation.chat.turnTail chain (deliverables ProducedFiles)",
+      "conversation.input.dock (TodoDock)",
+      "conversation.composer.dock (StatsLine)",
+      "conversation.composer.bar"
+    ],
+    "propsRuntime": [
+      "useProjection(sessionStats/tokenUsage/todos/plan/permissions)",
+      "useSession",
+      "useChat"
+    ],
+    "propsStore": [
+      "MessageFeedbackController (per-session)",
+      "ModelDirectory (shared, model seat)",
+      "TodoDock: projection read, local collapsed state"
+    ]
+  },
+  "reactSource": [
+    "packages/client/ui-chat/src/client/chat/MessageIconActions.tsx",
+    "packages/client/ui-chat/src/client/chat/TurnTailNodeView.tsx",
+    "packages/client/ui-chat/src/client/chat/StatsLine.tsx",
+    "packages/client/ui-deliverables/src/client/ProducedFiles.tsx",
+    "packages/client/ui-conversation/src/client/skeleton/TodoPanel.tsx",
+    "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+    "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx"
+  ],
+  "slots": [
+    "conversation.chat.assistant-actions",
+    "conversation.chat.turnTail",
+    "conversation.input.dock",
+    "conversation.composer.dock",
+    "conversation.composer.bar",
+    "conversation.input.model"
+  ],
+  "stores": [
+    "MessageFeedbackController per session (lazy ensure on hover/focus)",
+    "ModelDirectory shared per session",
+    "TodoDock reads useProjection('todos'), local collapsed=true"
+  ],
+  "tokenMap": {
+    "--dsh-composer-stack-gap: 6px": "EdgeInsets bottom 6 (todo_panel)",
+    "--dsh-content-font-size-secondary 13px": "13px clock/label text",
+    "--dsw-alias-label-tertiary": "clock, label, idle icons",
+    "--dsw-specific-tip": "todo bar fill (specificTip)"
+  },
+  "triggers": [],
+  "typert": []
+}

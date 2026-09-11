@@ -1,6 +1,7 @@
 /// To-dos/composer alignment tests — the panel shares the composer's exact
 /// horizontal bounds (`Padding(16,0,16,8)` + `Center` +
-/// `ConstrainedBox(maxWidth:780)`; see `composer.dart` card), and keeps its
+/// `ConstrainedBox(maxWidth:780)`; see `composer.dart` card) with a 6px
+/// bottom stack gap (React `.composerStack`), and keeps its
 /// collapse/expand behavior.
 library;
 
@@ -72,10 +73,11 @@ Future<void> pumpPanel(WidgetTester tester) async {
 void main() {
   testWidgets('panel shares the composer content bounds', (tester) async {
     await pumpPanel(tester);
-    // Outer clearance identical to the composer card wrap.
+    // Outer clearance identical to the composer card wrap, with the 6px
+    // `.composerStack` stack gap below.
     final outer = find.byWidgetPredicate(
       (w) =>
-          w is Padding && w.padding == const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          w is Padding && w.padding == const EdgeInsets.fromLTRB(16, 0, 16, 6),
     );
     expect(outer, findsOneWidget);
     // Same centered cap as the composer card.

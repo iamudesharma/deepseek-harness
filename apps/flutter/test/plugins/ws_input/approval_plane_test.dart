@@ -1,6 +1,8 @@
 import 'package:dsh_flutter/src/core/api/frames.dart';
 import 'package:dsh_flutter/src/core/api/rpc_envelope.dart';
 import 'package:dsh_flutter/src/core/connection/connection_controller.dart';
+import 'package:dsh_flutter/src/core/services/runtime_services.dart'
+    show LocaleService, localeServiceProvider;
 import 'package:dsh_flutter/src/core/session/live_sync.dart';
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
@@ -9,6 +11,8 @@ import 'package:dsh_flutter/src/plugins/tool/tool_models.dart'
     show ToolCall, ToolCallKind, ToolCallStatus;
 import 'package:dsh_flutter/src/plugins/user_questions/approval_responder.dart';
 import 'package:dsh_flutter/src/plugins/user_questions/approval_state.dart';
+import 'package:dsh_flutter/src/plugins/user_questions/locales.dart'
+    show kApprovalEn, kApprovalNamespace, kApprovalZh;
 import 'package:dsh_flutter/src/plugins/user_questions/pending_interactions.dart';
 import 'package:dsh_flutter/src/plugins/user_questions/question_models.dart';
 import 'package:dsh_flutter/src/plugins/user_questions/question_responder.dart';
@@ -32,6 +36,17 @@ SessionSummary _summary(String id) => SessionSummary(
   running: false,
   blank: false,
 );
+
+/// Approval-namespace locale service for card copy tests.
+LocaleService _approvalLocales(String id) {
+  final service = LocaleService();
+  service.register(kApprovalNamespace, {
+    'zh': kApprovalZh,
+    'en': kApprovalEn,
+  });
+  service.setLocale(id);
+  return service;
+}
 
 Map<String, Object?> _planReviewQuestion() => {
   'id': 'q1',
@@ -343,7 +358,7 @@ void main() {
 
   group('ApprovalCard plane surface', () {
     testWidgets(
-      'renders the pending approval, answers allow-once, leaves on resolved frame',
+      'renders the pending approval, answers allow-once, closes on settle',
       (tester) async {
         final client = WsInputRecordingClient();
         bindApprovalClient(client);
@@ -378,17 +393,14 @@ void main() {
         await tester.pump();
         expect(client.responds.single.rpcId.value, 'm7');
         expect(client.responds.single.decodedValue['outcome'], 'allowed-once');
-        // One-shot latch: buttons stay disabled until the resolved frame lands.
-        expect(
-          tester
-              .widget<FilledButton>(
-                find.byKey(const ValueKey('approval-allow')),
-              )
-              .onPressed,
-          isNull,
-        );
+        // Settle-on-success (React finally-remove parity): the accepted
+        // receipt drops the wait locally, so the card leaves without any
+        // host frame — the host never broadcasts one for a decided request.
+        await tester.pump();
+        expect(find.byKey(const ValueKey('approval-card')), findsNothing);
 
-        // Frame-driven removal: the broadcast resolution drops the wait.
+        // Frame-driven removal stays idempotent: a late resolution for the
+        // settled id is a harmless no-op.
         approvals.resolved('s-100', 'ap-1');
         await tester.pump();
         expect(find.byKey(const ValueKey('approval-card')), findsNothing);
@@ -400,7 +412,11 @@ void main() {
     ) async {
       bindApprovalClient(WsInputRecordingClient());
       addTearDown(() => bindApprovalClient(null));
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          localeServiceProvider.overrideWithValue(_approvalLocales('en')),
+        ],
+      );
       addTearDown(container.dispose);
       container
           .read(approvalsProvider.notifier)
@@ -417,7 +433,46 @@ void main() {
         ),
       );
 
-      expect(find.text('Escalation: bash'), findsOneWidget);
+      expect(
+        find.text('Tool bash requests privileged execution'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Chinese copy uses the approval namespace', (tester) async {
+      bindApprovalClient(WsInputRecordingClient());
+      addTearDown(() => bindApprovalClient(null));
+      final container = ProviderContainer(
+        overrides: [
+          localeServiceProvider.overrideWithValue(_approvalLocales('zh')),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(sessionsProvider.notifier).addSession(_summary('s-1'));
+      container
+          .read(sessionsProvider.notifier)
+          .setCurrent(const SessionId('s-1'));
+      container
+          .read(approvalsProvider.notifier)
+          .requested(
+            's-1',
+            rpcId: 'r1',
+            approvalId: 'a1',
+            toolName: 'bash',
+            reason: '需要写权限',
+          );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: ApprovalCard())),
+        ),
+      );
+
+      expect(find.text('等待审批'), findsOneWidget);
+      expect(find.text('需要写权限'), findsOneWidget);
+      expect(find.text('拒绝'), findsOneWidget);
+      expect(find.text('允许一次'), findsOneWidget);
     });
 
     testWidgets('shows the correlated tool call command line', (tester) async {
@@ -1118,7 +1173,9 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('Approve'));
+      // The decision button resolves through the `question` dictionaries
+      // (React `plan.approve`), so the stable key addresses it.
+      await tester.tap(find.byKey(const ValueKey('plan-approve')));
       await tester.pumpAndSettle();
 
       expect(client.responds.single.rpcId.value, 'm10');

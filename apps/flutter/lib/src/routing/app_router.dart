@@ -19,8 +19,8 @@ import '../plugins/trajectory/ui/trajectory_screen.dart' as trajectory_feature;
 import '../plugins/conversation/ui/conversation_screen.dart'
     as conversation_feature;
 import '../plugins/conversation/ui/slots/hole_outlet.dart';
-import '../features/goal/goal_screen.dart' as goal_feature;
-import '../features/jobs/jobs_screen.dart' as jobs_feature;
+import '../plugins/goal/ui/goal_screen.dart' as goal_feature;
+import '../plugins/jobs/ui/jobs_screen.dart' as jobs_feature;
 import '../features/commands/commands_screen.dart' as commands_feature;
 import '../features/input_trigger/input_trigger_screen.dart'
     as input_trigger_feature;
@@ -30,7 +30,8 @@ import '../plugins/terminal/ui/terminal_screen.dart' as terminal_feature;
 import '../widgets/layout/menu_bar.dart';
 import '../features/workspace/workspace_provider.dart'
     show selectedWorkspaceProvider, workspaceListProvider;
-import '../features/workflow_run/workflow_screen.dart' as workflow_feature;
+import '../plugins/workflow_run/ui/workflow_screen.dart'
+    as workflow_feature;
 import '../features/devices/devices_screen.dart';
 import '../features/devices/add_computer_screen.dart';
 import '../features/devices/manual_entry_screen.dart';

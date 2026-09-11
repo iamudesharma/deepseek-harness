@@ -24,6 +24,8 @@ import '../../../theme/app_theme.dart';
 import '../../../features/conversation/message_provider.dart';
 import '../../../widgets/layout/responsive_constraints.dart';
 import '../../../widgets/primitives/disclosure_row.dart';
+import '../../../widgets/primitives/local_file_image.dart'
+    show buildProseImage;
 import '../../../widgets/primitives/markdown.dart';
 import '../../../widgets/primitives/state_dot.dart';
 import '../locales.dart';
@@ -45,6 +47,8 @@ import '../../deliverables/deliverables_mentions.dart'
     show producedPathsForTurn;
 import '../../deliverables/deliverables_open.dart'
     show canOpenHostPathProvider, openHostPath;
+import '../../deliverables/ui/file_preview_dialog.dart'
+    show showFilePreviewDialog;
 import '../../deliverables/ui/produced_files_row.dart' show ProducedFilesRow;
 
 /// In-memory reader position resilient to transcript width reflow.
@@ -131,6 +135,11 @@ class _ChatViewState extends ConsumerState<ChatView> {
 
   // Row keys for anchor measurements.
   final Map<String, GlobalKey> _rowKeys = {};
+
+  /// Duplicate keys already reported this session (the drop log fires once
+  /// per key — the fold repeats every build, so an unconditional debugPrint
+  /// floods the console at 60Hz).
+  final Set<String> _loggedDupKeys = {};
 
   GlobalKey _keyFor(String key) => _rowKeys.putIfAbsent(key, () => GlobalKey());
 
@@ -223,6 +232,7 @@ class _ChatViewState extends ConsumerState<ChatView> {
       _anchor = null;
       _firstKey = null;
       _lastKey = null;
+      _loggedDupKeys.clear();
       WidgetsBinding.instance.addPostFrameCallback((_) => _initialRestore());
     }
   }
@@ -612,12 +622,11 @@ class _ChatViewState extends ConsumerState<ChatView> {
     // Optimistic user messages — React parity via `session.beginSubmission`
     // (composer clears draft + yields one paint with echo before `session/prompt`).
     // Flutter's `ComposerController.submit` writes to `optimisticMessagesProvider`
-    // with the `session/prompt` request id; the host echo (`user/message`
-    // `source.rpcId`) retires it via `retireOptimisticWithHistory`. Any-match
-    // retirement (not tail-only) keeps the optimistic hidden after the turn
-    // progresses to assistant/tool content — tail-only re-showed it as a
-    // duplicate bubble. `LiveHistory` also evicts on confirmed history; this
-    // filter is the pure-view safety net for the same frame.
+    // with the `session/prompt` request id; the host echo retires it by
+    // requestId match against `user/message` `source.rpcId` first, trimmed
+    // text second (`retireOptimisticWithHistory`, shared with the message
+    // list). `LiveHistory` also evicts on confirmed history; this filter is
+    // the pure-view safety net for the same frame.
     final List<Message> visibleOptimistic = retireOptimisticWithHistory(
       entries,
       ref.watch(optimisticMessagesProvider(widget.sessionId)),
@@ -644,8 +653,27 @@ class _ChatViewState extends ConsumerState<ChatView> {
     // Streaming / running state for follow sig.
     final summary = ref.watch(sessionByIdProvider(SessionId(widget.sessionId)));
     final running = summary?.running ?? false;
+    // React `runningTurnStartTime`: the running turn's logged `turn/start`
+    // time, so the status clock keeps the true elapsed time (the final tail's
+    // Ran-for label measures from the same boundary).
+    int? runningTurnStart;
+    if (running) {
+      for (final entry in entries) {
+        if (entry.event.type == 'turn/start') {
+          runningTurnStart = entry.event.time;
+        }
+      }
+    }
     final hasMore = ref.watch(liveHasMoreProvider(widget.sessionId));
     final loadingOlder = ref.watch(liveLoadingOlderProvider(widget.sessionId));
+    // Zero-content rows must not occupy list rows: the fold keeps usage-host
+    // assistant messages seq-less on purpose (`conversation_nodes.dart`
+    // `hasVisible`), and each rendered row still costs its container padding
+    // (12px) plus the node padding (4px) — a tool-only turn of 43 steps
+    // trailed ~688px of blank under the last message. Markers are structural
+    // and render nothing either.
+    items.removeWhere((it) => !chatNodeHasVisibleContent(it.node));
+
     // Anchor order (React `orderedVisibleChatNodes`): request-anchored system
     // rows sort with their turn start, ahead of the user bubble they belong
     // to; every other node keeps event order via a stable sort.
@@ -678,6 +706,24 @@ class _ChatViewState extends ConsumerState<ChatView> {
         openTurns: openTurns,
       );
     });
+    // One GlobalKey mounts once: a duplicated node key (folder double-emit,
+    // optimistic/host overlap) red-screens every frame via `_keyFor`, so
+    // render each key once (first wins) and log the drop in debug.
+    final deduped = dedupeByKey(items, (it) => it.key);
+    if (deduped.length != items.length) {
+      assert(() {
+        final seen = <String>{};
+        for (final it in items) {
+          if (!seen.add(it.key) && _loggedDupKeys.add(it.key)) {
+            debugPrint('[chatView] dropping duplicate node key ${it.key}');
+          }
+        }
+        return true;
+      }());
+      items
+        ..clear()
+        ..addAll(deduped);
+    }
     // Keep key order for paging anchor scans
     _currentKeys = items.map((e) => e.key).toList(growable: false);
     // Detect tip movement.
@@ -786,12 +832,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
           },
           child: ListView.builder(
             controller: _controller,
-            padding: EdgeInsets.fromLTRB(
-              12,
-              8,
-              12,
-              80 + 8,
-            ), // bottom reserves composer height (~80)
+            // React ChatView `.scroll` pads 16px on both vertical sides; the
+            // composer is a sibling below this list (never an overlay), so no
+            // composer-height reserve belongs here.
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             itemCount: items.length + (hasMore ? 1 : 0) + (running ? 1 : 0),
             itemBuilder: (context, index) {
               if (hasMore && index == 0) {
@@ -827,33 +871,24 @@ class _ChatViewState extends ConsumerState<ChatView> {
                   ),
                 );
               }
-              // Running indicator at tail.
+              // Running indicator at the tail — React `TurnStatus`: a flow row
+              // in the same centered message column as every node row
+              // (`align-self: flex-start`), blue shimmer label plus a runtime
+              // clock once the turn clearly runs long.
               if (running && adjIndex == items.length) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: aliases.labelTertiary,
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 748),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _TurnStatus(
+                          startTime: runningTurnStart,
+                          t: ref.bindLocale(kConversationNamespace),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Deep diving…',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: aliases.labelTertiary,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 );
               }
@@ -1108,6 +1143,10 @@ class _ChatViewState extends ConsumerState<ChatView> {
                   DsMarkdown(
                     data: streaming ? '$text ▍' : text,
                     selectable: true,
+                    // Host-local prose images resolve through the
+                    // authenticated file route for this session.
+                    imageBuilder: (uri, title, alt) =>
+                        buildProseImage(ref, uri, alt),
                   ),
                 if (interrupted)
                   Padding(
@@ -1325,8 +1364,15 @@ class _ChatViewState extends ConsumerState<ChatView> {
           ),
         );
 
-      case SystemPromptNode(:final text):
-        return _SystemPromptRow(text: text, aliases: aliases);
+      case SystemPromptNode(:final text, :final update):
+        final Translate promptT = ref.bindLocale(kConversationNamespace);
+        return _SystemPromptRow(
+          text: text,
+          aliases: aliases,
+          title: update
+              ? promptT('message.systemPromptUpdate')
+              : promptT('message.systemPrompt'),
+        );
 
       case ManualCompactionNode(:final command, :final compaction):
         if (compaction != null) {
@@ -1658,8 +1704,22 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
               paths: produced,
               canOpenPath: canOpen,
               onOpenFile: (path) async {
+                // In-app preview first (workspaceFiles); the Host-native
+                // opener stays as the fallback for non-previewable paths
+                // and when the preview itself cannot load.
                 try {
-                  await openHostPath(ref.read(connectionClientProvider), path);
+                  await showFilePreviewDialog(
+                    context,
+                    ref,
+                    sessionId: SessionId(widget.sessionId),
+                    path: path,
+                    onOpenHost: canOpen
+                        ? () => openHostPath(
+                            ref.read(connectionClientProvider),
+                            path,
+                          )
+                        : null,
+                  );
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(
@@ -1669,16 +1729,21 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
                 }
               },
             ),
-            const SizedBox(height: 4),
+            // React `TurnTailNodeView` root is a column with a 16px gap
+            // between the tail chain (produced files) and the actions row.
+            const SizedBox(height: 16),
           ],
           // React TurnTailNodeView parity: one icon-actions row —
           // copy / like / dislike / branch + usage pill + time pill + clock.
           // Usage/time open bottom sheets (dialog parity); like/dislike are
-          // ephemeral local selection like the assistant row.
+          // ephemeral local selection like the assistant row. The 8px Wrap
+          // spacing mirrors MessageIconActions' flex gap (the row's own gap
+          // also spaces the trailing clock, which carries no extra padding
+          // per `.timeEnd`).
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 2,
-            runSpacing: 2,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _CopyButton(text: node.closingText ?? '', aliases: aliases),
               Tooltip(
@@ -1793,15 +1858,12 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Text(
-                  timeLabel,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: aliases.labelTertiary,
-                    height: 20 / 12,
-                  ),
+              Text(
+                timeLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: aliases.labelTertiary,
+                  height: 24 / 13,
                 ),
               ),
             ],
@@ -1810,6 +1872,148 @@ class _TurnTailCardState extends ConsumerState<_TurnTailCard> {
       ),
     );
   }
+}
+
+/// Live turn status — Flutter port of React `TurnStatus` in `ChatView.tsx`
+/// (+ `ChatView.module.css .turnStatus` / `.turnStatusClock`).
+///
+/// One 26px flow row: the `chat.deepDiving` label in strong 14px brand blue
+/// with a left-to-right shimmer band, and — once the turn has run for 15s —
+/// the elapsed runtime in tabular 13px caption. The clock anchors to the
+/// running turn's `turn/start` time (mounts fall back to mount time), so a
+/// mid-turn reload keeps the real elapsed time; it ticks once a second.
+class _TurnStatus extends StatefulWidget {
+  const _TurnStatus({required this.startTime, required this.t});
+
+  /// The running turn's logged `turn/start` time (ms); null falls back to
+  /// mount time when that boundary is outside the window.
+  final int? startTime;
+
+  /// Conversation locale seat.
+  final Translate t;
+
+  @override
+  State<_TurnStatus> createState() => _TurnStatusState();
+}
+
+class _TurnStatusState extends State<_TurnStatus>
+    with SingleTickerProviderStateMixin {
+  late final int _mountedAt = DateTime.now().millisecondsSinceEpoch;
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+  Timer? _ticker;
+  late int _elapsedMs;
+
+  int get _anchor => widget.startTime ?? _mountedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _elapsedMs = DateTime.now().millisecondsSinceEpoch - _anchor;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _elapsedMs = DateTime.now().millisecondsSinceEpoch - _anchor;
+      });
+    });
+    _shimmer.repeat();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final aliases =
+        Theme.of(context).extension<DswThemeExtension>()?.aliases ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? DswTokens.darkAliases
+            : DswTokens.lightAliases);
+    final bool animate = !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+    final String label = widget.t('chat.deepDiving');
+    // Short turns keep the plain label; the clock only appears once the turn
+    // has clearly been running for a while (React `showClock`).
+    final bool showClock = _elapsedMs >= 15000;
+    final TextStyle labelStyle = TextStyle(
+      fontSize: 14,
+      height: 22 / 14,
+      fontWeight: FontWeight.w600,
+      color: aliases.stateBusinessPrimary,
+    );
+    Widget text = Text(label, style: labelStyle, maxLines: 1);
+    if (animate) {
+      text = AnimatedBuilder(
+        animation: _shimmer,
+        child: Text(label, style: labelStyle, maxLines: 1),
+        builder: (BuildContext context, Widget? child) => ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (Rect bounds) => LinearGradient(
+            begin: Alignment.centerLeft,
+            end: const Alignment(1.5, 0),
+            colors: [
+              aliases.stateBusinessPrimary,
+              DswTokens.deepseek200,
+              aliases.stateBusinessPrimary,
+            ],
+            stops: const [0.4, 0.5, 0.6],
+            transform: _ShimmerSlide(_shimmer.value),
+          ).createShader(bounds),
+          child: child,
+        ),
+      );
+    }
+    return Semantics(
+      liveRegion: true,
+      label: showClock
+          ? '$label ${_formatRunDuration(_elapsedMs)}'
+          : label,
+      child: SizedBox(
+        height: 26,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            text,
+            if (showClock)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  _formatRunDuration(_elapsedMs),
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 20 / 13,
+                    color: aliases.labelCaption,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Slides the shimmer's 250%-wide band across the box (CSS background-size
+/// 250%, animated background-position 100% → 0%).
+class _ShimmerSlide extends GradientTransform {
+  const _ShimmerSlide(this.slide);
+
+  /// Animation progress, 0..1.
+  final double slide;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(
+        -1.5 * bounds.width * (1 - slide),
+        0,
+        0,
+      );
 }
 
 class _CopyButton extends StatefulWidget {
@@ -1912,6 +2116,7 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
   @override
   Widget build(BuildContext context) {
     final aliases = widget.aliases;
+    // React `MessageIconActions.actions` is a flex row with an 8px gap.
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1932,7 +2137,7 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Tooltip(
           message: _thumbsUp ? 'Liked' : 'Like',
           child: IconButton(
@@ -1951,7 +2156,7 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Tooltip(
           message: _thumbsDown ? 'Disliked' : 'Dislike',
           child: IconButton(
@@ -1970,7 +2175,7 @@ class _MessageIconActionsState extends State<_MessageIconActions> {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Tooltip(
           message: 'Share',
           child: IconButton(
@@ -2220,56 +2425,6 @@ class _ChatListItem {
   final ConversationNode? node;
   bool get isHeader => header != null;
   String get key => header?.key ?? node!.key;
-}
-
-/// Retires optimistic user messages confirmed anywhere in [entries].
-///
-/// Any-match (not tail-only): an optimistic is hidden once its trimmed text
-/// matches any confirmed `user/message` text, so it stays hidden after the
-/// turn progresses to assistant/tool content. Image-only optimistics retire
-/// when any confirmed user message carries images.
-List<Message> retireOptimisticWithHistory(
-  List<HistoryEntry> entries,
-  List<Message> optimistic,
-) {
-  if (optimistic.isEmpty) return optimistic;
-  final confirmedTexts = <String>{};
-  var confirmedHasImages = false;
-  for (final entry in entries) {
-    if (entry.event.type != 'user/message') continue;
-    final data = entry.event.data;
-    final dynamic content = data['content'];
-    if (content is String) {
-      if (content.trim().isNotEmpty) confirmedTexts.add(content.trim());
-    } else if (content is List) {
-      final buf = StringBuffer();
-      for (final blk in content) {
-        if (blk is Map) {
-          final text = blk['text'];
-          if (text is String && text.trim().isNotEmpty)
-            buf.writeln(text.trim());
-          if (blk['type'] == 'image') confirmedHasImages = true;
-        } else if (blk is String && blk.trim().isNotEmpty) {
-          buf.writeln(blk.trim());
-        }
-      }
-      final text = buf.toString().trim();
-      if (text.isNotEmpty) confirmedTexts.add(text);
-    } else {
-      final text = data['text'];
-      if (text is String && text.trim().isNotEmpty) {
-        confirmedTexts.add(text.trim());
-      }
-    }
-  }
-  return optimistic.where((o) {
-    if (o.content.trim().isNotEmpty) {
-      return !confirmedTexts.contains(o.content.trim());
-    }
-    // Image-only: retire once any confirmed user message carried images.
-    if (o.imageUrls.isNotEmpty) return !confirmedHasImages;
-    return true;
-  }).toList();
 }
 
 enum _ChatKind { user, assistant, tool, other }
@@ -3048,9 +3203,16 @@ class _ContextRowState extends State<_ContextRow> {
 /// summary when collapsed, and exact model-visible text with original
 /// line breaks in a bounded scrollable body when expanded.
 class _SystemPromptRow extends StatefulWidget {
-  const _SystemPromptRow({required this.text, required this.aliases});
+  const _SystemPromptRow({
+    required this.text,
+    required this.aliases,
+    this.title = 'System prompt',
+  });
   final String text;
   final DswAliases aliases;
+
+  /// Localized row title (update variant when the inspector flags it).
+  final String title;
   @override
   State<_SystemPromptRow> createState() => _SystemPromptRowState();
 }
@@ -3078,7 +3240,7 @@ class _SystemPromptRowState extends State<_SystemPromptRow> {
             size: 14,
             color: widget.aliases.labelTertiary,
           ),
-          title: 'System prompt',
+          title: widget.title,
           open: _expanded && hasBody,
           expandable: hasBody,
           expandOnRowClick: true,
@@ -3478,6 +3640,23 @@ final turnProcessOpenProvider = StateProvider.family<bool, String>(
   (ref, _) => false,
 );
 
+/// Whether [node] renders visible content in the chat flow.
+///
+/// Structural markers and text-less assistant step rows (tool-driving steps
+/// whose tool cards live inside the turn's process group) render
+/// `SizedBox.shrink` in `_builtin`; the list drops them up front, because the
+/// row container and node padding would otherwise turn each into a blank
+/// 16px row (React: an empty assistant row is not a surface node either).
+bool chatNodeHasVisibleContent(ConversationNode? node) {
+  if (node == null) return false;
+  if (node is MarkerNode) return false;
+  if (node is AssistantNode) {
+    return node.text.trim().isNotEmpty ||
+        (node.reasoning?.trim().isNotEmpty ?? false);
+  }
+  return true;
+}
+
 /// Sort key placing request-anchored system rows with their turn start
 /// (React `requestPromptAnchor`); turn footers (process/tail) sort by their
 /// latest seq (emission position, not turn-start provenance); every other node
@@ -3490,6 +3669,31 @@ int chatNodeOrderKey(ConversationNode? node) {
     return node.sourceSeqs.fold<int>(0, (a, b) => a > b ? a : b);
   }
   return node.sourceSeqs.fold<int>(1 << 30, (a, b) => a < b ? a : b);
+}
+
+/// Drops later items sharing an earlier item's key (first wins), reporting
+/// each dropped key to [onDuplicate].
+///
+/// One [GlobalKey] mounts once: the chat list keys its row containers by
+/// node key (`_keyFor`), so a duplicated node key red-screens every frame
+/// with `Multiple widgets used the same GlobalKey`. The fold owns the
+/// duplication bug; the list stays up by rendering each key once.
+List<T> dedupeByKey<T>(
+  List<T> items,
+  String Function(T) keyOf, {
+  void Function(String key)? onDuplicate,
+}) {
+  final seen = <String>{};
+  final out = <T>[];
+  for (final item in items) {
+    final key = keyOf(item);
+    if (!seen.add(key)) {
+      onDuplicate?.call(key);
+      continue;
+    }
+    out.add(item);
+  }
+  return out;
 }
 
 /// Stable anchor sort for chat items (React `orderedVisibleChatNodes`

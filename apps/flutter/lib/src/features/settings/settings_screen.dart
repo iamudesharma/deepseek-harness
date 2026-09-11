@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/connection/connection_client.dart';
 import '../../core/services/runtime_services.dart'
@@ -29,14 +30,39 @@ import '../../plugins/conversation/locales.dart' show kConversationNamespace;
 import 'inventory_tab.dart' show InventoryTab;
 import 'plugins_tab.dart' show PluginsTab;
 
-/// Provider for notifications toggle (stub).
-final notificationsEnabledProvider = StateProvider<bool>((ref) => true);
+/// Durable key for the picked workspace directory.
+const String kWorkspaceDirectoryKey = 'dsh.settings.workspaceDirectory';
 
-/// Provider for the workspace directory path picked via [AdaptiveDirectoryPicker].
-///
-/// Persisted via `SharedPreferences` in a real integration; here kept as
-/// in-memory state with provider override support for tests.
-final workspaceDirectoryProvider = StateProvider<String?>((ref) => null);
+/// Workspace directory picked via [AdaptiveDirectoryPicker], persisted across
+/// restarts under [kWorkspaceDirectoryKey] (the `dsh.workspace.view.v5`
+/// precedent). Provider overrides in tests bypass hydration.
+class WorkspaceDirectoryController extends Notifier<String?> {
+  @override
+  String? build() {
+    SharedPreferences.getInstance().then((prefs) {
+      final saved = prefs.getString(kWorkspaceDirectoryKey);
+      if (saved != null && saved.isNotEmpty && state != saved) state = saved;
+    });
+    return null;
+  }
+
+  /// Stores the pick durably (null clears it).
+  Future<void> pick(String? path) async {
+    state = path;
+    final prefs = await SharedPreferences.getInstance();
+    if (path == null || path.isEmpty) {
+      await prefs.remove(kWorkspaceDirectoryKey);
+    } else {
+      await prefs.setString(kWorkspaceDirectoryKey, path);
+    }
+  }
+}
+
+/// Provider for the workspace directory path.
+final workspaceDirectoryProvider =
+    NotifierProvider<WorkspaceDirectoryController, String?>(
+      WorkspaceDirectoryController.new,
+    );
 
 /// Busy-state Enter behavior — mirrors `BusyEnterBehavior` in
 /// `packages/client/ui-conversation/src/client/contract/composer-submission.ts`
@@ -285,7 +311,6 @@ class _GeneralTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool notifications = ref.watch(notificationsEnabledProvider);
     final Translate ts = ref.bindLocale(kSettingsNamespace);
 
     return ListView(
@@ -323,24 +348,10 @@ class _GeneralTab extends ConsumerWidget {
         // Note: EnterBehaviorRow could also live inside the same card as Language/Appearance
         // to match React's single GeneralSection column, but keeping separate card
         // preserves the existing Flutter card visual hierarchy and avoids const constraints.
-        const SizedBox(height: DswTokens.spaceLg),
-        _SectionHeader(title: ts('section.notifications'), aliases: aliases),
-        const SizedBox(height: DswTokens.spaceMd),
-        _CardShell(
-          aliases: aliases,
-          child: _SettingsRow(
-            icon: Icons.notifications_outlined,
-            title: ts('notifications.enable'),
-            subtitle: ts('notifications.enableDesc'),
-            aliases: aliases,
-            trailing: Switch(
-              value: notifications,
-              activeThumbColor: aliases.stateBusinessPrimary,
-              onChanged: (bool v) =>
-                  ref.read(notificationsEnabledProvider.notifier).state = v,
-            ),
-          ),
-        ),
+        // No notifications row: React's GeneralSection has none, no host
+        // namespace or client notification infrastructure backs one, and the
+        // previous local-only toggle controlled nothing. It returns with real
+        // notification support, not as a placebo switch.
         const SizedBox(height: DswTokens.spaceLg),
         _SectionHeader(title: ts('section.workspace'), aliases: aliases),
         const SizedBox(height: DswTokens.spaceMd),
@@ -351,7 +362,7 @@ class _GeneralTab extends ConsumerWidget {
             value: ref.watch(workspaceDirectoryProvider),
             dialogTitle: ts('workspace.selectFolder'),
             onPicked: (String? path) {
-              ref.read(workspaceDirectoryProvider.notifier).state = path;
+              ref.read(workspaceDirectoryProvider.notifier).pick(path);
             },
           ),
         ),
@@ -613,65 +624,6 @@ class _CardShell extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(DswTokens.spaceLg),
       child: child,
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.aliases,
-    required this.trailing,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final DswAliases aliases;
-  final Widget trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: aliases.bgOverlay,
-            borderRadius: BorderRadius.circular(DswTokens.radiusSm),
-          ),
-          child: Icon(icon, size: 16, color: aliases.labelSecondary),
-        ),
-        const SizedBox(width: DswTokens.spaceMd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeS14,
-                  fontWeight: FontWeight.w500,
-                  color: aliases.labelPrimary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: DswTokens.fontSizeXxs12,
-                  color: aliases.labelTertiary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: DswTokens.spaceMd),
-        trailing,
-      ],
     );
   }
 }

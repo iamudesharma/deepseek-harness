@@ -287,9 +287,10 @@ class ComposerController extends FamilyNotifier<ComposerState, String> {
       }
     }
     // Optimistic user bubble — shown immediately before host echo.
-    // Carries the minted requestId so queue echoes retire on host admission
-    // (React `beginSubmission` mints `requestId`, retired on durable
-    // `user/message.source.rpcId` or queue `rpcId`).
+    // Carries the minted requestId for the `session/prompt` call; retirement
+    // matches it against confirmed `user/message` `source.rpcId` first
+    // (React observedRpcIds parity), trimmed text second
+    // (`retireOptimisticWithHistory`).
     final String requestId = newRpcId();
     final optimistic = Message(
       id: 'optimistic-${DateTime.now().millisecondsSinceEpoch}',

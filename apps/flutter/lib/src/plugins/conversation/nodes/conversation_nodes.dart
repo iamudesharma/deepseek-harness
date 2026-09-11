@@ -17,6 +17,7 @@ import '../../../core/events/tool_stream.dart';
 import '../../../core/session/session_event_map.dart';
 import '../../../core/session/session_models.dart' show SessionId, ToolCallId, DraftAttachmentId;
 import 'failure_display.dart';
+import 'system_prompt_inspector.dart';
 
 /// Payload coordinates mirroring `location-index.ts: payloadCoordinates`.
 class _Coordinates {
@@ -100,6 +101,7 @@ class SystemPromptNode extends ConversationNode {
     required super.sourceSeqs,
     required this.text,
     required this.anchorSeq,
+    this.update = false,
   });
 
   /// Exact model-visible system prompt text with original line breaks.
@@ -107,6 +109,10 @@ class SystemPromptNode extends ConversationNode {
 
   /// Sortable anchor seq (the owning `request/header` seq).
   final int anchorSeq;
+
+  /// Whether this event updates an already-shown prompt (inspector
+  /// `update` flag → the update title variant).
+  final bool update;
 }
 
 /// Assistant turn content; in-flight while streaming, immutable after the
@@ -589,6 +595,11 @@ class ConversationNodeFolder {
   /// replacement. Held here between the two events.
   _PendingCompaction? _pendingCompaction;
 
+  /// System-prompt inspector state (React `inspectSystemPrompt`): drives
+  /// the single event-driven system row from effective-prompt facts with
+  /// replacement inheritance and uncertain withholding.
+  SystemPromptState? _systemState;
+
   /// Tool subcall parent map + depth map mirroring `ToolCallTree`
   /// (`packages/client/runtime/src/client/sessions/tool-call-tree.ts`) —
   /// out-of-order `parentCallId` edges are stored at the parent key
@@ -770,9 +781,45 @@ class ConversationNodeFolder {
     return null;
   }
 
+  /// Reconciles the single event-driven system row with the inspector's
+  /// effective prompt: withheld (uncertain) or removed (empty) prompts drop
+  /// the row, otherwise exactly one row carries the effective text anchored
+  /// at its inherited surface position (not the event seq).
+  void _syncEventSystemRow() {
+    final eventRow = _nodes.indexWhere(
+      (n) => n is SystemPromptNode && n.key.startsWith('system-event-'),
+    );
+    if (eventRow != -1) _nodes.removeAt(eventRow);
+    final state = _systemState;
+    final effective = state?.effective;
+    if (state == null ||
+        state.uncertain ||
+        effective == null ||
+        effective.text.trim().isEmpty) {
+      return;
+    }
+    _append(
+      SystemPromptNode(
+        key: 'system-event-${effective.seq}',
+        sourceSeqs: [effective.seq],
+        text: effective.text,
+        anchorSeq: effectivePosition(state) ?? effective.seq,
+        update: effective.update,
+      ),
+    );
+  }
+
   void add(SessionEventEnvelope envelope) {
     envelope.requireKnown();
     if (!envelope.isKnown) return;
+    // Positional replacements prune covered system nodes even when the
+    // replacing event is not itself a system message (React feeds every
+    // replacement through the inspector for endpoint inheritance).
+    if (envelope.type != 'system/message' &&
+        (envelope.surfaceOp?.isReplace ?? false)) {
+      _systemState = inspectSystemPrompt(_systemState, envelope);
+      _syncEventSystemRow();
+    }
     _updateLocationForEnvelope(envelope);
     _trackTurnTail(envelope);
     _trackTurnProcess(envelope);
@@ -860,6 +907,17 @@ class ConversationNodeFolder {
             imageNames: List.unmodifiable(imgNames),
           ),
         );
+
+      // ---- v3 surface head (`system/message`) ----
+      case 'system/message':
+        // Session-log-v3 canonical surface head, driven by the inspector
+        // (React `inspectSystemPrompt`): replacement positions inherit
+        // their start endpoint, unknown older order withholds the prompt,
+        // and empty content records removal. The single event-driven row
+        // always reflects the effective prompt.
+        _systemState = inspectSystemPrompt(_systemState, envelope);
+        _syncEventSystemRow();
+        break;
 
       // ---- Streaming assistant (in-flight tail) ----
       case 'assistant/chunk':
@@ -966,7 +1024,10 @@ class ConversationNodeFolder {
             'a-turn${envelope.data['turn']}-step${envelope.data['step']}';
         _assertUnsettled(key);
         final interrupted = envelope.data['interrupted'] == true;
-        final cited = envelope.sourceEventSeqs;
+        final citedRaw = envelope.sourceEventSeqs;
+        final cited = citedRaw is List && citedRaw.isNotEmpty
+            ? citedRaw.whereType<int>().toList()
+            : null;
         final prior = (cited != null && cited.isNotEmpty) ? cited : _seqsOf(key);
         final bufferedText = _textOf(key);
         final durableText = _extractTextFromMessage(envelope.data['message']);
@@ -1293,15 +1354,32 @@ class ConversationNodeFolder {
         {
           final retry = (envelope.data['retry'] as num?)?.toInt() ?? 0;
           final key = 'r${envelope.data['retryId'] ?? envelope.seq}';
-          final idx = _nodes.indexWhere(
-            (n) =>
-                n is ModelRetryNode && n.retry == retry ||
-                n.key == key && n is ModelRetryNode,
-          );
+          // Same correlation as the top-level search, but group-aware: while
+          // a step group is open the attempt lives in `_groupChildren`, not
+          // `_nodes`, and a top-level-only search twins it on every repeat
+          // (duplicate row keys crash the list's GlobalKeys).
+          bool matches(ConversationNode n) =>
+              (n is ModelRetryNode && n.retry == retry) ||
+              (n is ModelRetryNode && n.key == key);
+          final topIdx = _nodes.indexWhere(matches);
+          final groupChildren = _openGroupKey == null
+              ? null
+              : _groupChildren[_openGroupKey];
+          final groupIdx = groupChildren?.indexWhere(matches) ?? -1;
           if (envelope.type == 'llm/retry-started') {
-            final target = idx == -1 ? null : _nodes[idx] as ModelRetryNode?;
+            final target = topIdx != -1
+                ? _nodes[topIdx] as ModelRetryNode?
+                : groupIdx != -1 && groupChildren != null
+                ? groupChildren[groupIdx] as ModelRetryNode?
+                : null;
             if (target != null) {
-              _nodes[idx] = target.copyWithStarted();
+              final marked = target.copyWithStarted();
+              if (topIdx != -1) {
+                _nodes[topIdx] = marked;
+              } else {
+                groupChildren![groupIdx] = marked;
+                _rebuildOpenGroup();
+              }
             }
             break;
           }
@@ -1318,8 +1396,11 @@ class ConversationNodeFolder {
             failureCode: failureMap['code']?.toString(),
             failureMessage: failureMap['message']?.toString(),
           );
-          if (idx != -1 && _nodes[idx] is ModelRetryNode) {
-            _nodes[idx] = node;
+          if (topIdx != -1 && _nodes[topIdx] is ModelRetryNode) {
+            _nodes[topIdx] = node;
+          } else if (groupIdx != -1 && groupChildren != null) {
+            groupChildren[groupIdx] = node;
+            _rebuildOpenGroup();
           } else {
             _append(node);
           }
@@ -2192,9 +2273,10 @@ class ConversationNodeFolder {
       if (identical(pending, _pendingCompaction)) _pendingCompaction = null;
     } else {
       // Window cut: use sourceEventSeqs as fallback shadowed set, empty text
-      final fallback =
-          envelope.sourceEventSeqs ??
-          (envelope.data['sourceEventSeqs'] is List
+      final seqsRaw = envelope.sourceEventSeqs;
+      final fallback = seqsRaw is List
+          ? seqsRaw.whereType<int>().toList()
+          : (envelope.data['sourceEventSeqs'] is List
               ? (envelope.data['sourceEventSeqs'] as List)
                     .whereType<int>()
                     .toList()
@@ -2314,9 +2396,10 @@ class ConversationNodeFolder {
       return;
     }
     _pendingCompaction = null;
-    final fallbackSeqs =
-        envelope.sourceEventSeqs ??
-        (envelope.data['sourceEventSeqs'] is List
+    final seqsRaw = envelope.sourceEventSeqs;
+    final fallbackSeqs = seqsRaw is List
+        ? seqsRaw.whereType<int>().toList()
+        : (envelope.data['sourceEventSeqs'] is List
             ? (envelope.data['sourceEventSeqs'] as List)
                   .whereType<int>()
                   .toList()

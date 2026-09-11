@@ -58,10 +58,14 @@ void main() {
     });
 
     test('replace surface op decodes the inclusive range', () {
-      final op = SurfaceOp.fromJson({'op': 'replace', 'start': 3, 'end': 5});
+      final op = SurfaceOp.fromJson({
+        'op': 'replace',
+        'startSeq': 3,
+        'endSeq': 5,
+      });
       expect(op.isReplace, isTrue);
-      expect(op.start, 3);
-      expect(op.end, 5);
+      expect(op.startSeq, 3);
+      expect(op.endSeq, 5);
       expect(() => SurfaceOp.fromJson({'op': 'replace'}), throwsArgumentError);
     });
 

@@ -7,6 +7,7 @@ const Map<String, String> kModelZh = {
   'command.description': '选择本会话使用的模型',
   'option.loadError': '目录加载失败：{message}',
   'trigger.fallback': '选择模型',
+  'trigger.loading': '正在加载模型…',
   'trigger.selectAria': '选择模型',
   'trigger.aria': '选择模型，当前 {model}',
   'trigger.ariaEffort': '选择模型，当前 {model}，推理等级 {effort}',
@@ -28,6 +29,7 @@ const Map<String, String> kModelEn = {
   'command.description': 'Select the model for this conversation',
   'option.loadError': 'Catalog failed to load: {message}',
   'trigger.fallback': 'Select model',
+  'trigger.loading': 'Loading models…',
   'trigger.selectAria': 'Select model',
   'trigger.aria': 'Select model, current {model}',
   'trigger.ariaEffort':

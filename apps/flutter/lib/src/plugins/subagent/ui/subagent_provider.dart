@@ -2,6 +2,8 @@ import 'dart:math' show max;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/connection/connection_controller.dart'
+    show connectionClientProvider;
 import '../../../core/session/session_models.dart';
 import '../../../core/session/session_provider.dart';
 import '../../../core/session/sessions_controller.dart';
@@ -482,3 +484,28 @@ String? _joinMetrics({
   if (parts.isEmpty) return null;
   return parts.join(' · ');
 }
+
+/// Durable child modes by child session id for one parent, from Host
+/// `subagents/list` (`SubagentCatalog.entries`: `child` rows carry
+/// `mode:'one-shot'|'continuable'`; `diagnostic` rows carry none and are
+/// skipped). Cached per parent by Riverpod; feeds [isQueueMutable].
+/// Parse failures surface as provider errors (fail-closed downstream).
+final subagentChildModesProvider =
+    FutureProvider.family<Map<String, String>, String>((ref, parentSessionId) async {
+  final client = ref.watch(connectionClientProvider);
+  final body = await client.subagentList(parentSessionId: parentSessionId);
+  final entries = body['entries'];
+  final modes = <String, String>{};
+  if (entries is List) {
+    for (final entry in entries) {
+      if (entry is! Map) continue;
+      if (entry['kind'] != 'child') continue;
+      final id = entry['id'];
+      final mode = entry['mode'];
+      if (id is String && (mode == 'one-shot' || mode == 'continuable')) {
+        modes[id] = mode as String;
+      }
+    }
+  }
+  return modes;
+});

@@ -1,6 +1,6 @@
 import 'package:dsh_flutter/src/features/conversation/chat_ui_adapter.dart';
 import 'package:dsh_flutter/src/features/conversation/message_provider.dart';
-import 'package:dsh_flutter/src/features/tool/tool_models.dart';
+import 'package:dsh_flutter/src/plugins/tool/tool_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ChatUser _aiUser = const ChatUser(id: 'ai', firstName: 'Assistant');

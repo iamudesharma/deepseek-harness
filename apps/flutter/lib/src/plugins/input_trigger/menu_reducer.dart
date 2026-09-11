@@ -184,6 +184,19 @@ class MoveEvent extends MenuEvent {
   final int dir;
 }
 
+/// Park the highlight on one ready item (React `hover`: pointer and
+/// keyboard share the single highlight — last input wins).
+class HoverEvent extends MenuEvent {
+  /// Creates the event.
+  const HoverEvent(this.source, this.index);
+
+  /// Group (source) name.
+  final String source;
+
+  /// Item index within the group.
+  final int index;
+}
+
 /// Explicit close.
 class CloseMenuEvent extends MenuEvent {
   /// Constant instance.
@@ -258,11 +271,15 @@ bool _allReadyEmpty(List<MenuGroup> groups) =>
     groups.every((g) => g.status == 'ready' && g.items.isEmpty);
 
 /// Pure menu reducer. A hit opens a new generation over the seeded roster
-/// (null hit closes); a settlement outside the current generation, the open
-/// menu, or the roster is dropped; a settlement or failure leaving every group
-/// ready-and-empty auto-closes; a failure silently removes the group; move
-/// cycles the highlight across ready items. Stale/no-op events return the same
-/// instance so store subscribers skip rebuilds.
+/// (null hit closes); a refinement keeps the previous query's items rendered
+/// with the highlight parked (stale-while-revalidate — React `menu.ts` keeps
+/// `...g` and only flips status to pending; skeletons show solely for a
+/// pending group with no items); a settlement outside the current generation,
+/// the open menu, or the roster is dropped; a settlement or failure leaving
+/// every group ready-and-empty auto-closes; a failure silently removes the
+/// group; move cycles the highlight across ready items; hover parks it on one
+/// ready item. Stale/no-op events return the same instance so store
+/// subscribers skip rebuilds.
 MenuState menuReduce(MenuState state, MenuEvent event) {
   switch (event) {
     case HitEvent(:final hit):
@@ -277,10 +294,10 @@ MenuState menuReduce(MenuState state, MenuEvent event) {
               source: g.source,
               showGroupTitle: g.showGroupTitle,
               status: 'pending',
-              items: const [],
+              items: g.items,
             ),
         ],
-        highlight: null,
+        highlight: state.highlight,
       );
     case SourceSettledEvent(:final generation, :final source, :final items):
       if (!state.open || generation != state.generation) return state;
@@ -345,6 +362,22 @@ MenuState menuReduce(MenuState state, MenuEvent event) {
       );
     case CloseMenuEvent():
       return _closed(state);
+    case HoverEvent(:final source, :final index):
+      if (!state.open) return state;
+      final target = _validHighlight(
+        MenuHighlight(source: source, index: index),
+        state.groups,
+      );
+      if (target == null) return state;
+      final hl = state.highlight;
+      if (hl != null && hl == target) return state;
+      return MenuState(
+        open: state.open,
+        hit: state.hit,
+        generation: state.generation,
+        groups: state.groups,
+        highlight: target,
+      );
   }
 }
 

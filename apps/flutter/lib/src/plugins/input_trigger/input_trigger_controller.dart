@@ -70,6 +70,19 @@ class InputTriggerController {
   final ValueNotifier<Map<TriggerChar, List<String>>> lexicon =
       ValueNotifier<Map<TriggerChar, List<String>>>(const {});
 
+  /// Crumbs published by each header-bearing source for the open menu, keyed
+  /// by source name (React `controller.headers` snapshot store).
+  final ValueNotifier<Map<String, List<InputTriggerCrumb>>> headers =
+      ValueNotifier<Map<String, List<InputTriggerCrumb>>>(const {});
+
+  /// Whether the open menu was reached by a drill pick; cleared with the menu
+  /// (React `controller.drilled`; survives typing, read by header/candidate
+  /// requests raised from the descent's re-entrant track).
+  bool _drilled = false;
+
+  /// Whether the open menu was reached by a drill pick.
+  bool get drilled => _drilled;
+
   /// The authoritative hit: single truth for span CAS material.
   TriggerHit? _hit;
 
@@ -165,11 +178,17 @@ class InputTriggerController {
       menu.value = seedGroups(menu.value, roster);
     }
     _reduce(HitEvent(hit));
+    refreshHeaders(hit, roster);
     fetchCandidates(hit, roster);
   }
 
   /// Keyboard arbitration while the menu is open. Inside IME composition
   /// ([composing]) everything passes.
+  ///
+  /// Enter/Tab on a pending refinement neither pick the stale row nor fall
+  /// through (React's explicit no-op): the key is consumed until the group
+  /// settles. Tab on a drill row descends in place (consumed, menu stays);
+  /// Tab elsewhere settles the highlight like Enter.
   ArbitrateOutcome arbitrate(ArbitrateKey key, bool composing) {
     if (composing || _disposed) return ArbitrateOutcome.pass;
     final state = menu.value;
@@ -188,9 +207,53 @@ class InputTriggerController {
       case ArbitrateKey.enter:
         final highlight = state.highlight;
         if (highlight == null) return ArbitrateOutcome.pass;
+        if (!_groupReady(state, highlight.source)) {
+          return ArbitrateOutcome.consumed;
+        }
+        pick(highlight.source, highlight.index);
+        return ArbitrateOutcome.pickHighlighted;
+      case ArbitrateKey.tab:
+        final highlight = state.highlight;
+        if (highlight == null) return ArbitrateOutcome.pass;
+        final group = _groupOf(state, highlight.source);
+        if (group == null || group.status != 'ready') {
+          return ArbitrateOutcome.consumed;
+        }
+        if (highlight.index < 0 || highlight.index >= group.items.length) {
+          return ArbitrateOutcome.pass;
+        }
+        final item = group.items[highlight.index];
+        if (item.drill == true) {
+          pick(highlight.source, highlight.index, action: PickAction.drill);
+          return ArbitrateOutcome.consumed;
+        }
         pick(highlight.source, highlight.index);
         return ArbitrateOutcome.pickHighlighted;
     }
+  }
+
+  /// Group cell by source name, or null.
+  MenuGroup? _groupOf(MenuState state, String source) {
+    for (final group in state.groups) {
+      if (group.source == source) return group;
+    }
+    return null;
+  }
+
+  /// Whether [source]'s group has settled ready in [state].
+  bool _groupReady(MenuState state, String source) {
+    for (final group in state.groups) {
+      if (group.source == source) return group.status == 'ready';
+    }
+    return false;
+  }
+
+  /// Pointer hover: park the shared highlight on the hovered candidate
+  /// (React `hover` — keyboard `move` and pointer hover drive one
+  /// highlight, last input wins).
+  void hover(String source, int index) {
+    if (_disposed) return;
+    _reduce(HoverEvent(source, index));
   }
 
   /// Space adjudication over the just-completed leading token: polls sources'
@@ -213,8 +276,9 @@ class InputTriggerController {
   }
 
   /// Pointer/enter pick: route the candidate through onPick and execute
-  /// claim/insert outcomes via the sink.
-  void pick(String source, int index) {
+  /// claim/insert outcomes via the sink. A drill pick leaves the descent
+  /// record for the re-entrant track raised by the splice (React `settle`).
+  void pick(String source, int index, {PickAction action = PickAction.pick}) {
     final state = menu.value;
     final hit = _hit;
     if (_disposed || !state.open || hit == null) return;
@@ -232,18 +296,56 @@ class InputTriggerController {
       if (s.name == source) src = s;
     }
     if (src == null) return;
+    _settle(src, candidate, hit, action);
+  }
+
+  /// Pointer pick on one crumb of a source's menu header: route it through
+  /// the same drill path a folder row takes (React `pickCrumb`).
+  void pickCrumb(String source, int index) {
+    final hit = _hit;
+    if (_disposed || !menu.value.open || hit == null) return;
+    final trail = headers.value[source];
+    if (trail == null || index < 0 || index >= trail.length) return;
+    final crumb = trail[index];
+    if (crumb.current) return;
+    InputTriggerSource? src;
+    for (final s in _roster.sources(hit.trigger)) {
+      if (s.name == source) src = s;
+    }
+    if (src == null) return;
+    _settle(
+      src,
+      InputTriggerCandidate(name: crumb.label, value: crumb.value),
+      hit,
+      PickAction.drill,
+    );
+  }
+
+  /// Run one candidate (or crumb) through its source and apply the outcome.
+  /// A drill is the one pick that leaves the menu open, so it is also the one
+  /// that records how the next query was reached; every other pick closes the
+  /// menu, which clears that record (React `settle`:484-510 — claimed after
+  /// close so the re-entrant track reads it; withdrawn when the edit refuses).
+  void _settle(
+    InputTriggerSource src,
+    InputTriggerCandidate candidate,
+    TriggerHit hit,
+    PickAction action,
+  ) {
     final outcome = src.onPick(
       InputTriggerPick(
         candidate: candidate,
         sessionId: _sessionId,
         position: hit.position,
         via: 'menu',
+        action: action,
         span: hit.span,
       ),
     );
     stopFetch();
     _reduce(CloseMenuEvent());
-    execute(outcome, hit.span);
+    _drilled = action == PickAction.drill;
+    if (!execute(outcome, hit.span)) _drilled = false;
   }
 
   /// Serialize one reference occurrence to its model form via the owning
@@ -342,6 +444,7 @@ class InputTriggerController {
     launcher.value = source;
     menu.value = seedGroups(menu.value, matches);
     _reduce(HitEvent(_hit!));
+    refreshHeaders(_hit!, matches);
     fetchCandidates(_hit!, matches);
   }
 
@@ -358,6 +461,7 @@ class InputTriggerController {
     menu.dispose();
     launcher.dispose();
     lexicon.dispose();
+    headers.dispose();
   }
 
   void _warm(InputTriggerSource src) {
@@ -403,6 +507,7 @@ class InputTriggerController {
   /// is stale — so superseded fetches need no explicit cancellation handle.
   void fetchCandidates(TriggerHit hit, List<InputTriggerSource> roster) {
     final generation = menu.value.generation;
+    final drilledAtFetch = _drilled;
     for (final source in roster) {
       () async {
         try {
@@ -412,6 +517,7 @@ class InputTriggerController {
               query: hit.query,
               quoted: hit.quoted,
               position: hit.position,
+              drilled: drilledAtFetch,
             ),
           );
           if (_disposed) return;
@@ -427,6 +533,39 @@ class InputTriggerController {
     }
   }
 
+  /// Re-poll every header-bearing source in the hit roster and publish their
+  /// crumbs (React `refreshHeaders`:513-532 — a header is decoration and must
+  /// not take down the menu).
+  void refreshHeaders(TriggerHit hit, List<InputTriggerSource> roster) {
+    final crumbs = <String, List<InputTriggerCrumb>>{};
+    for (final src in roster) {
+      List<InputTriggerCrumb>? published;
+      try {
+        published = src.header(
+          _sessionId,
+          HeaderRequest(
+            query: hit.query,
+            quoted: hit.quoted,
+            drilled: _drilled,
+          ),
+        );
+      } catch (error) {
+        debugPrint(
+          '[ui-input-trigger] source "${src.name}" header failed: $error',
+        );
+        continue;
+      }
+      if (published == null || published.isEmpty) continue;
+      crumbs[src.name] = List.unmodifiable(published);
+    }
+    _setHeaders(Map.unmodifiable(crumbs));
+  }
+
+  void _setHeaders(Map<String, List<InputTriggerCrumb>> next) {
+    if (headers.value.isEmpty && next.isEmpty) return;
+    headers.value = next;
+  }
+
   /// Supersede in-flight candidate fetches. Generation gating in
   /// [menuReduce] already drops every stale settlement, so this only marks
   /// the intent where the React pipeline aborted its AbortController.
@@ -439,7 +578,10 @@ class InputTriggerController {
   void _reduce(MenuEvent event) {
     final next = menuReduce(menu.value, event);
     if (!identical(next, menu.value)) menu.value = next;
-    if (!next.open) clearLauncher();
+    if (next.open) return;
+    clearLauncher();
+    _drilled = false;
+    _setHeaders(const {});
   }
 
   /// Execute one outcome via the sink; true = the input applied it.

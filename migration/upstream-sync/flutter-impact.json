@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-09T01:19:18.679Z",
-  "oldSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-  "newSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+  "generatedAt": "2026-09-11T09:23:43.659Z",
+  "oldSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+  "newSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
   "entries": [
     {
       "id": "flutter:session/page-cursor",
@@ -15,8 +15,8 @@
       "reason": "React session/page requires authoritative throughSeq from session/follow snapshot.cursor; Flutter previously used sentinel/discovery (-1). Architecture mismatch if Flutter still synthesizes cursor.",
       "requiredAction": "verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor",
       "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "firstSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "lastSeenUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
       "sourceFiles": [
         "packages/api/session-controller/src/index.ts"
       ]
@@ -33,8 +33,8 @@
       "reason": "Host SettingsController returns {namespaces: List<{ns,schema,value,revision}>} not Map. Flutter must handle List form (see recent fix).",
       "requiredAction": "ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd",
       "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "firstSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "lastSeenUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
       "sourceFiles": [
         "packages/api/settings-controller/src/index.ts"
       ]
@@ -52,84 +52,66 @@
       "reason": "Remote WebSocket requires single-use ws-ticket (bearer full). Flutter must fetch ticket before opening wss://…?ticket= and handle 401→needsReauth.",
       "requiredAction": "verify ticket fetch and re-pair flow; no silent fallback to unauthenticated",
       "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "firstSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "lastSeenUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
       "sourceFiles": [
         "packages/host/remote-access/src/remote-service.ts",
         "packages/api/gateway/src/stream-protocol.ts"
       ]
     },
     {
-      "id": "added:workspaceFiles/changes",
-      "change": "added: ∅ → workspaceFiles/changes",
+      "id": "added:sessionFeedback/record",
+      "change": "added: ∅ → sessionFeedback/record",
       "category": "API",
       "severity": "P2",
       "affectedFiles": [],
-      "reason": "Endpoint added: workspaceFiles/changes (service workspaceFiles, mode stream) from packages/api/workspace-files/src/index.ts:274",
+      "reason": "Endpoint added: sessionFeedback/record (service sessionFeedback, mode unary) from packages/feedback/command-feedback/src/index.ts:102",
       "requiredAction": "evaluate if Flutter should consume new endpoint",
       "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "firstSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "lastSeenUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "sourceFiles": [
+        "packages/feedback/command-feedback/src/index.ts"
+      ]
+    },
+    {
+      "id": "added:workspaceFiles/readAll",
+      "change": "added: ∅ → workspaceFiles/readAll",
+      "category": "API",
+      "severity": "P2",
+      "affectedFiles": [
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart"
+      ],
+      "reason": "Endpoint added: workspaceFiles/readAll (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:278",
+      "requiredAction": "evaluate if Flutter should consume new endpoint",
+      "status": "open",
+      "firstSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "lastSeenUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
       "sourceFiles": [
         "packages/api/workspace-files/src/index.ts"
       ]
     },
     {
-      "id": "added:workspaceFiles/list",
-      "change": "added: ∅ → workspaceFiles/list",
+      "id": "added:workspaceFiles/readRelated",
+      "change": "added: ∅ → workspaceFiles/readRelated",
       "category": "API",
       "severity": "P2",
-      "affectedFiles": [],
-      "reason": "Endpoint added: workspaceFiles/list (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:246",
+      "affectedFiles": [
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+        "apps/flutter/lib/src/core/files/workspace_files_client.dart"
+      ],
+      "reason": "Endpoint added: workspaceFiles/readRelated (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:300",
       "requiredAction": "evaluate if Flutter should consume new endpoint",
       "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
-      "sourceFiles": [
-        "packages/api/workspace-files/src/index.ts"
-      ]
-    },
-    {
-      "id": "added:workspaceFiles/read",
-      "change": "added: ∅ → workspaceFiles/read",
-      "category": "API",
-      "severity": "P2",
-      "affectedFiles": [],
-      "reason": "Endpoint added: workspaceFiles/read (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:197",
-      "requiredAction": "evaluate if Flutter should consume new endpoint",
-      "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
-      "sourceFiles": [
-        "packages/api/workspace-files/src/index.ts"
-      ]
-    },
-    {
-      "id": "added:workspaceFiles/readBytes",
-      "change": "added: ∅ → workspaceFiles/readBytes",
-      "category": "API",
-      "severity": "P2",
-      "affectedFiles": [],
-      "reason": "Endpoint added: workspaceFiles/readBytes (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:217",
-      "requiredAction": "evaluate if Flutter should consume new endpoint",
-      "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
-      "sourceFiles": [
-        "packages/api/workspace-files/src/index.ts"
-      ]
-    },
-    {
-      "id": "added:workspaceFiles/stat",
-      "change": "added: ∅ → workspaceFiles/stat",
-      "category": "API",
-      "severity": "P2",
-      "affectedFiles": [],
-      "reason": "Endpoint added: workspaceFiles/stat (service workspaceFiles, mode unary) from packages/api/workspace-files/src/index.ts:233",
-      "requiredAction": "evaluate if Flutter should consume new endpoint",
-      "status": "open",
-      "firstSeenUpstreamSha": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-      "lastSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "firstSeenUpstreamSha": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+      "lastSeenUpstreamSha": "c291e7961a515f6d7af9304e7fd1d257929aef26",
       "sourceFiles": [
         "packages/api/workspace-files/src/index.ts"
       ]
@@ -138,7 +120,7 @@
   "bySeverity": {
     "P0": 2,
     "P1": 1,
-    "P2": 5,
+    "P2": 3,
     "P3": 0
   }
 }

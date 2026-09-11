@@ -12,9 +12,11 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../core/plugin/plugin_contract.dart';
-import '../../core/services/runtime_services.dart';
+import '../../core/services/runtime_services.dart'
+    show LocaleService, SessionsService;
 import '../../core/slots/slot_registry.dart';
 import 'input_trigger_service.dart';
+import 'locales.dart';
 import 'ui/input_menu_anchor.dart';
 
 /// Plugin identity.
@@ -36,13 +38,23 @@ class InputTriggerPlugin extends DshPlugin {
   String get id => kInputTriggerPluginId;
 
   @override
-  List<String> get inject => ['slots', 'sessions'];
+  List<String> get inject => ['slots', 'sessions', 'locale'];
 
   @override
   Future<void> apply(DshContext ctx) async {
     // Pin every declared injection edge: the roster reads session identity,
     // and the seats render under the conversation hub's slot tree.
     ctx.require<SessionsService>('sessions');
+    final LocaleService locale = ctx.require<LocaleService>('locale');
+
+    // Dictionaries land with the plugin and leave with it, like every other
+    // namespace owner.
+    ctx.onDispose(
+      locale.register(kSlashMenuNamespace, {
+        'zh': kSlashMenuZh,
+        'en': kSlashMenuEn,
+      }),
+    );
 
     final registry = TriggerSourceRegistry();
     ctx.provide(kInputTriggersServiceName, registry);

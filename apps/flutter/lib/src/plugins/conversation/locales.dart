@@ -9,6 +9,15 @@ const String kConversationNamespace = 'conversation';
 
 /// Simplified Chinese copy — keys mirror React `zh`.
 const Map<String, String> kConversationZh = {
+  'hint.plan': '描述你的任务以生成计划',
+  'hint.goal': '输入目标，智能体将持续执行',
+  'hint.goal.active': '当前目标进行中。可输入 edit 修改 / pause 暂停 / resume 继续 / clear 清除',
+  'placeholder.plan': '描述你的任务以生成计划',
+  // Live turn status — mirrors `chat.deepDiving` in ui-chat's dictionaries.
+  'chat.deepDiving': '深度求索中...',
+  // Default composer placeholder — mirrors `placeholder.default` in
+  // ui-conversation locales.
+  'placeholder.default': '发消息或做任务… / 调用指令 @ 文件或对话',
   'message.compaction': '上下文已压缩',
   'message.compaction.running': '正在压缩…',
   'message.compaction.completed': '已压缩 {items} 条历史记录（约 {tokens} tokens）',
@@ -116,10 +125,39 @@ const Map<String, String> kConversationZh = {
   'stats.tokensPerSecond': '{throughput} tok/s',
   'stats.cacheHit': '缓存命中 {percent}%',
   'stats.tokens': '输入 {input} tok · 输出 {output} tok',
+  // Session stats pills — mirrors `chat` NS keys in ui-chat locales.
+  'message.tokensPerSecond': '{tps} tok/s',
+  // System prompt row — mirrors `message.systemPrompt*` in ui-chat locale.
+  'message.systemPrompt': '系统提示词',
+  'message.systemPromptUpdate': '系统提示词更新',
+  'message.turnUsage.count': '{count} tok',
+  'message.turnUsage.cacheHit': '缓存命中',
+  'message.turnUsage.input': '未缓存输入',
+  'message.turnUsage.cacheRead': '缓存读取',
+  'message.turnUsage.cacheWrite': '缓存写入',
+  'message.turnUsage.output': '输出',
+  'duration.compactSeconds': '{seconds}秒',
+  'duration.compactMinutes': '{minutes}分{seconds}秒',
+  'stats.dialog.title': '会话统计',
+  'stats.dialog.usageTitle': 'Token 用量',
+  'stats.dialog.llmTime': '模型用时',
+  'stats.dialog.toolTime': '工具调用用时',
+  'stats.dialog.ttft': '首 token 平均（TTFT）',
+  'stats.dialog.speed': '输出速度（TPS）',
 };
 
 /// English copy — keys mirror React `en`.
 const Map<String, String> kConversationEn = {
+  'hint.plan': 'describe your task to generate plan',
+  'hint.goal': 'describe the objective for a long-running task',
+  'hint.goal.active': 'goal active — edit / pause / resume / clear',
+  'placeholder.plan': 'describe your task to generate plan',
+  // Live turn status — mirrors `chat.deepDiving` in ui-chat's dictionaries.
+  'chat.deepDiving': 'Deep diving...',
+  // Default composer placeholder — mirrors `placeholder.default` in
+  // ui-conversation locales.
+  'placeholder.default':
+      'Message or run a task... / commands, @ files or sessions',
   'message.compaction': 'Context compacted',
   'message.compaction.running': 'Compacting context…',
   'message.compaction.completed':
@@ -229,6 +267,25 @@ const Map<String, String> kConversationEn = {
   'stats.tokensPerSecond': '{throughput} tok/s',
   'stats.cacheHit': 'Cache hit {percent}%',
   'stats.tokens': 'Input {input} tok · Output {output} tok',
+  // Session stats pills — mirrors `chat` NS keys in ui-chat locales.
+  'message.tokensPerSecond': '{tps} tok/s',
+  // System prompt row — mirrors `message.systemPrompt*` in ui-chat locale.
+  'message.systemPrompt': 'System prompt',
+  'message.systemPromptUpdate': 'System prompt update',
+  'message.turnUsage.count': '{count} tok',
+  'message.turnUsage.cacheHit': 'Cache hit',
+  'message.turnUsage.input': 'Uncached input',
+  'message.turnUsage.cacheRead': 'Cache read',
+  'message.turnUsage.cacheWrite': 'Cache write',
+  'message.turnUsage.output': 'Output',
+  'duration.compactSeconds': '{seconds}s',
+  'duration.compactMinutes': '{minutes}m{seconds}s',
+  'stats.dialog.title': 'Session statistics',
+  'stats.dialog.usageTitle': 'Token usage',
+  'stats.dialog.llmTime': 'LLM time',
+  'stats.dialog.toolTime': 'Tool time',
+  'stats.dialog.ttft': 'Avg time to first token (TTFT)',
+  'stats.dialog.speed': 'Tokens per second (TPS)',
 };
 
 /// Interpolation helper for `message.compaction.completed`.

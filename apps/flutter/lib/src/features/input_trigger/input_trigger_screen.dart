@@ -147,11 +147,8 @@ class InputTriggerScreen extends ConsumerWidget {
                                   .state =
                               idx,
                       onSelect: (TriggerItem it) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Selected ${it.label} — stub'),
-                          ),
-                        );
+                        ref.read(triggerLastSelectedProvider.notifier).state =
+                            it;
                       },
                     );
                   },
@@ -190,6 +187,8 @@ class InputTriggerScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: DswTokens.spaceMd),
+          _SelectionResult(aliases: aliases),
           const SizedBox(height: DswTokens.spaceMd),
           Text(
             'Keyboard: ↑/↓ to move, Enter to select, Esc to dismiss.',
@@ -253,8 +252,54 @@ class _KindSelector extends StatelessWidget {
   }
 }
 
-class _InlineEmpty extends StatelessWidget {
-  const _InlineEmpty({required this.aliases, required this.message});
+/// Inline selection result for the harness: shows the last picked item with
+/// a clear action instead of a throwaway snackbar.
+class _SelectionResult extends ConsumerWidget {
+  const _SelectionResult({required this.aliases});
+
+  final DswAliases aliases;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final TriggerItem? selected = ref.watch(triggerLastSelectedProvider);
+    if (selected == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(DswTokens.spaceMd),
+      decoration: BoxDecoration(
+        color: aliases.bgLayer2,
+        borderRadius: BorderRadius.circular(DswTokens.radiusMd),
+        border: Border.all(color: aliases.borderL2),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 16,
+            color: aliases.stateSuccessPrimary,
+          ),
+          const SizedBox(width: DswTokens.spaceSm),
+          Expanded(
+            child: Text(
+              'Selected ${selected.label}'
+              '${selected.description == null ? '' : ' — ${selected.description}'}',
+              style: TextStyle(
+                fontSize: DswTokens.fontSizeS14,
+                color: aliases.labelPrimary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () =>
+                ref.read(triggerLastSelectedProvider.notifier).state = null,
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineEmpty extends StatelessWidget {  const _InlineEmpty({required this.aliases, required this.message});
 
   final DswAliases aliases;
   final String message;

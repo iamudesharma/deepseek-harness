@@ -5,6 +5,7 @@ import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate;
 import '../../../theme/app_theme.dart';
 import '../../../widgets/primitives/state_dot.dart';
+import '../goal_activation.dart' show GoalActivation;
 import '../goal_models.dart';
 import '../locales.dart';
 
@@ -26,10 +27,16 @@ class GoalBar extends ConsumerWidget {
     this.onEdit,
     this.onClear,
     this.pending = false,
+    this.activation,
   });
 
   /// Current goal — `null` renders nothing (web parity).
   final GoalSnapshot? goal;
+
+  /// Process-local continuation eligibility; when disarmed the bar shows
+  /// the disarmed chip beside the phase pill (React activation ordering
+  /// layer). Null while unknown.
+  final GoalActivation? activation;
 
   /// Called when pause is pressed (active goals).
   final VoidCallback? onPause;
@@ -118,6 +125,29 @@ class GoalBar extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (activation == GoalActivation.disarmed) ...[
+                const SizedBox(width: DswTokens.spaceSm),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: aliases.labelTertiary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(
+                      DswTokens.radiusFull,
+                    ),
+                  ),
+                  child: Text(
+                    t('activation.disarmed'),
+                    style: TextStyle(
+                      fontSize: DswTokens.fontSizeXxs12,
+                      fontWeight: FontWeight.w600,
+                      color: aliases.labelTertiary,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(width: DswTokens.spaceSm),
               Expanded(
                 child: Text(

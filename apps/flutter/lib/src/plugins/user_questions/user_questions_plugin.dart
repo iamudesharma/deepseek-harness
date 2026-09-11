@@ -53,6 +53,12 @@ class UserQuestionsPlugin extends DshPlugin {
         'en': kQuestionEn,
       }),
     );
+    ctx.onDispose(
+      locale.register(kApprovalNamespace, {
+        'zh': kApprovalZh,
+        'en': kApprovalEn,
+      }),
+    );
 
     bindQuestionClient(client);
     bindApprovalClient(client);

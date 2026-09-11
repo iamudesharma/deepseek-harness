@@ -52,6 +52,48 @@ String diffStat(List<FileDiff> diffs) {
   return '+${t.added} −${t.removed}';
 }
 
+/// Splits one diff side into its content lines under the same terminator
+/// rule as [contentLineCount]: empty text is zero lines and a single
+/// trailing `\n` terminates the last line instead of adding one.
+List<String> contentLines(String text) {
+  if (text.isEmpty) return const [];
+  final body = text.endsWith('\n') ? text.substring(0, text.length - 1) : text;
+  return body.split('\n');
+}
+
+/// Flattens [diffs] into the row text React `DiffBlock` renders and copies
+/// (`DiffBlock.tsx` `buildRows` + `copyText`): a verbatim path header opens
+/// each new file, a same-file second hunk opens with a `⋯` gap instead of
+/// repeating the path, removed lines carry a `- ` prefix and added lines a
+/// `+ ` prefix.
+///
+/// The text parses through `DsDiffBlock` unchanged: path/gap rows read as
+/// context lines, `- `/`+ ` rows as remove/add (the `---`/`+++` header arm
+/// never fires — no header lines are emitted), so the footer `+A -R` counts
+/// equal [diffTotals] exactly.
+String unifiedDiffText(List<FileDiff> diffs) {
+  final rows = <String>[];
+  String? prevPath;
+  for (final d in diffs) {
+    if (d.path != prevPath) {
+      rows.add(d.path);
+    } else {
+      rows.add('⋯');
+    }
+    prevPath = d.path;
+    final oldText = d.oldText;
+    if (oldText != null) {
+      for (final line in contentLines(oldText)) {
+        rows.add('- $line');
+      }
+    }
+    for (final line in contentLines(d.newText)) {
+      rows.add('+ $line');
+    }
+  }
+  return rows.join('\n');
+}
+
 Map<String, Object?>? _asStringMap(Object? v) {
   if (v is Map<String, Object?>) return v;
   if (v is Map) return v.map((k, val) => MapEntry(k.toString(), val as Object?));

@@ -342,7 +342,8 @@ void main() {
         _ev('user/message', 1, {'content': 'hello'}),
       ],
     );
-    await tester.tap(find.text('Ask anything…'));
+    // Focus the field itself, not the locale-owned hint copy.
+    await tester.tap(find.byType(TextField).first);
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(ConversationScreen),
@@ -357,7 +358,8 @@ void main() {
         _ev('user/message', 1, {'content': 'hi'}),
       ],
     );
-    await tester.tap(find.text('Ask anything…'));
+    // Focus the field itself, not the locale-owned hint copy.
+    await tester.tap(find.byType(TextField).first);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, '/');
     await tester.pumpAndSettle();

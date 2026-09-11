@@ -1,6 +1,6 @@
 {
-  "rev": "d347e703908d0406b7a7ef80e3a0e594d86b2215",
-  "generatedAt": "2026-09-09T01:19:03.451Z",
+  "rev": "5dda764ed3aa172535a7967b06ff95d9cbfe536a",
+  "generatedAt": "2026-09-11T09:23:27.280Z",
   "endpoints": [
     {
       "name": "REMOTE_STREAM_MUX_PATH",
@@ -142,5 +142,5 @@
       "FORBIDDEN"
     ]
   },
-  "sourceFilesScanned": 99
+  "sourceFilesScanned": 103
 }

@@ -319,6 +319,43 @@ void main() {
       expect(empty.snapshot().nodes, isEmpty);
     });
 
+    test('retry upsert inside an open step group replaces instead of twinning', () {
+      // Regression: the upsert searched only top-level `_nodes`, so a repeat
+      // `llm/retry` while its step group was open appended a twin with the
+      // same key — the list then mounted one GlobalKey twice and red-screened
+      // every frame.
+      final folder = ConversationNodeFolder()
+        ..add(_event('turn/start', 1, {'turn': 1}))
+        ..add(_event('step/start', 2, {'turn': 1, 'step': 1}))
+        ..add(
+          _event('llm/retry', 3, {
+            'retryId': 'r-dup',
+            'retry': 1,
+            'maxRetries': 3,
+            'delayMs': 100,
+            'failure': {'code': 'TRANSPORT', 'message': 'flaky'},
+          }),
+        )
+        ..add(
+          _event('llm/retry', 4, {
+            'retryId': 'r-dup',
+            'retry': 1,
+            'maxRetries': 3,
+            'delayMs': 200,
+            'failure': {'code': 'TRANSPORT', 'message': 'flaky again'},
+          }),
+        );
+      final keys = <String>[];
+      for (final n in folder.snapshot().nodes) {
+        if (n is StepGroupNode) {
+          keys.addAll(n.children.map((c) => c.key));
+        } else {
+          keys.add(n.key);
+        }
+      }
+      expect(keys.where((k) => k == 'rr-dup'), hasLength(1));
+    });
+
     test('max-tokens turn end surfaces the dedicated failure line', () {
       final folder = ConversationNodeFolder()
         ..add(

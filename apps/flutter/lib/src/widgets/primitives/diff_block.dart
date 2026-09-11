@@ -9,8 +9,9 @@ import 'block.dart';
 /// Shared geometry mirrors `CodeBlock`/`TerminalBlock`: `radius 12`, surface
 /// `markdownCodeBlock`, no outer hairline (the `ioCard` owns `borderL1` when
 /// the diff lives inside a ToolRow). Content keeps `pre` and scrolls
-/// horizontally so indentation is preserved. Long diffs cap at `kBlockCap=16`
-/// with the unified head-tail `ceil(16/2)` slice and a `… 其余 N 行` expander,
+/// horizontally so indentation is preserved. Long diffs cap at [maxLines]
+/// (default `kBlockCap=16`) with the unified head-tail `ceil(maxLines/2)`
+/// slice and a `… 其余 N 行` expander,
 /// plus a floating `复制` control anchored top-right over the body — the same
 /// `BlockCopyButton` + `BlockExpandButton` every block primitive shares, closing
 /// the copy/expand divergence. No literal colors; all through [DswAliases].
@@ -20,6 +21,7 @@ class DsDiffBlock extends ConsumerStatefulWidget {
     required this.diff,
     this.splitView = false,
     this.filePath,
+    this.maxLines = kBlockCap,
   });
 
   /// Raw unified diff text (e.g. output of `git diff`).
@@ -32,6 +34,11 @@ class DsDiffBlock extends ConsumerStatefulWidget {
 
   /// Optional file path shown in the header bar.
   final String? filePath;
+
+  /// Body-line cap before the head-tail fold (default [kBlockCap]=16).
+  /// Chat rows pass 8 (`CHAT_DIFF_MAX_LINES` parity with React
+  /// `diff-card-model.ts`); the details surface keeps the default.
+  final int maxLines;
 
   @override
   ConsumerState<DsDiffBlock> createState() => _DsDiffBlockState();
@@ -55,7 +62,7 @@ class _DsDiffBlockState extends ConsumerState<DsDiffBlock> {
 
     final BlockHeadTailCap cap = BlockHeadTailCap.compute(
       lines.length,
-      kBlockCap,
+      widget.maxLines,
       _expanded,
     );
     final List<_DiffLine> visibleLines = cap.capped
@@ -219,14 +226,30 @@ class _UnifiedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          for (int i = 0; i < lines.length; i++) _lineRow(lines[i], i),
-        ],
-      ),
+    // The horizontal scroller unbounds the inner width, so the column must
+    // not stretch (a stretched flex sizes rows to its infinite max width
+    // and throws during layout). Instead each row carries the viewport
+    // floor itself: short rows still paint full-bleed backgrounds while
+    // long rows size intrinsically and scroll.
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double floor = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : 0;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (int i = 0; i < lines.length; i++)
+                ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: floor),
+                  child: _lineRow(lines[i], i),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -335,12 +358,27 @@ class _SplitView extends StatelessWidget {
       }
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[for (final _SplitRow r in rows) _splitRow(r)],
-      ),
+    // Same unbounded-width floor as the unified view, carried per row:
+    // the stretched column would size rows to the infinite max width.
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double floor = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : 0;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (final _SplitRow r in rows)
+                ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: floor),
+                  child: _splitRow(r),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

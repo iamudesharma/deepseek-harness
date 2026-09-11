@@ -1,5 +1,5 @@
 import 'message_provider.dart';
-import '../tool/tool_models.dart';
+import '../../plugins/tool/tool_models.dart';
 
 class ChatUser {
   const ChatUser({required this.id, this.firstName});

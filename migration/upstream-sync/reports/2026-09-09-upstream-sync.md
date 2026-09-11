@@ -1,9 +1,9 @@
 # Upstream Sync Report — 2026-09-09
 
-> Generated: 2026-09-09T01:19:18.717Z
+> Generated: 2026-09-09T04:53:37.436Z
 > Upstream: https://github.com/deepseek-ai/deepseek-harness.git @ master
 > Old SHA: `d347e703908d0406b7a7ef80e3a0e594d86b2215` (`d347e703`) → New SHA: `5dda764ed3aa172535a7967b06ff95d9cbfe536a` (`5dda764e`)
-> Local HEAD: `5bbc7cbc`  Merge-base: `b0a7d2ce`  Behind: 879  Ahead: 570
+> Local HEAD: `2b8b3d40`  Merge-base: `b0a7d2ce`  Behind: 879  Ahead: 571
 
 ## Summary
 
@@ -16,8 +16,8 @@
 | API changes | 5 (breaking: 0, additive: 5) |
 | Stream changes | 0 |
 | React surfaces | 1093 |
-| Flutter call sites | 167 in 374 files |
-| Parity | PASS 56 / MISSING 3 / INCOMPATIBLE 0 / UNKNOWN 10 |
+| Flutter call sites | 173 in 381 files |
+| Parity | PASS 56 / MISSING 3 / INCOMPATIBLE 0 / UNKNOWN 11 |
 | Flutter impact | P0 2 · P1 1 · P2 5 · P3 0 |
 | Registry entries | 669 |
 | Parity gate | ❌ FAIL |
@@ -186,7 +186,7 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 | MISSING | 3 |
 | INCOMPATIBLE | 0 |
 | OUTDATED | 0 |
-| UNKNOWN | 10 |
+| UNKNOWN | 11 |
 | REMOVED | 0 |
 
 | API | Status | Sev | React → Flutter | Reason |
@@ -197,6 +197,7 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 | `session/follow snapshot.cursor` | UNKNOWN | P0 | `∅` | React session/follow snapshot.cursor vs Flutter session/page sentinel cursor discovery — ARCHITECTURAL MISMATCH |
 | `agentPreset selected event` | UNKNOWN | P1 | `∅` | React agentPreset selected event updates session state via events; Flutter must consume same event (event ignored → STATE/PARITY MISMATCH) |
 | `directoryPicker/readFile` | UNKNOWN | P2 | `directoryPicker/readFile` | Flutter uses directoryPicker/readFile not found in React surfaces; verify if deprecated or new |
+| `goals/get` | UNKNOWN | P2 | `goals/get` | Flutter uses goals/get not found in React surfaces; verify if deprecated or new |
 | `messageFeedback/delete` | UNKNOWN | P2 | `messageFeedback/delete` | Flutter uses messageFeedback/delete not found in React surfaces; verify if deprecated or new |
 | `messageFeedback/list` | UNKNOWN | P2 | `messageFeedback/list` | Flutter uses messageFeedback/list not found in React surfaces; verify if deprecated or new |
 | `messageFeedback/put` | UNKNOWN | P2 | `messageFeedback/put` | Flutter uses messageFeedback/put not found in React surfaces; verify if deprecated or new |
@@ -250,8 +251,7 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 | `settings/openAgentPresetDirectory` | PASS | P3 | `settings/openAgentPresetDirectory` | React and Flutter both use settings/openAgentPresetDirectory |
 | `settings/openSettingsDocument` | PASS | P3 | `settings/openSettingsDocument` | React and Flutter both use settings/openSettingsDocument |
 | `settings/replace` | PASS | P3 | `settings/replace` | React and Flutter both use settings/replace |
-| `settings/update` | PASS | P3 | `settings/update` | React and Flutter both use settings/update |
-| … | … | … | … | … 9 more |
+| … | … | … | … | … 10 more |
 
 ## Flutter impact
 
@@ -267,11 +267,11 @@ Heartbeat: 30000ms · Reconnect: jittered backoff, generation increment · Auth:
 | `flutter:session/page-cursor` | session/page throughSeq sentinel vs cursor | P0 | connection/connection_client.dart<br>session/live_history.dart | verify Flutter getSessionHistory requires throughSeq and waits for LiveHistory.acceptedSeq; no fabricated cursor |
 | `flutter:settings-describe-list` | settings/describe List namespaces | P0 | settings/settings_scope.dart<br>settings/settings_screen.dart | ensure SettingsScope._refreshNow handles List<Map> and fallback forms; verified in be6498fd |
 | `flutter:remote-mux-ticket` | remote.mux bearer ticket flow | P1 | connection/remote_mux_client.dart<br>connection/connection_client.dart | verify ticket fetch and re-pair flow; no silent fallback to unauthenticated |
-| `added:workspaceFiles/changes` | added: ∅ → workspaceFiles/changes | P2 | — | evaluate if Flutter should consume new endpoint |
-| `added:workspaceFiles/list` | added: ∅ → workspaceFiles/list | P2 | — | evaluate if Flutter should consume new endpoint |
-| `added:workspaceFiles/read` | added: ∅ → workspaceFiles/read | P2 | — | evaluate if Flutter should consume new endpoint |
-| `added:workspaceFiles/readBytes` | added: ∅ → workspaceFiles/readBytes | P2 | — | evaluate if Flutter should consume new endpoint |
-| `added:workspaceFiles/stat` | added: ∅ → workspaceFiles/stat | P2 | — | evaluate if Flutter should consume new endpoint |
+| `added:workspaceFiles/changes` | added: ∅ → workspaceFiles/changes | P2 | files/workspace_files_client.dart | evaluate if Flutter should consume new endpoint |
+| `added:workspaceFiles/list` | added: ∅ → workspaceFiles/list | P2 | files/workspace_files_client.dart | evaluate if Flutter should consume new endpoint |
+| `added:workspaceFiles/read` | added: ∅ → workspaceFiles/read | P2 | files/workspace_files_client.dart | evaluate if Flutter should consume new endpoint |
+| `added:workspaceFiles/readBytes` | added: ∅ → workspaceFiles/readBytes | P2 | files/workspace_files_client.dart | evaluate if Flutter should consume new endpoint |
+| `added:workspaceFiles/stat` | added: ∅ → workspaceFiles/stat | P2 | files/workspace_files_client.dart | evaluate if Flutter should consume new endpoint |
 
 ## Change registry (excerpt)
 
@@ -351,4 +351,4 @@ Namespaces prev → current: 19 → 20 (agentPresets, agentTeams, commands, cred
 - `migration/upstream-sync/change-registry.json`
 
 ---
-_Report generated by upstream-sync • upstream d347e703 → 5dda764e • local 5bbc7cbc_
+_Report generated by upstream-sync • upstream d347e703 → 5dda764e • local 2b8b3d40_

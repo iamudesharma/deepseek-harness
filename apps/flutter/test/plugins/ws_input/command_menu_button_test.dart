@@ -167,7 +167,6 @@ void main() {
     await tester.pump();
     await settleMenu(tester, 'compact');
     expect(find.text('compact'), findsOneWidget);
-
     await tester.tap(find.byIcon(Icons.add));
     await tester.pumpAndSettle();
     expect(find.text('compact'), findsNothing);

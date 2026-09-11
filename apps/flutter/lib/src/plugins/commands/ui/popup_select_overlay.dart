@@ -32,6 +32,10 @@ void bindActivatedCommandUi(CommandUiService? service) {
   _activatedService = service;
 }
 
+/// Currently bound commandUi service, or null before activation (the composer
+/// ghost-hint seam queries the input-taking directory through this).
+CommandUiService? get activatedCommandUi => _activatedService;
+
 /// Gap between the shell's bottom edge and the composer card's top edge
 /// (React popup placement).
 const double _kShellGap = 4;
@@ -52,6 +56,12 @@ class PopupSelectOverlay extends ConsumerStatefulWidget {
   @override
   ConsumerState<PopupSelectOverlay> createState() => _PopupSelectOverlayState();
 }
+
+/// Never-notifying popup store for frames without a live shell controller —
+/// keeps the portal element (and its controller pairing) mounted instead of
+/// remounting it across service/session gaps (see build).
+final ValueNotifier<PopupState> _emptyPopup =
+    ValueNotifier<PopupState>(PopupState.closed);
 
 class _PopupSelectOverlayState extends ConsumerState<PopupSelectOverlay> {
   final GlobalKey _anchorKey = GlobalKey();
@@ -78,30 +88,45 @@ class _PopupSelectOverlayState extends ConsumerState<PopupSelectOverlay> {
   @override
   Widget build(BuildContext context) {
     final WidgetRef ref = this.ref;
-    var popup = widget.controller;
-    if (popup == null) {
+    final PopupSelectController<SessionId>? widgetPopup = widget.controller;
+    final PopupSelectController<SessionId>? resolved;
+    if (widgetPopup != null) {
+      resolved = widgetPopup;
+    } else {
       final service = _activatedService;
       final sessionId = ref.watch(currentSessionIdProvider)?.value;
-      if (service == null || sessionId == null) {
-        _syncPortal(false);
-        return _anchor();
-      }
-      popup = service.popupOf(SessionId(sessionId));
+      resolved = (service == null || sessionId == null)
+          ? null
+          : service.popupOf(SessionId(sessionId));
     }
-    return ValueListenableBuilder(
-      valueListenable: popup.state,
-      builder: (context, state, _) {
-        _syncPortal(state.open);
-        return OverlayPortal(
-          key: ValueKey(popup),
-          controller: _portal,
-          overlayChildBuilder: (BuildContext overlayContext) =>
-              _buildFloatingShell(overlayContext, popup!),
-          // Zero-size measurement box riding the composer's overlay-anchor
-          // strip (card top edge); the floating shell follows its rect live.
-          child: _anchor(),
-        );
-      },
+    final PopupSelectController<SessionId>? popup = resolved;
+    // The portal element NEVER unmounts/remounts here (same position, same
+    // controller) — notably NOT keyed by popup identity: remounting orphans
+    // the controller pairing and the next GlobalKey-driven card move trips
+    // OverlayPortal's attach assertion. Per-popup overlay subtree reset rides
+    // a KeyedSubtree inside instead. Visibility rides `_syncPortal` alone.
+    return OverlayPortal(
+      controller: _portal,
+      overlayChildBuilder: (BuildContext overlayContext) =>
+          ValueListenableBuilder(
+        valueListenable: popup?.state ?? _emptyPopup,
+        builder: (context, state, _) {
+          if (popup == null) return const SizedBox.shrink();
+          return KeyedSubtree(
+            key: ValueKey<Object>(popup),
+            child: _buildFloatingShell(overlayContext, popup),
+          );
+        },
+      ),
+      // Zero-size measurement box riding the composer's overlay-anchor
+      // strip (card top edge); the floating shell follows its rect live.
+      child: ValueListenableBuilder(
+        valueListenable: popup?.state ?? _emptyPopup,
+        builder: (context, state, _) {
+          _syncPortal(popup != null && state.open);
+          return _anchor();
+        },
+      ),
     );
   }
 

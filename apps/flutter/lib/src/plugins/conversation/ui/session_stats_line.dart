@@ -1,13 +1,12 @@
 /// Session stats line below the composer — Flutter port of React
 /// `StatsLine.tsx` (mounted on `conversation.composer.dock`).
 ///
-/// The window fold (`deriveWindowStats`) and token aggregation
-/// (`aggregateSessionTokenUsage`) moved verbatim from `chat_view.dart`,
-/// where they were computed but never mounted; the per-turn evidence rides
-/// `TurnTailNode` (`runMs`, `ttftMs`, `tokenUsage`), mirroring React's
-/// fallback fold for assemblies without the durable `sessionStats`
-/// projection (which Flutter does not serve — the window fold IS the
-/// implementation here, exactly the case React's fallback covers).
+/// Like React, every figure prefers the durable whole-log `sessionStats` /
+/// `tokenUsage` projection values (fed into the per-session projection store
+/// by `live_sync`), so paging and compaction cannot change them; an assembly
+/// without those units falls back to the window-scoped fold wholesale (same
+/// field names). The fold rides `TurnTailNode` (`runMs`, `ttftMs`,
+/// `tokenUsage`), mirroring React's `deriveStats` fallback.
 ///
 /// Layout matches the composer card bounds (`Padding(16,0,16,8)` + `Center`
 /// + `maxWidth:780`) so the line sits directly under the card it belongs
@@ -19,6 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/runtime_services.dart';
+import '../../../core/session/projection_store.dart'
+    show sessionProjectionStores;
 import '../../../core/session/session_event_map.dart';
 import '../../../features/conversation/message_provider.dart'
     show liveHistoryProvider;
@@ -181,6 +182,138 @@ TurnTokenUsage? aggregateSessionTokenUsage(List<TurnTailNode> tails) {
   );
 }
 
+/// Whole-log display totals decoded from the `sessionStats` projection.
+/// Field names mirror React `WindowStats` so the durable projection and the
+/// window fallback swap wholesale.
+class SessionStatsTotals {
+  /// Creates the totals.
+  const SessionStatsTotals({
+    required this.turns,
+    required this.steps,
+    required this.llmMs,
+    required this.toolMs,
+    required this.ttftMs,
+    required this.ttftSteps,
+    required this.decodeMs,
+    required this.decodeTokens,
+  });
+
+  /// Distinct turns with at least one closed step.
+  final int turns;
+
+  /// Closed steps.
+  final int steps;
+
+  /// Summed model wall time, ms.
+  final int llmMs;
+
+  /// Summed matched tool wall time, ms.
+  final int toolMs;
+
+  /// Summed first-token latency, ms.
+  final int ttftMs;
+
+  /// Steps carrying a recorded first token.
+  final int ttftSteps;
+
+  /// Summed decode wall time, ms.
+  final int decodeMs;
+
+  /// Summed output tokens over decode-timed steps.
+  final int decodeTokens;
+
+  /// Decodes a Host `sessionStats` projection value; null when absent or
+  /// malformed (the caller falls back to the window fold).
+  static SessionStatsTotals? tryFromJson(Object? value) {
+    if (value is! Map) return null;
+    int? n(Object? v) => v is int ? v : (v is num ? v.toInt() : null);
+    final turns = n(value['turns']);
+    final steps = n(value['steps']);
+    final llmMs = n(value['llmMs']);
+    final toolMs = n(value['toolMs']);
+    final ttftMs = n(value['ttftMs']);
+    final ttftSteps = n(value['ttftSteps']);
+    final decodeMs = n(value['decodeMs']);
+    final decodeTokens = n(value['decodeTokens']);
+    if (turns == null ||
+        steps == null ||
+        llmMs == null ||
+        toolMs == null ||
+        ttftMs == null ||
+        ttftSteps == null ||
+        decodeMs == null ||
+        decodeTokens == null) {
+      return null;
+    }
+    return SessionStatsTotals(
+      turns: turns,
+      steps: steps,
+      llmMs: llmMs,
+      toolMs: toolMs,
+      ttftMs: ttftMs,
+      ttftSteps: ttftSteps,
+      decodeMs: decodeMs,
+      decodeTokens: decodeTokens,
+    );
+  }
+}
+
+/// Durable cumulative provider usage decoded from the `tokenUsage`
+/// projection. Mirrors `TokenUsageProjection`: four disjoint buckets
+/// (reasoning already inside output). Cache buckets stay nullable so the
+/// fallback fold's partial reporting keeps the line's billing gate intact.
+class SessionTokenUsage {
+  /// Creates the usage value.
+  const SessionTokenUsage({
+    required this.uncachedInputTokens,
+    required this.outputTokens,
+    this.cacheReadTokens,
+    this.cacheWriteTokens,
+  });
+
+  /// Uncached prompt tokens.
+  final int uncachedInputTokens;
+
+  /// Output tokens (reasoning included).
+  final int outputTokens;
+
+  /// Cache-read tokens, when reported.
+  final int? cacheReadTokens;
+
+  /// Cache-write tokens, when reported.
+  final int? cacheWriteTokens;
+
+  /// Decodes a Host `tokenUsage` projection value; null when absent.
+  static SessionTokenUsage? tryFromJson(Object? value) {
+    if (value is! Map) return null;
+    int? n(Object? v) => v is int ? v : (v is num ? v.toInt() : null);
+    final uncached = n(value['uncachedInputTokens']);
+    final output = n(value['outputTokens']);
+    if (uncached == null || output == null) return null;
+    return SessionTokenUsage(
+      uncachedInputTokens: uncached,
+      outputTokens: output,
+      cacheReadTokens: n(value['cacheReadTokens']),
+      cacheWriteTokens: n(value['cacheWriteTokens']),
+    );
+  }
+
+  /// Sum of the prompt-side billing buckets (React `billedInputTokens`).
+  int get billedInputTokens =>
+      uncachedInputTokens +
+      (cacheReadTokens ?? 0) +
+      (cacheWriteTokens ?? 0);
+
+  /// Gated on actual token activity (React `hasTokens`).
+  bool get hasTokens => billedInputTokens > 0 || outputTokens > 0;
+
+  /// Display-ready cache-hit share, or null with no billed input.
+  String? cacheHitPercent() {
+    if (cacheReadTokens == null) return null;
+    return formatCacheHitPercent(cacheReadTokens!, billedInputTokens);
+  }
+}
+
 /// Fill a `{name}` template (the `Translate` face takes bare keys only).
 String _fill(String template, Map<String, String> values) {
   var out = template;
@@ -200,16 +333,52 @@ class SessionStatsLine extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final history = ref.watch(liveHistoryProvider(sessionId));
-    final folder = ConversationNodeFolder();
-    for (final entry in history) {
-      folder.add(SessionEventEnvelope.fromJson(entry.event.toJson()));
-    }
-    final nodes = folder.snapshot().nodes;
-    final stats = deriveWindowStats(nodes);
-    final usage = aggregateSessionTokenUsage(
-      nodes.whereType<TurnTailNode>().toList(),
+    // React `useProjection('sessionStats')` / `useProjection('tokenUsage')`:
+    // every figure rides the durable whole-log projections so paging and
+    // compaction cannot change them; an assembly without those units pays for
+    // the window fold wholesale (same field names).
+    final store = ref.watch(sessionProjectionStores(sessionId));
+    final projected = SessionStatsTotals.tryFromJson(
+      store.valueOf('sessionStats'),
     );
+    final usage = SessionTokenUsage.tryFromJson(store.valueOf('tokenUsage'));
+
+    SessionStatsTotals stats;
+    SessionTokenUsage? tokens = usage;
+    if (projected != null) {
+      stats = projected;
+    } else {
+      final history = ref.watch(liveHistoryProvider(sessionId));
+      final folder = ConversationNodeFolder();
+      for (final entry in history) {
+        folder.add(SessionEventEnvelope.fromJson(entry.event.toJson()));
+      }
+      final nodes = folder.snapshot().nodes;
+      final window = deriveWindowStats(nodes);
+      stats = SessionStatsTotals(
+        turns: window.turns,
+        steps: window.steps,
+        llmMs: window.llmMs,
+        toolMs: window.toolMs,
+        ttftMs: window.ttftMs,
+        ttftSteps: window.ttftSteps,
+        decodeMs: window.decodeMs,
+        decodeTokens: window.decodeTokens,
+      );
+      if (tokens == null) {
+        final agg = aggregateSessionTokenUsage(
+          nodes.whereType<TurnTailNode>().toList(),
+        );
+        if (agg != null) {
+          tokens = SessionTokenUsage(
+            uncachedInputTokens: agg.uncachedInputTokens,
+            outputTokens: agg.outputTokens,
+            cacheReadTokens: agg.cacheReadTokens,
+            cacheWriteTokens: agg.cacheWriteTokens,
+          );
+        }
+      }
+    }
 
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
@@ -262,21 +431,16 @@ class SessionStatsLine extends ConsumerWidget {
       }
       if (speeds.isNotEmpty) groups.add(speeds.join(' · '));
     }
-    if (usage != null &&
-        (usage.billedInputTokens > 0 || usage.outputTokens > 0)) {
-      final cacheHit = usage.cacheReadTokens == null
-          ? null
-          : formatCacheHitPercent(
-              usage.cacheReadTokens!,
-              usage.billedInputTokens,
-            );
+    if (tokens != null &&
+        (tokens.billedInputTokens > 0 || tokens.outputTokens > 0)) {
+      final cacheHit = tokens.cacheHitPercent();
       if (cacheHit != null) {
         groups.add(_fill(t('stats.cacheHit'), {'percent': cacheHit}));
       }
       groups.add(
         _fill(t('stats.tokens'), {
-          'input': formatCompactTokens(usage.billedInputTokens),
-          'output': formatCompactTokens(usage.outputTokens),
+          'input': formatCompactTokens(tokens.billedInputTokens),
+          'output': formatCompactTokens(tokens.outputTokens),
         }),
       );
     }

@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import '../../core/session/session_models.dart';
-import '../tool/tool_models.dart';
+import '../../plugins/tool/tool_models.dart';
 import 'message_provider.dart';
 import '../../plugins/conversation/nodes/failure_display.dart';
 

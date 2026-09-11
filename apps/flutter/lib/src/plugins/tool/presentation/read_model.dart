@@ -101,6 +101,24 @@ ReadCardModel? narrowReadMeta(Object? meta) {
   );
 }
 
+/// Opening line for a running `read` call, from its model JSON arguments.
+///
+/// Mirrors React `readCallLine`: `offset` is the read tool's own 1-based
+/// start line, so opening the path can land where the model looked.
+/// Available while the call is still running, unlike persisted metadata.
+/// The arguments are model-produced JSON: only an integer of at least 1 is
+/// a line, and a call whose `offset` is anything else names none.
+/// @param toolName - tool name (only `read` qualifies).
+/// @param argsRaw - model JSON arguments.
+/// @returns the 1-based line, or null when the call names none.
+int? readCallLine(String toolName, String argsRaw) {
+  if (!validReadCall(toolName, argsRaw)) return null;
+  final map = _asMap(_parseArgs(argsRaw));
+  final offset = map?['offset'];
+  if (offset is int && offset >= 1) return offset;
+  return null;
+}
+
 /// Derives the settled read card, or null for the generic fallback.
 ReadCardModel? readCardModel({
   required String toolName,

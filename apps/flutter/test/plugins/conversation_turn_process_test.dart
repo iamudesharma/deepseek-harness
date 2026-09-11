@@ -147,6 +147,29 @@ void main() {
     });
   });
 
+  group('chat row key dedupe (GlobalKey single-mount guard)', () {
+    test('first occurrence wins; later duplicates drop', () {
+      final a = UserMessageNode(key: 'u1', sourceSeqs: const [1], text: 'x');
+      final b = UserMessageNode(key: 'u2', sourceSeqs: const [2], text: 'y');
+      final dup = UserMessageNode(key: 'u1', sourceSeqs: const [3], text: 'z');
+      final dropped = <String>[];
+      final out = dedupeByKey(
+        [a, b, dup],
+        (n) => n.key,
+        onDuplicate: dropped.add,
+      );
+      expect(out.map((n) => n.key), ['u1', 'u2']);
+      expect(out.first.text, 'x');
+      expect(dropped, ['u1']);
+    });
+
+    test('unique keys pass through untouched', () {
+      final a = UserMessageNode(key: 'a', sourceSeqs: const [8], text: 'x');
+      final b = UserMessageNode(key: 'b', sourceSeqs: const [9], text: 'y');
+      expect(dedupeByKey([a, b], (n) => n.key).map((n) => n.key), ['a', 'b']);
+    });
+  });
+
   group('settled turn grouping in ChatView (React TurnProcess parity)', () {
     SessionEvent ev(String type, int seq, Map<String, dynamic> data) =>
         SessionEvent(type: type, data: data, seq: seq, time: seq * 1000);

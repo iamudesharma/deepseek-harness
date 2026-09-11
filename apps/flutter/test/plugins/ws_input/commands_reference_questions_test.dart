@@ -80,12 +80,16 @@ void main() {
         's1',
         const CandidateRequest(query: '', position: TriggerPosition.leading),
       );
-      expect(rows.map((r) => r.name), [
-        'File · main.dart',
-        'Folder · assets/',
-        'Session · Fix bug',
-      ]);
+      // React fileCandidate shapes: the name carries the trailing slash for
+      // directories, the location is the parent alone (nothing at the root),
+      // icons drill/section/value ride the candidate.
+      expect(rows.map((r) => r.name), ['main.dart', 'assets/', 'Fix bug']);
       expect(rows.map((r) => r.section), ['Files', 'Files', 'Sessions']);
+      expect(rows.map((r) => r.icon), ['file', 'folder', 'session']);
+      expect(rows[1].drill, isTrue);
+      expect(rows[0].drill, isNull);
+      expect(rows[0].description, 'lib');
+      expect(rows[2].description, isNotNull);
 
       // Inside an open quoted path token sessions never answer.
       final quoted = await source.candidates(
@@ -100,7 +104,7 @@ void main() {
     });
 
     test(
-      'pick decision table: directory splices text; file/session insert chips',
+      'pick decision table: drill descends, settling pick inserts chips',
       () async {
         final (_, source) = await boot(
           files: (_, __) async => [
@@ -115,19 +119,33 @@ void main() {
           's1',
           const CandidateRequest(query: '', position: TriggerPosition.leading),
         );
-        InputTriggerPick pickOf(InputTriggerCandidate c) => InputTriggerPick(
-          candidate: c,
-          sessionId: 's1',
-          position: TriggerPosition.leading,
-          via: 'menu',
-          span: const TokenSpan(start: 0, end: 5, draftRev: 0),
-        );
+        InputTriggerPick pickOf(
+          InputTriggerCandidate c, [
+          PickAction action = PickAction.pick,
+        ]) =>
+            InputTriggerPick(
+              candidate: c,
+              sessionId: 's1',
+              position: TriggerPosition.leading,
+              via: 'menu',
+              action: action,
+              span: const TokenSpan(start: 0, end: 5, draftRev: 0),
+            );
 
-        // Directory → literal splice keeping completion open (descent). The
+        // Directory drill → literal splice keeping completion open. The
         // unquoted grammar: quotes appear only for whitespace paths.
-        final dir = source.onPick(pickOf(rows[1])) as TextOutcome;
-        expect(dir.text, '@assets/');
-        expect(dir.continueTracking, isTrue);
+        final descent =
+            source.onPick(pickOf(rows[1], PickAction.drill)) as TextOutcome;
+        expect(descent.text, '@assets/');
+        expect(descent.continueTracking, isTrue);
+
+        // Directory settling pick → atomic folder reference chip with the
+        // trailing slash on the label (React onPick).
+        final folder =
+            source.onPick(pickOf(rows[1])) as InsertOutcome;
+        expect(folder.insert.appearance, 'folder');
+        expect(folder.insert.label, 'assets/');
+        expect(folder.insert.ref, '@assets/');
 
         // File → reference chip with clipboard projection.
         final file = source.onPick(pickOf(rows[0])) as InsertOutcome;
@@ -141,6 +159,55 @@ void main() {
         expect(session.insert.appearance, 'session');
       },
     );
+
+    test('header crumbs: only drilled slash queries publish a trail', () async {
+      final (_, source) = await boot(
+        files: (_, __) async => [
+          {'path': 'assets/logo.png', 'kind': 'file'},
+        ],
+        sessions: (_, __) async => const [],
+      );
+      // Typing never publishes: the draft carries its own context.
+      expect(
+        source.header?.call(
+          's1',
+          const HeaderRequest(query: 'assets/', drilled: false),
+        ),
+        isNull,
+      );
+      // A drill without a slash has no trail either.
+      expect(
+        source.header?.call(
+          's1',
+          const HeaderRequest(query: 'assets', drilled: true),
+        ),
+        isNull,
+      );
+      // A drill descent publishes root + segments with the last current.
+      final crumbs = source.header?.call(
+        's1',
+        const HeaderRequest(query: 'assets/', drilled: true),
+      );
+      expect(crumbs, isNotNull);
+      expect(crumbs!.first.label, 'Workspace');
+      expect(crumbs.last.label, 'assets');
+      expect(crumbs.last.current, isTrue);
+      // While drilled, rows drop their location (the header carries it).
+      final drilledRows = await source.candidates(
+        's1',
+        const CandidateRequest(
+          query: 'assets/',
+          position: TriggerPosition.leading,
+          drilled: true,
+        ),
+      );
+      expect(
+        drilledRows
+            .where((r) => r.section == 'Files')
+            .map((r) => r.description),
+        everyElement(isNull),
+      );
+    });
 
     test('failing namespaces degrade to an empty candidate list', () async {
       final (_, source) = await boot(

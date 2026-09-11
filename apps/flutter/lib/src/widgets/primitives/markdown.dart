@@ -15,9 +15,19 @@ import 'inline_code.dart' show InlineCodeBuilder, handleMarkdownLinkTap;
 /// mono 0.875em) with link-blue file/URL promotion; fenced blocks render
 /// through [PreElementBuilder] with banner + copy + highlight.
 class DsMarkdown extends ConsumerWidget {
-  const DsMarkdown({super.key, required this.data, this.selectable = true});
+  const DsMarkdown({
+    super.key,
+    required this.data,
+    this.selectable = true,
+    this.imageBuilder,
+  });
   final String data;
   final bool selectable;
+
+  /// Image destination builder. When null, prose images use the default
+  /// network rendering; pass [buildProseImage] (bound to a session) to
+  /// resolve Host-local file destinations through `/api/file`.
+  final md.MarkdownImageBuilder? imageBuilder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,6 +46,7 @@ class DsMarkdown extends ConsumerWidget {
     return md.MarkdownBody(
       data: data,
       selectable: selectable,
+      imageBuilder: imageBuilder,
       builders: {
         'pre': PreElementBuilder(),
         'code': InlineCodeBuilder(),

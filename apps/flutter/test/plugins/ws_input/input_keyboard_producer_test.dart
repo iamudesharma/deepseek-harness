@@ -179,6 +179,13 @@ void main() {
     registry.disposeController('s3');
   });
 
+  testWidgets('Tab settles the highlight like Enter', (tester) async {
+    await pumpProducer(tester, controller);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(controller.menu.value.open, isFalse);
+  });
+
   testWidgets('null controller passes everything through', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

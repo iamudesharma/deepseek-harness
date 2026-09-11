@@ -249,6 +249,23 @@ void main() {
       expect(decoded.meta, isNotNull);
     });
 
+    test('readCallLine names the 1-based opening line from model args', () {
+      expect(
+        readCallLine('read', '{"file_path":"/w/a.txt","offset":42}'),
+        42,
+      );
+      expect(readCallLine('read', '{"file_path":"/w/a.txt"}'), isNull);
+    });
+
+    test('readCallLine rejects non-integer or out-of-range offsets', () {
+      expect(readCallLine('read', '{"file_path":"/w/a.txt","offset":0}'), isNull);
+      expect(readCallLine('read', '{"file_path":"/w/a.txt","offset":-3}'), isNull);
+      expect(readCallLine('read', '{"file_path":"/w/a.txt","offset":"42"}'), isNull);
+      expect(readCallLine('read', '{"file_path":"/w/a.txt","offset":4.5}'), isNull);
+      expect(readCallLine('write', '{"file_path":"/w/a.txt","offset":42}'), isNull);
+      expect(readCallLine('read', 'not json'), isNull);
+    });
+
     test('kindForTool covers write/edit/web images', () {
       expect(kindForTool('write'), ToolCallKind.diff);
       expect(kindForTool('edit'), ToolCallKind.read == ToolCallKind.diff ? ToolCallKind.diff : ToolCallKind.diff);

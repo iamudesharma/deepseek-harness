@@ -11,6 +11,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'host_fixture.dart';
 
 void main() {
+  /// Desktop-width surface: the file lane must clear React's 687px band to
+  /// render all six candidate links (the 800px default leaves the lane at
+  /// 686px under the fixed-width test font, one pixel inside band five).
+  void useWideSurface(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1000, 700);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   test(
     'activation provides the chatFileMentions service and the dictionaries',
     () async {
@@ -101,8 +111,9 @@ void main() {
   });
 
   testWidgets(
-    'the row renders basename chips with a counted remainder and gated folder action',
+    'the row renders basename links with a counted remainder and gated folder action',
     (tester) async {
+      useWideSurface(tester);
       // The row resolves copy through the deliverables dictionaries like the
       // owning plugin's apply; English here pins the `more`/`folder` copy
       // the parity assertions below check verbatim.
@@ -131,7 +142,7 @@ void main() {
       expect(find.text('Produced'), findsOneWidget);
       expect(find.text('asset0.js'), findsOneWidget);
       expect(find.text('asset5.js'), findsOneWidget);
-      expect(find.text('asset6.js'), findsNothing); // six-chip cap
+      expect(find.text('asset6.js'), findsNothing); // six-link cap
       expect(find.text('+ 2 files'), findsOneWidget);
       expect(find.text('Show in folder'), findsOneWidget);
       // The full path rides the tooltip (React `title` parity) and the
@@ -171,7 +182,8 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(ActionChip), findsOneWidget);
+      expect(find.byType(ActionChip), findsNothing);
+      expect(find.text('only.md'), findsOneWidget);
       expect(find.text('Show in folder'), findsNothing);
       expect(find.text('在文件夹中显示'), findsNothing);
 
@@ -196,6 +208,7 @@ void main() {
   testWidgets(
     'the folder action stays overflow-only and the singular remainder uses moreOne copy',
     (tester) async {
+      useWideSurface(tester);
       final container = ProviderContainer();
       addTearDown(container.dispose);
       container.read(localeServiceProvider).register(kDeliverablesNamespace, {
@@ -205,9 +218,9 @@ void main() {
       container.read(localeServiceProvider).setLocale('en');
 
       // Two files with a capable Host: React renders the folder button at the
-      // JSX gate but its CSS keeps it hidden until a remainder is visible at
-      // the current width. The Flutter row wraps instead of overflow-hiding,
-      // so visible parity is overflow-only — no folder without a remainder.
+      // JSX gate but its CSS keeps it hidden until a remainder is visible.
+      // Visible parity is overflow-only — no folder action without a
+      // remainder at the current lane width.
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -266,6 +279,7 @@ void main() {
   );
 
   testWidgets('the row follows the active locale dictionaries', (tester) async {
+    useWideSurface(tester);
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container.read(localeServiceProvider).register(kDeliverablesNamespace, {

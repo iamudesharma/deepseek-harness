@@ -101,15 +101,11 @@ List<TurnNavigationItem> _deriveTurnNavigationItems(
 
   final folder = ConversationNodeFolder();
   for (final e in entries) {
-    final envelope = SessionEventEnvelope.fromJson({
-      'type': e.event.type,
-      'seq': e.event.seq,
-      'time': e.event.time,
-      'data': e.event.data,
-      if (e.event.ignorable) 'ignorable': true,
-    });
-    // Folder expects sourceEventSeqs/surfaceOp for compaction; HistoryEntry
-    // drops them – not needed for turn prompt derivation.
+    // Round-trip through the wire envelope set so surface placement and
+    // cited sources reach the fold (compaction/head-rewrite need them).
+    final envelope = SessionEventEnvelope.fromJson(
+      e.event.toJson().cast<String, Object?>(),
+    );
     folder.add(envelope);
   }
   final rawNodes = folder.snapshot().nodes;

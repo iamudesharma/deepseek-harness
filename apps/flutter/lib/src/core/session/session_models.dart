@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'session_event_map.dart';
+
 /// Branded session identifier (opaque cross-boundary id, never bare string).
 ///
 /// Mirrors `SessionId` from `@deepseek-ai/dsh-session/types` which brands via
@@ -436,7 +438,10 @@ class SessionStatus {
 ///
 /// The host event log is extensive (see `SessionEventMap` in `dsh-session`);
 /// UI needs only a typed envelope that survives rendering. Full `data` is kept
-/// as JSON and accessed by conversation node folds.
+/// as JSON and accessed by conversation node folds. Surface placement
+/// (`surfaceOp`) and cited sources (`sourceEventSeqs`) ride along so the
+/// follow snapshot → history → conversation-node chain never loses the
+/// compaction/head-rewrite metadata the wire carries.
 class SessionEvent {
   /// Event type discriminant (e.g. `'user/message'`, `'turn/start'`).
   final String type;
@@ -453,6 +458,14 @@ class SessionEvent {
   /// Whether the event is ignorable for older clients (`ignorable: true` envelope).
   final bool ignorable;
 
+  /// Surface placement (`'append'` or a `startSeq`/`endSeq` replacement);
+  /// null when the wire event carries none. Decoded with [SurfaceOp.fromJson],
+  /// so malformed ops throw here instead of silently dropping history.
+  final SurfaceOp? surfaceOp;
+
+  /// Cited source seqs, or the opaque wire value on unknown ignorable events.
+  final Object? sourceEventSeqs;
+
   /// Creates a session event stub.
   const SessionEvent({
     required this.type,
@@ -460,26 +473,42 @@ class SessionEvent {
     required this.seq,
     required this.time,
     this.ignorable = false,
+    this.surfaceOp,
+    this.sourceEventSeqs,
   });
 
-  /// Decode from host JSON (host `HistoryEntry.event`).
+  /// Decode from host JSON (host `HistoryEntry.event`). Surface metadata is
+  /// carried, never dropped: a malformed `surfaceOp` throws [ArgumentError].
   factory SessionEvent.fromJson(Map<String, dynamic> json) {
+    final rawOp = json['surfaceOp'];
     return SessionEvent(
       type: json['type'] as String,
       data: (json['data'] as Map?)?.cast<String, dynamic>() ?? const {},
       seq: json['seq'] as int,
       time: json['time'] as int,
       ignorable: json['ignorable'] as bool? ?? false,
+      surfaceOp: rawOp == null ? null : SurfaceOp.fromJson(rawOp),
+      sourceEventSeqs: json['sourceEventSeqs'],
     );
   }
 
-  /// Encode to JSON.
+  /// Encode to JSON. Emits exactly the wire envelope set so a
+  /// `SessionEventEnvelope.fromJson(toJson())` round-trip stays strict-clean.
   Map<String, dynamic> toJson() => {
     'type': type,
     'data': data,
     'seq': seq,
     'time': time,
     if (ignorable) 'ignorable': true,
+    if (surfaceOp != null)
+      'surfaceOp': surfaceOp == SurfaceOp.append
+          ? 'append'
+          : {
+              'op': 'replace',
+              'startSeq': surfaceOp!.startSeq,
+              'endSeq': surfaceOp!.endSeq,
+            },
+    if (sourceEventSeqs != null) 'sourceEventSeqs': sourceEventSeqs,
   };
 
   @override

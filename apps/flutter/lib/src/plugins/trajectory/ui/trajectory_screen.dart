@@ -186,23 +186,46 @@ class LedgerRow {
   });
 }
 
+/// Reads a host field that must be a string: non-strings yield null instead
+/// of throwing (host payloads vary by version; a direct `as String?` cast
+/// red-screens the ledger fold with
+/// `'_Map<String, dynamic>' is not a subtype of 'String?'`).
+String? _strField(dynamic value) => value is String ? value : null;
+
+/// Reads one content block's text without throwing on non-string `text` or
+/// `content` (nested blocks, image payloads).
+String _blockFieldText(dynamic block) {
+  if (block is String) return block;
+  if (block is List) {
+    return block
+        .map(_blockFieldText)
+        .where((s) => s.isNotEmpty)
+        .join('\n');
+  }
+  if (block is Map) {
+    return _strField(block['text']) ?? _strField(block['content']) ?? '';
+  }
+  return '';
+}
+
 String _extractText(Map<String, dynamic> data) {
   final dynamic content = data['content'];
   if (content is String) return content;
   if (content is List) {
     final sb = StringBuffer();
     for (final blk in content) {
-      if (blk is Map) {
-        final String? t = blk['text'] as String? ?? blk['content'] as String?;
-        if (t != null) sb.writeln(t);
-      } else if (blk is String) sb.writeln(blk);
+      final t = _blockFieldText(blk);
+      if (t.isNotEmpty) sb.writeln(t);
     }
     final s = sb.toString().trim();
     if (s.isNotEmpty) return s;
+  } else if (content is Map) {
+    final t = _blockFieldText(content);
+    if (t.isNotEmpty) return t;
   }
-  return (data['text'] as String?) ??
-      (data['message'] as String?) ??
-      (data['prompt'] as String?) ??
+  return _strField(data['text']) ??
+      _strField(data['message']) ??
+      _strField(data['prompt']) ??
       '';
 }
 
@@ -780,7 +803,9 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
       case 'user/message':
         {
           final src = ev.data['source'];
-          final srcKind = src is Map ? src['kind'] as String? : null;
+          final srcKind = src is Map && src['kind'] is String
+              ? src['kind'] as String
+              : null;
           if (srcKind == 'user') {
             kind = TrajectoryCellKind.user;
           } else {
@@ -917,7 +942,8 @@ List<LedgerRow> ledgerFromHistory(List<HistoryEntry> entries) {
             break;
           }
           kind = TrajectoryCellKind.tool;
-          final String name = (ev.data['name'] as String?) ?? 'tool';
+          final String name =
+              _strField(ev.data['name']) ?? _strField(ev.data['toolName']) ?? 'tool';
           final joined = _joinToolResult(ev);
           text = joined.preview.isEmpty
               ? name

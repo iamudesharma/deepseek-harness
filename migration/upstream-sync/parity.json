@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-09T01:19:18.679Z",
-  "total": 69,
+  "generatedAt": "2026-09-11T09:23:43.658Z",
+  "total": 70,
   "pass": 56,
   "missing": 3,
   "outdated": 0,
   "incompatible": 0,
   "removed": 0,
-  "unknown": 10,
+  "unknown": 11,
   "entries": [
     {
       "id": "parity:session/disposed",
@@ -67,6 +67,16 @@
       "reactSource": "unknown in React contract",
       "flutterSource": "apps/flutter/lib/src/core/services/session_workspace_services.dart",
       "reason": "Flutter uses directoryPicker/readFile not found in React surfaces; verify if deprecated or new"
+    },
+    {
+      "id": "parity:flutter-only:goals/get",
+      "reactApi": "goals/get",
+      "flutterApi": "goals/get",
+      "status": "UNKNOWN",
+      "severity": "P2",
+      "reactSource": "unknown in React contract",
+      "flutterSource": "apps/flutter/lib/src/plugins/goal/goal_activation.dart",
+      "reason": "Flutter uses goals/get not found in React surfaces; verify if deprecated or new"
     },
     {
       "id": "parity:flutter-only:messageFeedback/delete",
@@ -504,7 +514,7 @@
       "flutterApi": "session/rename",
       "status": "PASS",
       "severity": "P3",
-      "reactSource": "packages/client/connection/src",
+      "reactSource": "apps/web/tests/preview-boot.e2e.ts",
       "flutterSource": "apps/flutter/lib/src/core/connection/connection_client.dart",
       "reason": "React and Flutter both use session/rename"
     },

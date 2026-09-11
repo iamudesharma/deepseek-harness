@@ -19,6 +19,8 @@ const Map<String, String> kGoalZh = {
   'action.resume': '恢复目标',
   'action.edit': '编辑目标',
   'action.clear': '清除目标',
+  // Flutter-surface additions: process-local activation chip.
+  'activation.disarmed': '未自动继续',
   // Flutter-surface additions: the Dart goal screen's chrome.
   'empty.title': '未设置目标',
   'empty.hint': '使用 /goal 创建目标，即可在这里跟踪进度。',
@@ -38,6 +40,8 @@ const Map<String, String> kGoalEn = {
   'action.resume': 'Resume goal',
   'action.edit': 'Edit goal',
   'action.clear': 'Clear goal',
+  // Flutter-surface additions: process-local activation chip.
+  'activation.disarmed': 'Auto-continue off',
   // Flutter-surface additions: the Dart goal screen's chrome.
   'empty.title': 'No goal set',
   'empty.hint': 'Create a goal with /goal to track progress here.',

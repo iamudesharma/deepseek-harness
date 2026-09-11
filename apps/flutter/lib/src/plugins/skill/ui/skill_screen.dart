@@ -295,17 +295,9 @@ class _SkillRowViewState extends State<SkillRowView> {
                     ),
                   ),
                   const SizedBox(height: DswTokens.spaceSm),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: () => ScaffoldMessenger.of(context)
-                          .showSnackBar(
-                            const SnackBar(content: Text('Inspect — stub')),
-                          ),
-                      icon: const Icon(Icons.open_in_new, size: 14),
-                      label: const Text('Inspect'),
-                    ),
-                  ),
+                  // No inspector surface exists on this client, so no Inspect
+                  // affordance renders — matching React's `inspect !== undefined`
+                  // gate in `SkillRow.tsx` (a stub snackbar lived here).
                 ],
               ),
             ),

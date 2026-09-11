@@ -23,6 +23,7 @@ import 'package:dsh_flutter/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Connection fake answering `settings.describe` from a canned document;
 /// mirrors the FakeClient in `test/plugins/ws_surfaces/host_fixture.dart`.
@@ -254,6 +255,8 @@ Future<void> _pumpScreen(
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('hosts the five settings tabs', (tester) async {
     await _pumpScreen(tester, _FakeClient());
 
@@ -318,7 +321,7 @@ void main() {
     expect(find.text('Steer'), findsOneWidget);
   });
 
-  testWidgets('General tab carries notifications and workspace sections', (
+  testWidgets('General tab carries the workspace section', (
     tester,
   ) async {
     // Acknowledged onboarding keeps the shell overlay hidden so the
@@ -327,14 +330,6 @@ void main() {
     await _pumpScreen(tester, client);
 
     // Sections below the fold live in the tab's lazy ListView.
-    await tester.dragUntilVisible(
-      find.text('Enable notifications'),
-      find.byType(ListView).first,
-      const Offset(0, -200),
-    );
-    expect(find.text('Enable notifications'), findsOneWidget);
-    expect(find.byType(Switch), findsAtLeastNWidgets(1));
-
     await tester.dragUntilVisible(
       find.text('Workspace directory'),
       find.byType(ListView).first,
@@ -744,5 +739,42 @@ void main() {
         'value': 'normal',
       },
     ]);
+  });
+
+  group('workspaceDirectoryProvider persistence', () {
+    test('pick stores the path and hydration restores it', () async {
+      SharedPreferences.setMockInitialValues({});
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(container.read(workspaceDirectoryProvider), isNull);
+      await container
+          .read(workspaceDirectoryProvider.notifier)
+          .pick('/tmp/work');
+      expect(container.read(workspaceDirectoryProvider), '/tmp/work');
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(kWorkspaceDirectoryKey), '/tmp/work');
+
+      // A fresh container hydrates the saved pick on build.
+      final reloaded = ProviderContainer();
+      addTearDown(reloaded.dispose);
+      expect(reloaded.read(workspaceDirectoryProvider), isNull);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(reloaded.read(workspaceDirectoryProvider), '/tmp/work');
+    });
+
+    test('picking null clears the stored path', () async {
+      SharedPreferences.setMockInitialValues({
+        kWorkspaceDirectoryKey: '/tmp/work',
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await container.read(workspaceDirectoryProvider.notifier).pick(null);
+      expect(container.read(workspaceDirectoryProvider), isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(kWorkspaceDirectoryKey), isNull);
+    });
   });
 }

@@ -751,26 +751,81 @@ final liveMessageListProvider = Provider.family<List<Message>, String>((
       ? messagesFromHistory(history, isRunning: isRunning)
       : const <Message>[];
   if (optimistic.isEmpty) return base;
-  // Deduplicate optimistic vs host-confirmed by tail only, not global content.
-  // Previous global Set dedup incorrectly hid legitimate repeated "hi" across
-  // turns (same content in history set). Now we only hide the optimistic when
-  // the durable tail is the same user text (echo of the just-sent message),
-  // mirroring ChatView tail dedup and React's observedRpcIds atomic swap.
-  // This preserves seq-based identity: repeated identical text in separate
-  // turns remains visible until its own echo lands.
-  if (base.isNotEmpty) {
-    final tail = base.last;
-    if (tail.role == MessageRole.user) {
-      final filteredOptimistic = optimistic
-          .where((o) => o.content.trim() != tail.content.trim())
-          .toList();
-      if (filteredOptimistic.isEmpty) return base;
-      return List<Message>.unmodifiable([...base, ...filteredOptimistic]);
+  final remaining = retireOptimisticWithHistory(history, optimistic);
+  if (remaining.isEmpty) return base;
+  return List<Message>.unmodifiable([...base, ...remaining]);
+});
+
+/// Retires optimistic user messages confirmed anywhere in [entries].
+///
+/// Two passes, mirroring React's `observedRpcIds` atomic swap with a
+/// text fallback for older hosts:
+///
+/// 1. Identity: an optimistic whose `requestId` matches a confirmed
+///    `user/message` `source.rpcId` is the host echo — hide it. Repeated
+///    identical text in separate turns stays visible until its own echo
+///    lands, because each submission mints a fresh id.
+/// 2. Text fallback: without an rpcId on either side, hide the optimistic
+///    once its trimmed text matches any confirmed `user/message` text (and
+///    image-only ones once any confirmed user message carries images).
+///    This keeps the optimistic hidden after the turn progresses to
+///    assistant/tool content, where tail-only matching would re-show it as
+///    a duplicate bubble.
+List<Message> retireOptimisticWithHistory(
+  List<HistoryEntry> entries,
+  List<Message> optimistic,
+) {
+  if (optimistic.isEmpty) return optimistic;
+  final confirmedRpcIds = <String>{};
+  final confirmedTexts = <String>{};
+  var confirmedHasImages = false;
+  for (final entry in entries) {
+    if (entry.event.type != 'user/message') continue;
+    final data = entry.event.data;
+    final dynamic source = data['source'];
+    if (source is Map && source['kind'] == 'user') {
+      final rpcId = source['rpcId'];
+      if (rpcId is String && rpcId.isNotEmpty) {
+        confirmedRpcIds.add(rpcId);
+      }
+    }
+    final dynamic content = data['content'];
+    if (content is String) {
+      if (content.trim().isNotEmpty) confirmedTexts.add(content.trim());
+    } else if (content is List) {
+      final buf = StringBuffer();
+      for (final blk in content) {
+        if (blk is Map) {
+          final text = blk['text'];
+          if (text is String && text.trim().isNotEmpty) {
+            buf.writeln(text.trim());
+          }
+          if (blk['type'] == 'image') confirmedHasImages = true;
+        } else if (blk is String && blk.trim().isNotEmpty) {
+          buf.writeln(blk.trim());
+        }
+      }
+      final text = buf.toString().trim();
+      if (text.isNotEmpty) confirmedTexts.add(text);
+    } else {
+      final text = data['text'];
+      if (text is String && text.trim().isNotEmpty) {
+        confirmedTexts.add(text.trim());
+      }
     }
   }
-  // If tail is not user (assistant/tool between), no echo yet — show optimistic.
-  return List<Message>.unmodifiable([...base, ...optimistic]);
-});
+  return optimistic.where((o) {
+    if (o.requestId != null && confirmedRpcIds.contains(o.requestId)) {
+      return false;
+    }
+    if (o.content.trim().isNotEmpty) {
+      return !confirmedTexts.contains(o.content.trim());
+    }
+    // Image-only: retire once any confirmed user message carried images.
+    if (o.imageUrls.isNotEmpty) return !confirmedHasImages;
+    return true;
+  }).toList();
+}
 
 /// Synchronous demo messages for tests / offline preview when history is
 /// empty. Not wired to [messageListProvider] by default — tests override

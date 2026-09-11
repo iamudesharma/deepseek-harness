@@ -122,6 +122,9 @@ class _ActiveBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Default composer placeholder — React `placeholder.default`; the hero
+    // phase overrides it per workspace state below.
+    final t = ref.bindLocale(kConversationNamespace);
     return Column(
       children: [
         Expanded(child: ChatView(sessionId: sessionId)),
@@ -143,11 +146,15 @@ class _ActiveBody extends StatelessWidget {
               ref.read(composerSubmitHookProvider(sessionId))?.call(),
           onCancel: () =>
               ref.read(hubControllerProvider)?.cancelTurn(SessionId(sessionId)),
-          child: ConversationComposer(sessionId: sessionId),
+          child: ConversationComposer(
+            sessionId: sessionId,
+            hintText: t('placeholder.default'),
+          ),
         ),
-        // Session totals below the card (React `StatsLine` on
-        // `conversation.composer.dock`); renders nothing while no group
-        // has data.
+        // Session totals below the card — React `StatsLine` on the
+        // `conversation.composer.dock` seat: one plain centered text line of
+        // `|`-separated groups (counts · LLM · tool · TTFT · tok/s · cache ·
+        // tokens). Renders nothing while the session has no figures.
         SessionStatsLine(sessionId: sessionId),
       ],
     );

@@ -225,15 +225,32 @@ class _ReferenceSource extends InputTriggerSource {
         : degraded(fetchSessions(sessionId, request.query));
     final results = await Future.wait([files, sessions]);
     if (request.cancelled?.call() ?? false) return const [];
+    // The header already names the directory being listed; rows repeat it
+    // only when there is no header to carry it (React `withLocation`).
+    final withLocation =
+        header(
+          sessionId,
+          HeaderRequest(
+            query: request.query,
+            quoted: request.quoted,
+            drilled: request.drilled,
+          ),
+        ) ==
+        null;
     return [
-      ..._fileCandidates(results[0], request.quoted),
+      ..._fileCandidates(results[0], request.quoted, withLocation),
       ..._sessionCandidates(results[1]),
     ];
   }
 
+  @override
+  List<InputTriggerCrumb>? header(String sessionId, HeaderRequest request) =>
+      crumbsFor(request.query, request.quoted, request.drilled);
+
   List<InputTriggerCandidate> _fileCandidates(
     List<Map<String, Object?>> items,
     bool preserveQuote,
+    bool withLocation,
   ) {
     final out = <InputTriggerCandidate>[];
     for (final item in items) {
@@ -247,7 +264,9 @@ class _ReferenceSource extends InputTriggerSource {
         preserveQuote: preserveQuote,
       );
       if (mention == null) continue;
-      final name = path.substring(path.lastIndexOf('/') + 1);
+      final slash = path.lastIndexOf('/');
+      final name = path.substring(slash + 1);
+      final parent = slash < 0 ? '' : path.substring(0, slash);
       final value = _CandidateValue._(
         'file',
         kind is String ? kind : null,
@@ -256,11 +275,15 @@ class _ReferenceSource extends InputTriggerSource {
       );
       out.add(
         InputTriggerCandidate(
-          name:
-              '${directory ? 'Folder' : 'File'} · $name${directory ? '/' : ''}',
-          description: path,
+          // Directories carry their trailing slash in the name; the location
+          // is the parent alone (nothing at the workspace root), and only
+          // when no header carries it (React `fileCandidate`).
+          name: '$name${directory ? '/' : ''}',
+          description: withLocation && parent != '' ? parent : null,
+          icon: directory ? 'folder' : 'file',
           section: 'Files',
           value: jsonEncode(value.toJson()),
+          drill: directory ? true : null,
         ),
       );
     }
@@ -271,26 +294,37 @@ class _ReferenceSource extends InputTriggerSource {
     List<Map<String, Object?>> items,
   ) {
     final out = <InputTriggerCandidate>[];
+    final now = DateTime.now().millisecondsSinceEpoch;
     for (final item in items) {
       final sessionId = item['sessionId'];
       final label = item['label'];
       final mention = item['mention'];
       if (sessionId is! String || label is! String || mention is! String)
         continue;
+      // Candidates rank by workspace affinity, so the location only tells
+      // something when it is not the current workspace (React
+      // `sessionCandidate`).
+      final sameWorkspace = item['sameWorkspace'] == true;
       final cwd = item['cwd'];
-      final location = cwd is String ? cwd : 'no working directory';
+      final String? location = sameWorkspace
+          ? null
+          : cwd is String
+          ? cwd
+          : '(no cwd)';
+      final updatedAt = item['updatedAt'];
       final createdAt = item['createdAt'];
-      final description = [
-        if (label != sessionId) sessionId,
-        location,
-        if (createdAt is int)
-          DateTime.fromMillisecondsSinceEpoch(createdAt).toIso8601String(),
-      ].join(' · ');
+      final at = updatedAt is int
+          ? updatedAt
+          : createdAt is int
+          ? createdAt
+          : now;
+      final age = _relativeAge(at, now);
       final value = _CandidateValue._('session', null, label, mention);
       out.add(
         InputTriggerCandidate(
-          name: 'Session · $label',
-          description: description,
+          name: label,
+          description: location == null ? age : '$location · $age',
+          icon: 'session',
           section: 'Sessions',
           value: jsonEncode(value.toJson()),
         ),
@@ -303,8 +337,24 @@ class _ReferenceSource extends InputTriggerSource {
   PickOutcome? onPick(InputTriggerPick pick) {
     final value = _CandidateValue.parse(pick.candidate.value);
     if (value?.kind == 'file') {
-      if (value!.fileKind == 'directory') {
+      // A directory row carries two verbs: the settling pick resolves the
+      // folder itself as an atomic reference, while the drill action (Tab /
+      // row chevron / header crumb) keeps the literal descent text and the
+      // open menu (React `onPick`).
+      if (value!.fileKind == 'directory' &&
+          pick.action == PickAction.drill) {
         return TextOutcome(value.mention, continueTracking: true);
+      }
+      if (value.fileKind == 'directory') {
+        return InsertOutcome(
+          ReferenceInsert(
+            source: kReferenceSourceName,
+            ref: value.mention,
+            label: '${value.label}/',
+            appearance: 'folder',
+            clipboardText: value.mention,
+          ),
+        );
       }
       return InsertOutcome(
         ReferenceInsert(
@@ -332,6 +382,74 @@ class _ReferenceSource extends InputTriggerSource {
 
   @override
   ReferenceCodec get codec => const _IdentityCodec();
+}
+
+/// The breadcrumb of a drilled directory listing, from the workspace root
+/// down to the directory being listed. Only a drill produces one (React
+/// `crumbsFor` in `ui-reference/src/client/index.ts`).
+List<InputTriggerCrumb>? crumbsFor(
+  String query,
+  bool quoted,
+  bool drilled,
+) {
+  if (!drilled) return null;
+  final slash = query.lastIndexOf('/');
+  if (slash < 0) return null;
+  final segments = query
+      .substring(0, slash)
+      .split('/')
+      .where((segment) => segment != '')
+      .toList();
+  // Locale-owned root copy lives in the `reference` namespace
+  // (`crumb.root`); hard-coded here until that namespace lands in Flutter.
+  const rootLabel = 'Workspace';
+  final crumbs = <InputTriggerCrumb>[
+    InputTriggerCrumb(
+      label: rootLabel,
+      value: _directoryValue(rootLabel, quoted ? '@"' : '@'),
+    ),
+  ];
+  for (var index = 0; index < segments.length; index++) {
+    final path = segments.sublist(0, index + 1).join('/');
+    final mention = formatFileMention(
+      path: path,
+      directory: true,
+      preserveQuote: quoted,
+    );
+    // A trail whose steps cannot all be written back as mention text would
+    // send the user somewhere they did not click; show no header instead.
+    if (mention == null) return null;
+    crumbs.add(
+      InputTriggerCrumb(
+        label: segments[index],
+        value: _directoryValue(segments[index], mention),
+        current: index == segments.length - 1,
+      ),
+    );
+  }
+  return crumbs;
+}
+
+/// Project one directory destination as the drill payload `onPick` already
+/// understands.
+String _directoryValue(String label, String mention) => jsonEncode(
+  _CandidateValue._('file', 'directory', label, mention).toJson(),
+);
+
+/// Compact relative age in the reference `en` words (`now`/`{n}min`/`{n}h`/
+/// `{n}d`/`{n}mo`/`{n}y`), bucketed exactly like ui-primitives
+/// `relativeTime` so the `@` menu and the session list never disagree.
+String _relativeAge(int at, int now) {
+  const minute = 60000;
+  const hour = 3600000;
+  const day = 86400000;
+  final diff = now - at < 0 ? 0 : now - at;
+  if (diff < minute) return 'now';
+  if (diff < hour) return '${diff ~/ minute}min';
+  if (diff < day) return '${diff ~/ hour}h';
+  if (diff < 30 * day) return '${diff ~/ day}d';
+  if (diff < 365 * day) return '${(diff ~/ (30 * day))}mo';
+  return '${diff ~/ (365 * day)}y';
 }
 
 /// The reference codec: both projections are the mention text itself

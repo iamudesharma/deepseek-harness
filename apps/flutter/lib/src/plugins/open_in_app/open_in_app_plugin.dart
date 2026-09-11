@@ -10,7 +10,9 @@
 library;
 
 import '../../core/plugin/plugin_contract.dart';
+import '../../core/services/runtime_services.dart';
 import '../../core/slots/slot_registry.dart';
+import 'locales.dart';
 import 'ui/open_in_app_header_action.dart';
 
 /// Plugin identity (the React package is `ui-open-in-app`).
@@ -28,10 +30,22 @@ class OpenInAppPlugin extends DshPlugin {
   String get id => kOpenInAppPluginId;
 
   @override
-  List<String> get inject => ['slots', 'sessions'];
+  List<String> get inject => ['slots', 'sessions', 'locale'];
 
   @override
   Future<void> apply(DshContext ctx) async {
+    // Pin every declared injection edge.
+    final LocaleService locale = ctx.require<LocaleService>('locale');
+    ctx.require<SessionsService>('sessions');
+
+    // Dictionaries leave with the plugin (the ctx.effect analog).
+    ctx.onDispose(
+      locale.register(kOpenInAppNamespace, {
+        'zh': kOpenInAppZh,
+        'en': kOpenInAppEn,
+      }),
+    );
+
     final stopInject = ctx.slots.inject(
       'conversation.session.header.utilities',
       () {

@@ -220,5 +220,71 @@ void main() {
       final msgs2 = container.read(liveMessageListProvider(sid));
       expect(msgs2.any((m) => m.content == 'new optimistic'), isTrue);
     });
+
+    HistoryEntry userEcho({
+      required String content,
+      required int seq,
+      String? rpcId,
+    }) {
+      return HistoryEntry(
+        event: SessionEvent(
+          type: 'user/message',
+          data: {
+            'content': content,
+            if (rpcId != null)
+              'source': {'kind': 'user', 'rpcId': rpcId},
+          },
+          seq: seq,
+          time: 1000 + seq,
+        ),
+        view: null,
+      );
+    }
+
+    Message optimistic(String id, String content, {String? requestId}) {
+      return Message(
+        id: id,
+        role: MessageRole.user,
+        content: content,
+        time: 2000,
+        requestId: requestId,
+      );
+    }
+
+    test('rpcId echo retires past assistant content without re-show', () {
+      final history = [
+        userEcho(content: 'hello', seq: 0, rpcId: 'r-1'),
+        HistoryEntry(
+          event: SessionEvent(
+            type: 'assistant/message',
+            data: {'content': 'hi there'},
+            seq: 1,
+            time: 1001,
+          ),
+          view: null,
+        ),
+      ];
+      final remaining = retireOptimisticWithHistory(history, [
+        optimistic('opt-1', 'hello', requestId: 'r-1'),
+      ]);
+      expect(remaining, isEmpty);
+    });
+
+    test('distinct requestIds retire independently', () {
+      final history = [userEcho(content: 'alpha', seq: 0, rpcId: 'r-1')];
+      final remaining = retireOptimisticWithHistory(history, [
+        optimistic('opt-1', 'alpha', requestId: 'r-1'),
+        optimistic('opt-2', 'beta', requestId: 'r-2'),
+      ]);
+      expect(remaining.map((m) => m.id), ['opt-2']);
+    });
+
+    test('old-host echo without rpcId falls back to text match', () {
+      final history = [userEcho(content: 'hello', seq: 0)];
+      final remaining = retireOptimisticWithHistory(history, [
+        optimistic('opt-1', 'hello', requestId: 'r-1'),
+      ]);
+      expect(remaining, isEmpty);
+    });
   });
 }

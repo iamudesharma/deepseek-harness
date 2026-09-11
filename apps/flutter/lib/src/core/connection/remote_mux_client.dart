@@ -6,9 +6,9 @@
 /// as JSON text frames `{type:'open'|'cancel', streamId, endpoint, payload}`
 /// ↑ and `{type:'item'|'error'|'end', streamId, ...}` ↓.
 ///
-/// Browser `WebSocket.ping` heartbeat is handled by the platform; Flutter
-/// `WebSocketChannel` does not expose it, but the host's 30s ping keeps the
-/// socket alive (host `stream-server.ts:70`).
+/// Heartbeat is WebSocket Ping/Pong handled by the platform channel
+/// (dart:io and browsers answer Ping automatically); the Host pings on a
+/// short interval and drops silent sockets, so no client timer is needed.
 library;
 
 import 'dart:async';
@@ -169,7 +169,7 @@ class RemoteMuxClient {
       if (!c.isCompleted) c.completeError(RemoteStreamCarrierError('disposed'));
     }
     _waiters.clear();
-    for (final ctrl in _streams.values) {
+    for (final ctrl in _streams.values.toList()) {
       await ctrl.close();
     }
     _streams.clear();
@@ -204,7 +204,7 @@ class RemoteMuxClient {
             if (!w.isCompleted) w.completeError(e);
           }
           _waiters.clear();
-          for (final ctrl in _streams.values) {
+          for (final ctrl in _streams.values.toList()) {
             ctrl.addError(e);
           }
           _streams.clear();
@@ -255,7 +255,7 @@ class RemoteMuxClient {
   void _onLost(WebSocketChannel channel, RemoteStreamCarrierError error) {
     if (_channel != channel) return;
     _channel = null;
-    for (final ctrl in _streams.values) {
+    for (final ctrl in _streams.values.toList()) {
       ctrl.addError(error);
     }
     _streams.clear();
@@ -298,7 +298,7 @@ class RemoteMuxClient {
       }
     } catch (e) {
       // Invalid frame is carrier failure
-      for (final ctrl in _streams.values) {
+      for (final ctrl in _streams.values.toList()) {
         ctrl.addError(RemoteStreamCarrierError('invalid frame', cause: e));
       }
       _streams.clear();
@@ -321,62 +321,166 @@ class RemoteMuxClient {
   /// Open a logical stream over the multiplex.
   ///
   /// `endpoint` is `<namespace>/<method>` or `$events`, `payload` is `{args:{...}}`.
-  Stream<Map<String, dynamic>> open(String endpoint, Map<String, dynamic> payload) async* {
+  ///
+  /// The fan-out is wired manually (not `await for` inside `async*`):
+  /// cancelling an `async*` subscription suspended at `await for` over a
+  /// broadcast stream never unwinds, so `subscription.cancel()` would hang
+  /// forever and the Host would never receive the `cancel` frame.
+  Stream<Map<String, dynamic>> open(String endpoint, Map<String, dynamic> payload) {
     final streamId = _newStreamId();
     final ctrl = StreamController<Map<String, dynamic>>.broadcast();
     _streams[streamId] = ctrl;
-    try {
-      final channel = await _waitForSocket();
-      final openMsg = jsonEncode({
-        'type': 'open',
-        'streamId': streamId,
-        'endpoint': endpoint,
-        'payload': payload,
-      });
-      channel.sink.add(openMsg);
-      await for (final value in ctrl.stream) {
-        yield value;
-      }
-    } finally {
-      _streams.remove(streamId);
-      await ctrl.close();
-      final ch = _channel;
-      if (ch != null) {
-        try {
-          ch.sink.add(jsonEncode({'type': 'cancel', 'streamId': streamId}));
-        } catch (_) {}
-      }
-    }
+    StreamSubscription<Map<String, dynamic>>? inner;
+    var opened = false;
+    late final StreamController<Map<String, dynamic>> out;
+    out = StreamController<Map<String, dynamic>>(
+      onListen: () {
+        () async {
+          try {
+            final channel = await _waitForSocket();
+            if (out.isClosed) return;
+            channel.sink.add(
+              jsonEncode({
+                'type': 'open',
+                'streamId': streamId,
+                'endpoint': endpoint,
+                'payload': payload,
+              }),
+            );
+            opened = true;
+            inner = ctrl.stream.listen(
+              out.add,
+              onError: out.addError,
+              onDone: () {
+                if (!out.isClosed) out.close();
+              },
+            );
+          } catch (e) {
+            if (!out.isClosed) {
+              out.addError(e);
+              await out.close();
+            }
+          }
+        }();
+      },
+      onCancel: () async {
+        await inner?.cancel();
+        _streams.remove(streamId);
+        await ctrl.close();
+        final ch = _channel;
+        if (ch != null && opened) {
+          try {
+            ch.sink.add(jsonEncode({'type': 'cancel', 'streamId': streamId}));
+          } catch (_) {}
+        }
+      },
+    );
+    return out.stream;
   }
 
   /// Open `$events` and handle `ready` handshake.
   ///
   /// Returns `clientId` and `host` from ready, then yields downlink frames.
-  Stream<RemoteEventDownlinkFrame> openEvents() async* {
-    await for (final raw in open(r'$events', {'args': {}})) {
+  /// Mirrors React `parseRemoteEventReady`/`parseRemoteEventFrame`: the first
+  /// value must be the ready frame (exact `type`/`clientId`/`host.home`
+  /// shape with non-empty ids); correlation ids are non-empty throughout.
+  ///
+  /// Wired manually like [open]: cancelling an `async*` subscription
+  /// suspended at `await for` never unwinds, which would hang every
+  /// resubscription teardown.
+  Stream<RemoteEventDownlinkFrame> openEvents() {
+    late final StreamController<RemoteEventDownlinkFrame> out;
+    StreamSubscription<Map<String, dynamic>>? inner;
+    var seenReady = false;
+    var done = false;
+    void fail(Object error) {
+      if (done) return;
+      done = true;
+      out.addError(error);
+      unawaited(out.close());
+    }
+
+    RemoteEventDownlinkFrame? decode(Map<String, dynamic> raw) {
       final type = raw['type'] as String?;
+      if (!seenReady) {
+        seenReady = true;
+        if (type == 'ready') {
+          final clientId = raw['clientId'];
+          final host = raw['host'];
+          if (clientId is String &&
+              clientId.isNotEmpty &&
+              host is Map &&
+              host['home'] is String) {
+            return RemoteEventReadyFrame(
+              clientId,
+              host.cast<String, dynamic>(),
+            );
+          }
+        }
+        throw FormatException('invalid \$events ready frame');
+      }
       if (type == 'ready') {
-        final clientId = raw['clientId'] as String?;
-        final host = raw['host'] as Map?;
-        if (clientId is! String || host is! Map) throw FormatException('invalid ready frame');
-        yield RemoteEventReadyFrame(clientId, host.cast<String, dynamic>());
+        throw FormatException('duplicate \$events ready frame');
       } else if (type == 'emit') {
-        final event = raw['event'] as String?;
-        final args = raw['args'] as List?;
-        if (event is String && args is List) yield RemoteEventEmitFrame(event, args);
+        final event = raw['event'];
+        final args = raw['args'];
+        if (event is String && event.isNotEmpty && args is List) {
+          return RemoteEventEmitFrame(event, args);
+        }
       } else if (type == 'waterfall') {
-        final event = raw['event'] as String?;
-        final eventId = raw['eventId'] as String?;
-        final agentId = raw['agentId'] as String?;
-        final request = raw['request'] as Map?;
-        if (event is String && eventId is String && agentId is String && request is Map) {
-          yield RemoteEventWaterfallFrame(event, eventId, agentId, request.cast<String, dynamic>());
+        final event = raw['event'];
+        final eventId = raw['eventId'];
+        final agentId = raw['agentId'];
+        final request = raw['request'];
+        if (event is String &&
+            event.isNotEmpty &&
+            eventId is String &&
+            eventId.isNotEmpty &&
+            agentId is String &&
+            agentId.isNotEmpty &&
+            request is Map) {
+          return RemoteEventWaterfallFrame(
+            event,
+            eventId,
+            agentId,
+            request.cast<String, dynamic>(),
+          );
         }
       } else if (type == 'cancel') {
-        final eventId = raw['eventId'] as String?;
-        if (eventId is String) yield RemoteEventCancelFrame(eventId);
+        final eventId = raw['eventId'];
+        if (eventId is String && eventId.isNotEmpty) {
+          return RemoteEventCancelFrame(eventId);
+        }
       }
+      return null;
     }
+
+    out = StreamController<RemoteEventDownlinkFrame>(
+      onListen: () {
+        inner = open(r'$events', {'args': {}}).listen(
+          (raw) {
+            if (done) return;
+            try {
+              final frame = decode(raw);
+              if (frame != null) out.add(frame);
+            } catch (e) {
+              fail(e);
+            }
+          },
+          onError: fail,
+          onDone: () {
+            if (!done) {
+              done = true;
+              out.close();
+            }
+          },
+        );
+      },
+      onCancel: () async {
+        await inner?.cancel();
+      },
+    );
+    return out.stream;
   }
 
   /// Send `$events/result` via HTTP unary (Typert).

@@ -10,7 +10,9 @@ import '../core/connection/http_client.dart'
     if (dart.library.js_interop) '../core/connection/http_client_web.dart'
     as http_client_factory;
 import '../core/services/open_in_app_service.dart';
+import '../core/services/runtime_services.dart' show LocaleBindOnWidgetRef;
 import '../theme/app_theme.dart';
+import '../plugins/open_in_app/locales.dart' show kOpenInAppNamespace;
 
 /// Provider for the open-in-app service — one per app, like React's
 /// `OpenInAppController` singleton.
@@ -26,48 +28,30 @@ final openInAppAppsProvider = FutureProvider<List<OpenInAppApp>>((ref) async {
   return svc.filterNameable(ids);
 });
 
-final openInAppChoiceProvider = StateProvider<String>((ref) => '');
+final openInAppChoiceProvider =
+    NotifierProvider<OpenInAppChoiceController, String>(
+      OpenInAppChoiceController.new,
+    );
 
-/// English product labels — mirrors `PRODUCT_NAMES` + file-manager entries in
-/// `packages/client/ui-open-in-app/src/client/locales.ts` (`en`).
-/// React renders only ids it can name via `t(labelKey)`; the naive
-/// `id.capitalize` produced `Vscode`/`Iterm` instead of `VS Code`/`iTerm2`.
-const Map<String, String> kOpenInAppEnLabels = <String, String>{
-  'finder': 'Finder',
-  'explorer': 'File Explorer',
-  'filemanager': 'Files',
-  'cursor': 'Cursor',
-  'vscode': 'VS Code',
-  'vscodeinsiders': 'VS Code Insiders',
-  'windsurf': 'Windsurf',
-  'zed': 'Zed',
-  'sublimetext': 'Sublime Text',
-  'xcode': 'Xcode',
-  'androidstudio': 'Android Studio',
-  'intellij': 'IntelliJ IDEA',
-  'pycharm': 'PyCharm',
-  'webstorm': 'WebStorm',
-  'phpstorm': 'PhpStorm',
-  'goland': 'GoLand',
-  'rider': 'Rider',
-  'rustrover': 'RustRover',
-  'fork': 'Fork',
-  'sourcetree': 'Sourcetree',
-  'github': 'GitHub Desktop',
-  'tower': 'Tower',
-  'gitkraken': 'GitKraken',
-  'smartgit': 'SmartGit',
-  'sublimemerge': 'Sublime Merge',
-  'ghostty': 'Ghostty',
-  'warp': 'Warp',
-  'iterm': 'iTerm2',
-  'kitty': 'kitty',
-  'terminal': 'Terminal',
-  'windowsterminal': 'Windows Terminal',
-  'gitbash': 'Git Bash',
-  'gnometerminal': 'GNOME Terminal',
-  'konsole': 'Konsole',
-};
+/// Last chosen app id, hydrated from `SharedPreferences`
+/// (`dsh.open-in-app.choice`) and shared across sessions and restarts —
+/// mirrors React's persisted `choice` snapshot store. Hydration is async, so
+/// the first frame may show the catalog head until the saved choice lands.
+class OpenInAppChoiceController extends Notifier<String> {
+  @override
+  String build() {
+    ref.read(openInAppServiceProvider).getChoice().then((saved) {
+      if (saved != null && saved.isNotEmpty && state != saved) state = saved;
+    });
+    return '';
+  }
+
+  /// Remembers one picked app id in state and on disk.
+  void choose(String appId) {
+    state = appId;
+    unawaited(ref.read(openInAppServiceProvider).setChoice(appId));
+  }
+}
 
 /// Split button for "open workspace in app" — mirrors
 /// `packages/client/ui-open-in-app/src/client/OpenInAppAction.tsx`.
@@ -127,6 +111,8 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
     final theme = Theme.of(context);
     final aliases = theme.extension<DswThemeExtension>()?.aliases ??
         (theme.brightness == Brightness.dark ? DswTokens.darkAliases : DswTokens.lightAliases);
+    final t = ref.bindLocale(kOpenInAppNamespace);
+    String labelFor(OpenInAppApp app) => t(app.labelKey);
     final appsAsync = ref.watch(openInAppAppsProvider);
     final choice = ref.watch(openInAppChoiceProvider);
     return appsAsync.when(
@@ -134,7 +120,6 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
         if (apps.isEmpty || widget.path.isEmpty) return const SizedBox.shrink();
         final currentEntry = apps.firstWhere((e) => e.id == choice, orElse: () => apps.first);
         final current = currentEntry.id;
-        String labelFor(String id) => kOpenInAppEnLabels[id] ?? id;
         final svc = ref.read(openInAppServiceProvider);
         // React `Menu align="end" dense selection="fill"`: right-aligned
         // under the split anchor, dense rows, selected app filled.
@@ -149,7 +134,7 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          labelFor(e.id),
+                          labelFor(e),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -172,7 +157,9 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
         // transparent bg; `.main` 11px primary, `.chevron` 11px secondary
         // with left hairline. No FilledButton primary fill.
         return Tooltip(
-          message: isError ? 'Failed to open' : 'Open in ${labelFor(current)}',
+          message: isError
+              ? t('open.error')
+              : t('open.title').replaceAll('{app}', labelFor(currentEntry)),
           child: Container(
             height: 26,
             decoration: BoxDecoration(
@@ -210,7 +197,7 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
                             _AppIcon(appId: current, url: svc.iconUrl(current), size: 15),
                           const SizedBox(width: 5),
                           Text(
-                            labelFor(current),
+                            labelFor(currentEntry),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w400,
@@ -233,7 +220,7 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
                 // local overlay misplaces the menu at the screen top-left).
                 // `position: under` + `offset(0, 8)` mirrors `align="end"`.
                 PopupMenuButton<String>(
-                  tooltip: 'Choose an app to open in',
+                  tooltip: t('menu.toggle'),
                   padding: const EdgeInsets.fromLTRB(4, 5, 6, 5),
                   constraints: const BoxConstraints(minHeight: 26),
                   menuPadding: const EdgeInsets.symmetric(vertical: 4),
@@ -252,8 +239,7 @@ class _OpenInAppButtonState extends ConsumerState<OpenInAppButton> {
                   ),
                   onSelected: (id) {
                     if (_inFlight) return;
-                    ref.read(openInAppChoiceProvider.notifier).state = id;
-                    unawaited(ref.read(openInAppServiceProvider).setChoice(id));
+                    ref.read(openInAppChoiceProvider.notifier).choose(id);
                     _launch(id);
                   },
                   itemBuilder: (context) => items,

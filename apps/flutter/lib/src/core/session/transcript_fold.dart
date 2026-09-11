@@ -98,6 +98,15 @@ class TranscriptFolder {
           _ => 'replace',
         };
         _lines.add('${_prefix(sid, envelope)} $placement');
+      case 'system/message':
+        // v3 surface head: one stable line; empty content projects to no
+        // message (Host `deriveEventMessage` → null) but keeps its line.
+        final systemText = envelope.data['message'] is Map
+            ? (envelope.data['message'] as Map)['content']
+            : envelope.data['content'];
+        _lines.add(
+          '${_prefix(sid, envelope)} system${systemText == null || (systemText is List && systemText.isEmpty) ? ' empty' : ''}',
+        );
       case 'assistant/chunk':
         final key = (
           envelope.data['turn'] as int,
@@ -115,8 +124,10 @@ class TranscriptFolder {
           envelope.data['turn'] as int,
           envelope.data['step'] as int,
         );
-        final chunks =
-            envelope.sourceEventSeqs?.length ?? _pendingChunks.remove(key) ?? 0;
+        final chunks = switch (envelope.sourceEventSeqs) {
+          List l => l.length,
+          _ => _pendingChunks.remove(key) ?? 0,
+        };
         _settled.add(key);
         final interrupted = envelope.data['interrupted'] == true
             ? ' interrupted'

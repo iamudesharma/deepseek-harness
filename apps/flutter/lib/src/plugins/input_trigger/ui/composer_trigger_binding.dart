@@ -124,7 +124,13 @@ class ComposerTriggerBinding {
 
   /// Apply one pick outcome against the field; true = the field mutated (the
   /// applied-truth contract of the React bail events). Stale-span picks no-op
-  /// (TokenSpan draftRev CAS), claims ride the commands workstream.
+  /// (TokenSpan draftRev CAS).
+  ///
+  /// Claims splice their token exactly like text outcomes (the minimal visual
+  /// parity for `/plan`-style picks actually inserting `/plan `): the full
+  /// claimed-phase transaction (attachments gate, `claim.submit`, the
+  /// claimed/submitting phase machine) is deferred — see the composer ghost
+  /// hint — and not built here.
   bool apply(PickOutcome outcome, TokenSpan span) {
     if (_disposed) return false;
     if (span.draftRev != 0 && span.draftRev != _controller.draftRev) {
@@ -133,11 +139,12 @@ class ComposerTriggerBinding {
     switch (outcome) {
       case HandledOutcome():
         return false;
-      case ClaimOutcome():
-        // Command claims begin their transactions through the commands
-        // plugin's popup shell; the composer seam consumes them there.
-        return false;
+      case ClaimOutcome(:final claim):
+        return _splice(span.start, span.end, claim.token);
       case TextOutcome(:final text):
+        // `continueTracking` needs no binding work: a drill splice feeds
+        // `track`, which re-opens the menu under the controller's drilled
+        // flag (the menu-keep-open rides the pipeline, not the field).
         return _splice(span.start, span.end, text);
       case InsertOutcome(:final insert):
         // machine.ts:referenceDraftText — the draft holds `@` + label while

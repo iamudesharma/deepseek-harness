@@ -116,6 +116,23 @@ class ConnectionClient {
   /// Current generation's `$events` clientId from `ready { clientId }`.
   String? eventsClientId;
 
+  /// Waterfall event ids the Host cancelled before the UI answered. A late
+  /// answer to one of these must not travel: React's aborted waterfall task
+  /// sends nothing, so [respond] answers locally-rejected instead.
+  /// Entries are removed when answered; event ids are Host-unique per
+  /// generation, so no cross-generation cleanup is needed.
+  final Set<String> _cancelledWaterfalls = {};
+
+  /// Records a Host `$events` cancellation: late answers to [eventId] are
+  /// dropped locally instead of posting doomed `$events/result` calls.
+  void noteWaterfallCancelled(String eventId) {
+    if (eventId.isNotEmpty) _cancelledWaterfalls.add(eventId);
+  }
+
+  /// Whether [eventId] was cancelled before an answer was given.
+  bool isWaterfallCancelled(String eventId) =>
+      _cancelledWaterfalls.contains(eventId);
+
   RemoteMuxClient createRemoteMuxClient() => RemoteMuxClient(
     baseUrl: baseUrl,
     target: target,
@@ -237,6 +254,40 @@ class ConnectionClient {
     final store = tokenStore;
     if (store == null) return null;
     return store.read(t.deviceId);
+  }
+
+  /// Authenticated GET for Host same-origin routes (`/api/file` media).
+  /// Carries the same cookie/bearer handshake as unary calls; callers map
+  /// status codes themselves (media routes use HTTP statuses, not Typert
+  /// envelopes). Never logs URLs that may contain absolute paths.
+  /// @param url - complete URL to fetch.
+  Future<http.Response> fetchMedia(Uri url, {bool head = false}) async {
+    final headers = await _headersWithAuth(newRpcId());
+    if (head) return _http.head(url, headers: headers);
+    return _http.get(url, headers: headers);
+  }
+
+  /// Authenticated raw-byte POST for Host binary routes (currently
+  /// `/api/session/uploadFileBinary` for staged file uploads).
+  ///
+  /// Same handshake as [fetchMedia]; callers map status codes and parse the
+  /// JSON body themselves (binary routes use HTTP statuses, not Typert
+  /// envelopes). The body posts one-shot: byte progress observes completion
+  /// counts, not wire chunks (chunked streaming deferred).
+  /// @param path - route path, e.g. `/api/session/uploadFileBinary`.
+  /// @param query - URL query (`sessionId`, optional `name`).
+  /// @param body - exact file bytes.
+  /// @param headers - extra headers (e.g. octet-stream content type).
+  Future<http.Response> postBinary(
+    String path,
+    Map<String, String> query,
+    Uint8List body, {
+    Map<String, String>? headers,
+  }) async {
+    final uri = _uri(path, query);
+    final requestHeaders = await _headersWithAuth(newRpcId());
+    if (headers != null) requestHeaders.addAll(headers);
+    return _http.post(uri, headers: requestHeaders, body: body);
   }
 
   /// Drop the cached `GET /?token=` mint after a 401/403.
@@ -470,6 +521,20 @@ class ConnectionClient {
     return (entries: entries, projections: block, hasMore: wireHasMore);
   }
 
+  /// Whether prompt content parts carry user meaning: a non-text part or
+  /// non-whitespace text. Mirrors Host `hasPromptContent`
+  /// (`packages/api/session-controller/src/commands.ts`); the client
+  /// pre-validates so direct callers get a typed error instead of a
+  /// `gateway/bad-request` round-trip.
+  static bool hasPromptContent(List<Map<String, dynamic>> parts) {
+    for (final part in parts) {
+      if (part['type'] != 'text') return true;
+      final text = part['text'];
+      if (text is String && text.trim().isNotEmpty) return true;
+    }
+    return false;
+  }
+
   /// Send a message to [sessionId].
   ///
   /// Mirrors `session.prompt` (mode `queue` by default). Content is a list of
@@ -490,11 +555,19 @@ class ConnectionClient {
       ...images,
       if (content.isNotEmpty) {'type': 'text', 'text': content},
     ];
+    if (!ConnectionClient.hasPromptContent(contentParts)) {
+      throw ArgumentError.value(
+        content,
+        'content',
+        'prompt content must include non-whitespace text or an attachment',
+      );
+    }
     // CURRENT master `session/prompt` requires `requestId` (client-minted
     // `SessionRequestId` correlating echo). React `SessionsApi.prompt` mints
     // one per `RpcId`. Callers pass the same id they stored on the optimistic
-    // message so the host echo (`user/message` `source.rpcId`) retires it;
-    // direct callers without an optimistic still get a fresh id.
+    // message: the host echo (`user/message` `source.rpcId`) retires it via
+    // `retireOptimisticWithHistory`. Direct callers without an optimistic
+    // still get a fresh id.
     await _postTypert('session/prompt', {
       'request': {
         'requestId': requestId ?? newRpcId(),
@@ -549,6 +622,14 @@ class ConnectionClient {
     required MessageId itemId,
     required QueueAction action,
   }) async {
+    if (action is QueueActionEdit &&
+        !ConnectionClient.hasPromptContent(action.content)) {
+      throw ArgumentError.value(
+        action.content,
+        'action.content',
+        'queue edit content must include non-whitespace text',
+      );
+    }
     await _postTypert('session/updateQueue', {
       'request': {
         'sessionId': sessionId.value,
@@ -600,6 +681,12 @@ class ConnectionClient {
           'approval response missing correlation: the request expired before '
           'an answer was attached (wait for a fresh request)',
         );
+      }
+      if (_cancelledWaterfalls.remove(rpcId.value)) {
+        // Answered after the Host cancelled: the outcome is unpairable, so
+        // send nothing (React's aborted waterfall task answers nothing
+        // either) and report the drop to the caller.
+        return const RpcReceiptRejected('waterfall already cancelled by Host');
       }
       final Map<String, dynamic> outcome = ok
           ? {'kind': 'result', if (value != null) 'value': value}
@@ -658,6 +745,31 @@ class ConnectionClient {
       );
     }
     return RpcReceipt.fromJson(Map<String, Object?>.from(decoded));
+  }
+
+  /// Delegates one Host waterfall back to the Host listener chain without
+  /// claiming it. Mirrors React `ClientRemoteEvents`, which answers
+  /// `{kind:'next'}` when no listener claims a waterfall: the Host keeps
+  /// waiting for `result`/`rejected` otherwise, so an unclaimable delivery
+  /// must never be silently dropped.
+  /// @param eventId - waterfall correlation from the invocation frame.
+  /// @returns true when the delegation was sent.
+  Future<bool> sendEventNext(String eventId) async {
+    final String? clientId = eventsClientId;
+    if (clientId == null || clientId.isEmpty || eventId.isEmpty) {
+      return false;
+    }
+    try {
+      final Map<String, dynamic> body = await _postTypert(r'$events/result', {
+        'clientId': clientId,
+        'eventId': eventId,
+        'outcome': {'kind': 'next'},
+      });
+      _unwrapValue(body, r'$events/result');
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Helper: extract `items` array from various `RpcResponse` shapes.
@@ -1028,6 +1140,13 @@ class ConnectionClient {
     String? clientTimeZone,
     String delivery = 'queue',
   }) async {
+    if (!ConnectionClient.hasPromptContent(content)) {
+      throw ArgumentError.value(
+        content,
+        'content',
+        'subagent prompt content must include non-whitespace text or an attachment',
+      );
+    }
     final body = await _postTypert('subagents/prompt', {
       'request': {
         'requestId': requestId,

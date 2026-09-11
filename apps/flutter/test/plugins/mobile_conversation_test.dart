@@ -136,6 +136,9 @@ Future<ProviderContainer> pumpSessionWithHistory(
     ),
   );
   await tester.pumpAndSettle();
+  // Ensure English copy for the assertions (default harness is zh).
+  container.read(localeServiceProvider).setLocale('en');
+  await tester.pumpAndSettle();
   return container;
 }
 
@@ -213,7 +216,7 @@ void main() {
         expect(find.text('bash'), findsOneWidget);
         expect(find.text('read'), findsOneWidget);
         // Composer resident at the bottom.
-        expect(find.text('Ask anything…'), findsOneWidget);
+        expect(find.text('Message or run a task... / commands, @ files or sessions'), findsOneWidget);
         expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
         // No desktop hint on touch.
         expect(find.text('Cmd+Enter to send'), findsNothing);
@@ -293,7 +296,7 @@ void main() {
       // The composer input is still on screen (above the keyboard inset) and
       // the header did not scroll away.
       expect(find.byTooltip('Back'), findsOneWidget);
-      final inputFinder = find.text('Ask anything…');
+      final inputFinder = find.text('Message or run a task... / commands, @ files or sessions');
       expect(inputFinder, findsOneWidget);
       final inputBottom = tester.getBottomRight(inputFinder).dy;
       expect(inputBottom, lessThanOrEqualTo(844.0));
@@ -312,7 +315,7 @@ void main() {
 
       // No horizontal overflow from the shared body at tablet width.
       expect(tester.takeException(), isNull);
-      final composerField = find.text('Ask anything…');
+      final composerField = find.text('Message or run a task... / commands, @ files or sessions');
       expect(composerField, findsOneWidget);
       // Content column is capped, not stretched edge to edge.
       final inputLeft = tester.getTopLeft(composerField).dx;

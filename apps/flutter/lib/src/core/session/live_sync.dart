@@ -14,6 +14,7 @@ import '../services/runtime_services.dart';
 import '../connection/connection_client.dart';
 import '../connection/remote_mux_client.dart';
 import 'projection_store.dart';
+import 'session_event_map.dart';
 import 'session_models.dart';
 import 'sessions_controller.dart';
 import 'session_provider.dart';
@@ -24,6 +25,10 @@ import '../../plugins/attachment/attachment_limits.dart';
 import '../../platform/drag_drop.dart' show ImageLimits;
 import '../../plugins/conversation/todo_state.dart'
     show todoProjectionProvider, decodeTodoProjection;
+import '../../plugins/schedule/schedule_models.dart'
+    show scheduleRecordsFromList;
+import '../../plugins/schedule/schedule_provider.dart'
+    show scheduleProjectionProvider;
 import '../../features/model_selection/model_directory.dart'
     show modelSelectionProjectionProvider, ModelSelection;
 
@@ -61,6 +66,31 @@ SessionSummary? applySessionEventToSummary(
       return current.copyWith(running: false);
   }
   return null;
+}
+
+/// Decodes one follow-stream event record into a history entry, mirroring
+/// the React journal adapter (`transport.ts` runs `assertSessionWireEvent`
+/// on every follow snapshot record, live entry, and page record).
+/// Envelope violations are logged loudly and the record is dropped — the
+/// stream stays alive for subsequent records. Chunk rows and undecodable
+/// host views keep their existing drop paths at the call sites.
+/// @param eventMap - raw event object from the follow frame.
+/// @param view - optional host-computed view for the entry.
+/// @returns the entry, or null when the record is invalid.
+HistoryEntry? _decodeFollowEvent(
+  Map<String, dynamic> eventMap, {
+  Map<String, dynamic>? view,
+}) {
+  try {
+    assertSessionWireEvent(eventMap.cast<String, Object?>());
+    return HistoryEntry(
+      event: SessionEvent.fromJson(eventMap),
+      view: view,
+    );
+  } catch (e) {
+    if (kDebugMode) debugPrint('[liveSync] dropping invalid follow record: $e');
+    return null;
+  }
 }
 
 /// Seeds a fetched history tail's [block] into the session's projection
@@ -459,6 +489,17 @@ final liveSyncProvider = Provider<void>((ref) {
               ref.read(todoProjectionProvider(sessionId.value).notifier).state =
                   decodeTodoProjection(value);
             } catch (_) {}
+          } else if (key == 'schedule') {
+            // Host `schedule` projection: whole `ScheduleRecord[]` snapshot
+            // (last-wins; React `useProjection('schedule')`).
+            try {
+              ref
+                      .read(
+                        scheduleProjectionProvider(sessionId.value).notifier,
+                      )
+                      .state =
+                  scheduleRecordsFromList(value);
+            } catch (_) {}
           }
           break;
         case ApprovalRequestedFrame(
@@ -636,25 +677,17 @@ final liveSyncProvider = Provider<void>((ref) {
           final entries = <HistoryEntry>[];
           for (final r in records) {
             if (r['type'] == 'event' && r['event'] is Map) {
-              try {
-                entries.add(
-                  HistoryEntry(
-                    event: SessionEvent.fromJson(
-                      (r['event'] as Map).cast<String, dynamic>(),
-                    ),
-                    view: (r['view'] as Map?)?.cast<String, dynamic>(),
-                  ),
-                );
-              } catch (_) {}
+              final entry = _decodeFollowEvent(
+                (r['event'] as Map).cast<String, dynamic>(),
+                view: (r['view'] as Map?)?.cast<String, dynamic>(),
+              );
+              if (entry != null) entries.add(entry);
             } else if (r['type'] == 'chunks') {
               // Chunk rows are packed assistant deltas; live streaming handles
               // them via 'event' type 'assistant/chunk' etc, ignore for history
             } else if (r.containsKey('type') && r.containsKey('seq')) {
-              try {
-                entries.add(
-                  HistoryEntry(event: SessionEvent.fromJson(r), view: null),
-                );
-              } catch (_) {}
+              final entry = _decodeFollowEvent(r, view: null);
+              if (entry != null) entries.add(entry);
             }
           }
           final bool hasMore = raw['hasMore'] as bool? ?? false;
@@ -725,8 +758,18 @@ final liveSyncProvider = Provider<void>((ref) {
               }
               if (publishable.contains('todos')) {
                 try {
-                  ref.read(todoProjectionProvider(sid.value).notifier).state =
+                  ref
+                          .read(todoProjectionProvider(sid.value).notifier)
+                          .state =
                       decodeTodoProjection(block.values['todos']);
+                } catch (_) {}
+              }
+              if (publishable.contains('schedule')) {
+                try {
+                  ref
+                          .read(scheduleProjectionProvider(sid.value).notifier)
+                          .state =
+                      scheduleRecordsFromList(block.values['schedule']);
                 } catch (_) {}
               }
             } catch (_) {}
@@ -736,10 +779,11 @@ final liveSyncProvider = Provider<void>((ref) {
         final ev = raw['event'] as Map?;
         if (ev == null) return;
         try {
-          final entry = HistoryEntry(
-            event: SessionEvent.fromJson(ev.cast<String, dynamic>()),
+          final entry = _decodeFollowEvent(
+            ev.cast<String, dynamic>(),
             view: (raw['view'] as Map?)?.cast<String, dynamic>(),
           );
+          if (entry == null) return;
           ref.read(liveHistoryProvider(sid.value).notifier).appendLive(entry);
           final eventType = ev['type'] as String?;
           if (eventType != null) {

@@ -99,4 +99,41 @@ void main() {
     expect(t.turns.single.summary, 'hello\n\nworld');
     expect(t.turns.single.status, TurnStatus.completed);
   });
+
+  test('map-valued text/title/name fields do not throw (host shape drift)', () {
+    // Regression: direct `as String?` casts red-screened the trajectory
+    // with `'_Map<String, dynamic>' is not a subtype of 'String?'`.
+    final entries = [
+      _entry('turn/start', {
+        'turnId': {'id': 't1'},
+        'title': {'text': 'First'},
+      }, 1, 1000),
+      _entry('user/message', {
+        'content': [
+          {
+            'type': 'text',
+            'text': {'nested': 'deep'},
+            'content': {'nested': 'deeper'},
+          },
+        ],
+        'text': {'rich': 'blocks'},
+      }, 2, 1100),
+      _entry('tool/call', {
+        'callId': {'id': 'c1'},
+        'name': {'tool': 'read'},
+      }, 3, 1200),
+      _entry('assistant/message', {
+        'content': 'working',
+      }, 4, 1300),
+      _entry('turn/end', {
+        'turnId': {'id': 't1'},
+        'isError': {'code': 'x'},
+      }, 5, 2000),
+    ];
+
+    final t = trajectoryFromHistory('s-1', entries);
+
+    expect(t.turns, hasLength(1));
+    expect(t.turns.single.status, TurnStatus.completed);
+  });
 }

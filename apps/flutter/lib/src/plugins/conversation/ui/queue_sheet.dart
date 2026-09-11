@@ -10,6 +10,8 @@ import '../../../features/conversation/message_provider.dart'
     show Message, MessageRole, optimisticMessagesProvider;
 import '../../../theme/app_theme.dart';
 import '../../conversation/locales.dart' show kConversationNamespace;
+import '../../subagent/ui/subagent_provider.dart'
+    show subagentChildModesProvider;
 import '../hub.dart';
 import '../queue_state.dart';
 
@@ -132,10 +134,25 @@ class _QueueSheetState extends ConsumerState<QueueSheet> {
   @override
   Widget build(BuildContext context) {
     final t = ref.bindLocale(kConversationNamespace);
-    final running = ref.watch(
+    final summary = ref.watch(
       sessionsProvider.select(
-        (s) => s.byId[SessionId(widget.sessionId)]?.running ?? false,
+        (s) => s.byId[SessionId(widget.sessionId)],
       ),
+    );
+    final running = summary?.running ?? false;
+    // React `queueMutable`: root sessions always mutable; subagent-owned
+    // sessions only while the durable address mode is continuable (Host
+    // ownership gate rejects the rest; unknown modes stay immutable).
+    final parentId = summary?.parentSessionId?.value;
+    Map<String, String>? childModes;
+    if (summary?.origin == 'subagent' && parentId != null) {
+      childModes = ref.watch(subagentChildModesProvider(parentId)).valueOrNull;
+    }
+    final queueMutable = isQueueMutable(
+      origin: summary?.origin,
+      parentSessionId: parentId,
+      sessionId: widget.sessionId,
+      childModes: summary?.origin == 'subagent' ? childModes : const {},
     );
     final rows =
         (ref.watch(queueProvider)[widget.sessionId] ??
@@ -216,21 +233,21 @@ class _QueueSheetState extends ConsumerState<QueueSheet> {
                         running: running,
                         aliases: aliases,
                         t: t.call,
-                        onEdit: _busyId != null
+                        onEdit: _busyId != null || !queueMutable
                             ? null
                             : () => _editRow(
                                 rows[idx].id,
                                 _rowText(rows[idx].message) ?? '',
                                 t.call,
                               ),
-                        onRemove: _busyId != null
+                        onRemove: _busyId != null || !queueMutable
                             ? null
                             : () => _applyAction(
                                 rows[idx].id,
                                 const QueueActionRemove(),
                                 t('queue.removeFailed'),
                               ),
-                        onSteer: _busyId != null || !running
+                        onSteer: _busyId != null || !running || !queueMutable
                             ? null
                             : () => _applyAction(
                                 rows[idx].id,

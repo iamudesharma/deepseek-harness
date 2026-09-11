@@ -25,10 +25,6 @@ const Map<String, String> kQuestionZh = {
   'plan.approve': '确认执行',
   'plan.decline': '拒绝',
   'plan.discuss': '去聊天里说',
-  // Flutter-surface additions: the Dart approval card's actions.
-  'approval.header': '等待审批',
-  'approval.reject': '拒绝',
-  'approval.allowOnce': '仅允许一次',
 };
 
 /// English dictionary, key-identical to the Chinese source of truth.
@@ -48,8 +44,26 @@ const Map<String, String> kQuestionEn = {
   'plan.approve': 'Approve',
   'plan.decline': 'Refuse',
   'plan.discuss': 'Chat about it',
-  // Flutter-surface additions: the Dart approval card's actions.
-  'approval.header': 'Waiting for approval',
-  'approval.reject': 'Reject',
-  'approval.allowOnce': 'Allow once',
+};
+
+/// Dictionary namespace for the approval takeover — port of the `approval`
+/// namespace in `packages/client/ui-approval/src/client/locales.ts`.
+const String kApprovalNamespace = 'approval';
+
+/// Simplified Chinese dictionary (the key-set source of truth, verbatim port).
+const Map<String, String> kApprovalZh = {
+  'waiting': '等待审批',
+  'detail.aria': '审批详情',
+  'escalation': '工具 {toolName} 请求越权执行',
+  'reject': '拒绝',
+  'allowOnce': '允许一次',
+};
+
+/// English dictionary, key-identical to the Chinese source of truth.
+const Map<String, String> kApprovalEn = {
+  'waiting': 'Waiting for approval',
+  'detail.aria': 'Approval details',
+  'escalation': 'Tool {toolName} requests privileged execution',
+  'reject': 'Reject',
+  'allowOnce': 'Allow once',
 };

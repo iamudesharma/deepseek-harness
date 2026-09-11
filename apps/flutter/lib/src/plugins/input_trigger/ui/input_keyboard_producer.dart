@@ -8,7 +8,7 @@ import '../trigger_source.dart';
 /// `InputTriggerController.arbitrate()` and real composer key events.
 ///
 /// Flutter port of `InputBar.tsx` textarea `onKeyDown` interception: while the
-/// controller's menu is open, ArrowUp/ArrowDown/Enter/Escape are routed
+/// controller's menu is open, ArrowUp/ArrowDown/Enter/Escape/Tab are routed
 /// through [InputTriggerController.arbitrate] first; a `consumed` /
 /// `pickHighlighted` outcome returns [KeyEventResult.handled] so the key
 /// swallowing never bubbles to the column-wide `ConversationShortcuts`
@@ -90,6 +90,10 @@ class _InputKeyboardProducerState extends State<InputKeyboardProducer> {
       LogicalKeyboardKey.arrowDown => ArbitrateKey.down,
       LogicalKeyboardKey.enter => ArbitrateKey.enter,
       LogicalKeyboardKey.escape => ArbitrateKey.escape,
+      // React consumes Tab to settle the highlight while the menu is open;
+      // a pass outcome preserves native focus traversal (menu closed or no
+      // highlight).
+      LogicalKeyboardKey.tab => ArbitrateKey.tab,
       _ => null,
     };
     final InputTriggerController? controller = widget.controller;

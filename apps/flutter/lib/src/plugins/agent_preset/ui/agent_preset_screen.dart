@@ -6,6 +6,7 @@ import '../../../core/services/runtime_services.dart'
     show LocaleBindOnWidgetRef, Translate, localeServiceProvider;
 import '../../../core/session/session_provider.dart';
 import '../../../theme/app_theme.dart';
+import '../../../widgets/primitives/ds_tag.dart';
 import '../locales.dart' show kAgentPresetNamespace, presetDisplayText;
 import 'agent_preset_provider.dart';
 
@@ -590,23 +591,7 @@ class PresetMenu extends ConsumerWidget {
                   ),
                 if (o.isDefault) ...[
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: aliases.stateSuccessTertiary,
-                      borderRadius: BorderRadius.circular(DswTokens.radiusFull),
-                    ),
-                    child: Text(
-                      t('defaultBadge'),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: aliases.stateSuccessPrimary,
-                      ),
-                    ),
-                  ),
+                  DsTag(tone: DsTagTone.success, label: t('defaultBadge')),
                 ],
               ],
             ),

@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/session/session_provider.dart';
 import '../../../core/session/session_models.dart' show SessionId;
 import '../../../theme/app_theme.dart';
+import '../goal_activation.dart';
 import '../goal_control.dart';
 import '../goal_models.dart';
 import '../goal_projection.dart';
@@ -88,6 +89,10 @@ class _GoalDockState extends ConsumerState<_GoalDock> {
         GoalBar(
           goal: goal,
           pending: _pending,
+          activation: ref
+              .watch(goalActivationProvider(sessionId.value))
+              .snapshot
+              .activation,
           onPause: () => _run(() => control.pause(sessionId.value)),
           onResume: () => _run(() => control.resume(sessionId.value)),
           onEdit: (objective) =>

@@ -18,13 +18,15 @@ import 'remote_mux_client.dart';
 import 'secure_token_store.dart';
 
 /// Coarse connection state for UI, mirroring `ConnectionState` in
-/// `packages/client/connection/src/client/connection.ts` plus Flutter-native
-/// disconnected/idle states.
+/// `packages/client/connection/src/client/connection.ts`
+/// (`connected | disconnected | connecting`, deduplicated) plus
+/// Flutter-native states.
 ///
-/// Web has only `'connected' | 'reconnecting'`; Flutter adds `disconnected`
-/// and `connecting` so a fresh cold start and a torn-down client have a
-/// distinct value before the first handshake. Phase 3 adds `needsReauth` for
-/// bearer expiry/revocation/host-mismatch (stop backoff, prompt re-pair).
+/// Flutter emits `connecting` before the first handshake (React stays
+/// silent until the first outcome) so a cold start has a distinct value;
+/// and adds `reconnecting` (React reuses `connecting` between attempts),
+/// `disconnected` (stopped/never started), and `needsReauth` for bearer
+/// expiry/revocation/host-mismatch (stop backoff, prompt re-pair).
 enum ConnectionState {
   /// No connection attempt has started.
   idle,
@@ -46,8 +48,9 @@ enum ConnectionState {
   needsReauth,
 }
 
-/// Backoff tuning for [FlutterConnectionController], mirroring
-/// `ConnectionConfig` in `packages/client/connection/src/client/connection.ts`.
+/// Backoff and generation-readiness tuning for
+/// [FlutterConnectionController], mirroring `ConnectionRecoveryConfig` in
+/// `packages/client/connection/src/recovery-config.ts`.
 ///
 /// All fields have production defaults; tests override via constructor.
 class ConnectionConfig {
@@ -57,16 +60,21 @@ class ConnectionConfig {
   /// Exponential factor per consecutive failure.
   final int backoffFactor;
 
-  /// Upper bound cap in ms.
+  /// Upper bound cap in ms; retries continue at this cap, never parking.
   final int backoffMaxMs;
 
-  /// Cap on waiting for both streams' onOpen before proceeding as connected.
-  final int streamOpenTimeoutMs;
+  /// Delay before reporting a slow handshake, without cancelling it.
+  final int generationReadyWarnMs;
+
+  /// Deadline in ms for readiness (slow-handshake warn + physical setup);
+  /// the generation is cancelled past it and the loop retries.
+  final int generationReadyTimeoutMs;
   const ConnectionConfig({
     this.backoffBaseMs = 500,
     this.backoffFactor = 2,
     this.backoffMaxMs = 10000,
-    this.streamOpenTimeoutMs = 3000,
+    this.generationReadyWarnMs = 3000,
+    this.generationReadyTimeoutMs = 15000,
   });
 }
 
@@ -164,8 +172,16 @@ class FlutterConnectionController {
     _eventsClientId = null;
     _client.eventsClientId = null;
     if (mux != null) unawaited(mux.close());
-    _backoffCompleter?.complete();
+    _completeBackoff();
+  }
+
+  /// Completes a pending backoff wait exactly once: the loop nulls the
+  /// completer right after its wait, so a racing stop/suspend/resume must
+  /// not complete it twice (`Bad state: Future already completed`).
+  void _completeBackoff() {
+    final backoff = _backoffCompleter;
     _backoffCompleter = null;
+    if (backoff != null && !backoff.isCompleted) backoff.complete();
   }
 
   /// Suspend for a mobile background transition: stop the reconnect loop,
@@ -186,6 +202,9 @@ class FlutterConnectionController {
     }
     _suspended = true;
     _running = false;
+    // A suspend ends the retry sequence like React's offline transition:
+    // resume starts fresh instead of inheriting a grown backoff cap.
+    _attempt = 0;
     _cancelActiveSubs();
     try {
       _client.abortEventStreams();
@@ -195,8 +214,7 @@ class FlutterConnectionController {
     _eventsClientId = null;
     _client.eventsClientId = null;
     if (mux != null) unawaited(mux.close());
-    _backoffCompleter?.complete();
-    _backoffCompleter = null;
+    _completeBackoff();
     _emitState(ConnectionState.disconnected);
   }
 
@@ -226,13 +244,16 @@ class FlutterConnectionController {
 
   /// Trigger an immediate reconnect attempt, interrupting any backoff delay.
   /// Used by the connectivity observer when the network recovers from offline.
+  /// Mirrors React `setNetworkAvailable(true)`: the retry sequence restarts
+  /// instead of resuming at a grown backoff cap.
   void handleNetworkOnline() {
     if (!_running) return;
     if (_lastState != ConnectionState.reconnecting &&
         _lastState != ConnectionState.disconnected) {
       return;
     }
-    _backoffCompleter?.complete();
+    _attempt = 0;
+    _completeBackoff();
   }
 
   void _emitState(ConnectionState next) {
@@ -267,6 +288,15 @@ class FlutterConnectionController {
     _running = false;
     _suspended = false;
     _cancelActiveSubs();
+    final mux = _remoteMux;
+    _remoteMux = null;
+    _eventsClientId = null;
+    _client.eventsClientId = null;
+    if (mux != null) {
+      try {
+        await mux.close();
+      } catch (_) {}
+    }
     if (!deleteToken) return;
     final target = _client.target;
     if (target is RemoteTarget) {
@@ -324,6 +354,11 @@ class FlutterConnectionController {
         _remoteMux = muxClient;
         final remoteOpen = Completer<void>();
         final remoteSub = Completer<void>();
+        // Set when the events pump dies before ready: unblocks the handshake
+        // below so it fails fast instead of hanging to the deadline, without
+        // masquerading the dead pump as a successful ready (which would emit
+        // a spurious `connected`).
+        bool pumpFailed = false;
         String? readyHostHome;
         String? readyClientId;
         // Capture ready info for onConnected
@@ -352,6 +387,7 @@ class FlutterConnectionController {
             }
           } catch (error) {
             if (_isRemoteAuthFailure(error)) _pumpAuthError = error;
+            pumpFailed = true;
             if (!remoteOpen.isCompleted) remoteOpen.complete();
             if (!remoteSub.isCompleted) remoteSub.complete();
             return;
@@ -385,25 +421,47 @@ class FlutterConnectionController {
           final describeFuture = _client.hostDescribe().catchError(
             (Object _) => <String, dynamic>{},
           );
-          final timeout = Future<void>.delayed(
-            Duration(milliseconds: _config.streamOpenTimeoutMs),
+          // Slow-handshake warning without cancelling (React
+          // `generationReadyWarnMs`): a still-pending handshake past this
+          // point is loud but alive until the hard deadline below.
+          final warnTimer = Timer(
+            Duration(milliseconds: _config.generationReadyWarnMs),
+            () {
+              if (_running &&
+                  gen == _generation &&
+                  !remoteOpen.isCompleted &&
+                  kDebugMode) {
+                debugPrint(
+                  '[FlutterConnectionController] GEN $gen still not ready '
+                  'after ${_config.generationReadyWarnMs}ms',
+                );
+              }
+            },
           );
-          await Future.any([
-            Future.wait([describeFuture, remoteOpen.future]),
-            timeout.then((_) {
-              timedOut = true;
-              return null;
-            }),
-          ]);
-          if (timedOut && !remoteOpen.isCompleted) {
-            if (kDebugMode) {
-              debugPrint(
-                '[FlutterConnectionController] GEN $gen timeout waiting for ready (${_config.streamOpenTimeoutMs}ms) — failing generation to reconnect',
-              );
-            }
-            throw TimeoutException(
-              'ready within ${_config.streamOpenTimeoutMs}ms',
-              Duration(milliseconds: _config.streamOpenTimeoutMs),
+          try {
+            await Future.any([
+              Future.wait([describeFuture, remoteOpen.future]),
+              Future<void>.delayed(
+                Duration(
+                  milliseconds: _config.generationReadyTimeoutMs,
+                ),
+              ).then((_) {
+                timedOut = true;
+                throw TimeoutException(
+                  'connection generation was not ready within '
+                  '${_config.generationReadyTimeoutMs}ms',
+                  Duration(
+                    milliseconds: _config.generationReadyTimeoutMs,
+                  ),
+                );
+              }),
+            ]);
+          } finally {
+            warnTimer.cancel();
+          }
+          if (pumpFailed) {
+            throw StateError(
+              'generation $gen events pump failed before ready',
             );
           }
           final desc = await describeFuture;
@@ -411,8 +469,9 @@ class FlutterConnectionController {
             throw StateError('generation $gen aborted');
           if (timedOut) {
             throw TimeoutException(
-              'ready within ${_config.streamOpenTimeoutMs}ms',
-              Duration(milliseconds: _config.streamOpenTimeoutMs),
+              'connection generation was not ready within '
+              '${_config.generationReadyTimeoutMs}ms',
+              Duration(milliseconds: _config.generationReadyTimeoutMs),
             );
           }
           final target = _client.target;
@@ -458,6 +517,12 @@ class FlutterConnectionController {
             await _enterNeedsReauth();
             return;
           }
+          // A failed handshake must not leak its socket into the next
+          // generation (React aborts the generation source here): close the
+          // mux so its pump settles instead of racing the replacement.
+          try {
+            await muxClient.close();
+          } catch (_) {}
           _pumpAuthError = null;
         }
       }
@@ -530,12 +595,6 @@ class FlutterConnectionController {
             'message': frame.args.length > 1 ? frame.args[1] : '',
           };
         } else {
-          synthetic = {
-            'type': type,
-            'event': frame.event,
-            'args': frame.args,
-            'type:host/remote-event': frame.event,
-          };
           // Fallback: dispatch via RemoteEventBus
           try {
             onHostEnvelope?.call({
@@ -590,6 +649,9 @@ class FlutterConnectionController {
     // For now, translate to legacy MuxFrame synthetic and use existing respond path,
     // but also support new $events/result via client.sendEventsResult
     try {
+      // Stale-generation waterfalls must not reach the UI: a superseded
+      // generation's dialog would duplicate or contradict the live one.
+      if (gen != _generation || !_running) return;
       final clientId = _eventsClientId;
       if (clientId == null) return;
       // Build synthetic legacy frame for live_sync to show UI
@@ -598,8 +660,12 @@ class FlutterConnectionController {
         final req = frame.request;
         final synthetic = {
           'type': 'approval/requested',
+          // The wire request carries no session (Host strips agent/signal at
+          // projection); scope the card by agent as a documented fallback.
+          // The true correlation is the event id, preserved as both rpcId
+          // and approvalId so Host cancellation settles this exact wait.
           'sessionId': req['sessionId'] ?? frame.agentId,
-          'approvalId': req['approvalId'] ?? req['id'] ?? '',
+          'approvalId': req['approvalId'] ?? req['id'] ?? frame.eventId,
           'toolName': req['toolName'] ?? '',
           'callId': req['callId'],
           'reason': req['reason'],
@@ -624,8 +690,10 @@ class FlutterConnectionController {
         };
         onMuxEnvelope?.call(synthetic);
       } else {
-        // Generic waterfall: dispatch via RemoteEventBus and wait for result
-        // For now, just call onHostEnvelope as remote-event waterfall
+        // Unclaimable waterfall: no UI owner exists for this event, so
+        // delegate back to the Host chain with `next` (React
+        // `ClientRemoteEvents` answers `next` when no listener claims).
+        // Dropping it would hang the Host waiter until cancellation.
         try {
           onHostEnvelope?.call({
             'type': 'host/remote-event',
@@ -636,6 +704,9 @@ class FlutterConnectionController {
             '_clientId': clientId,
           });
         } catch (_) {}
+        try {
+          await _client.sendEventNext(frame.eventId);
+        } catch (_) {}
       }
       // For generic waterfalls, we need to wait for UI to respond via $events/result
       // This is handled by the UI responders via ConnectionClient.respond which we will make to use $events/result when _clientId present
@@ -643,6 +714,12 @@ class FlutterConnectionController {
   }
 
   void _handleRemoteCancel(RemoteEventCancelFrame frame) {
+    // Record the cancellation so a late UI answer is dropped locally
+    // instead of posting a doomed `$events/result` (React's aborted
+    // waterfall task likewise sends nothing).
+    try {
+      _client.noteWaterfallCancelled(frame.eventId);
+    } catch (_) {}
     try {
       onMuxEnvelope?.call({
         'type': 'approval/resolved',

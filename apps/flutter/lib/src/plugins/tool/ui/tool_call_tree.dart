@@ -7,6 +7,7 @@ import '../../../core/session/session_provider.dart' show currentSessionProvider
 import '../../../core/session/session_models.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/primitives/ansi.dart';
+import '../../../widgets/primitives/diff_block.dart';
 import '../../../widgets/primitives/disclosure_row.dart';
 import '../../conversation/locales.dart' show kConversationNamespace;
 import '../tool_models.dart';
@@ -303,6 +304,14 @@ class ReadToolCard extends StatelessWidget {
 }
 
 /// Diff tool card — before/after or patch preview.
+///
+/// React `FileMutationRow` parity: the expanded body is the `DiffBlock`
+/// owned by `diff-card-model.ts` (`diffsFor`: running → intended args diff,
+/// settled → `meta.diffs`, `write` falls back to args), capped at the chat
+/// 8-line budget (`CHAT_DIFF_MAX_LINES`). The collapsed row (title/summary/
+/// diffStat/chevron) is owned by [_ToolCallRow] and untouched here. Calls
+/// with no resolvable diff keep the legacy args/patch fallback (React's
+/// generic path for malformed tool data).
 class DiffToolCard extends StatelessWidget {
   /// Creates a diff tool card.
   const DiffToolCard({super.key, required this.call});
@@ -312,6 +321,21 @@ class DiffToolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<diff_model.FileDiff>? diffs = diff_model.diffsFor(
+      toolName: call.toolName,
+      argsRaw: call.argsRaw,
+      running: call.status == ToolCallStatus.running,
+      meta: call.meta,
+    );
+    if (diffs != null && diffs.isNotEmpty) {
+      return DsDiffBlock(
+        diff: diff_model.unifiedDiffText(diffs),
+        // One banner path for the single-file card; a multi-file card leans
+        // on its per-file path rows (React has no banner either).
+        filePath: diffs.length == 1 ? diffs.first.path : null,
+        maxLines: 8,
+      );
+    }
     final ThemeData theme = Theme.of(context);
     final DswAliases aliases =
         theme.extension<DswThemeExtension>()?.aliases ??

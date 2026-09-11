@@ -1,7 +1,9 @@
 import 'package:dsh_flutter/src/core/connection/connection_client.dart' as conn;
 import 'package:dsh_flutter/src/platform/open_external.dart';
 import 'package:dsh_flutter/src/theme/app_theme.dart';
+import 'package:dsh_flutter/src/widgets/primitives/block.dart';
 import 'package:dsh_flutter/src/widgets/primitives/connection_banner.dart';
+import 'package:dsh_flutter/src/widgets/primitives/disclosure_row.dart';
 import 'package:dsh_flutter/src/widgets/primitives/hover_card.dart';
 import 'package:dsh_flutter/src/widgets/primitives/icons.dart';
 import 'package:dsh_flutter/src/widgets/primitives/json_tree.dart';
@@ -9,6 +11,7 @@ import 'package:dsh_flutter/src/widgets/primitives/markdown.dart';
 import 'package:dsh_flutter/src/widgets/primitives/onboarding_surface.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -130,7 +133,12 @@ void main() {
         expect(find.text('Object { 2 }'), findsOneWidget);
         expect(find.text('"a"'), findsNothing);
 
-        await tester.tap(find.byType(InkWell).first);
+        await tester.tap(
+          find.descendant(
+            of: find.byType(DisclosureRow),
+            matching: find.byType(InkWell),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(find.text('"a"'), findsOneWidget);
         expect(find.text('1'), findsOneWidget);
@@ -154,6 +162,60 @@ void main() {
       expect(find.textContaining('"list"'), findsOneWidget);
       expect(find.textContaining('[ 1 ]'), findsOneWidget);
       expect(find.text('"x"'), findsOneWidget);
+    });
+
+    testWidgets('header copy button writes pretty JSON to the clipboard', (
+      tester,
+    ) async {
+      final copied = <String?>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              final args = call.arguments as Map<Object?, Object?>?;
+              copied.add(args?['text'] as String?);
+            }
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      await tester.pumpWidget(
+        _wrap(
+          const DsJsonTree(
+            data: <String, dynamic>{'name': 'ok'},
+            initiallyExpanded: true,
+          ),
+        ),
+      );
+      await tester.tap(find.byType(BlockCopyButton));
+      await tester.pumpAndSettle();
+      expect(copied, hasLength(1));
+      expect(copied.single, contains('"name": "ok"'));
+      // Flush the button's 1s copied-state reset timer before teardown.
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('ArrowRight expands the focused composite node', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const DsJsonTree(
+            data: <String, dynamic>{'a': 1},
+          ),
+        ),
+      );
+      expect(find.text('"a"'), findsNothing);
+      // Focus the collapsed root row, then expand by keyboard.
+      final FocusNode rootFocus = Focus.of(
+        tester.element(find.text('Object { 1 }')),
+      );
+      rootFocus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(find.text('"a"'), findsOneWidget);
     });
   });
 

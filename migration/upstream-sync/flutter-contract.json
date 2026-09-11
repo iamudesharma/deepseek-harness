@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-09T01:19:04.849Z",
-  "filesScanned": 374,
+  "generatedAt": "2026-09-11T09:23:28.513Z",
+  "filesScanned": 382,
   "callSites": [
     {
       "file": "apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_provider.dart",
@@ -32,7 +32,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1412,
+      "line": 1531,
       "api": "agentPresets/list",
       "endpoint": "agentPresets/list",
       "wireEndpoint": "/api/agentPresets/list",
@@ -74,7 +74,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1420,
+      "line": 1539,
       "api": "agentPresets/select",
       "endpoint": "agentPresets/select",
       "wireEndpoint": "/api/agentPresets/select",
@@ -88,7 +88,7 @@
     },
     {
       "file": "apps/flutter/lib/src/plugins/agent_preset/ui/agent_preset_screen.dart",
-      "line": 341,
+      "line": 342,
       "api": "ConnectionClient.agentPresetSelect",
       "endpoint": "agentPresets/select",
       "wireEndpoint": "/api/agentPresets/select",
@@ -130,7 +130,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1065,
+      "line": 1184,
       "api": "credentials/describe",
       "endpoint": "credentials/describe",
       "wireEndpoint": "/api/credentials/describe",
@@ -186,7 +186,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1074,
+      "line": 1193,
       "api": "credentials/set",
       "endpoint": "credentials/set",
       "wireEndpoint": "/api/credentials/set",
@@ -228,7 +228,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1083,
+      "line": 1202,
       "api": "credentials/unset",
       "endpoint": "credentials/unset",
       "wireEndpoint": "/api/credentials/unset",
@@ -325,8 +325,22 @@
       "currentValueSource": null
     },
     {
+      "file": "apps/flutter/lib/src/plugins/goal/goal_activation.dart",
+      "line": 267,
+      "api": "goals/get",
+      "endpoint": "goals/get",
+      "wireEndpoint": "/api/goals/get",
+      "requestShape": "{         try {           final body = await client.callMethod('goals/get', {             'agentId': sessionId,           }",
+      "responseDecoder": null,
+      "providerOrState": null,
+      "eventConsumer": null,
+      "streamConsumer": null,
+      "model": null,
+      "currentValueSource": null
+    },
+    {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1464,
+      "line": 1583,
       "api": "host/describe",
       "endpoint": "host/describe",
       "wireEndpoint": "/api/host/describe",
@@ -340,7 +354,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_controller.dart",
-      "line": 385,
+      "line": 421,
       "api": "ConnectionClient.hostDescribe",
       "endpoint": "host/describe",
       "wireEndpoint": "/api/host/describe",
@@ -368,7 +382,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1191,
+      "line": 1310,
       "api": "llm/discoverModels",
       "endpoint": "llm/discoverModels",
       "wireEndpoint": "/api/llm/discoverModels",
@@ -382,7 +396,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1124,
+      "line": 1243,
       "api": "llm/listConfigurableProviders",
       "endpoint": "llm/listConfigurableProviders",
       "wireEndpoint": "/api/llm/listConfigurableProviders",
@@ -396,7 +410,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1089,
+      "line": 1208,
       "api": "llm/listProviders",
       "endpoint": "llm/listProviders",
       "wireEndpoint": "/api/llm/listProviders",
@@ -410,7 +424,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1104,
+      "line": 1223,
       "api": "llm/listProviders",
       "endpoint": "llm/listProviders",
       "wireEndpoint": "/api/llm/listProviders",
@@ -466,7 +480,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1212,
+      "line": 1331,
       "api": "pluginInventory/list",
       "endpoint": "pluginInventory/list",
       "wireEndpoint": "/api/pluginInventory/list",
@@ -494,7 +508,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1547,
+      "line": 1666,
       "api": "remote/describe",
       "endpoint": "remote/describe",
       "wireEndpoint": "/api/remote/describe",
@@ -522,7 +536,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1532,
+      "line": 1651,
       "api": "remote/pair",
       "endpoint": "remote/pair",
       "wireEndpoint": "/api/remote/pair",
@@ -550,7 +564,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1579,
+      "line": 1698,
       "api": "remote/refresh",
       "endpoint": "remote/refresh",
       "wireEndpoint": "/api/remote/refresh",
@@ -578,7 +592,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1569,
+      "line": 1688,
       "api": "remote/ws-ticket",
       "endpoint": "remote/ws-ticket",
       "wireEndpoint": "/api/remote/ws-ticket",
@@ -592,7 +606,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 567,
+      "line": 648,
       "api": "session/attachment",
       "endpoint": "session/attachment",
       "wireEndpoint": "/api/session/attachment",
@@ -620,7 +634,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 539,
+      "line": 612,
       "api": "session/cancel",
       "endpoint": "session/cancel",
       "wireEndpoint": "/api/session/cancel",
@@ -648,7 +662,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 964,
+      "line": 1076,
       "api": "session/canOpenWorkspacePath",
       "endpoint": "session/canOpenWorkspacePath",
       "wireEndpoint": "/api/session/canOpenWorkspacePath",
@@ -662,7 +676,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/remote_mux_client.dart",
-      "line": 411,
+      "line": 515,
       "api": "session/control",
       "endpoint": "session/control",
       "wireEndpoint": "/api/session/control",
@@ -676,7 +690,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 522,
+      "line": 595,
       "api": "session/create",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -774,7 +788,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 133,
+      "line": 178,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -788,7 +802,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1271,
+      "line": 1316,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -802,7 +816,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1282,
+      "line": 1327,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -816,7 +830,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1284,
+      "line": 1329,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -830,7 +844,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1292,
+      "line": 1337,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -844,7 +858,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1294,
+      "line": 1339,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -928,7 +942,7 @@
     },
     {
       "file": "apps/flutter/lib/src/routing/app_router.dart",
-      "line": 110,
+      "line": 111,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -942,7 +956,7 @@
     },
     {
       "file": "apps/flutter/lib/src/routing/app_router.dart",
-      "line": 118,
+      "line": 119,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -956,7 +970,7 @@
     },
     {
       "file": "apps/flutter/lib/src/routing/app_router.dart",
-      "line": 120,
+      "line": 121,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -970,7 +984,7 @@
     },
     {
       "file": "apps/flutter/lib/src/routing/app_router.dart",
-      "line": 128,
+      "line": 129,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -984,7 +998,7 @@
     },
     {
       "file": "apps/flutter/lib/src/routing/app_router.dart",
-      "line": 130,
+      "line": 131,
       "api": "ConnectionClient.createSession",
       "endpoint": "session/create",
       "wireEndpoint": "/api/session/create",
@@ -998,7 +1012,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/remote_mux_client.dart",
-      "line": 399,
+      "line": 503,
       "api": "session/follow",
       "endpoint": "session/follow",
       "wireEndpoint": "/api/session/follow",
@@ -1012,7 +1026,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 985,
+      "line": 1097,
       "api": "session/fork",
       "endpoint": "session/fork",
       "wireEndpoint": "/api/session/fork",
@@ -1026,7 +1040,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 2003,
+      "line": 2055,
       "api": "session/fork",
       "endpoint": "session/fork",
       "wireEndpoint": "/api/session/fork",
@@ -1040,7 +1054,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/bootstrap/app_plugins.dart",
-      "line": 367,
+      "line": 368,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1068,7 +1082,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 372,
+      "line": 423,
       "api": "session/list",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1082,7 +1096,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/session/live_sync.dart",
-      "line": 514,
+      "line": 555,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1096,7 +1110,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/session/live_sync.dart",
-      "line": 554,
+      "line": 595,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1110,7 +1124,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/session/live_sync.dart",
-      "line": 593,
+      "line": 634,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1208,7 +1222,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 140,
+      "line": 185,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1222,7 +1236,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1317,
+      "line": 1362,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1236,7 +1250,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1992,
+      "line": 2044,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1250,7 +1264,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 2011,
+      "line": 2063,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1278,7 +1292,7 @@
     },
     {
       "file": "apps/flutter/lib/src/plugins/conversation/ui/chat_view.dart",
-      "line": 533,
+      "line": 543,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1292,7 +1306,7 @@
     },
     {
       "file": "apps/flutter/lib/src/routing/app_router.dart",
-      "line": 139,
+      "line": 140,
       "api": "ConnectionClient.getSessions",
       "endpoint": "session/list",
       "wireEndpoint": "/api/session/list",
@@ -1306,7 +1320,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1142,
+      "line": 1261,
       "api": "session/modelCatalog",
       "endpoint": "session/modelCatalog",
       "wireEndpoint": "/api/session/modelCatalog",
@@ -1320,7 +1334,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1152,
+      "line": 1271,
       "api": "session/modelCatalog",
       "endpoint": "session/modelCatalog",
       "wireEndpoint": "/api/session/modelCatalog",
@@ -1334,7 +1348,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1218,
+      "line": 1337,
       "api": "session/modelCatalog",
       "endpoint": "session/modelCatalog",
       "wireEndpoint": "/api/session/modelCatalog",
@@ -1352,7 +1366,7 @@
       "api": "ConnectionClient.sessionModels",
       "endpoint": "session/modelCatalog",
       "wireEndpoint": "/api/session/modelCatalog",
-      "requestShape": "{           value = perSession;         }",
+      "requestShape": "{           value = Map<String, dynamic>.from(perSession);           // Current hosts answer the legacy per-session call with the GLOBAL           // catalog sh",
       "responseDecoder": null,
       "providerOrState": null,
       "eventConsumer": null,
@@ -1362,7 +1376,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/model_selection/model_directory.dart",
-      "line": 225,
+      "line": 234,
       "api": "ConnectionClient.sessionModels",
       "endpoint": "session/modelCatalog",
       "wireEndpoint": "/api/session/modelCatalog",
@@ -1376,7 +1390,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 975,
+      "line": 1087,
       "api": "session/openWorkspacePath",
       "endpoint": "session/openWorkspacePath",
       "wireEndpoint": "/api/session/openWorkspacePath",
@@ -1390,7 +1404,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 443,
+      "line": 494,
       "api": "session/page",
       "endpoint": "session/page",
       "wireEndpoint": "/api/session/page",
@@ -1432,7 +1446,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 498,
+      "line": 571,
       "api": "session/prompt",
       "endpoint": "session/prompt",
       "wireEndpoint": "/api/session/prompt",
@@ -1446,7 +1460,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/conversation/composer_controller.dart",
-      "line": 331,
+      "line": 332,
       "api": "ConnectionClient.sendMessage",
       "endpoint": "session/prompt",
       "wireEndpoint": "/api/session/prompt",
@@ -1474,7 +1488,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1000,
+      "line": 1112,
       "api": "session/rename",
       "endpoint": "session/rename",
       "wireEndpoint": "/api/session/rename",
@@ -1488,7 +1502,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1988,
+      "line": 2040,
       "api": "session/rename",
       "endpoint": "session/rename",
       "wireEndpoint": "/api/session/rename",
@@ -1502,7 +1516,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1398,
+      "line": 1517,
       "api": "session/search",
       "endpoint": "session/search",
       "wireEndpoint": "/api/session/search",
@@ -1516,7 +1530,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1169,
+      "line": 1288,
       "api": "session/selectModel",
       "endpoint": "session/selectModel",
       "wireEndpoint": "/api/session/selectModel",
@@ -1530,7 +1544,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/model_selection/model_directory.dart",
-      "line": 267,
+      "line": 276,
       "api": "ConnectionClient.sessionSelectModel",
       "endpoint": "session/selectModel",
       "wireEndpoint": "/api/session/selectModel",
@@ -1544,11 +1558,11 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 552,
+      "line": 633,
       "api": "session/updateQueue",
       "endpoint": "session/updateQueue",
       "wireEndpoint": "/api/session/updateQueue",
-      "requestShape": "{     await _postTypert('session/updateQueue', {       'request': {         'sessionId': sessionId.value,         'itemId': itemId.value,         'action': acti",
+      "requestShape": "{       'request': {         'sessionId': sessionId.value,         'itemId': itemId.value,         'action': action.toJson(),       }",
       "responseDecoder": null,
       "providerOrState": null,
       "eventConsumer": null,
@@ -1558,7 +1572,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1432,
+      "line": 1551,
       "api": "settings/canOpenAgentPresetDirectory",
       "endpoint": "settings/canOpenAgentPresetDirectory",
       "wireEndpoint": "/api/settings/canOpenAgentPresetDirectory",
@@ -1572,7 +1586,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 894,
+      "line": 1006,
       "api": "settings/describe",
       "endpoint": "settings/describe",
       "wireEndpoint": "/api/settings/describe",
@@ -1740,7 +1754,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-      "line": 106,
+      "line": 132,
       "api": "ConnectionClient.settingsDescribe",
       "endpoint": "settings/describe",
       "wireEndpoint": "/api/settings/describe",
@@ -1754,7 +1768,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-      "line": 133,
+      "line": 159,
       "api": "ConnectionClient.settingsDescribe",
       "endpoint": "settings/describe",
       "wireEndpoint": "/api/settings/describe",
@@ -1768,7 +1782,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 909,
+      "line": 1021,
       "api": "settings/mutate",
       "endpoint": "settings/mutate",
       "wireEndpoint": "/api/settings/mutate",
@@ -1894,7 +1908,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/settings/settings_screen.dart",
-      "line": 136,
+      "line": 162,
       "api": "ConnectionClient.settingsMutate",
       "endpoint": "settings/mutate",
       "wireEndpoint": "/api/settings/mutate",
@@ -1908,7 +1922,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1447,
+      "line": 1566,
       "api": "settings/openAgentPresetDirectory",
       "endpoint": "settings/openAgentPresetDirectory",
       "wireEndpoint": "/api/settings/openAgentPresetDirectory",
@@ -1922,7 +1936,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 955,
+      "line": 1067,
       "api": "settings/openSettingsDocument",
       "endpoint": "settings/openSettingsDocument",
       "wireEndpoint": "/api/settings/openSettingsDocument",
@@ -1936,7 +1950,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 947,
+      "line": 1059,
       "api": "settings/replace",
       "endpoint": "settings/replace",
       "wireEndpoint": "/api/settings/replace",
@@ -1950,7 +1964,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 926,
+      "line": 1038,
       "api": "settings/update",
       "endpoint": "settings/update",
       "wireEndpoint": "/api/settings/update",
@@ -1964,7 +1978,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1405,
+      "line": 1524,
       "api": "skills/list",
       "endpoint": "skills/list",
       "wireEndpoint": "/api/skills/list",
@@ -2006,7 +2020,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1056,
+      "line": 1175,
       "api": "subagents/interruptByParent",
       "endpoint": "subagents/interruptByParent",
       "wireEndpoint": "/api/subagents/interruptByParent",
@@ -2020,7 +2034,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1013,
+      "line": 1125,
       "api": "subagents/list",
       "endpoint": "subagents/list",
       "wireEndpoint": "/api/subagents/list",
@@ -2034,7 +2048,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1031,
+      "line": 1150,
       "api": "subagents/prompt",
       "endpoint": "subagents/prompt",
       "wireEndpoint": "/api/subagents/prompt",
@@ -2048,7 +2062,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1385,
+      "line": 1504,
       "api": "terminal/close",
       "endpoint": "terminal/close",
       "wireEndpoint": "/api/terminal/close",
@@ -2062,7 +2076,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1317,
+      "line": 1436,
       "api": "terminal/list",
       "endpoint": "terminal/list",
       "wireEndpoint": "/api/terminal/list",
@@ -2076,7 +2090,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1328,
+      "line": 1447,
       "api": "terminal/open",
       "endpoint": "terminal/open",
       "wireEndpoint": "/api/terminal/open",
@@ -2090,7 +2104,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1358,
+      "line": 1477,
       "api": "terminal/read",
       "endpoint": "terminal/read",
       "wireEndpoint": "/api/terminal/read",
@@ -2104,7 +2118,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1345,
+      "line": 1464,
       "api": "terminal/send",
       "endpoint": "terminal/send",
       "wireEndpoint": "/api/terminal/send",
@@ -2118,7 +2132,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1374,
+      "line": 1493,
       "api": "terminal/signal",
       "endpoint": "terminal/signal",
       "wireEndpoint": "/api/terminal/signal",
@@ -2132,7 +2146,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1302,
+      "line": 1421,
       "api": "workspace/archiveSession",
       "endpoint": "workspace/archiveSession",
       "wireEndpoint": "/api/workspace/archiveSession",
@@ -2145,22 +2159,8 @@
       "currentValueSource": null
     },
     {
-      "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 2027,
-      "api": "workspace/archiveSession",
-      "endpoint": "workspace/archiveSession",
-      "wireEndpoint": "/api/workspace/archiveSession",
-      "requestShape": "{                       try {                         await client.callMethod('workspace/archiveSession', {                           'sessionId': summary.sessi",
-      "responseDecoder": null,
-      "providerOrState": null,
-      "eventConsumer": null,
-      "streamConsumer": null,
-      "model": null,
-      "currentValueSource": null
-    },
-    {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1244,
+      "line": 1363,
       "api": "workspace/create",
       "endpoint": "workspace/create",
       "wireEndpoint": "/api/workspace/create",
@@ -2174,7 +2174,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 651,
+      "line": 696,
       "api": "ConnectionClient.workspaceCreate",
       "endpoint": "workspace/create",
       "wireEndpoint": "/api/workspace/create",
@@ -2188,7 +2188,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1037,
+      "line": 1082,
       "api": "ConnectionClient.workspaceCreate",
       "endpoint": "workspace/create",
       "wireEndpoint": "/api/workspace/create",
@@ -2202,7 +2202,7 @@
     },
     {
       "file": "apps/flutter/lib/src/features/sidebar/sidebar.dart",
-      "line": 1101,
+      "line": 1146,
       "api": "ConnectionClient.workspaceCreate",
       "endpoint": "workspace/create",
       "wireEndpoint": "/api/workspace/create",
@@ -2244,7 +2244,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1292,
+      "line": 1411,
       "api": "workspace/delete",
       "endpoint": "workspace/delete",
       "wireEndpoint": "/api/workspace/delete",
@@ -2258,7 +2258,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/remote_mux_client.dart",
-      "line": 416,
+      "line": 520,
       "api": "workspace/follow",
       "endpoint": "workspace/follow",
       "wireEndpoint": "/api/workspace/follow",
@@ -2272,7 +2272,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1256,
+      "line": 1375,
       "api": "workspace/insertBefore",
       "endpoint": "workspace/insertBefore",
       "wireEndpoint": "/api/workspace/insertBefore",
@@ -2286,7 +2286,7 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1273,
+      "line": 1392,
       "api": "workspace/insertSessionBefore",
       "endpoint": "workspace/insertSessionBefore",
       "wireEndpoint": "/api/workspace/insertSessionBefore",
@@ -2328,12 +2328,82 @@
     },
     {
       "file": "apps/flutter/lib/src/core/connection/connection_client.dart",
-      "line": 1284,
+      "line": 1403,
       "api": "workspace/rename",
       "endpoint": "workspace/rename",
       "wireEndpoint": "/api/workspace/rename",
       "requestShape": "{     final body = await _postTypert('workspace/rename', {       'request': {'workspaceId': workspaceId, 'title': title}",
       "responseDecoder": "_unwrapValue",
+      "providerOrState": null,
+      "eventConsumer": null,
+      "streamConsumer": null,
+      "model": null,
+      "currentValueSource": null
+    },
+    {
+      "file": "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+      "line": 425,
+      "api": "workspaceFiles/changes",
+      "endpoint": "workspaceFiles/changes",
+      "wireEndpoint": "/api/workspaceFiles/changes",
+      "requestShape": "{       'args': {         'sessionId': sessionId.value,       }",
+      "responseDecoder": null,
+      "providerOrState": null,
+      "eventConsumer": null,
+      "streamConsumer": "workspaceFiles/changes",
+      "model": null,
+      "currentValueSource": null
+    },
+    {
+      "file": "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+      "line": 406,
+      "api": "workspaceFiles/list",
+      "endpoint": "workspaceFiles/list",
+      "wireEndpoint": "/api/workspaceFiles/list",
+      "requestShape": "{     try {       final result = await _client.callMethod('workspaceFiles/list', {         'sessionId': sessionId.value,         'path': path,       }",
+      "responseDecoder": null,
+      "providerOrState": null,
+      "eventConsumer": null,
+      "streamConsumer": null,
+      "model": null,
+      "currentValueSource": null
+    },
+    {
+      "file": "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+      "line": 365,
+      "api": "workspaceFiles/read",
+      "endpoint": "workspaceFiles/read",
+      "wireEndpoint": "/api/workspaceFiles/read",
+      "requestShape": null,
+      "responseDecoder": null,
+      "providerOrState": null,
+      "eventConsumer": null,
+      "streamConsumer": null,
+      "model": null,
+      "currentValueSource": null
+    },
+    {
+      "file": "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+      "line": 387,
+      "api": "workspaceFiles/readBytes",
+      "endpoint": "workspaceFiles/readBytes",
+      "wireEndpoint": "/api/workspaceFiles/readBytes",
+      "requestShape": null,
+      "responseDecoder": null,
+      "providerOrState": null,
+      "eventConsumer": null,
+      "streamConsumer": null,
+      "model": null,
+      "currentValueSource": null
+    },
+    {
+      "file": "apps/flutter/lib/src/core/files/workspace_files_client.dart",
+      "line": 345,
+      "api": "workspaceFiles/stat",
+      "endpoint": "workspaceFiles/stat",
+      "wireEndpoint": "/api/workspaceFiles/stat",
+      "requestShape": "{     try {       final result = await _client.callMethod('workspaceFiles/stat', {         'sessionId': sessionId.value,         'path': path,       }",
+      "responseDecoder": null,
       "providerOrState": null,
       "eventConsumer": null,
       "streamConsumer": null,
@@ -2357,6 +2427,7 @@
     "directoryPicker/pick",
     "directoryPicker/readFile",
     "fileReferences/list",
+    "goals/get",
     "host/describe",
     "llm/discoverModels",
     "llm/listConfigurableProviders",
@@ -2411,7 +2482,12 @@
     "workspace/insertBefore",
     "workspace/insertSessionBefore",
     "workspace/list",
-    "workspace/rename"
+    "workspace/rename",
+    "workspaceFiles/changes",
+    "workspaceFiles/list",
+    "workspaceFiles/read",
+    "workspaceFiles/readBytes",
+    "workspaceFiles/stat"
   ],
   "modelsUsed": [
     "model"

@@ -1,0 +1,69 @@
+{
+  "pkg": "ui-user-questions",
+  "reactSource": [
+    "packages/client/ui-user-questions/src/client/QuestionComposer.tsx",
+    "packages/client/ui-user-questions/src/client/QuestionComposer.module.css",
+    "packages/client/ui-user-questions/src/client/PlanReviewPanel.tsx",
+    "packages/client/ui-user-questions/src/client/PlanReviewPanel.module.css",
+    "packages/client/ui-user-questions/src/client/draft-store.ts",
+    "packages/client/ui-user-questions/src/client/locales.ts"
+  ],
+  "flutterTargets": [
+    "apps/flutter/lib/src/plugins/user_questions/ui/question_node_card.dart",
+    "apps/flutter/lib/src/plugins/user_questions/ui/question_composer_entry.dart",
+    "apps/flutter/lib/src/plugins/conversation/ui/chat_view.dart (_TurnStatus)",
+    "apps/flutter/lib/src/plugins/conversation/locales.dart (chat.deepDiving)"
+  ],
+  "props": {
+    "PropsRuntime": ["useSession", "pending question carrier as matched owner"],
+    "PropsStore": ["createQuestionDraftStore (index + drafts per request key)"],
+    "inject": ["sessions", "remote", "uiSession", "slots", "locale"]
+  },
+  "cssModules": [
+    {
+      "file": "QuestionComposer.module.css",
+      "vars": ["--dsw-specific-input-major", "--dsw-alias-border-l2-darkmode-thin", "--dsw-elevation-panel", "--dsw-alias-label-primary", "--dsw-alias-label-tertiary", "--dsw-alias-label-secondary", "--dsw-alias-label-caption", "--dsw-alias-label-dimmed", "--dsw-alias-label-primary-foreground", "--dsw-alias-bg-overlay", "--dsw-alias-bg-module-platform", "--dsw-alias-border-l4", "--dsw-alias-interactive-bg-hover", "--dsw-alias-border-l2", "--dsw-specific-sidebar-nav-item-active-accent", "--dsw-alias-button-info-fill", "--dsw-alias-state-business-primary", "--dsw-alias-state-error-primary"]
+    },
+    {
+      "file": "PlanReviewPanel.module.css",
+      "vars": ["--dsw-alias-state-warn-secondary", "--dsw-alias-state-warn-tertiary", "--dsw-alias-state-warn-primary", "--dsw-specific-input-major", "--dsw-shadow-lv2", "--dsw-alias-state-error-primary", "--dsw-alias-label-secondary"]
+    },
+    {
+      "file": "packages/client/ui-chat/src/client/chat/ChatView.module.css",
+      "vars": ["--dsw-static-deepseek-500", "--dsw-static-deepseek-200", "--dsw-alias-label-caption", "--dsh-content-font-size-secondary"]
+    }
+  ],
+  "triggers": [
+    {"type": "pager", "trigger": "prev/next chevrons + `n / m` progress"},
+    {"type": "minimize", "trigger": "header chevron collapses the card to its header strip"},
+    {"type": "custom-answer", "trigger": "inline field (options) or framed block (optionless), Enter continues"},
+    {"type": "plan-review", "trigger": "intent-narrowed decide card (chat about it / refuse / approve)"}
+  ],
+  "typert": [
+    {"method": "question.answer", "payload": {"sessionId": "string", "answer": {"answers": [{"id": "string", "selected": "string[]", "custom": "string?"}]}}},
+    {"method": "question.cancel", "payload": {"sessionId": "string"}}
+  ],
+  "slots": ["conversation.composer (selector-routed entry)"],
+  "state": {
+    "pendingQuestionsProvider": "question/requested + question/resolved frames per session",
+    "draftState": "Flutter keeps index + per-question drafts (selected/custom/skipped) in card state; React keeps them in a session-scoped draft store"
+  },
+  "tokenMap": {
+    "--dsw-specific-input-major": "aliases.specificInputMajor (card fill)",
+    "--dsw-alias-border-l2-darkmode-thin": "aliases.borderL2DarkmodeThin (card hairline)",
+    "--dsw-elevation-panel": "DswTokens.shadowLv2",
+    "--dsw-alias-bg-overlay": "aliases.bgOverlay (number seat)",
+    "--dsw-alias-border-l4": "aliases.borderL4 (checkbox)",
+    "--dsw-alias-label-primary-foreground": "aliases.labelPrimaryForeground (check ink)",
+    "--dsw-alias-state-business-primary": "aliases.stateBusinessPrimary (focus + caret + shimmer base)",
+    "--dsw-static-deepseek-200": "DswTokens.deepseek200 (shimmer highlight)",
+    "--dsw-specific-sidebar-nav-item-active-accent": "aliases.specificSidebarNavItemActiveAccent (recommended badge fill)",
+    "--dsw-alias-button-info-fill": "aliases.buttonInfoFill (recommended badge ink)",
+    "--dsw-alias-state-warn-*": "aliases.stateWarn* (plan-review strip/dot/border)"
+  },
+  "knownGaps": [
+    "Drafts: React restores in-progress answers across remounts from the session-scoped draft store; Flutter resets only when the request key changes.",
+    "Transcript `question` chat-node mount is a Flutter extra (React registers only the composer-chain entry).",
+    "Footer stacking below 420px is a Flutter mobile adaptation of React's ≤720px media query."
+  ]
+}

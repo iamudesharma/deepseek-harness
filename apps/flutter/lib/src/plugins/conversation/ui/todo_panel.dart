@@ -127,9 +127,11 @@ class _TodoPanelState extends ConsumerState<TodoPanel> {
     // Same horizontal bounds as the composer card below (`composer.dart`:
     // outer `Padding(16,0,16,8)` + `Center` + `ConstrainedBox(maxWidth:780)`
     // + borderless card). The clearance lives outside the cap and the bar
-    // fills it, so both edges land exactly on the composer's.
+    // fills it, so both edges land exactly on the composer's. The 6px bottom
+    // gap is React `.composerStack`'s stack gap between the input-dock zone
+    // and the composer bar.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 780),

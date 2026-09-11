@@ -62,6 +62,7 @@ import '../../plugins/settings/children/plugin_inventory/plugin_inventory_plugin
 // WS-Tasks: jobs / workflow runs / deliverables / goal / permission presets.
 import '../../plugins/jobs/jobs_plugin.dart';
 import '../../plugins/open_in_app/open_in_app_plugin.dart';
+import '../../plugins/schedule/schedule_plugin.dart';
 import '../../plugins/terminal/terminal_plugin.dart';
 import '../../plugins/workflow_run/workflow_run_plugin.dart';
 import '../../plugins/deliverables/deliverables_plugin.dart';
@@ -452,6 +453,7 @@ PluginHost buildAppHost(WidgetRef ref) {
   // presets — plus the console terminal panel.
   host.register(const JobsPlugin());
   host.register(const OpenInAppPlugin());
+  host.register(const SchedulePlugin());
   host.register(const TerminalPlugin());
   // Navigation face mirrors React `ctx.sessions.open`: selecting the child
   // row through the shared sessions list (unknown ids are ignored by the

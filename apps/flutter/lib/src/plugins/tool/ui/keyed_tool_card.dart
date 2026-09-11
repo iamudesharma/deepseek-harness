@@ -18,6 +18,8 @@ import '../../../core/session/session_models.dart';
 import '../../../theme/app_theme.dart';
 import '../../deliverables/deliverables_open.dart'
     show canOpenHostPathProvider, openHostPath;
+import '../../deliverables/ui/file_preview_dialog.dart'
+    show showFilePreviewDialog;
 import '../tool_models.dart';
 import '../tool_presentation_registry.dart';
 import 'tool_call_tree.dart';
@@ -351,7 +353,7 @@ bool _expandable(ToolCall call) {
   return false;
 }
 
-/// Collapsed summary text; file-tool summaries open the host path on tap.
+/// Collapsed summary text; file-tool summaries open the in-app preview.
 class _SummaryText extends ConsumerWidget {
   const _SummaryText({
     required this.call,
@@ -379,13 +381,37 @@ class _SummaryText extends ConsumerWidget {
     final canOpenAsync = ref.watch(canOpenHostPathProvider);
     final canOpen = canOpenAsync.valueOrNull ?? false;
     return GestureDetector(
-      onTap: canOpen
-          ? () {
-              final client = ref.read(connectionClientProvider);
-              final abs = resolveWorkspacePath(cwd, model.filePath!);
-              openHostPath(client, abs);
-            }
-          : null,
+      // In-app preview first (workspaceFiles); the Host-native opener stays
+      // as the fallback for non-previewable paths and when the preview
+      // itself cannot load — the same turn-tail chain `chat_view` drives.
+      // The tap is always live: the preview needs no host opener.
+      onTap: () async {
+        final abs = resolveWorkspacePath(cwd, model.filePath!);
+        final SessionId? sid = ref.read(currentSessionProvider)?.sessionId;
+        if (sid == null) {
+          if (!canOpen) return;
+          final client = ref.read(connectionClientProvider);
+          await openHostPath(client, abs);
+          return;
+        }
+        try {
+          await showFilePreviewDialog(
+            context,
+            ref,
+            sessionId: sid,
+            path: abs,
+            onOpenHost: canOpen
+                ? () => openHostPath(ref.read(connectionClientProvider), abs)
+                : null,
+          );
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Open failed: $e')));
+          }
+        }
+      },
       child: Text(
         summary,
         maxLines: 1,

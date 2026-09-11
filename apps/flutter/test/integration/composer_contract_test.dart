@@ -11,11 +11,14 @@
 /// surface, and submit carries draft text plus staged image parts.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dsh_flutter/src/core/bootstrap/app_plugins.dart';
 import 'package:dsh_flutter/src/core/connection/connection_client.dart' as conn;
 import 'package:dsh_flutter/src/core/plugin/plugin_host.dart';
+import 'package:dsh_flutter/src/core/services/runtime_services.dart'
+    show localeServiceProvider;
 import 'package:dsh_flutter/src/core/session/session_models.dart';
 import 'package:dsh_flutter/src/core/session/sessions_controller.dart';
 import 'package:dsh_flutter/src/features/conversation/composer_controller.dart';
@@ -111,6 +114,18 @@ class QaClient extends conn.ConnectionClient {
   }
 
   @override
+  Future<Map<String, dynamic>> sessionModelCatalog() {
+    final loader = modelCatalogLoader;
+    if (loader != null) return loader();
+    return super.sessionModelCatalog();
+  }
+
+  /// Optional scripted global catalog (host shape: {default, groups,
+  /// failures, routableProviders}). Null keeps the legacy path where the
+  /// catalog call fails and only the per-session payload applies.
+  Future<Map<String, dynamic>> Function()? modelCatalogLoader;
+
+  @override
   Future<Map<String, dynamic>> skillList({required String sessionId}) async {
     calls.add((method: 'skill.list', payload: {'sessionId': sessionId}));
     final handler = onCallMethod;
@@ -199,6 +214,12 @@ Future<ProviderContainer> pumpComposedShell(
       .read(sessionsProvider.notifier)
       .setCurrent(const SessionId(qaSession));
 
+  // Pin English copy: the harness otherwise inherits the runtime default
+  // (zh), while every assertion in this file reads English or wire data.
+  // Set after activation so locale adoption (shared-preferences backed)
+  // cannot override it behind the suite's back.
+  container.read(localeServiceProvider).setLocale('en');
+
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -245,6 +266,50 @@ void main() {
       // with its effort badge.
       expect(find.text('DeepSeek Reasoner'), findsOneWidget);
       expect(find.text('Medium'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'new session offers the catalog default without opening the menu',
+    (tester) async {
+      final client = QaClient()
+        ..modelCatalogLoader = () async => const <String, dynamic>{
+          'default': {'provider': 'deepseek', 'model': 'deepseek-chat'},
+          'groups': [
+            {
+              'id': 'deepseek',
+              'name': 'DeepSeek',
+              'models': [
+                {'id': 'deepseek-chat', 'name': 'DeepSeek Chat'},
+              ],
+            },
+          ],
+          'failures': <Object?>[],
+          'routableProviders': ['deepseek'],
+        };
+      await pumpComposedShell(tester, client);
+      await tester.pumpAndSettle();
+
+      // React parity (`projected.next ?? catalog.default`): the trigger
+      // names the deployment default on a session with no explicit pick —
+      // no menu interaction needed.
+      expect(find.text('DeepSeek Chat'), findsOneWidget);
+      expect(find.text('Select model'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'trigger names the load while no selection resolved yet',
+    (tester) async {
+      final client = QaClient()
+        ..modelCatalogLoader = () => Completer<Map<String, dynamic>>().future;
+      await pumpComposedShell(tester, client);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // React parity (`trigger.loading`): in-flight with nothing resolved
+      // shows the loading copy, not the empty fallback.
+      expect(find.text('Loading models…'), findsOneWidget);
     },
   );
 

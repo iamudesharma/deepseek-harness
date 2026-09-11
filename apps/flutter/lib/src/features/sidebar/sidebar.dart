@@ -89,6 +89,51 @@ final workspaceSessionOrderProvider = StateProvider<Map<String, List<String>>>(
   (ref) => {},
 );
 
+/// Deletes one workspace registration over the typed Host face, then
+/// refreshes the follow-backed list.
+///
+/// Mirrors React `WorkspaceBrowser` confirmDelete → `workspaces.delete`
+/// (the model removes the row immediately; Flutter's `remove` increment
+/// lands via `workspace/follow` and the invalidate re-reads the
+/// projection). Throws the Host failure for the caller to surface; the
+/// confirm-dialog copy and dismissal stay at the call site.
+Future<void> deleteWorkspaceAndRefresh(
+  WidgetRef ref,
+  WorkspaceId workspaceId,
+) async {
+  final client = ref.read(connectionClientProvider);
+  await client.workspaceDelete(workspaceId: workspaceId.value);
+  ref.invalidate(workspaceListProvider);
+}
+
+/// Archives one session over the typed Host face, clears the current
+/// selection when the archived session is selected, then refreshes the
+/// follow-backed list.
+///
+/// Mirrors React `uiWorkspace.archiveSession` + `clearArchivedCurrent`
+/// (`navigation.ts`): the Host's returned archive set is authoritative for
+/// the membership check, falling back to the requested id when the Host
+/// answers without one. Throws the Host failure for the caller to surface.
+Future<void> archiveSessionAndClearCurrent(
+  WidgetRef ref,
+  SessionId sessionId,
+) async {
+  final client = ref.read(connectionClientProvider);
+  final Map<String, dynamic> value = await client.workspaceArchiveSession(
+    sessionId: sessionId.value,
+  );
+  final Set<String> archived = {
+    for (final id in (value['archivedSessionIds'] as List? ?? const []))
+      if (id is String) id,
+  };
+  final SessionId? current = ref.read(sessionsProvider).current;
+  if (current != null &&
+      (archived.contains(current.value) || current == sessionId)) {
+    ref.read(sessionsProvider.notifier).setCurrent(null);
+  }
+  ref.invalidate(workspaceListProvider);
+}
+
 /// All session summaries filtered by search query and workspace.
 /// Mirrors web Sidebar search + workspace scoping.
 final filteredSessionsProvider = Provider<List<SessionSummary>>((ref) {
@@ -1719,13 +1764,20 @@ class _ProjectSection extends ConsumerWidget {
                                 ),
                               );
                               if (confirm == true && context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Delete — pending host workspace.delete wire',
-                                    ),
-                                  ),
-                                );
+                                try {
+                                  await deleteWorkspaceAndRefresh(
+                                    ref,
+                                    group.workspaceId!,
+                                  );
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Delete failed: $e'),
+                                      ),
+                                    );
+                                  }
+                                }
                               }
                             }
                           },
@@ -2024,10 +2076,10 @@ class _SessionRow extends ConsumerWidget {
                       }
                     } else if (v == 'archive') {
                       try {
-                        await client.callMethod('workspace/archiveSession', {
-                          'sessionId': summary.sessionId.value,
-                        });
-                        ref.invalidate(workspaceListProvider);
+                        await archiveSessionAndClearCurrent(
+                          ref,
+                          summary.sessionId,
+                        );
                       } catch (e) {
                         if (context.mounted)
                           ScaffoldMessenger.of(context).showSnackBar(

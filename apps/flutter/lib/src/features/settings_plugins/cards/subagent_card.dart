@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../widgets/primitives/ds_switch.dart';
 import '../../settings_plugins/widgets/plugin_card.dart';
 import '../card_form.dart';
 import 'subagent_controller.dart';
@@ -111,10 +112,13 @@ class SubagentCard extends StatelessWidget {
                             color: aliases.labelPrimary,
                           )),
                     ),
-                    Switch(
+                    DsSwitch(
                       value: s.enabled,
-                      activeThumbColor: aliases.stateBusinessPrimary,
-                      onChanged: (!s.writable || s.saving) ? null : (_) => controller.toggleEnabled(),
+                      onChanged: (!s.writable || s.saving)
+                          ? null
+                          : (_) => controller.toggleEnabled(),
+                      semanticLabel:
+                          'Allow agents to choose models for subagents',
                     ),
                   ],
                 ),

@@ -25,7 +25,9 @@ class TriggerGuard {
 }
 
 /// Keys the menu intercepts while open (all behind the IME composition guard).
-enum ArbitrateKey { up, down, enter, escape }
+/// `tab` drills the highlighted drill row in place, else settles it like
+/// Enter (React `controller.ts` Tab branch).
+enum ArbitrateKey { up, down, enter, escape, tab }
 
 /// `consumed` = key handled; `pickHighlighted` = enter picked the highlight;
 /// `pass` = let the input see it.
@@ -41,6 +43,7 @@ class InputTriggerCandidate {
     this.hint,
     this.section,
     this.value,
+    this.drill,
   });
 
   /// Display name (the exact-match key).
@@ -60,6 +63,56 @@ class InputTriggerCandidate {
 
   /// Opaque source-owned pick payload.
   final String? value;
+
+  /// The row offers a drill action beside the settling pick: Tab or the row's
+  /// chevron refines the query in place (directory descent) instead of
+  /// resolving the candidate (React `InputTriggerCandidate.drill`).
+  final bool? drill;
+}
+
+/// What a pick asks for: resolve the candidate, or drill into it in place
+/// (React `PickAction`).
+enum PickAction { pick, drill }
+
+/// One crumb of a source's menu header. The pipeline treats `value` as opaque
+/// and hands it straight back on pick (React `InputTriggerCrumb`).
+class InputTriggerCrumb {
+  /// Creates a crumb.
+  const InputTriggerCrumb({
+    required this.label,
+    required this.value,
+    this.current = false,
+  });
+
+  /// Rendered text of this step.
+  final String label;
+
+  /// Opaque source-owned pick payload, returned through `onPick`.
+  final String value;
+
+  /// The step the menu is currently showing; rendered as trailing,
+  /// unclickable crumb.
+  final bool current;
+}
+
+/// What a source needs to decide the header of the open menu (React
+/// `HeaderRequest`).
+class HeaderRequest {
+  /// Creates a request.
+  const HeaderRequest({
+    required this.query,
+    this.quoted = false,
+    required this.drilled,
+  });
+
+  /// Text between the trigger char and the caret, live-filtered.
+  final String query;
+
+  /// Whether the active @file token is an open quoted path.
+  final bool quoted;
+
+  /// True while this menu was opened or last re-scoped by a drill pick.
+  final bool drilled;
 }
 
 /// Pick-moment snapshot of the trigger token span. CAS: a stale [draftRev]
@@ -202,6 +255,7 @@ class InputTriggerPick {
     required this.sessionId,
     required this.position,
     required this.via,
+    this.action = PickAction.pick,
     required this.span,
   });
 
@@ -217,6 +271,9 @@ class InputTriggerPick {
   /// Which path produced the pick: menu / space / enter.
   final String via;
 
+  /// Settling pick, or the candidate's drill action (Tab / row chevron).
+  final PickAction action;
+
   /// Span snapshot for CAS.
   final TokenSpan span;
 }
@@ -228,6 +285,7 @@ class CandidateRequest {
     required this.query,
     this.quoted = false,
     required this.position,
+    this.drilled = false,
     this.cancelled,
   });
 
@@ -239,6 +297,10 @@ class CandidateRequest {
 
   /// Token position.
   final TriggerPosition position;
+
+  /// Whether this menu was opened or last re-scoped by a drill pick (React
+  /// `CandidateRequest.drilled`; survives typing, clears on close).
+  final bool drilled;
 
   /// Superseded-on-query-change probe; null when the pipeline keeps no
   /// cancellation handle (generation gating drops late settlements anyway).
@@ -277,6 +339,12 @@ abstract class InputTriggerSource {
     String sessionId,
     CandidateRequest request,
   );
+
+  /// Synchronous breadcrumb rendered above this source's group, re-polled on
+  /// every hit. Null means this request needs no header (React
+  /// `InputTriggerSource.header`).
+  List<InputTriggerCrumb>? header(String sessionId, HeaderRequest request) =>
+      null;
 
   /// Every pick lands here; outcomes are executed by the pipeline.
   PickOutcome? onPick(InputTriggerPick pick);

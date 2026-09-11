@@ -88,6 +88,9 @@ final triggerQueryProvider = StateProvider<String>((ref) => '');
 /// Selected index in the filtered list.
 final triggerSelectedIndexProvider = StateProvider<int>((ref) => 0);
 
+/// Last item picked in the harness, shown inline as the selection result.
+final triggerLastSelectedProvider = StateProvider<TriggerItem?>((ref) => null);
+
 /// All items for the current kind.
 final triggerItemsProvider = Provider<List<TriggerItem>>((ref) {
   final TriggerKind? kind = ref.watch(triggerKindProvider);
