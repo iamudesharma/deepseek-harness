@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-web GUI 宿主通过一份约定让操作者选择工作区目录：一个只提供一个方法的服务，该方法报告所组合后端提供的是哪种交互。后端之间的差异在于交互形态，而不仅仅是机制——原生后端在宿主屏幕上打开一个 OS 选择器，浏览后端则为应用内浏览器提供列举与创建原语，也能服务于远程客户端。消费方按报告的能力类型分支；新后端无需修改本包即可扩展能力词汇。该 seam 只服务 GUI 宿主，绝不进入 agent loop；后端与协议映射就在它旁边。
+web GUI 让操作者通过 OS 选择器或应用内浏览器选择工作区目录。操作者能接触宿主屏幕时使用原生选项；远程客户端或需要在应用内列举和创建目录时使用浏览选项。消费方会获得交互类型，并能呈现匹配的工作流。目录选择仅限 GUI 宿主，不会影响 agent loop（智能体循环）。浏览工作流一次只公开一棵目录树；不支持多根目录。
 
 ## 目录
 
@@ -51,9 +51,9 @@ web GUI 宿主通过一份约定让操作者选择工作区目录：一个只提
 
 该 seam 建立在一个分离之上：后端提供的交互形态是约定，而不是实现细节。`DirectoryPicker` 是只有一个 `capability()` 方法的抽象 Cordis 服务；后端子类以 `ctx.directoryPicker` 注册，加载第二个实现会抛出标准的重复服务错误。能力对象在服务生命周期内必须保持稳定，因为消费方可能跨调用持有它。
 
-### 可合并扩展的词汇表
+### 可合并扩展的词汇
 
-`DirectoryPickerCapabilities` 是以能力类型为键的可合并扩展映射，`DirectoryPickerCapability` 从它派生联合类型。新后端在此通过声明合并且只修改这里（条目的 `kind` 字面量必须等于其键），而不改动本包。每个后端包还随附一个 browser 入口，在 ui-workspace 的 directory-flow slot 中注册匹配的交互，因此一行组合配置同时选择宿主能力与客户端流程。
+`DirectoryPickerCapabilities` 是以能力类型为键的可合并扩展映射，`DirectoryPickerCapability` 从它派生联合类型。新后端通过声明合并将其形态加入此映射（条目的 `kind` 字面量必须等于其键），而无需改动本包。每个后端包还随附一个 browser 入口，在 ui-workspace 的 directory-flow slot 中注册匹配的交互，因此一行组合配置同时选择宿主能力与客户端流程。
 
 ### 源码地图
 
@@ -78,7 +78,7 @@ web GUI 宿主通过一份约定让操作者选择工作区目录：一个只提
 - [原生后端](../directory-picker-native/README.zh.md)——OS 选择器交互及其平台工具。
 - [浏览后端](../directory-picker-browse/README.zh.md)——面向远程客户端的应用内列举与创建交互。
 - [自适应选择器](../directory-picker-auto/README.zh.md)——两个后端之间的启动时判定。
-- [工作区子系统](../../../docs/subsystems/workspace.zh.md)——被选目录所喂给的工作区记录。
+- [工作区子系统](../../../docs/subsystems/workspace.zh.md)——接收所选目录的工作区记录。
 
 -----
 

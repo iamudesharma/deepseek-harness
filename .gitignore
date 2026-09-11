@@ -70,3 +70,5 @@ packages/host/webserver/src/*.d.ts.map
 proxy.py
 python_proxy.py
 start.sh
+
+native/system/test/bin/
