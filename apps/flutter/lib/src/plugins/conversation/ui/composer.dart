@@ -342,41 +342,45 @@ class _ConversationComposerState extends ConsumerState<ConversationComposer> {
         isDense: true,
       ),
     );
-    if (ghost == null) return field;
-    // Transparent-draft overlay: the invisible draft copy positions the hint
-    // exactly after the live text (same font/padding/wrap as the field), so
-    // the caret never moves and taps pass through (IgnorePointer).
+    // The wrapper stays a Stack in both states: toggling the ghost must not
+    // change the widget type at the field's slot, or the EditableText element
+    // is recreated and the field drops its focus/IME state mid-typing (the
+    // field is child 0 either way). Transparent-draft overlay when the hint
+    // shows: the invisible draft copy positions the hint exactly after the
+    // live text (same font/padding/wrap as the field), so the caret never
+    // moves and taps pass through (IgnorePointer).
     return Stack(
       children: [
         field,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Padding(
-              padding: contentPadding,
-              child: Text.rich(
-                key: const ValueKey('claim-ghost-hint'),
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: _controller.text,
-                      style: fieldStyle.copyWith(
-                        color: const Color(0x00000000),
+        if (ghost != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Padding(
+                padding: contentPadding,
+                child: Text.rich(
+                  key: const ValueKey('claim-ghost-hint'),
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: _controller.text,
+                        style: fieldStyle.copyWith(
+                          color: const Color(0x00000000),
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: ghost,
-                      style: fieldStyle.copyWith(
-                        color: aliases.labelCaption,
+                      TextSpan(
+                        text: ghost,
+                        style: fieldStyle.copyWith(
+                          color: aliases.labelCaption,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  maxLines: 6,
+                  overflow: TextOverflow.clip,
                 ),
-                maxLines: 6,
-                overflow: TextOverflow.clip,
               ),
             ),
           ),
-        ),
       ],
     );
   }

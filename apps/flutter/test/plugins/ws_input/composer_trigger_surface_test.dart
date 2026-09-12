@@ -713,6 +713,104 @@ void main() {
     expect(find.byKey(const ValueKey('claim-ghost-hint')), findsNothing);
   });
 
+  testWidgets(
+    'ghost toggle keeps the EditableText element and focus across keystrokes',
+    (tester) async {
+      // User repro: type a hinted command with blank args (`/goal `), then
+      // type the first arg letter. The ghost hint toggling used to swap the
+      // widget type at the field slot (TextField ↔ Stack), destroying the
+      // EditableText element — the field dropped focus and IME state on every
+      // crossing, so only one letter landed before needing a re-click.
+      registry.registerSource(ClaimWidgetSource());
+      final directory = CommandDirectory(
+        fetchCommands: (_) async => const [
+          CommandDescriptor(
+            name: 'goal',
+            description: 'Goal',
+            hint: 'raw-goal-hint',
+          ),
+        ],
+      );
+      await directory.refresh(const SessionId('s-trigger'));
+      final service = CommandUiService(
+        directory: directory,
+        execute: (_, _) async => CommandExecutionOutcome.success(),
+      );
+      bindActivatedCommandUi(service);
+      addTearDown(() => bindActivatedCommandUi(null));
+
+      final controller = TextEditingController();
+      await pumpComposer(tester, controller: controller);
+      // Pin English copy on the locale instance the composer binds (same
+      // duplicate registration the ghost test above documents).
+      final context = tester.element(find.byType(Scaffold));
+      final scoped = ProviderScope.containerOf(context);
+      scoped.read(localeServiceProvider).register('conversation', {
+        'zh': kConversationZh,
+        'en': kConversationEn,
+      });
+      scoped.read(localeServiceProvider).setLocale('en');
+      await tester.pumpAndSettle();
+
+      // Focus like a user, then capture the live field identity.
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      await tester.showKeyboard(find.byType(TextField));
+      await tester.pump();
+
+      final fieldFocus = tester
+          .widget<EditableText>(find.byType(EditableText))
+          .focusNode;
+      final liveState = tester.state<EditableTextState>(
+        find.byType(EditableText),
+      );
+      expect(tester.binding.focusManager.primaryFocus, same(fieldFocus));
+
+      void expectLiveField(String step) {
+        expect(
+          tester.binding.focusManager.primaryFocus,
+          same(fieldFocus),
+          reason: '$step dropped composer focus',
+        );
+        expect(
+          identical(
+            liveState,
+            tester.state<EditableTextState>(find.byType(EditableText)),
+          ),
+          isTrue,
+          reason: '$step recreated the EditableText element',
+        );
+      }
+
+      // `/goal` — no ghost yet.
+      tester.testTextInput.enterText('/goal');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('claim-ghost-hint')), findsNothing);
+      expectLiveField('/goal');
+
+      // `/goal ` — args blank: the ghost turns ON at this keystroke.
+      tester.testTextInput.enterText('/goal ');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('claim-ghost-hint')), findsOneWidget);
+      expectLiveField('ghost ON');
+
+      // `/goal x` — first arg letter: the ghost turns OFF. No re-focus call
+      // in between, so focus must survive purely on element identity.
+      tester.testTextInput.enterText('/goal x');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('claim-ghost-hint')), findsNothing);
+      expect(controller.text, '/goal x');
+      expectLiveField('ghost OFF');
+
+      // Plain continuation (no ghost boundary): keystrokes that do not cross
+      // a ghost edge must keep the same element and focus too.
+      tester.testTextInput.enterText('/goal xy');
+      await tester.pump();
+      expect(controller.text, '/goal xy');
+      expectLiveField('plain second arg letter');
+    },
+  );
+
   testWidgets('two co-mounted composers share no card key', (tester) async {
     // Route transitions can hold two composers at once (old + new session);
     // a shared card key throws `Multiple widgets used the same GlobalKey`
